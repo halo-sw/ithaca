@@ -1,0 +1,93 @@
+{
+  "_note": "Draft v1 (2026-10-30). The orchestrator writes and the user approves the words; Muse builds the scenes from this file and never rewrites the copy. Times in seconds at 30 fps. `asset` paths are under video/public/; a missing asset renders the placeholder card for that scene. {stat:key} reads data/stats.json; a null stat drops the whole line.",
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "scenes": [
+    {
+      "id": "hook",
+      "start": 0, "duration": 12,
+      "kind": "title",
+      "lines_en": ["You sign a two-year lease after a twenty-minute visit.", "{stat:jeonse_fraud_victims_2030_pct}% of Korea's jeonse-fraud victims are in their 20s and 30s."],
+      "lines_ko": ["20분 둘러보고 2년 계약을 해요."],
+      "source": "{stat:jeonse_fraud_source}"
+    },
+    {
+      "id": "pitch",
+      "start": 12, "duration": 8,
+      "kind": "title",
+      "lines_en": ["Ithaca — the pre-living agent for your next home.", "An AI household lives 30 days in the homes you pick, before you sign."],
+      "lines_ko": ["계약 전에, 30일 먼저 살아 보기"]
+    },
+    {
+      "id": "intake",
+      "start": 20, "duration": 18,
+      "kind": "screen",
+      "asset": "clips/01-intake.mp4",
+      "caption_en": "Say it the way you would to a friend. The agent shows what it heard, what it assumed, and what it still needs to ask.",
+      "callouts": [{"at": 6, "text_en": "said / asked / default / computed"}]
+    },
+    {
+      "id": "candidates",
+      "start": 38, "duration": 22,
+      "kind": "screen",
+      "asset": "clips/02-candidates.mp4",
+      "caption_en": "Candidates come from real government transaction records on a real map. The agent sorts; you pick two or three.",
+      "callouts": [
+        {"at": 8, "text_en": "No ranking, no winner"},
+        {"at": 15, "text_en": "One cheap trade? Flagged, not hidden"}
+      ]
+    },
+    {
+      "id": "simulate",
+      "start": 60, "duration": 45,
+      "kind": "screen",
+      "asset": "clips/03-simulate.mp4",
+      "caption_en": "Thirty days, both homes, the same seed. Real walking routes, the operator's subway timetable, rush-hour crowding, rain and delays.",
+      "callouts": [
+        {"at": 10, "text_en": "Same events in home A and home B"},
+        {"at": 22, "text_en": "Muse Spark decides — the engine counts"},
+        {"at": 34, "text_en": "Every reason cites a log id"}
+      ]
+    },
+    {
+      "id": "results",
+      "start": 105, "duration": 30,
+      "kind": "screen",
+      "asset": "clips/04-results.mp4",
+      "caption_en": "What it costs each month, how long the commute really is, and what the household noticed — in plain words, with the evidence.",
+      "callouts": [
+        {"at": 8, "text_en": "My-criteria score: your own weights, never a verdict"},
+        {"at": 18, "text_en": "살아 보니 — moments from the 30 days"}
+      ]
+    },
+    {
+      "id": "verify",
+      "start": 135, "duration": 22,
+      "kind": "verify",
+      "asset": "clips/05-verify.mp4",
+      "caption_en": "Before it answers, it checks itself against the ground truth the user wrote. Fail, say why, retry, pass.",
+      "steps_en": ["Report drafted", "Check: 2 must-haves missing", "Retry with the reasons", "Pass — must 100%, weighted ≥ 0.8"]
+    },
+    {
+      "id": "meta",
+      "start": 157, "duration": 16,
+      "kind": "stats",
+      "caption_en": "Built this week, entirely with Meta AI.",
+      "rows_en": [
+        "Every line of product code written by Muse Code — {stat:muse_stages} stage briefs, {stat:muse_commits} commits",
+        "{stat:tests_js} JS + {stat:tests_py} Python tests",
+        "In-app decisions: Muse Spark 1.3 and Muse Spark Open on Baseten ({stat:spark_open_judgments} judgments compared)",
+        "{stat:rtms_rows_placed_pct}% of {stat:rtms_rows} real transactions placed on the map"
+      ]
+    },
+    {
+      "id": "end",
+      "start": 173, "duration": 7,
+      "kind": "title",
+      "lines_en": ["We walk the odyssey. You just come home."],
+      "lines_ko": ["Ithaca"],
+      "footer": "{stat:repo_url}"
+    }
+  ]
+}
