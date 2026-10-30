@@ -1,5 +1,5 @@
 {
-  "_note": "Draft v1 (2026-10-30). The orchestrator writes and the user approves the words; Muse builds the scenes from this file and never rewrites the copy. Times in seconds at 30 fps. `asset` paths are under video/public/; a missing asset renders the placeholder card for that scene. {stat:key} reads data/stats.json; a null stat drops the whole line.",
+  "_note": "Draft v1.2 (2026-10-30). The orchestrator writes and the user approves the words; Muse builds the scenes from this file and never rewrites the copy. Times in seconds at 30 fps. `asset` paths are under video/public/; a missing asset renders the placeholder card for that scene. {stat:key} reads data/stats.json; a null stat drops the whole line.",
   "fps": 30,
   "width": 1920,
   "height": 1080,
@@ -41,8 +41,8 @@
       "caption_en": "Say it the way you would to a friend. The agent shows what it heard, what it assumed, and what it still needs to ask.",
       "callouts": [
         {
-          "at": 6,
-          "text_en": "said / asked / default / computed"
+          "at": 13,
+          "text_en": "Every value tagged: you said it, or it still needs asking"
         }
       ]
     },
@@ -55,12 +55,12 @@
       "caption_en": "Candidates come from real government transaction records on a real map. The agent sorts; you pick two or three.",
       "callouts": [
         {
-          "at": 8,
-          "text_en": "No ranking, no winner"
+          "at": 9,
+          "text_en": "Price = median of recent real 전세 deals"
         },
         {
-          "at": 15,
-          "text_en": "One cheap trade? Flagged, not hidden"
+          "at": 16,
+          "text_en": "You pick two. No ranking, no winner"
         }
       ]
     },
@@ -70,19 +70,19 @@
       "duration": 45,
       "kind": "screen",
       "asset": "clips/03-simulate.mp4",
-      "caption_en": "Thirty days, both homes, the same seed. Real walking routes, the operator's subway timetable, rush-hour crowding, rain and delays.",
+      "caption_en": "Thirty days, both homes, the same seed. Real walking routes, the operator's subway timetable, measured rush-hour crowding.",
       "callouts": [
         {
           "at": 10,
-          "text_en": "Same events in home A and home B"
+          "text_en": "Measured or assumed: every line says which"
         },
         {
-          "at": 22,
-          "text_en": "Muse Spark decides — the engine counts"
+          "at": 24,
+          "text_en": "Same seed, same day: now in home B"
         },
         {
-          "at": 34,
-          "text_en": "Every reason cites a log id"
+          "at": 32,
+          "text_en": "Muse Spark decides, the engine counts"
         }
       ]
     },
@@ -110,12 +110,12 @@
       "duration": 22,
       "kind": "verify",
       "asset": "clips/05-verify.mp4",
-      "caption_en": "Before it answers, it checks itself against the ground truth the user wrote. Fail, say why, retry, pass.",
+      "caption_en": "Nothing in the result is taken on trust. Each number opens the minute it came from, rebuilt from its parts.",
       "steps_en": [
-        "Report drafted",
-        "Check: 2 must-haves missing",
-        "Retry with the reasons",
-        "Pass — must 100%, weighted ≥ 0.8"
+        "Tap a moment in the result",
+        "The 3D jumps to that minute of the 30 days",
+        "13 min = walk 5 + subway 4 + wait 4",
+        "Measured and assumed values, labelled"
       ]
     },
     {
