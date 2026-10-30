@@ -6,7 +6,7 @@
     "studio": "remotion studio src/index.js",
     "still": "remotion still src/index.js",
     "render": "remotion render src/index.js Demo out/ithaca-demo.mp4",
-    "test": "node --test tests/"
+    "test": "node --test tests/*.test.js"
   },
   "dependencies": {
     "@remotion/cli": "4.0.535",
