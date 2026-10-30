@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { COLORS, FONT_FAMILY, MOTION, RADII, TYPE } from "../src/theme.js";
+import { BORDER, COLORS, FONT_FAMILY, MOTION, RADII, SHADOW, TYPE } from "../src/theme.js";
 
 // Guards the app look: these values are copied from web/src/ui/ui.css and
 // web/src/ui/money.jsx (see the source comments in theme.js).
@@ -30,6 +30,11 @@ test("1080p type scale", () => {
     [72, 40, 32, 28]
   );
   assert.equal(TYPE.koScale, 0.6);
+});
+
+test("card shadow and border come from the app", () => {
+  assert.ok(SHADOW.includes("0 8px 24px"));
+  assert.ok(BORDER.includes("rgba(30,25,20,.08)"));
 });
 
 test("calm motion bounds", () => {

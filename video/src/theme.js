@@ -17,6 +17,11 @@ export const COLORS = {
   homeB: "#4a7ba7", // web/src/ui/money.jsx:35 (HOME_COLORS.B)
 };
 
+export const SHADOW =
+  "0 1px 2px rgba(0,0,0,.06), 0 8px 24px rgba(0,0,0,.06)"; // web/src/ui/ui.css:16 (--ui-shadow)
+
+export const BORDER = "1px solid rgba(30,25,20,.08)"; // web/src/ui/ui.css:15 (--ui-border)
+
 export const RADII = {
   chip: 8, // web/src/ui/ui.css:13 (--ui-r-chip)
   card: 12, // web/src/ui/ui.css:13 (--ui-r-card)

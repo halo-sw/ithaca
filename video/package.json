@@ -3,9 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "prestudio": "node scripts/assets.mjs",
     "studio": "remotion studio src/index.js",
+    "prestill": "node scripts/assets.mjs",
     "still": "remotion still src/index.js",
+    "prerender": "node scripts/assets.mjs",
     "render": "remotion render src/index.js Demo out/ithaca-demo.mp4",
+    "stills": "node scripts/stills.mjs",
     "test": "node --test tests/*.test.js"
   },
   "dependencies": {

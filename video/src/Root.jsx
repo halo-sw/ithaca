@@ -1,52 +1,23 @@
 import React from "react";
-import {
-  AbsoluteFill,
-  Composition,
-  Easing,
-  Sequence,
-  interpolate,
-  useCurrentFrame,
-} from "remotion";
+import { AbsoluteFill, Composition, Sequence } from "remotion";
 import script from "../data/script.json";
 import { sceneToFrames, totalDurationInFrames } from "./timeline.js";
-import { COLORS, FONT_FAMILY, MOTION, TYPE } from "./theme.js";
+import { COLORS, FONT_FAMILY, TYPE } from "./theme.js";
 import { useFonts } from "./fonts.js";
+import { TitleScene } from "./scenes/TitleScene.jsx";
+import { ScreenScene } from "./scenes/ScreenScene.jsx";
+import { VerifyScene } from "./scenes/VerifyScene.jsx";
+import { StatsScene } from "./scenes/StatsScene.jsx";
 
-// Part 2 placeholder: page colour, app type and a calm fade + short slide.
-// Part 3 replaces this with the per-kind scenes.
-function PlaceholderScene({ scene, durationInFrames }) {
-  const frame = useCurrentFrame();
-  const opacity = interpolate(
-    frame,
-    [0, MOTION.fadeIn, durationInFrames - MOTION.fadeOut, durationInFrames],
-    [0, 1, 1, 0],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
-  );
-  const dy = interpolate(frame, [0, MOTION.fadeIn], [MOTION.slidePx, 0], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.out(Easing.cubic),
-  });
+function UnknownScene({ scene }) {
   return (
     <AbsoluteFill
       style={{
         backgroundColor: COLORS.page,
         justifyContent: "center",
         alignItems: "center",
-        opacity,
-        transform: `translateY(${dy}px)`,
       }}
     >
-      <div
-        style={{
-          fontFamily: FONT_FAMILY,
-          fontSize: TYPE.title,
-          fontWeight: 700,
-          color: COLORS.ink,
-        }}
-      >
-        {scene.id} — {scene.kind}
-      </div>
       <div
         style={{
           fontFamily: FONT_FAMILY,
@@ -54,10 +25,25 @@ function PlaceholderScene({ scene, durationInFrames }) {
           color: COLORS.ink2,
         }}
       >
-        {scene.start}s + {scene.duration}s
+        {scene.id}: unknown kind “{scene.kind}”
       </div>
     </AbsoluteFill>
   );
+}
+
+function Scene({ scene, durationInFrames }) {
+  switch (scene.kind) {
+    case "title":
+      return <TitleScene scene={scene} durationInFrames={durationInFrames} />;
+    case "screen":
+      return <ScreenScene scene={scene} durationInFrames={durationInFrames} />;
+    case "verify":
+      return <VerifyScene scene={scene} durationInFrames={durationInFrames} />;
+    case "stats":
+      return <StatsScene scene={scene} durationInFrames={durationInFrames} />;
+    default:
+      return <UnknownScene scene={scene} />;
+  }
 }
 
 export function Demo() {
@@ -73,10 +59,7 @@ export function Demo() {
             durationInFrames={durationInFrames}
             name={scene.id}
           >
-            <PlaceholderScene
-              scene={scene}
-              durationInFrames={durationInFrames}
-            />
+            <Scene scene={scene} durationInFrames={durationInFrames} />
           </Sequence>
         );
       })}
