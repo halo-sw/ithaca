@@ -63,6 +63,7 @@ export const WORDS = {
   "강남→판교": "Gangnam→Pangyo", "판교→강남": "Pangyo→Gangnam",
   "최고": "max", "경비실": "security office",
   // 32d: places the sim and the demo name on screen (titles, routes).
+  "유지빌라3차": "Yuji Villa 3", "동양파라곤": "Dongyang Paragon", "백궁": "Baekgung", "그린빌리지": "Green Village", "신광빌라": "Singwang Villa",
   "효성올림픽카운티": "Hyosung Olympic County", "올림픽카운티": "Olympic County",
   "엠코": "Emco", "헤리츠": "Heritz", "엠코헤리츠": "Emco Heritz",
   "송파나루→석촌": "Songpanaru→Seokchon", "석촌→송파나루": "Seokchon→Songpanaru",

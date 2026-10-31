@@ -441,6 +441,7 @@ const seedPhrases = {
   "정렬: 동네별로 한 곳씩 (가까운 동네부터 먼 동네까지 고르게)": "Sorted: one home per neighbourhood, spread from near to far",
   "대출 없음": "No loan",
   "대출 갚는 돈 없음": "No loan payment",
+  "대출 갚는 돈": "Loan payment",
   "모은 돈으로 다 낼 수 있어요": "Your savings cover it all",
   "모두 내 돈으로 내요": "All paid from your own money",
   "오피스텔은 주택이 아니라서 취득세가 4%예요 (주택은 1~3%).": "An officetel is not housing for tax, so the acquisition tax is 4% (housing pays 1–3%).",
@@ -481,6 +482,10 @@ const seedPatterns = [
   { ko: "집값 {0} × {1}%", en: "Price {0} × {1}%" },
   // 35b: "What you pay" (PurchasePayments, result card)
   { ko: "그중 내 돈 {0} · 빌리는 돈 {1} (집값의 {2:\\d+}%)", en: "Of that, your money {0} · borrowed {1} ({2}% of the price)" },
+  { ko: "(이자율 {0}% · {1}년 · 매달 같은 금액, 정해 둔 값)", en: "({0}% interest · {1} years · same amount each month, set values)" },
+  { ko: "대출 갚는 돈 {0} (빌린 돈 {1}, 이자율 {2}% {3}년, 매달 같은 금액)", en: "Loan payment {0} (borrowed {1}, {2}% interest, {3} years, same amount each month)" },
+  { ko: "이자율 {0}% · 갚는 기간 {1}년", en: "{0}% interest · {1}-year term" },
+  { ko: "대출 갚는 돈 {0} (빌린 돈 {1}, 이자율 {2}% {3} yr, 매달 같은 금액)", en: "Loan payment {0} (borrowed {1}, {2}% interest, {3} years, same amount each month)" },
   { ko: "대출 갚는 돈 {0} (이자율 {1}% · {2}년 · 매달 같은 금액, 정해 둔 값)", en: "Loan payment {0} ({1}% interest · {2} years · same amount each month, set values)" },
   { ko: "내 돈 {0} · 대출 없음", en: "Your money {0} · no loan" },
   { ko: "내 돈 {0} · 대출 {1}", en: "Your money {0} · loan {1}" },
