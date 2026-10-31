@@ -67,7 +67,7 @@ describe("sceneEvidence commute", () => {
     r.aways[0].detail.ride.legs[0].congestion = { valuePct: 70, source: "가정값", hasData: false };
     const lines = sceneEvidence({ run: r, agentKey: "h1", day: 1, minute: 481,
       now: { state: "trip", tripId: "t1" } });
-    assert.equal(lines[2].text, "혼잡 70%는 가정값이에요 (실측 없음)");
+    assert.equal(lines[2].text, "2호선 혼잡 70%는 가정값이에요 (실측 없음)");
     assert.equal(lines[2].tag, "가정값");
   });
 });

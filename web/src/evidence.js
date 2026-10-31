@@ -68,7 +68,7 @@ function rideParts(away) {
   // 36e: derived_estimate (노선 거리 × 평균 속도) stays an assumption —
   // only "derived" reads 측정, so the subway part of a derived_estimate
   // ride is 가정값.
-  const out = { ride: 0, wait: 0, assumed: [],
+  const out = { ride: 0, wait: 0, assumed: [], assumedLines: [], measured: [],
     schedule: false };
   const d = (away && away.detail) || {};
   out.schedule = d.ride_minutes_source === "derived";
@@ -90,9 +90,14 @@ function rideParts(away) {
     for (const leg of r.legs || []) {
       if (Number.isFinite(leg.minutes)) out.ride += leg.minutes;
       const c = leg.congestion;
-      if (c && (c.source === ASSUMED_SOURCE || c.hasData === false)
-          && Number.isFinite(c.valuePct)) {
-        out.assumed.push(c.valuePct);
+      if (c && Number.isFinite(c.valuePct)) {
+        const lineName = String(c.line || leg.line || leg.lineName || leg.name || "");
+        if (c.hasData === true) {
+          out.measured.push({ lineName, pct: c.valuePct, source: c.source || "" });
+        } else if (c.source === ASSUMED_SOURCE || c.hasData === false) {
+          out.assumed.push(c.valuePct);
+          if (lineName) out.assumedLines.push(lineName);
+        }
       }
     }
     let w = 0;
@@ -136,6 +141,8 @@ export function commuteLines(run, agentKey, current, currentStart, lang = curren
   let ride = 0;
   let wait = 0;
   const assumed = [];
+  const assumedLines = [];
+  const measured = [];
   // 36d: one tag per part. Walk is graph-measured; bike and
   // transfer/wait are assumed; the subway is measured only when every
   // ride's minutes come from the schedule (ride_minutes_source derived).
@@ -147,6 +154,8 @@ export function commuteLines(run, agentKey, current, currentStart, lang = curren
     ride += p.ride;
     wait += p.wait;
     assumed.push(...p.assumed);
+    assumedLines.push(...(p.assumedLines || []));
+    measured.push(...(p.measured || []));
     if (!p.schedule) allSchedule = false;
   }
   ride = Math.round(ride);
@@ -188,7 +197,18 @@ export function commuteLines(run, agentKey, current, currentStart, lang = curren
     }
     if (assumed.length > 0) {
       const pct = Math.round(Math.max(...assumed));
-      lines.push({ text: `Crowding ${pct}% is assumed (not measured)`, tag: "가정값" });
+      const names = [...new Set(assumedLines.filter(Boolean))];
+      lines.push(names.length > 0
+        ? { text: `Crowding ${pct}% on ${names.join("·")} is assumed (not measured)`, tag: "가정값" }
+        : { text: `Crowding ${pct}% is assumed (not measured)`, tag: "가정값" });
+    }
+    if (measured.length > 0) {
+      const top = measured.reduce((a, b) => (b.pct > a.pct ? b : a));
+      const pct = Math.round(top.pct);
+      const src = /서울교통공사|Seoul Metro/.test(top.source) ? "Seoul Metro" : (top.source || "Seoul Metro");
+      lines.push(top.lineName
+        ? { text: `Crowding ${pct}% on ${top.lineName} is measured (${src})`, tag: "측정" }
+        : { text: `Crowding ${pct}% is measured (${src})`, tag: "측정" });
     }
     return lines;
   }
@@ -204,7 +224,18 @@ export function commuteLines(run, agentKey, current, currentStart, lang = curren
   }
   if (assumed.length > 0) {
     const pct = Math.round(Math.max(...assumed));
-    lines.push({ text: `혼잡 ${pct}%는 가정값이에요 (실측 없음)`, tag: "가정값" });
+    const names = [...new Set(assumedLines.filter(Boolean))];
+    lines.push(names.length > 0
+      ? { text: `${names.join("·")} 혼잡 ${pct}%는 가정값이에요 (실측 없음)`, tag: "가정값" }
+      : { text: `혼잡 ${pct}%는 가정값이에요 (실측 없음)`, tag: "가정값" });
+  }
+  if (measured.length > 0) {
+    const top = measured.reduce((a, b) => (b.pct > a.pct ? b : a));
+    const pct = Math.round(top.pct);
+    const src = top.source || "서울교통공사";
+    lines.push(top.lineName
+      ? { text: `${top.lineName} 혼잡 ${pct}%는 ${src} 실측이에요`, tag: "측정" }
+      : { text: `혼잡 ${pct}%는 ${src} 실측이에요`, tag: "측정" });
   }
   return lines;
 }

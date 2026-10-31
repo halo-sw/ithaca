@@ -155,7 +155,15 @@ function complexOfBuilding(area, buildingId) {
 function buildingNameOf(building, complex) {
   const reg = building?.register;
   if (reg && reg.name) {
-    return reg.sub_name ? `${reg.name} ${reg.sub_name}` : String(reg.name);
+    const name = String(reg.name);
+    if (reg.sub_name) {
+      const sub = String(reg.sub_name);
+      const n = name.replace(/\s+/g, "");
+      const s = sub.replace(/\s+/g, "");
+      if (!s || s === n || (s && n.includes(s))) return name;
+      return `${name} ${sub}`;
+    }
+    return name;
   }
   if (building?.name) return String(building.name);
   if (complex?.name) return String(complex.name);
