@@ -22,7 +22,7 @@ import { CRITERIA_GROUPS, criterionDefault, criterionValuesLine, resolveCriteria
 import { parseScenario } from "./engine/scenario.js";
 import { highlightFor } from "./highlight.js";
 import { placeTag, simViewOffset, tagBoxBlocked } from "./stage-tags.js";
-import { commuteSegments, corridorFor, journeyBanner, journeyCameraState, trainPosition } from "./journey.js";
+import { commuteSegments, corridorFor, journeyBanner, journeyCameraState, joinWalkToRide, trainPosition } from "./journey.js";
 import { createJourneyLayer } from "./journey-scene.js";
 import { dayKindFor } from "./engine/journey.js";
 import { pickMoments } from "./engine/moments.js";
@@ -3015,11 +3015,40 @@ async function bootSim() {
       : dayAways.find((a) => a.kind === "ride"
         && (a.detail && a.detail.direction || "out") === state.dir)
         || dayAways.find((a) => a.kind === "work") || null;
+    // 36g: the walk ends at the OSM station node while the ride
+    // starts at the line data's stop (~145 m apart), so join them for
+    // drawing — the boarding walk's last node and the alighting walk's
+    // first node (indexed trips + nodeLonLat) onto the ride's stop path.
+    const dayTrips = (indexed.tripsByAgent.get(agent.key) || [])
+      .filter((t) => t.day === day && !t.remote
+        && Array.isArray(t.path) && t.path.length > 0);
+    let walkBoard = null;
+    let walkAlight = null;
+    if (span) {
+      let boardTrip = null;
+      let alightTrip = null;
+      for (const t of dayTrips) {
+        if (t.arrive_min <= span.start
+          && (!boardTrip || t.arrive_min >= boardTrip.arrive_min)) boardTrip = t;
+        if (t.depart_min >= span.end
+          && (!alightTrip || t.depart_min < alightTrip.depart_min)) alightTrip = t;
+      }
+      if (boardTrip) walkBoard = nodeLonLat.get(boardTrip.path[boardTrip.path.length - 1]) || null;
+      if (alightTrip) walkAlight = nodeLonLat.get(alightTrip.path[0]) || null;
+    }
+    const rideStops = [];
+    for (const leg of ride.legs || []) {
+      for (const sid of leg.stopIds || []) {
+        const c = stopPos(sid);
+        if (c) rideStops.push(c);
+      }
+    }
     const frame = { ...idle, phase: state.phase, away, ride,
       dir: state.dir, elapsed: state.elapsed, progress: state.progress,
       spanStart: span ? span.start : 0, rideMinutes: ride.minutesTotal,
       riding: { rideMinutes: ride.minutesTotal },
-      hasDetailDest: hasDetail, destLonLat: dest, boardLonLat: board };
+      hasDetailDest: hasDetail, destLonLat: dest, boardLonLat: board,
+      walkEnds: joinWalkToRide(walkBoard, rideStops, walkAlight) };
     if (state.phase === "hold") {
       // Arrival hold: stay at the destination while they work (or walk
       // the last stretch there).
@@ -3188,7 +3217,7 @@ async function bootSim() {
       const cong = await ensureCongestion();
       journeyLayer.setPath({ ride: jf.ride, network: regionNetwork,
         congestion: cong, dayKind: dayKindFor(weekdayOfDay(day)),
-        minute: jf.spanStart,
+        minute: jf.spanStart, walkEnds: jf.walkEnds,
         fallback: criterionDefault("C-congestion", "fallback_pct") });
     }
     store.set({ journey: { ...jf.banner, dir: jf.dir,

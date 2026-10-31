@@ -42,7 +42,7 @@ import { chipDisplay, tickerDisplay, FATIGUE_MODEL_NOTE, familyRowText } from ".
 import { hhmm, navFromOutings, outingIndexAt, stepIndexAt } from "../timeline.js";
 import { ActivityIcon, ActivityLegend } from "./timeline.jsx";
 import { todayStepEn, todayStepNoI18n } from "./scene-chrome.js";
-import { aerialCreditFor } from "../aerial/drape.js";
+import { aerialCreditFor, USGS_CREDIT } from "../aerial/drape.js";
 import { currentLang } from "../i18n/lang.js";
 
 // 26e: the screens below carry no area bbox; a USD moneyDoc marks a US
@@ -1024,6 +1024,19 @@ export function SimCredit({ state }) {
   const secondDraped = !!(state.aerialSecondByArea
     && Object.keys(state.aerialSecondByArea).length > 0);
   const photo = state.journey ? (state.aerialCorridor || secondDraped) : state.aerial;
+  // 36g: English builds the whole line as one string (US areas keep
+  // their USGS credit); Korean is unchanged.
+  if (currentLang() === "en") {
+    const area = areaForCredit(state);
+    const line = !photo ? "© OpenStreetMap"
+      : aerialCreditFor(area) === USGS_CREDIT ? `${USGS_CREDIT} · © OpenStreetMap`
+      : "Aerial photo © MOLIT Spatial Information Open Platform (VWorld) · © OpenStreetMap";
+    return (
+      <div className="ui-simcredit" data-testid="sim-credit" data-no-i18n title={line}>
+        <span data-no-i18n>{line}</span>
+      </div>
+    );
+  }
   const full = photo
     ? `${aerialCreditFor(areaForCredit(state))} · © OpenStreetMap`
     : "© OpenStreetMap";

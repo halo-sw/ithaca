@@ -256,7 +256,7 @@ export function createJourneyLayer(scene, origin, { look = null, tags = null } =
     return { valuePct: fallbackPct, source: "가정값" };
   }
 
-  function setPath({ ride, network: net, congestion: cong, dayKind: dk, minute, fallback }) {
+  function setPath({ ride, network: net, congestion: cong, dayKind: dk, minute, fallback, walkEnds = null }) {
     network = net;
     congestion = cong || null;
     dayKind = dk;
@@ -269,6 +269,8 @@ export function createJourneyLayer(scene, origin, { look = null, tags = null } =
     const colors = [];
     const dotPositions = [];
     const c = new THREE.Color();
+    let firstRGB = null;
+    let lastRGB = null;
     for (const leg of ride.legs) {
       const pattern = patternById(network, leg.patternId);
       const geom = pattern && pattern.geometry;
@@ -282,6 +284,8 @@ export function createJourneyLayer(scene, origin, { look = null, tags = null } =
         const cong = hopCongestion(leg, leg.stops[i], pattern);
         const band = congestionBand(cong.valuePct).key;
         c.setHex(BAND_COLORS[band]);
+        if (!firstRGB) firstRGB = [c.r, c.g, c.b];
+        lastRGB = [c.r, c.g, c.b];
         for (let k = 0; k + 1 < slice.length; k++) {
           const p0 = toWorld(slice[k], 60);
           const p1 = toWorld(slice[k + 1], 60);
@@ -293,6 +297,32 @@ export function createJourneyLayer(scene, origin, { look = null, tags = null } =
         const s = coords.get(sid);
         if (s) dotPositions.push(s);
       }
+    }
+    // 36g: close the walk→ride gap (drawing only). walkEnds is the
+    // joinWalkToRide path (boarding walk end … ride stops …
+    // alighting walk start); draw its head run up to the first stop
+    // and its tail run from the last stop so the line starts/ends at
+    // the walk points instead of leaping ~145 m at the station.
+    if (Array.isArray(walkEnds) && walkEnds.length >= 2 && dotPositions.length > 0) {
+      const same = (p, q) => p && q && p[0] === q[0] && p[1] === q[1];
+      const run = (pts, rgb) => {
+        if (!rgb) return;
+        for (let k = 0; k + 1 < pts.length; k++) {
+          const p0 = toWorld(pts[k], 60);
+          const p1 = toWorld(pts[k + 1], 60);
+          positions.push(p0.x, p0.y, p0.z, p1.x, p1.y, p1.z);
+          colors.push(rgb[0], rgb[1], rgb[2], rgb[0], rgb[1], rgb[2]);
+        }
+      };
+      const s0 = dotPositions[0];
+      const sn = dotPositions[dotPositions.length - 1];
+      const i0 = walkEnds.findIndex((p) => same(p, s0));
+      if (i0 > 0) run(walkEnds.slice(0, i0 + 1), firstRGB);
+      let i1 = -1;
+      for (let i = walkEnds.length - 1; i >= 0; i--) {
+        if (same(walkEnds[i], sn)) { i1 = i; break; }
+      }
+      if (i1 >= 0 && i1 < walkEnds.length - 1) run(walkEnds.slice(i1), lastRGB);
     }
     if (positions.length > 0) {
       const geo = new THREE.BufferGeometry();
