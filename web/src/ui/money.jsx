@@ -112,7 +112,7 @@ export function PurchasePayments({ housing, maintenanceWon, transitWon = null, l
   const monthlyTotal = monthly + maint + (showTransit ? transit : 0);
   const noLoan = !(loan > 0);
   const notes = purchaseCosts({ price_won: price,
-    area_m2: housing && housing.area_m2 }).notes;
+    area_m2: housing && housing.area_m2, kind: b.home_kind }).notes;
   const itemLabel = (it) => (it.key === "brokerage_cap" ? "중개보수 (상한)" : it.label_ko);
   const itemSupport = (it) => [it.basis_ko, it.source_ko].filter(Boolean).join(" · ");
   return (

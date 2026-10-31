@@ -148,6 +148,12 @@ export function commuteRowLine(candidate, destName) {
     return { text: `총 ${total}분 · ${c.walk.station}역 걸어서 ${near(c.walk.minutes)} + 지하철 ${Math.round(c.ride.minutes)}분`,
       estimate: src === "estimate", source: src };
   }
+  // Same station as the workplace: no subway at all — the walk is the
+  // whole trip.
+  if (walkKnown && (c.sameStation || (c.ride && c.ride.sameStation))) {
+    return { text: `${c.walk.station}역까지 걸어서 ${near(c.walk.minutes)} (지하철 안 타요)`,
+      estimate: false, source: "official" };
+  }
   if (walkKnown) {
     return { text: `총 ${near(c.walk.minutes)} · ${c.walk.station}역 걸어서`,
       estimate: false, source: "official" };

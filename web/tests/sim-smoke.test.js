@@ -36,6 +36,8 @@ const P = {
   corridors: join(ROOT, "data/build/region/corridors.json"),
   mainSrc: join(ROOT, "web/src/main.js"),
   areaPangyo: join(ROOT, "data/build/pangyo/area.json"),
+  areaSongpaNaru: join(ROOT, "data/build/st-송파나루/area.json"),
+  areaMigeum: join(ROOT, "data/build/st-미금/area.json"),
   areaSeongsu: join(ROOT, "data/build/seongsu/area.json"),
   areaSongpa: join(ROOT, "data/build/songpa/area.json"),
   areaJamsil: join(ROOT, "data/build/songpa-jamsil/area.json"),
@@ -95,7 +97,8 @@ describe("sim smoke (headless boot)", { skip: SKIP_ALL }, () => {
     assert.deepEqual(meta.homes, ["A", "B"]);
     assert.ok(meta.assumptions.length > 0);
     for (const a of meta.assumptions) {
-      assert.ok(a.label && (a.source === "가정값" || a.source === "고객 입력"));
+      assert.ok(a.label && (a.source === "가정값" || a.source === "고객 입력"
+        || a.source.startsWith("추정")));
     }
     // The scene survives a missing scenario file (scenario = null).
     const fallbackHomes = [{ label: "A", area: run.meta.area, complex_name: run.meta.complex }];
@@ -236,7 +239,7 @@ describe("sim smoke (headless boot)", { skip: SKIP_ALL }, () => {
     // Banner legs carry per-leg congestion + source badges; the split
     // sums to the input ride minutes (transfer gaps first).
     const ride = outRide.detail.ride;
-    assert.ok(ride, "expected a drawn 잠실→판교 path on day 1");
+    assert.ok(ride, "expected a drawn 송파나루→판교 path on day 1");
     const banner = journeyBanner({ ride, dir: "out",
       elapsed: 1, rideMinutes: outRide.detail.ride_minutes });
     assert.ok(banner.where.length > 0 && banner.minutesLeft > 0);
@@ -284,7 +287,8 @@ describe("sim smoke (headless boot)", { skip: SKIP_ALL }, () => {
     // object-returning bboxToXY() as an array and threw on every
     // follow-mode sim URL. Same inputs the scene passes: the real
     // area.json bboxes, the home-area origin, real network stop coords.
-    for (const k of ["areaPangyo", "areaSeongsu", "areaSongpa", "areaJamsil", "network"]) {
+    for (const k of ["areaPangyo", "areaSeongsu", "areaSongpa", "areaJamsil",
+      "areaSongpaNaru", "areaMigeum", "network"]) {
       if (skipIfMissing(t, k)) return;
     }
     const areas = {
@@ -292,6 +296,8 @@ describe("sim smoke (headless boot)", { skip: SKIP_ALL }, () => {
       seongsu: json(P.areaSeongsu),
       songpa: json(P.areaSongpa),
       "songpa-jamsil": json(P.areaJamsil),
+      "st-송파나루": json(P.areaSongpaNaru),
+      "st-미금": json(P.areaMigeum),
     };
     const origin = originOf(areas[run.meta.area]);
     const entries = Object.entries(areas).map(([id, a]) => [id, a.bbox]);
@@ -342,7 +348,7 @@ describe("sim smoke (headless boot)", { skip: SKIP_ALL }, () => {
     const legPeak = Math.max(...dayRides.flatMap((a) => a.detail.ride.legs)
       .map((l) => l.congestion.valuePct));
     assert.equal(ride.peakCongestion.pct, legPeak);
-    assert.equal(ride.peakCongestion.line, "2호선");
+    assert.equal(ride.peakCongestion.line, "8호선");
     assert.equal(ride.peakCongestion.station, "잠실");
     assert.equal(ride.peakCongestion.source, CONGESTION_SOURCE);
     // Evening at home: recovery branch.

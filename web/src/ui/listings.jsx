@@ -25,8 +25,8 @@ import { parseListingText, plainListingFields,
 import { fmtWon, fmtDistance } from "../money/format.js";
 
 export const EXAMPLE_LISTING_TEXT = [
-  "송파구 잠실동 레이크팰리스 101동 5층",
-  "전세 9억 8000만, 전용 59.97㎡, 관리비 15만",
+  "송파구 방이동 올림픽카운티 101동 5층",
+  "매매 6억 2500만, 전용 56.22㎡, 관리비 15만",
 ].join("\n");
 
 const DEAL_FIELD_KO = {
@@ -115,7 +115,7 @@ export function PasteCheck({ onAsk } = {}) {
       <Heading level={4}>내가 본 매물 확인하기</Heading>
       <Text type="supporting">민간 매물은 직접 붙여 넣어 주세요. 앱이 다른 사이트에서 가져오지 않아요.</Text>
       <textarea className="ui-listing-paste" rows={4} value={text}
-        placeholder="예: 송파구 잠실동 레이크팰리스 101동 5층&#10;전세 9억 8000만, 전용 59.97㎡, 관리비 15만"
+        placeholder="예: 송파구 방이동 올림픽카운티 101동 5층&#10;매매 6억 2500만, 전용 56.22㎡, 관리비 15만"
         onChange={(e) => setText(e.target.value)} aria-label="매물 글 붙여넣기" />
       <HStack gap={2} vAlign="center" wrap="wrap">
         <Button size="sm" label="읽어 보기" onClick={read} />

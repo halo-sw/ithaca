@@ -104,6 +104,8 @@ function parseWork(raw, where) {
       ride_minutes: rideMinutes, // number or {homeLabel: minutes} per path
       ride_minutes_source: raw.ride_minutes_source || "user_assumption",
       needs_user_input: raw.needs_user_input === true,
+      // 36e: free-form basis note for the ride minutes (e.g. 노선 거리 × 평균 속도 근거).
+      ...(raw.ride_minutes_note !== undefined ? { ride_minutes_note: raw.ride_minutes_note } : {}),
       // Optional workplace (stage 9c): the engine derives the commute per
       // home — walk when the workplace is in-area within C-walk-commute-max,
       // else station ride + destination walk. Absent → the old form.
@@ -406,6 +408,7 @@ function parseMoney(raw, members, homes) {
     members: {},
     cash_won: 0,
     tenure: {},
+    kind: {},
     area_m2: {},
     assumptions: { ...DEFAULT_MONEY_ASSUMPTIONS },
     burden_threshold_pct: DEFAULT_BURDEN_THRESHOLD_PCT,
@@ -441,6 +444,12 @@ function parseMoney(raw, members, homes) {
       fail(`money.tenure[${h.label}] wants one of ${TENURE_KINDS.join("/")}`);
     } else {
       out.tenure[h.label] = t;
+    }
+    // 36e: optional home kind per label (아파트 | 오피스텔 | …) for purchase-cost rules.
+    const k = (raw.kind || {})[h.label];
+    if (k !== undefined && k !== null) {
+      if (typeof k !== "string" || k.trim() === "") fail(`money.kind[${h.label}] wants a kind string`);
+      out.kind[h.label] = k;
     }
     const am2 = (raw.area_m2 || {})[h.label];
     if (am2 !== undefined && am2 !== null) {

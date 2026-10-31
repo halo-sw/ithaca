@@ -70,27 +70,62 @@ function fmtPct(pct) {
   return `${Number(pct)}`;
 }
 
-// purchaseCosts({ price_won, area_m2 }) → { items, total_won, notes }
+// purchaseCosts({ price_won, area_m2, kind }) → { items, total_won, notes }
+// kind: "아파트" | "오피스텔" | …, default today's housing rules.
+// camelCase aliases priceWon / areaM2 are accepted for tests.
+export const OFFICETEL_NOTE =
+  "오피스텔은 주택이 아니라서 취득세가 4%예요 (주택은 1~3%).";
+export const OFFICETEL_ACQUISITION_SOURCE_KO =
+  "지방세법 제11조 제1항 제7호 나목";
+export const OFFICETEL_BROKERAGE_SOURCE_KO =
+  "공인중개사법 시행규칙 제20조 제4항";
 export function purchaseCosts(args = {}) {
-  const price = Math.max(0, Math.round(Number(args.price_won) || 0));
-  const rawArea = args.area_m2;
+  const priceRaw = args.price_won ?? args.priceWon;
+  const price = Math.max(0, Math.round(Number(priceRaw) || 0));
+  const rawArea = args.area_m2 ?? args.areaM2;
   const area =
     rawArea === undefined || rawArea === null || String(rawArea).trim() === ""
       ? NaN
       : Number(rawArea);
   const knownArea = Number.isFinite(area) && area > 0;
   const over85 = knownArea && area > 85;
+  const isOfficetel = args.kind === "오피스텔";
 
-  const acqRate = acquisitionTaxRatePct(price);
-  const acqWon = Math.round((price * acqRate) / 100);
-  const eduRate = Math.round(acqRate * 1000) / 10000;
-  const eduWon = Math.round(acqWon * 0.1);
-  const ruralRate = 0.2;
-  const ruralWon = over85 ? Math.round((price * ruralRate) / 100) : 0;
-  const band = brokerageBand(price);
-  const brokerWon = brokerageCapWon(price);
+  let acqRate;
+  let acqWon;
+  let eduRate;
+  let eduWon;
+  let ruralRate = 0.2;
+  let ruralWon;
+  let band;
+  let brokerWon;
+  let brokerRate;
+  if (isOfficetel) {
+    acqRate = 4;
+    acqWon = Math.round((price * acqRate) / 100);
+    eduRate = 0.4;
+    eduWon = Math.round((price * eduRate) / 100);
+    ruralWon = Math.round((price * ruralRate) / 100);
+    brokerRate = over85 ? 0.9 : 0.5;
+    brokerWon = Math.round((price * brokerRate) / 100);
+    band = { min_won: 0, max_won_exclusive: null, rate_pct: brokerRate, cap_won: null };
+  } else {
+    acqRate = acquisitionTaxRatePct(price);
+    acqWon = Math.round((price * acqRate) / 100);
+    eduRate = Math.round(acqRate * 1000) / 10000;
+    eduWon = Math.round(acqWon * 0.1);
+    ruralWon = over85 ? Math.round((price * ruralRate) / 100) : 0;
+    band = brokerageBand(price);
+    brokerWon = brokerageCapWon(price);
+    brokerRate = band.rate_pct;
+  }
 
   const priceShort = `집값 ${wonShortLocal(price)}`;
+  const acqSource = isOfficetel ? OFFICETEL_ACQUISITION_SOURCE_KO : ACQUISITION_TAX_SOURCE_KO;
+  const brokerSource = isOfficetel ? OFFICETEL_BROKERAGE_SOURCE_KO : BROKERAGE_SOURCE_KO;
+  const brokerBasis = isOfficetel && over85
+    ? `${priceShort} × ${fmtPct(brokerRate)}% 협의 (상한 0.9%)`
+    : `${priceShort} × ${fmtPct(brokerRate)}% (상한)`;
   const items = [
     {
       key: "acquisition_tax",
@@ -98,7 +133,7 @@ export function purchaseCosts(args = {}) {
       won: acqWon,
       rate_pct: acqRate,
       basis_ko: `${priceShort} × ${fmtPct(acqRate)}%`,
-      source_ko: ACQUISITION_TAX_SOURCE_KO,
+      source_ko: acqSource,
     },
     {
       key: "education_tax",
@@ -115,7 +150,9 @@ export function purchaseCosts(args = {}) {
       label_ko: "농어촌특별세",
       won: ruralWon,
       rate_pct: ruralRate,
-      basis_ko: `${priceShort} × ${fmtPct(ruralRate)}% (85㎡ 초과)`,
+      basis_ko: isOfficetel
+        ? `${priceShort} × ${fmtPct(ruralRate)}%`
+        : `${priceShort} × ${fmtPct(ruralRate)}% (85㎡ 초과)`,
       source_ko: RURAL_TAX_SOURCE_KO,
     });
   }
@@ -123,13 +160,16 @@ export function purchaseCosts(args = {}) {
     key: "brokerage_cap",
     label_ko: "중개보수 상한",
     won: brokerWon,
-    rate_pct: band.rate_pct,
-    basis_ko: `${priceShort} × ${fmtPct(band.rate_pct)}% (상한)`,
-    source_ko: BROKERAGE_SOURCE_KO,
+    rate_pct: brokerRate,
+    basis_ko: brokerBasis,
+    source_ko: brokerSource,
   });
 
   const total_won = items.reduce((s, it) => s + it.won, 0);
-  const notes = [SINGLE_HOUSE_NOTE, BROKERAGE_CAP_NOTE, EXCLUDED_COSTS_NOTE];
-  if (!knownArea) notes.push(UNKNOWN_AREA_NOTE);
+  const notes = isOfficetel
+    ? [OFFICETEL_NOTE, BROKERAGE_CAP_NOTE, EXCLUDED_COSTS_NOTE]
+    : [SINGLE_HOUSE_NOTE, BROKERAGE_CAP_NOTE, EXCLUDED_COSTS_NOTE];
+  if (isOfficetel && over85) notes.push("협의 (상한 0.9%)");
+  if (!knownArea && !isOfficetel) notes.push(UNKNOWN_AREA_NOTE);
   return { items, total_won, notes };
 }

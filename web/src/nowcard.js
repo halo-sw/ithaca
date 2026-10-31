@@ -434,7 +434,9 @@ export function simMetaFor({ household, scenario, run, homes }) {
     for (const m of scenario.household.members || []) {
       if (!m.work || m.work.type !== "station_ride") continue;
       const rm = m.work.ride_minutes;
-      const rideSource = m.work.ride_minutes_source === "user_input" ? "고객 입력" : "가정값";
+      const rideSource = m.work.ride_minutes_source === "user_input" ? "고객 입력"
+        : m.work.ride_minutes_source === "derived" ? "측정"
+        : m.work.ride_minutes_source === "derived_estimate" ? "추정 (노선 거리 × 평균 속도)" : "가정값";
       if (Number.isFinite(rm)) {
         assumptions.push({ label: `${m.label} 차·지하철 탄 시간 ${Math.round(rm)}분`, source: rideSource });
       } else if (rm && typeof rm === "object") {

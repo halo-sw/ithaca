@@ -65,6 +65,9 @@ function findRide(run, agentKey, day, minute) {
 function rideParts(away) {
   // 36d: whether this away's ride minutes come from the schedule
   // (timetable / interstation derived) rather than an assumption.
+  // 36e: derived_estimate (노선 거리 × 평균 속도) stays an assumption —
+  // only "derived" reads 측정, so the subway part of a derived_estimate
+  // ride is 가정값.
   const out = { ride: 0, wait: 0, assumed: [],
     schedule: false };
   const d = (away && away.detail) || {};

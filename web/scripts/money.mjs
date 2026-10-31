@@ -267,7 +267,8 @@ const housingFor = (label, tenure) => {
   return { pi, housing: tenureCost({ tenure, ...pi,
     cash_won: scenario.money.cash_won,
     loan_rate_pct: A.loan_rate_pct, loan_years: A.loan_years,
-    jeonse_loan_cap_won: A.jeonse_loan_cap_won, source: pi.source }) };
+    jeonse_loan_cap_won: A.jeonse_loan_cap_won, source: pi.source,
+    kind: scenario.money.kind ? scenario.money.kind[label] : undefined }) };
 };
 const paired = runPaired(pairedAreas, scenarioRaw, {
   ...(region ? { region } : {}),
@@ -312,7 +313,8 @@ for (const h of scenario.homes) {
     const housing = tenureCost({ tenure, ...pi,
       cash_won: scenario.money.cash_won,
       loan_rate_pct: A.loan_rate_pct, loan_years: A.loan_years,
-      jeonse_loan_cap_won: A.jeonse_loan_cap_won, source: pi.source });
+      jeonse_loan_cap_won: A.jeonse_loan_cap_won, source: pi.source,
+      kind: scenario.money.kind ? scenario.money.kind[h.label] : undefined });
     const tl = moneyTimeline(run, scenario, {
       transit_fare_won: A.transit_fare_won, basket_won: A.basket_won,
       maintenance_won_month: A.maintenance_won_month, other_fixed_won_month: A.other_fixed_won_month,

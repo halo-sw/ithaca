@@ -105,13 +105,16 @@ export function tenureCost(args = {}) {
     return rec;
   }
   // 매매: cash pays the one-off purchase costs first, then the price.
+  // kind (아파트 | 오피스텔 | …, 36e) switches the purchase-cost rules —
+  // 오피스텔은 주택이 아니라서 취득세 4%예요. Unknown kind keeps housing rules.
   const price = Math.max(0, Math.round(Number(args.price_won) || 0));
-  const one_off = purchaseCosts({ price_won: price, area_m2: args.area_m2 });
+  const one_off = purchaseCosts({ price_won: price, area_m2: args.area_m2, kind: args.kind });
   const upfront = price + one_off.total_won;
   const loan = Math.max(0, upfront - cash);
   const monthly = amortisedMonthly(loan, rate, years);
   return out(monthly, upfront, loan, {
     kind: "trade",
+    home_kind: args.kind ?? null,
     price_won: price,
     one_off_items: one_off.items,
     one_off_total_won: one_off.total_won,

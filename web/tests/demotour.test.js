@@ -43,12 +43,12 @@ describe("demo tour step machine", () => {
 
   it("walks, rides and arrives at engine-verified times", () => {
     const by = Object.fromEntries(DEMO_TOUR_STEPS.map((s) => [s.id, s.params]));
-    assert.deepEqual(by["commute-walk"], { home: "A", day: "1", t: "08:25", follow: "1" });
+    assert.deepEqual(by["commute-walk"], { home: "A", day: "1", t: "08:30", follow: "1" });
     assert.deepEqual(by.ride, { home: "A", day: "1", t: "08:40", follow: "1" });
-    assert.deepEqual(by.arrive, { home: "A", day: "1", t: "09:05", follow: "1" });
+    assert.deepEqual(by.arrive, { home: "A", day: "1", t: "09:08", follow: "1" });
     assert.deepEqual(by["home-b"], { home: "B", day: "1", t: "08:28", follow: "1" });
     assert.equal(by.money.tab, "money");
-    assert.equal(by.jeonse.tab, "jeonse");
+    assert.equal(by.jeonse.tab, "money");
     assert.equal(by.listing.fill, "example");
     assert.equal(by.public.sub, "public");
     assert.equal(by.agent.ask, "switch");
@@ -84,11 +84,11 @@ describe("demo tour step machine", () => {
     const rec = recordedReplyFor("switch");
     assert.ok(rec);
     assert.match(rec.q, /B로 바꾸면/);
-    assert.match(rec.a, /27시간 50분/);
-    assert.match(rec.a, /38시간 3분/);
-    assert.match(rec.a, /A 260만 원 → B 250만 원/);
-    assert.match(rec.a, /A 약 335만 원 → B 약 393만 원/);
-    assert.match(rec.a, /A 7\.6 → B 7\.1/);
+    assert.match(rec.a, /12시간 44분/);
+    assert.match(rec.a, /4시간 59분/);
+    assert.match(rec.a, /A 208만 원 → B 199만 원/);
+    assert.match(rec.a, /A 약 420만 원 → B 약 430만 원/);
+    assert.match(rec.a, /A 8\.3 → B 1\.3/);
     assert.match(rec.a, /고객님이 정하세요/);
     assert.ok((rec.tools || []).length > 0);
     assert.equal(recordedReplyFor("nope"), null);
@@ -98,17 +98,49 @@ describe("demo tour step machine", () => {
   it("serves the 12a profile-search reply with real index numbers", () => {
     const rec = recordedReplyFor("profile_search");
     assert.ok(rec);
-    assert.match(rec.q, /판교로 출근하는 신입/);
+    assert.match(rec.q, /판교로 출근하는 맞벌이 부부/);
     assert.match(rec.a, /예시로 찾아봤어요/);
-    assert.match(rec.a, /2,928곳 중 6곳/);
-    assert.match(rec.a, /6곳 모두 판교 근처 오피스텔/);
-    assert.match(rec.a, /천사의도시Ⅱ오피스텔.*1\.85억/);
-    assert.match(rec.a, /오라타워.*1\.25억/);
-    assert.match(rec.a, /승차 약 6\.6분/);
+    assert.match(rec.a, /2,698곳 중 6곳/);
+    assert.match(rec.a, /동네별로 한 곳씩 6곳/);
+    assert.match(rec.a, /백궁 동양파라곤.*5\.7억/);
+    assert.match(rec.a, /용답역 근처 연립·다세대 \(291-22\).*4\.35억/);
+    assert.match(rec.a, /정자 → 판교 총 7\.2분/);
     assert.match(rec.a, /대기 시간 제외/);
     assert.match(rec.a, /3D로 살아 보기 가능/);
     assert.deepEqual(rec.tools.map((t) => t.name),
       ["extract_profile", "find_homes"]);
+  });
+
+  it("recorded switch numbers match the regenerated compare+money builds", async (t) => {
+    let compare, money;
+    try {
+      [compare, money] = await Promise.all([
+        readFile(join(REPO, "data", "build", "sim", "demo-two-homes-compare.json"), "utf8"),
+        readFile(join(REPO, "data", "build", "sim", "demo-two-homes-money.json"), "utf8"),
+      ]);
+    } catch {
+      t.skip("data/build/sim absent");
+      return;
+    }
+    const cmp = JSON.parse(compare);
+    const mon = JSON.parse(money);
+    const metric = (key) => cmp.metrics.find((m) => m.key === key);
+    const hm = (mins) => {
+      const r = Math.round(mins);
+      return `${Math.floor(r / 60)}시간 ${r % 60}분`;
+    };
+    const man = (won) => `${Math.round(won / 10000)}만 원`;
+    const walk = metric("walk_minutes");
+    const fatigue = metric("fatigue_avg_30d");
+    const rec = recordedReplyFor("switch");
+    assert.match(rec.a, new RegExp(`A ${hm(walk.a)} → B ${hm(walk.b)}`));
+    for (const label of ["A", "B"]) {
+      const sel = mon.homes[label].by_tenure["매매"];
+      assert.match(rec.a, new RegExp(`${label} ${man(sel.housing.monthly_won)}`));
+      assert.match(rec.a, new RegExp(`${label} 약 ${man(sel.remaining_won)}`));
+    }
+    assert.match(rec.a, new RegExp(`A ${fatigue.a} → B ${fatigue.b}`));
+    assert.match(rec.a, /고객님이 정하세요/);
   });
 
   it("recorded profile-search numbers match the real build", async (t) => {
@@ -129,12 +161,12 @@ describe("demo tour step machine", () => {
     const schedule = parseInterstationCsv(await readFile(join(REPO, "scenarios",
       "transit", "seoul-metro-interstation.csv"), "utf8"));
     const r = find_homes(ex.profile, build.index,
-      { network: build.network, schedule, photos: build.photos, limit: 6, sort: "commute" });
-    // 18: 6 public-rental complexes no longer count as 전세 results.
-    assert.equal(r.total_matching, 2928);
+      { network: build.network, schedule, photos: build.photos, limit: 6 });
+    // Default sort is areas (동네별): one pick per area for 7억 이하 50㎡ 이상 매매.
+    assert.equal(r.total_matching, 2698);
     assert.deepEqual(r.candidates.map((c) => c.name), [
-      "천사의도시Ⅱ오피스텔", "오라타워", "시그마 3", "분당오벨리스크",
-      "노블리치1오피스텔", "성남 메트로칸",
+      "백궁 동양파라곤", "그린빌리지(1동)", "유지빌라3차", "신광빌라",
+      "(47-4)", "(291-22)",
     ]);
     assert.ok(r.candidates.every((c) => c.scene));
     // Every result carries a ride number with a source (12a2 brief §1).

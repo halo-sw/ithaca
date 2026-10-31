@@ -153,7 +153,7 @@ export function activityLabel(activity) {
   return (ACTIVITIES[activity] || ACTIVITIES.other).label;
 }
 
-// "08:21–08:35 걷기 · 레이크팰리스 → 잠실역 14분" (hover/title text).
+// "08:21–08:35 걷기 · 올림픽카운티 → 송파나루역 6분" (hover/title text).
 // The strip end (1440) reads 24:00; clock values stay 00:00–23:59.
 export function segmentTitle(seg) {
   const end = seg.end >= DAY_STRIP_END ? "24:00" : hhmm(seg.end);

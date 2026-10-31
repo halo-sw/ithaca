@@ -182,8 +182,14 @@ describe("education access", () => {
       assert.equal(view.nearest.school[0].name, nearestSchool, areaId);
       assert.ok(Math.abs(view.nearest.school[0].distance_m - distM) < 0.01, areaId);
       assert.ok(view.nearest.school[0].minutes > 0, areaId);
-      const c10 = view.counts.within_10min;
-      assert.ok(c10.school_elementary >= 1, areaId);
+      if (areaId === "pangyo") {
+        // 36e: 백현마을 705동에서 가장 가까운 초등학교는 걸어서 13.4분이므로 15분 밴드에서 셉니다.
+        const c15 = view.counts.within_15min;
+        assert.ok(c15.school_elementary >= 1, areaId);
+      } else {
+        const c10 = view.counts.within_10min;
+        assert.ok(c10.school_elementary >= 1, areaId);
+      }
     }
   });
 });

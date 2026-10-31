@@ -75,7 +75,7 @@ describe("17-3 pickMoments on the demo build", { skip: !hasDemo }, () => {
     assert.ok(crowded, "demo A has measured rides");
     assert.equal(crowded.detail.source, "서울교통공사");
     assert.match(crowded.text_ko, /실측/);
-    assert.match(crowded.text_ko, /^2호선 잠실→강남 혼잡 93% \(실측\)$/);
+    assert.match(crowded.text_ko, /^8호선 잠실→복정 혼잡 105% \(실측\)$/);
   });
 
   it("recomputes evening-at-home minutes exactly like the engine", () => {
