@@ -793,6 +793,47 @@ export function memberLabelFor(m, index) {
   return `구성원 ${index + 1}`;
 }
 
+// 34b: English member names for Muse's report/judge inputs. One
+// table both ways (numbers.js reuses the reverse); a user-given
+// label passes through untouched. Never romanize here.
+const MEMBER_LABEL_EN = {
+  나: "me",
+  배우자: "spouse",
+  아이: "child",
+  부모: "parent",
+  형제자매: "sibling",
+  동거인: "housemate",
+};
+const MEMBER_LABEL_KO = Object.fromEntries(
+  Object.entries(MEMBER_LABEL_EN).map(([ko, en]) => [en, ko]));
+
+export function memberLabelEn(label) {
+  if (typeof label !== "string" || !label) return label;
+  if (MEMBER_LABEL_EN[label]) return MEMBER_LABEL_EN[label];
+  let m = /^함께 사는 사람 (\d+)$/.exec(label);
+  if (m) return `housemate ${m[1]}`;
+  m = /^구성원 (\d+)$/.exec(label);
+  if (m) return `member ${m[1]}`;
+  return label;
+}
+
+export function memberLabelKo(label) {
+  if (typeof label !== "string" || !label) return label;
+  if (MEMBER_LABEL_KO[label]) return MEMBER_LABEL_KO[label];
+  let m = /^housemate (\d+)$/.exec(label);
+  if (m) return `함께 사는 사람 ${m[1]}`;
+  m = /^member (\d+)$/.exec(label);
+  if (m) return `구성원 ${m[1]}`;
+  return label;
+}
+
+// 34b: the run language picks the label form. Korean runs are
+// byte-identical to memberLabelFor.
+export function memberLabelForLang(m, index, lang) {
+  const ko = memberLabelFor(m, index);
+  return lang === "en" ? memberLabelEn(ko) : ko;
+}
+
 export function scenarioFromProfile(profile, homes, opts = {}) {
   const p = profile || {};
   const v = (k) => (p[k] ? p[k].value : null);

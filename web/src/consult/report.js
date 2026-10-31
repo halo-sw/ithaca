@@ -42,6 +42,7 @@ export const REPORT_PROMPT_EN =
   + "For N01 use the digest N01 member keys as member (e.g. h1, h2) and "
   + "call each member by their label_ko in the sentence, as the customer "
   + "sees them; never use terms of address the record does not state. "
+  + "Copy each label_ko exactly as written — never romanize it. "
   + "Add no feelings, judgements or habits the record does not state. "
   + "Write one number and what it means. Do not start a sentence with "
   + "the 30-day period; the title already says it. A deterministic item "
@@ -101,7 +102,7 @@ function assistantEntry(message) {
 
 export async function writeReport({ call, provider, runs, labels, homes,
   names = {}, persona, groundTruth, lang = "ko", onAttempt = null }) {
-  const digest = reportDigest({ runs, labels, homes, persona, groundTruth, names });
+  const digest = reportDigest({ runs, labels, homes, persona, groundTruth, names, lang });
   if (digest && digest.unsupported) {
     return { ok: true, status: "unsupported", reason_ko: UNSUPPORTED_PERSONA_KO,
       attempts: [], report: null, handoff: null };

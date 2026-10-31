@@ -24,6 +24,7 @@
 // loop.js) — never failed, never passed.
 
 import { findInventedNumbers } from "../judge/guards.js";
+import { memberLabelKo } from "../profile.js";
 
 export const MINUTE_TOLERANCE = {
   C01: 5, N01: 5, C05: 2, F01: 2, F03: 2, P02: 2, F05: 3, M02: 3,
@@ -79,15 +80,21 @@ export function householdMembers(run) {
 // "h1", "m1", "나") to the household agent key the engine trips
 // carry. String comparison against run.agents, like householdMembers.
 // Returns null when no agent matches.
+// 34b: English labels ("me", "spouse", "housemate 3") map back to
+// the same engine member via profile.js's one table.
 export function memberKeyFor(run, member) {
   if (member === null || member === undefined) return null;
-  const want = String(member);
-  for (const a of (run && run.agents) || []) {
-    if (!a || typeof a !== "object") continue;
-    for (const k of [a.key, a.id, a.label]) {
-      if (k !== undefined && k !== null && String(k) === want) {
-        const key = a.key ?? a.id ?? a.agent;
-        return key === undefined || key === null ? null : String(key);
+  const wants = [String(member)];
+  const ko = memberLabelKo(String(member));
+  if (ko !== String(member)) wants.push(ko);
+  for (const want of wants) {
+    for (const a of (run && run.agents) || []) {
+      if (!a || typeof a !== "object") continue;
+      for (const k of [a.key, a.id, a.label]) {
+        if (k !== undefined && k !== null && String(k) === want) {
+          const key = a.key ?? a.id ?? a.agent;
+          return key === undefined || key === null ? null : String(key);
+        }
       }
     }
   }
