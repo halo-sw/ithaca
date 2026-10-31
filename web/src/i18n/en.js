@@ -448,6 +448,8 @@ const seedPhrases = {
   "공인중개사법 시행규칙 제20조 제4항": "Enforcement Rule of the Licensed Real Estate Agents Act, Art. 20(4)",
   "협의 (상한 0.9%)": "negotiable (cap 0.9%)",
   "추정 (노선 거리 × 평균 속도)": "estimate (route distance × average speed)",
+  "지하철 이동 중": "on the subway",
+  "이동 중": "on the move",
   "지방세법 제11조 제1항 제8호 (시행 2026-01-01, 법률 제21308호)": "Local Tax Act, Art. 11(1)8 (in force 2026-01-01, Act No. 21308)",
   "지방세법 제151조 제1항 제1호": "Local Tax Act, Art. 151(1)1",
   "농어촌특별세법 제5조": "Special Tax for Rural Development Act, Art. 5",
@@ -473,6 +475,9 @@ const seedPatterns = [
   { ko: "{0} · 공인중개사법 시행규칙 제20조 제4항", en: "{0} · Enforcement Rule of the Licensed Real Estate Agents Act, Art. 20(4)" },
   { ko: "집값 {0} × {1}% 협의 (상한 0.9%)", en: "Price {0} × {1}%, negotiable (cap 0.9%)" },
   { ko: "집값 {0} × {1}% (상한)", en: "Price {0} × {1}% (cap)" },
+  { ko: "{0} 지하철 이동", en: "{0} subway ride" },
+  { ko: "수인·분당선 {0}", en: "Suin-Bundang Line {0}" },
+  { ko: "환승·기다림 {0}", en: "transfer & wait {0}" },
   { ko: "집값 {0} × {1}%", en: "Price {0} × {1}%" },
   // 35b: "What you pay" (PurchasePayments, result card)
   { ko: "그중 내 돈 {0} · 빌리는 돈 {1} (집값의 {2:\\d+}%)", en: "Of that, your money {0} · borrowed {1} ({2}% of the price)" },
