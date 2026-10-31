@@ -456,16 +456,7 @@ function SimHero({ state }) {
           <div className="ui-hero-evidence-head">이 장면이 결과에 들어가는 곳</div>
           <ul className="ui-hero-evidence-list">
             {n.evidence.map((e, i) => (
-              <li key={i} className="ui-hero-evidence-line">
-                {e.parts ? (
-                  <span>{e.parts.map((p, j) => (
-                    <span key={j}>{j > 0 ? " + " : ""}{p.text}{p.tag && <span className="ui-tag">{p.tag}</span>}</span>
-                  ))}</span>
-                ) : (
-                  <span>{e.text}</span>
-                )}
-                {e.tag && <span className="ui-tag">{e.tag}</span>}
-              </li>
+              <EvidenceLine key={i} e={e} />
             ))}
           </ul>
         </div>
@@ -485,6 +476,23 @@ function SimHero({ state }) {
       )}
       <div className="ui-hero-next">{`다음: ${n.next}`}</div>
     </div>
+  );
+}
+
+// 36f: one tag per part — the line-level tag shows only for tag-less
+// text lines, so a part never reads two tags (측정 + 가정값).
+export function EvidenceLine({ e }) {
+  return (
+    <li className="ui-hero-evidence-line">
+      {e.parts ? (
+        <span>{e.parts.map((p, j) => (
+          <span key={j}>{j > 0 ? " + " : ""}{p.text}{p.tag && <span className="ui-tag">{p.tag}</span>}</span>
+        ))}</span>
+      ) : (
+        <span>{e.text}</span>
+      )}
+      {!e.parts && e.tag && <span className="ui-tag">{e.tag}</span>}
+    </li>
   );
 }
 
@@ -1011,7 +1019,11 @@ function LegendCard({ state, onClose }) {
 export function SimCredit({ state }) {
   // 36c: the aerial part follows the photo the camera is looking at —
   // the station drape outside a ride, the corridor drape during one.
-  const photo = state.journey ? state.aerialCorridor : state.aerial;
+  // 36f: a draped second (workplace) area counts too — VWorld shows
+  // when the camera's area is draped.
+  const secondDraped = !!(state.aerialSecondByArea
+    && Object.keys(state.aerialSecondByArea).length > 0);
+  const photo = state.journey ? (state.aerialCorridor || secondDraped) : state.aerial;
   const full = photo
     ? `${aerialCreditFor(areaForCredit(state))} · © OpenStreetMap`
     : "© OpenStreetMap";

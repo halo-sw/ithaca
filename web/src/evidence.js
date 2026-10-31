@@ -154,23 +154,23 @@ export function commuteLines(run, agentKey, current, currentStart, lang = curren
   const total = walk + bike + ride + wait;
   const dir = half === "am" ? "출근" : "퇴근";
   const subwayMeasured = ride > 0 && allSchedule;
-  const baseParts = bikeTrips.length === 0 ? [{ label: "걷기", minutes: walk, tag: "측정" }] : [
-    ...(walk > 0 ? [{ label: "걷기", minutes: walk, tag: "측정" }] : []),
-    { label: "자전거", minutes: bike, tag: "가정값" },
+  // 36f: only real parts — zero minutes or an empty label renders
+  // no part and no tag, so a part never carries two tags.
+  const rawParts = [
+    { label: "걷기", minutes: walk, tag: "측정" },
+    ...(bikeTrips.length > 0 ? [{ label: "자전거", minutes: bike, tag: "가정값" }] : []),
+    { label: "지하철", minutes: ride, tag: subwayMeasured ? "측정" : "가정값" },
+    { label: "환승·기다림", minutes: wait, tag: "가정값" },
   ];
-  if (ride > 0) {
-    baseParts.push({ label: "지하철", minutes: ride,
-      tag: subwayMeasured ? "측정" : "가정값" });
-  }
-  if (wait > 0) baseParts.push({ label: "환승·기다림", minutes: wait, tag: "가정값" });
+  const baseParts = rawParts.filter((p) => p.label && p.minutes > 0);
   const withText = (rows) => rows.map((p) => ({ ...p, text: `${p.label} ${p.minutes}분` }));
   const partRows = withText(baseParts);
-  const parts = bikeTrips.length === 0 ? [`걷기 ${walk}분`] : [
+  const parts = [
     ...(walk > 0 ? [`걷기 ${walk}분`] : []),
-    `자전거 ${bike}분`,
+    ...(bikeTrips.length > 0 && bike > 0 ? [`자전거 ${bike}분`] : []),
+    ...(ride > 0 ? [`지하철 ${ride}분`] : []),
+    ...(wait > 0 ? [`기다림 ${wait}분`] : []),
   ];
-  if (ride > 0) parts.push(`지하철 ${ride}분`);
-  if (wait > 0) parts.push(`기다림 ${wait}분`);
   const tag = partRows.every((p) => p.tag === "측정") ? "측정" : "가정값";
   // 29L2: English built in code (Today's commute home: …), never glossaried.
   if (lang === "en") {

@@ -15,6 +15,7 @@ import { ARCH_FOV_DEG, GLIDE_FRAME_M, STOP_FRAME_M, TOUR_AZIMUTH, applyFollowOff
 import { loadArea, originOf } from "./load.js";
 import { assetUrl, STATIC_SITE, LIVE_API } from "./paths.js";
 import { drapeAerial, drapeCorridorAerial, isUsArea } from "./aerial/drape.js";
+import { drapeAreaOnce } from "./area-ground.js";
 import { compare as compareRuns } from "./engine/simulate.js";
 import { oneWayByLabel } from "./verify/numbers.js";
 import { CRITERIA_GROUPS, criterionDefault, criterionValuesLine, resolveCriteria } from "./engine/criteria.js";
@@ -443,16 +444,18 @@ function buildWorld(area, scene14, opts = {}) {
   // 26e: US areas fetch USGS tiles directly, so they drape on a static
   // build too.
   if ((LIVE_API || isUsArea(area)) && PARAMS.get("ground") !== "paint") {
-    drapeAerial({ THREE, renderer, scene, area, origin, terrainMesh,
-      groundMesh, roadMeshes: sceneRoadMeshes, roofMesh, fringeMesh: base,
-      look: LOOK, style: STYLE })
+    // 36f: the home drape goes through the shared once-per-area
+    // helper — the second (workplace) area uses the same function.
+    drapeAreaOnce({ areaId: area.area || areaId,
+      args: { THREE, renderer, scene, area, origin, terrainMesh,
+        groundMesh, roadMeshes: sceneRoadMeshes, roofMesh, fringeMesh: base,
+        look: LOOK, style: STYLE },
+      onOk: (id, r) => {
+        console.log(`[aerial] ok ${r.tiles} tiles z${r.zoom}`);
+        store.set({ aerial: true });
+      } })
       .then((r) => {
-        if (r && r.ok) {
-          console.log(`[aerial] ok ${r.tiles} tiles z${r.zoom}`);
-          store.set({ aerial: true });
-        } else {
-          console.log("[aerial] off (no key)");
-        }
+        if (!r || !r.ok) console.log("[aerial] off (no key)");
       })
       .catch(() => console.log("[aerial] off (no key)"));
   }
@@ -2768,18 +2771,60 @@ async function bootSim() {
 
   // Lite second world: ground + buildings + water under an offset group
   // (no trees/streetlife/lit — the journey camera never lingers there).
-  function buildAreaLite(areaData) {
+  function buildAreaLite(areaData, scene14b, liteId) {
     const liteOrigin = originOf(areaData);
     const g = new THREE.Group();
     const byId = new Map((areaData.buildings || []).map((b) => [b.id, b]));
-    const gd = buildGround(areaData.roads, areaData.landuse, areaData.complexes, byId, liteOrigin);
+    // 36f: the destination area gets the same scene ground as a home
+    // area — the fringe plane, scene.json terrain when present, and
+    // the merged ground layer (+ lane paint + water).
+    const liteBox = bboxToXY(areaData.bbox, liteOrigin);
+    const liteCx = (liteBox.minX + liteBox.maxX) / 2;
+    const liteCy = (liteBox.minY + liteBox.maxY) / 2;
+    const liteSpan = Math.max(liteBox.maxX - liteBox.minX, liteBox.maxY - liteBox.minY);
+    const liteHeightAt = scene14b ? makeHeightAt(scene14b.terrain) : flatHeightAt();
+    const liteDemMin = scene14b ? scene14b.meta.dem.min_m : 0;
+    const fringe = new THREE.Mesh(
+      new THREE.PlaneGeometry(liteSpan * 1.5, liteSpan * 1.5),
+      new THREE.MeshStandardMaterial({
+        color: STYLE === "painted" ? LOOK.terrainBase : BASE_GROUND,
+        roughness: 1, metalness: 0 }));
+    fringe.rotation.x = -Math.PI / 2;
+    fringe.position.set(liteCx, scene14b ? liteDemMin - 1 : -0.05, -liteCy);
+    fringe.receiveShadow = true;
+    g.add(fringe);
+    let liteTerrain = null;
+    if (scene14b) {
+      const lt = buildTerrainMesh(scene14b.terrain, LOOK);
+      const lcanvas = document.createElement("canvas");
+      lcanvas.width = MASK_SIZE;
+      lcanvas.height = MASK_SIZE;
+      paintLandMask(lcanvas.getContext("2d"), scene14b.lands, scene14b.terrain, LOOK);
+      const lmask = new THREE.CanvasTexture(lcanvas);
+      lmask.colorSpace = THREE.SRGBColorSpace;
+      lmask.anisotropy = maxAniso2;
+      liteTerrain = new THREE.Mesh(toIndexedGeometry(lt),
+        new THREE.MeshStandardMaterial({ map: lmask, vertexColors: true,
+          roughness: 1, metalness: 0, polygonOffset: true,
+          polygonOffsetFactor: 1, polygonOffsetUnits: 1 }));
+      liteTerrain.receiveShadow = true;
+      g.add(liteTerrain);
+    }
+    const gd = buildGround(areaData.roads, areaData.landuse, areaData.complexes, byId, liteOrigin,
+      scene14b ? { heightAt: liteHeightAt, sceneRoads: true, specWidths: true } : {});
     const gm = new THREE.Mesh(toGeometry(gd), groundMaterial({ aniso: maxAniso2 }));
     gm.receiveShadow = true;
     g.add(gm);
+    if (gd.markings.triangles > 0) {
+      const liteMark = new THREE.Mesh(toGeometry(gd.markings), markingMaterial());
+      liteMark.receiveShadow = true;
+      g.add(liteMark);
+    }
     if (gd.water.triangles > 0) {
       g.add(new THREE.Mesh(toGeometry(gd.water), waterMaterial()));
     }
-    const built = buildBuildings(areaData.buildings, areaData.complexes, liteOrigin);
+    const built = buildBuildings(areaData.buildings, areaData.complexes, liteOrigin,
+      scene14b ? { baseAt: (rings) => seatOnTerrain(liteHeightAt, rings) } : {});
     for (const [cls, data] of Object.entries(built.detail.walls)) {
       if (data.triangles === 0) continue;
       const mesh = new THREE.Mesh(toGeometry(data), facadeMaterial(cls, { aniso: maxAniso2 }));
@@ -2802,6 +2847,22 @@ async function bootSim() {
     const [ox, oy] = lonLatToXY(liteOrigin.lon, liteOrigin.lat, origin);
     g.position.set(ox, 0, -oy);
     scene.add(g);
+    // 36f: the same drapeAerial call as the home area — its own mosaic
+    // and bounds, once per area id — so roofs and ground read as photo
+    // instead of white over black. UVs are world-frame under the group
+    // offset, so the home origin applies here.
+    if ((LIVE_API || isUsArea(areaData)) && PARAMS.get("ground") !== "paint") {
+      drapeAreaOnce({ areaId: liteId || areaData.area,
+        args: { THREE, renderer, scene, area: areaData, origin,
+          terrainMesh: liteTerrain, groundMesh: gm, roadMeshes: [],
+          roofMesh: liteRoof, fringeMesh: fringe, look: LOOK, style: STYLE },
+        onOk: (id, r) => {
+          console.log(`[aerial] ok ${r.tiles} tiles z${r.zoom} (${id})`);
+          store.set({ aerialSecondByArea:
+            { ...(store.getState().aerialSecondByArea || {}), [id]: true } });
+        } })
+        .catch(() => {});
+    }
     return { group: g, origin: liteOrigin };
   }
 
@@ -2817,7 +2878,13 @@ async function bootSim() {
     store.set({ journeyLoading: `${label} 지도 불러오는 중…` });
     try {
       const data = await fetchArea(areaId);
-      const lite = buildAreaLite(data);
+      let scene14b = null;
+      try {
+        scene14b = await fetchScene(areaId);
+      } catch {
+        scene14b = null;
+      }
+      const lite = buildAreaLite(data, scene14b, areaId);
       secondAreas.set(areaId, lite);
       return lite;
     } catch {

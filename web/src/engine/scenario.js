@@ -517,6 +517,44 @@ function isDwellingBuilding(b) {
   if (Number.isFinite(b.levels) && b.levels < 3) return false;
   return true;
 }
+
+// 36f: an officetel reads 업무시설 in the register, so the lon/lat
+// fallback must still treat it as a dwelling candidate: register use
+// 업무시설 with apartments, or 오피스텔 in the register or building name.
+function officetelNameOf(b) {
+  const reg = b && b.register;
+  return `${(reg && (reg.sub_name || reg.name)) || ""} ${b && b.name ? b.name : ""}`;
+}
+function isOfficetelHome(b) {
+  if (!b || b.residential !== "none") return false;
+  if (/오피스텔/.test(officetelNameOf(b))) return true;
+  const reg = b.register || {};
+  return reg.use === "업무시설" && b.building === "apartments";
+}
+
+function ringContains(ring, lon, lat) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0];
+    const yi = ring[i][1];
+    const xj = ring[j][0];
+    const yj = ring[j][1];
+    if ((yi > lat) !== (yj > lat)
+      && lon < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function footprintContains(b, lon, lat) {
+  const g = b.geometry;
+  if (!g || !Array.isArray(g.coordinates)) return false;
+  const polys = g.type === "Polygon" ? [g.coordinates]
+    : g.type === "MultiPolygon" ? g.coordinates : [];
+  return polys.some((poly) => Array.isArray(poly) && Array.isArray(poly[0])
+    && ringContains(poly[0], lon, lat));
+}
 export function resolveHome(area, home, router) {
   const matches = (area.complexes || [])
     .filter((c) => c.name === home.complex_name)
@@ -581,13 +619,37 @@ export function resolveHome(area, home, router) {
   if (Number.isFinite(home.lon) && Number.isFinite(home.lat)) {
     const n = router.nearestNode(home.lon, home.lat);
     if (n.id === null) fail(`home ${home.label}: no graph node near ${home.lon},${home.lat}`);
+    // 36f: a footprint containing the point wins whatever its
+    // residential flag (an officetel registered as 업무시설 still
+    // houses the customer). Pure point-in-polygon on the geometry.
+    const contained = (area.buildings || [])
+      .filter((b) => b && b.geometry && footprintContains(b, home.lon, home.lat))
+      .map((b) => {
+        const [lon, lat] = buildingAnchorLonLat(b);
+        return { b, d: Math.hypot(lon - home.lon, lat - home.lat) };
+      })
+      .sort((x, y) => (x.d < y.d ? -1 : x.d > y.d ? 1
+        : String(x.b.id) < String(y.b.id) ? -1 : 1));
+    const nodeDistM = Math.round(n.distM * 10) / 10;
+    if (contained.length > 0) {
+      return {
+        complex: { name: home.complex_name },
+        buildingId: contained[0].b.id,
+        nodeId: n.id,
+        anchor: { method: "point-in-footprint", lon: home.lon, lat: home.lat,
+          node_dist_m: nodeDistM },
+      };
+    }
     let best = null;
     for (const b of [...(area.buildings || [])].sort((x, y) =>
         (String(x.id) < String(y.id) ? -1 : 1))) {
       if (!b || !b.geometry) continue;
       const [lon, lat] = buildingAnchorLonLat(b);
       const d = Math.hypot(lon - home.lon, lat - home.lat);
-      const res = (b.residential && b.residential !== "none") ? 0 : 1;
+      // 36f: residential "none" still counts as a dwelling when the
+      // register says 업무시설 with apartments, or the name says
+      // 오피스텔 — else an officetel loses to a farther apartment.
+      const res = ((b.residential && b.residential !== "none") || isOfficetelHome(b)) ? 0 : 1;
       const key = [res, d, String(b.id)];
       if (best === null || keyLess(key, best.key)) {
         best = { key, buildingId: b.id };
@@ -598,8 +660,8 @@ export function resolveHome(area, home, router) {
       complex: { name: home.complex_name },
       buildingId: best.buildingId,
       nodeId: n.id,
-      anchor: { method: "coordinate", lon: home.lon, lat: home.lat,
-        node_dist_m: Math.round(n.distM * 10) / 10 },
+      anchor: { method: "nearest", lon: home.lon, lat: home.lat,
+        node_dist_m: nodeDistM },
     };
   }
   fail(`home ${home.label}: no complex named ${JSON.stringify(home.complex_name)}`);
