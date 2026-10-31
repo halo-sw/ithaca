@@ -96,10 +96,10 @@ import {
 } from "../chat/engine.js";
 import { buildCustomMoneyDoc, buildUsRentMoneyDoc, verifyHomeFor } from "../chat/custom-money.js";
 import { personaFor, slimRunForReport } from "../verify/compare.js";
-import { newCustomId, saveCustomRun } from "../chat/idb.js";
+import { newCustomId, saveCustomRun, loadCustomRun } from "../chat/idb.js";
 import { chatUrl, simMomentUrl, tourUrl, withoutEmbed, saveTranscript, loadTranscript,
   clearTranscript, parseChatSearch } from "../chat/urls.js";
-import { recordingUrl, validateRecording, replaySchedule, RECORDINGS } from "../chat/recording.js";
+import { recordingUrl, validateRecording, replaySchedule, replayRunPlan, RECORDINGS } from "../chat/recording.js";
 import { ruleTurnPlan } from "../chat/intent.js";
 import { postConsultStream, postDiary, postReportStream, loadScenario } from "./consult-client.js";
 import { shouldCallMuse, isNoKeyError, KEYLESS_LINE,
@@ -1835,6 +1835,10 @@ export function ChatScreen() {
     && voiceKeyReady(getMuseStatus());
   const replayTimers = useRef([]);
   const replayDoc = useRef(null);
+  // 36i2: rebuilding the replay's 3D run (a promise of true/false, or
+  // null when the recording has no done run). Never messages or rows.
+  const replayRunReady = useRef(null);
+  const replayPlan = useRef(null);
   // 29a4: suggestion chips fold while the customer reads up-thread.
   const [chipsNearBottom, setChipsNearBottom] = useState(true);
   // 31d: whether the reader is at the bottom — the pin decision for
@@ -3068,6 +3072,30 @@ export function ChatScreen() {
             return;
           }
           replayDoc.current = doc;
+          // 36i2: the moment links (?custom=<id>) read the run from
+          // IndexedDB, which is empty in a replay — recompute it in
+          // the browser from the recording's scenario + seed and save
+          // it under the same id. No messages, no tool rows, never
+          // the consult client; a failure resolves false, never throws.
+          const plan = replayRunPlan(doc);
+          replayPlan.current = plan;
+          replayRunReady.current = plan ? (async () => {
+            try {
+              const existing = await loadCustomRun(plan.customId);
+              if (existing) return true;
+              const runner = createWorkerRunner(
+                () => new Worker(new URL("../sim-worker.js", import.meta.url), { type: "module" }));
+              const { runs } = await runStep(
+                (s, l, onP) => runner(s, l, onP || (() => {})),
+                plan.scenario, plan.labels);
+              await saveCustomRun({ id: plan.customId, scenario: plan.scenario,
+                runs, labels: plan.labels, moneyDoc: plan.moneyDoc,
+                moneyMissing: plan.moneyMissing, names: plan.names });
+              return true;
+            } catch {
+              return false;
+            }
+          })() : null;
           setReplayMeta(doc.meta || null);
           if (doc.toolRows) setToolRows(doc.toolRows);
           if (doc.profile) { setProfile(doc.profile); store.set({ chatSummary: profileSummary(doc.profile) }); }
@@ -3246,6 +3274,17 @@ export function ChatScreen() {
     ? { name: wpResolved.place.name, lon: wpResolved.place.lon, lat: wpResolved.place.lat }
     : null;
 
+  // 36i2: a replay moment scene (?custom=<plan id>) waits on the
+  // rebuilt run; every other scene opens at once (runReady undefined).
+  function sceneRunReadyFor(sc) {
+    try {
+      const plan = replayPlan.current;
+      if (!sc || !sc.url || !plan || !plan.customId || !replayRunReady.current) return undefined;
+      const q = String(sc.url).split("?")[1] || "";
+      if (new URLSearchParams(q).get("custom") === plan.customId) return replayRunReady.current;
+    } catch { /* a live scene opens at once */ }
+    return undefined;
+  }
   const handlers = {
     picks,
     intake, household, profile, exampleId,
@@ -3457,6 +3496,7 @@ export function ChatScreen() {
           <MsgBoundary>
           {scene ? (
           <SceneFrame scene={scene}
+            runReady={sceneRunReadyFor(scene)}
             onBack={() => setScene(null)}
             onClose={() => { setScene(null); setWorkOpen(false); setView("chat"); }} />
           ) : (
@@ -3712,16 +3752,37 @@ export function mergeGreenBoxes(cache) {
 // 27c1: a 3D scene inside the work panel — the sim/tour page in an
 // embed iframe, so the conversation never navigates away. 지도로
 // returns to the map, 새 창으로 opens the same scene in a new tab.
-export function SceneFrame({ scene, onBack, onClose }) {
+export function SceneFrame({ scene, onBack, onClose, runReady }) {
   // 29L6: hooks before the early return; on a ≤ 480 px phone the two
   // actions shorten (Map / New window, Korean stays) so the header
   // row fits 390 px on one line. The full text stays in
   // aria-label/title, and the title itself never wraps.
   const phone = usePhoneMedia();
   const lang = currentLang();
+  // 36i2: a replay moment scene waits on the rebuilt run — the header
+  // stays, the iframe waits. runReady true/undefined opens at once.
+  const [runState, setRunState] = useState(
+    runReady === false ? "failed" : (runReady === undefined || runReady === true ? "ready" : "pending"));
+  useEffect(() => {
+    if (runReady === undefined || typeof runReady === "boolean") {
+      setRunState(runReady === false ? "failed" : "ready");
+      return undefined;
+    }
+    let live = true;
+    setRunState("pending");
+    Promise.resolve(runReady).then((v) => {
+      if (live) setRunState(v ? "ready" : "failed");
+    }, () => {
+      if (live) setRunState("failed");
+    });
+    return () => { live = false; };
+  }, [runReady]);
   if (!scene) return null;
   const backFull = lang === "en" ? "To the map" : "지도로";
   const openFull = lang === "en" ? "Open in new window" : "새 창으로";
+  const waitLine = runState === "failed"
+    ? (lang === "en" ? "Couldn't rebuild the 3D for this recording." : "이 기록의 3D를 다시 계산하지 못했어요.")
+    : (lang === "en" ? "Preparing the 3D…" : "3D를 준비하고 있어요…");
   return (
     <section className="ui-chat-scene" aria-label="3D 장면">
       <div className="ui-chat-scene-head">
@@ -3736,14 +3797,29 @@ export function SceneFrame({ scene, onBack, onClose }) {
           aria-label={openFull} title={openFull}
           onClick={() => {
             if (typeof window !== "undefined" && scene.url) {
-              window.open(withoutEmbed(scene.url), "_blank", "noopener");
+              if (runReady === undefined || runReady === true) {
+                window.open(withoutEmbed(scene.url), "_blank", "noopener");
+                return;
+              }
+              if (runReady === false) return;
+              const url = scene.url;
+              Promise.resolve(runReady).then((v) => {
+                if (v && typeof window !== "undefined" && url) {
+                  window.open(withoutEmbed(url), "_blank", "noopener");
+                }
+              }).catch(() => {});
             }
           }} />
         <IconButton label="작업판 닫기" variant="ghost" size="sm"
           icon={<Icon icon="close" />} onClick={() => onClose && onClose()} />
       </div>
-      <iframe className="ui-chat-scene-frame" src={scene.url}
-        title={scene.title} allow="fullscreen" />
+      {runState === "ready" ? (
+        <iframe className="ui-chat-scene-frame" src={scene.url}
+          title={scene.title} allow="fullscreen" />
+      ) : (
+        <p className="ui-chat-scene-pending" data-no-i18n
+          style={{ textAlign: "center" }}>{waitLine}</p>
+      )}
     </section>
   );
 }
