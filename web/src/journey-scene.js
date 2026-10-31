@@ -95,6 +95,7 @@ export function createJourneyLayer(scene, origin, { look = null, tags = null } =
   let stationLabels = []; // {el, pos: THREE.Vector3}
   let rideKey = "";
   let manifest = null;
+  let drapeHook = null; // 36c: corridor aerial drape (registered by main.js)
   let network = null;
   let congestion = null;
   let dayKind = "weekday";
@@ -445,6 +446,12 @@ export function createJourneyLayer(scene, origin, { look = null, tags = null } =
     }
   }
 
+  // 36c: register the corridor aerial drape. setManifest calls it
+  // with the new manifest bounds; the plane stays painted on failure.
+  function drapeCorridor(fn) {
+    drapeHook = typeof fn === "function" ? fn : null;
+  }
+
   function setManifest(m) {
     if ((m && m.id) === (manifest && manifest.id)) return;
     if (preload) {
@@ -454,6 +461,13 @@ export function createJourneyLayer(scene, origin, { look = null, tags = null } =
     unloadAllTiles();
     manifest = m || null;
     buildBaseMap();
+    if (manifest && manifest.bounds && drapeHook) {
+      try {
+        drapeHook(manifest.bounds, groundMesh);
+      } catch {
+        // Painted fallback: the land-coloured plane stays as it is.
+      }
+    }
   }
 
   function tileProgress() {
@@ -619,7 +633,7 @@ export function createJourneyLayer(scene, origin, { look = null, tags = null } =
 
   resetBaseMap();
 
-  return { setPath, setTrain, setManifest, updateTiles, preloadCorridor,
+  return { setPath, setTrain, setManifest, drapeCorridor, updateTiles, preloadCorridor,
     tileProgress, updateStationLabels, updateMarkerScale, pathBounds,
     counts, setVisible, dispose, group };
 }

@@ -14,7 +14,7 @@ import { buildGround } from "./ground.js";
 import { ARCH_FOV_DEG, GLIDE_FRAME_M, STOP_FRAME_M, TOUR_AZIMUTH, applyFollowOffset, archLensPose, cameraStyle, distanceForWidth, followZoomAfterWheel, footprintsOf, frameWidthFor, hostTowerIds, journeyCruisePose, occludingIds, pickStopAzimuth, resolveStyle, tourFrameWidths, tourOffset, zoomClampDistances } from "./camera.js";
 import { loadArea, originOf } from "./load.js";
 import { assetUrl, STATIC_SITE, LIVE_API } from "./paths.js";
-import { drapeAerial, isUsArea } from "./aerial/drape.js";
+import { drapeAerial, drapeCorridorAerial, isUsArea } from "./aerial/drape.js";
 import { compare as compareRuns } from "./engine/simulate.js";
 import { oneWayByLabel } from "./verify/numbers.js";
 import { CRITERIA_GROUPS, criterionDefault, criterionValuesLine, resolveCriteria } from "./engine/criteria.js";
@@ -2578,6 +2578,22 @@ async function bootSim() {
   // minute, so ?t= captures are deterministic at any speed.
   const journeyLayer = createJourneyLayer(scene, origin,
     { look: LOOK, tags: document.getElementById("tags") });
+  // 36c: one map everywhere — the corridor base plane gets the same
+  // aerial mosaic (manifest.bounds); on failure the painted plane stays.
+  let corridorAerialId = null;
+  journeyLayer.drapeCorridor((bounds, mesh) => {
+    const id = corridorAerialId;
+    if (!mesh) return Promise.resolve({ ok: false, reason: "bounds" });
+    return drapeCorridorAerial({ THREE, renderer, groundMesh: mesh,
+      bounds, look: LOOK })
+      .then((r) => {
+        if (r && r.ok && corridorAerialId === id) {
+          store.set({ aerialCorridor: true });
+        }
+        return r;
+      })
+      .catch(() => ({ ok: false, reason: "status" }));
+  });
   let regionNetwork = null;
   let regionCongestion = null; // lazy: 1.2 MB, fetched on first journey
   let corridorsIndex = null;
@@ -2839,8 +2855,11 @@ async function bootSim() {
         const corridor = corridorFor(corridorsIndex, firstLeg.from, lastLeg.to);
         if (corridor) {
           try {
-            journeyLayer.setManifest(
-              await fetchJson(assetUrl(`/data/region/corridor/${corridor.id}/manifest.json`)));
+            const manifest = await fetchJson(
+              assetUrl(`/data/region/corridor/${corridor.id}/manifest.json`));
+            corridorAerialId = manifest && manifest.id;
+            store.set({ aerialCorridor: false });
+            journeyLayer.setManifest(manifest);
           } catch {
             // The line still draws; tiles just stay empty.
           }

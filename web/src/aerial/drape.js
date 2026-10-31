@@ -76,43 +76,65 @@ function pushMosaicUVs(geo, origin, range, zoom, onlyUpward = false) {
   uv.needsUpdate = true;
 }
 
-export async function drapeAerial({ THREE, renderer, scene, area, origin,
-  terrainMesh = null, groundMesh = null, roadMeshes = [], roofMesh = null,
-  look = {}, style = "photo" }) {
-  // 26e: US areas drape USGS tiles fetched directly (no relay, no
-  // key), so they work on a static build too. Korean areas keep the
-  // relay path below.
-  const usArea = isUsArea(area);
-  if (!usArea) {
-    // 23b: without a live API (no dev server, no relay) there is no
-    // /api/aerial — the ground stays painted.
-    if (!LIVE_API) return { ok: false, reason: "static" };
-    // 1. Key check: without a key the painted ground stays as it is.
-    let status = null;
-    try {
-      const r = await fetch(apiUrl("/api/aerial/status"));
-      if (!r.ok) return { ok: false, reason: "status" };
-      status = await r.json();
-    } catch {
-      return { ok: false, reason: "status" };
-    }
-    if (!status || status.hasKey !== true) return { ok: false, reason: "no-key" };
-  }
-
-  // 2. Zoom + tile range, capped at 4096 px per side.
-  const midLat = (area.bbox[1] + area.bbox[3]) / 2;
-  const widthM = haversineM(area.bbox[0], midLat, area.bbox[2], midLat);
+// 36c: pure bounds -> zoom -> tile-range choice (no DOM, no fetch).
+// Shared by the station drape and the ride-corridor drape so every 3D
+// scene uses the same zoom/step-down rule.
+export function drapePlan(bounds, { usArea = false } = {}) {
+  const midLat = (bounds[1] + bounds[3]) / 2;
+  const widthM = haversineM(bounds[0], midLat, bounds[2], midLat);
   let zoom = pickZoom(widthM);
   if (usArea) zoom = Math.min(zoom, 18);
-  let range = tilesForBBox(area.bbox, zoom);
+  let range = tilesForBBox(bounds, zoom);
   while (zoom > 6
     && ((range.x1 - range.x0 + 1) * TILE_PX > MAX_MOSAIC_PX
       || (range.y1 - range.y0 + 1) * TILE_PX > MAX_MOSAIC_PX)) {
     zoom -= 1;
-    range = tilesForBBox(area.bbox, zoom);
+    range = tilesForBBox(bounds, zoom);
   }
-  // 3. Fetch tiles (concurrency 6) into one canvas. Missing tiles keep
-  // the painted ground colour underneath.
+  return { zoom, range };
+}
+
+// 36c: buffered scene extent — the union of area.bbox with the lon/lat
+// bbox of every ground/terrain/roof vertex, so the photo covers the
+// whole scene instead of the 1.3 km area.bbox. Never smaller than
+// area.bbox. An explicit bounds argument wins outright (the corridor
+// has no area).
+function meshExtent(meshes, origin) {
+  let w = Infinity, s = Infinity, e = -Infinity, n = -Infinity;
+  let found = false;
+  for (const m of meshes || []) {
+    const pos = m && m.geometry && m.geometry.attributes
+      && m.geometry.attributes.position;
+    if (!pos || typeof pos.getX !== "function") continue;
+    for (let i = 0; i < pos.count; i++) {
+      const [lon, lat] = xyToLonLat(pos.getX(i), -pos.getZ(i), origin);
+      if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
+      found = true;
+      if (lon < w) w = lon;
+      if (lon > e) e = lon;
+      if (lat < s) s = lat;
+      if (lat > n) n = lat;
+    }
+  }
+  return found ? [w, s, e, n] : null;
+}
+
+export function sceneDrapeBounds({ area, bounds, origin,
+  terrainMesh = null, groundMesh = null, roofMesh = null } = {}) {
+  if (Array.isArray(bounds) && bounds.length >= 4) return [...bounds];
+  const base = area && Array.isArray(area.bbox) ? [...area.bbox] : null;
+  const ext = origin
+    ? meshExtent([terrainMesh, groundMesh, roofMesh], origin)
+    : null;
+  if (!base) return ext;
+  if (!ext) return base;
+  return [Math.min(base[0], ext[0]), Math.min(base[1], ext[1]),
+    Math.max(base[2], ext[2]), Math.max(base[3], ext[3])];
+}
+
+// 36c: one tile-fetch loop for every drape. Missing tiles keep the
+// painted ground colour underneath.
+async function fetchMosaic(zoom, range, { usArea, look = {} }) {
   const nx = range.x1 - range.x0 + 1;
   const ny = range.y1 - range.y0 + 1;
   const canvas = document.createElement("canvas");
@@ -142,6 +164,105 @@ export async function drapeAerial({ THREE, renderer, scene, area, origin,
       }
     }
   }));
+  return { canvas, drawn };
+}
+
+function mosaicTexture(THREE, renderer, mosaic) {
+  const tex = new THREE.CanvasTexture(mosaic);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.flipY = false;
+  tex.generateMipmaps = true;
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  tex.needsUpdate = true;
+  return tex;
+}
+
+// 36c: drape the ride-corridor base plane (manifest.bounds). Painted
+// fallback: any failure leaves the land-coloured plane as it is.
+export async function drapeCorridorAerial({ THREE, renderer, groundMesh,
+  bounds, look = {} }) {
+  if (!groundMesh || !Array.isArray(bounds) || bounds.length < 4) {
+    return { ok: false, reason: "bounds" };
+  }
+  const usArea = isUsLonLat((bounds[0] + bounds[2]) / 2,
+    (bounds[1] + bounds[3]) / 2);
+  if (!usArea) {
+    if (!LIVE_API) return { ok: false, reason: "static" };
+    try {
+      const r = await fetch(apiUrl("/api/aerial/status"));
+      if (!r.ok) return { ok: false, reason: "status" };
+      const status = await r.json();
+      if (!status || status.hasKey !== true) return { ok: false, reason: "no-key" };
+    } catch {
+      return { ok: false, reason: "status" };
+    }
+  }
+  const { zoom, range } = drapePlan(bounds, { usArea });
+  const { canvas, drawn } = await fetchMosaic(zoom, range, { usArea, look });
+  const tex = mosaicTexture(THREE, renderer, canvas);
+  const geo = groundMesh.geometry;
+  const pos = geo && geo.attributes && geo.attributes.position;
+  if (pos && typeof pos.getX === "function" && pos.count > 0) {
+    // The corridor plane is centred on the bounds, so local planar UVs
+    // land exactly on the mosaic (north = +y before the -90° pitch).
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i), y = pos.getY(i);
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+    const spanX = (maxX - minX) || 1;
+    const spanY = (maxY - minY) || 1;
+    let uv = geo.attributes.uv;
+    const arr = uv && (uv.array || null);
+    const set = uv && typeof uv.setXY === "function"
+      ? (i, u, v) => uv.setXY(i, u, v)
+      : null;
+    for (let i = 0; i < pos.count; i++) {
+      const u = (pos.getX(i) - minX) / spanX;
+      const v = (maxY - pos.getY(i)) / spanY;
+      if (set) set(i, u, v);
+      else if (arr) { arr[i * 2] = u; arr[i * 2 + 1] = v; }
+    }
+    if (uv) uv.needsUpdate = true;
+  }
+  groundMesh.material.map = tex;
+  groundMesh.material.needsUpdate = true;
+  return { ok: true, tiles: drawn, zoom };
+}
+
+export async function drapeAerial({ THREE, renderer, scene, area, origin,
+  terrainMesh = null, groundMesh = null, roadMeshes = [], roofMesh = null,
+  look = {}, style = "photo", bounds = null }) {
+  // 26e: US areas drape USGS tiles fetched directly (no relay, no
+  // key), so they work on a static build too. Korean areas keep the
+  // relay path below.
+  const usArea = isUsArea(area);
+  if (!usArea) {
+    // 23b: without a live API (no dev server, no relay) there is no
+    // /api/aerial — the ground stays painted.
+    if (!LIVE_API) return { ok: false, reason: "static" };
+    // 1. Key check: without a key the painted ground stays as it is.
+    let status = null;
+    try {
+      const r = await fetch(apiUrl("/api/aerial/status"));
+      if (!r.ok) return { ok: false, reason: "status" };
+      status = await r.json();
+    } catch {
+      return { ok: false, reason: "status" };
+    }
+    if (!status || status.hasKey !== true) return { ok: false, reason: "no-key" };
+  }
+
+  // 2. Zoom + tile range over the whole scene extent (36c), capped at
+  // 4096 px per side.
+  const effBounds = sceneDrapeBounds({ area, bounds, origin,
+    terrainMesh, groundMesh, roofMesh });
+  const { zoom, range } = drapePlan(effBounds, { usArea });
+  // 3. Fetch tiles (concurrency 6) into one canvas.
+  const { canvas, drawn } = await fetchMosaic(zoom, range, { usArea, look });
   let mosaic = canvas;
   if (style === "painted") {
     // Painted grade: the same photo, 10 % less saturation so it sits
@@ -154,12 +275,7 @@ export async function drapeAerial({ THREE, renderer, scene, area, origin,
     g.drawImage(canvas, 0, 0);
     mosaic = graded;
   }
-  const tex = new THREE.CanvasTexture(mosaic);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.flipY = false;
-  tex.generateMipmaps = true;
-  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-  tex.needsUpdate = true;
+  const tex = mosaicTexture(THREE, renderer, mosaic);
 
   // 4. Ground: lon/lat UVs per vertex; the photo replaces the land mask.
   const ground = terrainMesh || groundMesh;

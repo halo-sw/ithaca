@@ -1003,10 +1003,13 @@ function LegendCard({ state, onClose }) {
 // 29L2: on phones (≤ 480 px, CSS picks) the short form shows on one
 // line — Korean and English the same — with the full text in title.
 export function SimCredit({ state }) {
-  const full = state.aerial
+  // 36c: the aerial part follows the photo the camera is looking at —
+  // the station drape outside a ride, the corridor drape during one.
+  const photo = state.journey ? state.aerialCorridor : state.aerial;
+  const full = photo
     ? `${aerialCreditFor(areaForCredit(state))} · © OpenStreetMap`
     : "© OpenStreetMap";
-  const short = state.aerial ? "© VWorld · © OpenStreetMap" : "© OpenStreetMap";
+  const short = photo ? "© VWorld · © OpenStreetMap" : "© OpenStreetMap";
   return (
     <div className="ui-simcredit" data-testid="sim-credit" data-no-i18n title={full}>
       <span className="ui-simcredit-full">{full}</span>
