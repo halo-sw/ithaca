@@ -436,6 +436,9 @@ const seedPhrases = {
   "살 때 한 번에 내는 돈": "Paid once, when you buy",
   "매달 내는 돈": "Paid every month",
   "넣지 않은 돈": "Not included",
+  "동네별": "By area",
+  "동네별로 한 곳씩": "One home per neighbourhood",
+  "정렬: 동네별로 한 곳씩 (가까운 동네부터 먼 동네까지 고르게)": "Sorted: one home per neighbourhood, spread from near to far",
   "대출 없음": "No loan",
   "대출 갚는 돈 없음": "No loan payment",
   "모은 돈으로 다 낼 수 있어요": "Your savings cover it all",
@@ -538,6 +541,9 @@ const seedPatterns = [
   { ko: "조건 고치기: {0}", en: "Edit conditions: {0}" },
   // 29a2: candidate-list commute row (total first), budget difference,
   // pick counter, more button, single photo notice.
+  // 36a: candidates by neighbourhood ("잠실 → 판교 총 41분 · …").
+  { ko: "{0} → {1} 총 {2:\\d+}분 · {3}역 걸어서 {4} + 지하철 {5:\\d+}분", en: "{0} → {1} {2} min total · {3} Stn walk {4} + subway {5} min" },
+  { ko: "{0} → {1} 총 {2} · {3}역 걸어서", en: "{0} → {1} {2} total · {3} Stn, walk only" },
   { ko: "총 {0}분 · {1}역 걸어서 {2}분 + 지하철 {3}분", en: "Total {0} min · {1} Stn walk {2} min + subway {3} min" },
   { ko: "총 {0}분 · {1}역 걸어서", en: "Total {0} min · {1} Stn, walk only" },
   { ko: "예산보다 {0} 적어요", en: "{0} under budget" },
