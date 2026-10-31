@@ -35,6 +35,11 @@ describe("13e2 profile card labels", () => {
     assert.equal(said[0].key, "salaryAnnual");
     for (const r of rows) {
       if (r === said[0]) continue;
+      if (r.key === "tenure") {
+        assert.equal(sourceKo(r.source), "기본값", r.key);
+        assert.equal(r.value, "trade", r.key);
+        continue;
+      }
       assert.equal(sourceKo(r.source), ASKED, r.key);
     }
   });

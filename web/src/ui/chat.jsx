@@ -64,8 +64,8 @@ import { defaultOverrides, setOverride, resetOverride,
 // Cycle with app.jsx (it renders ChatScreen): render-time use only,
 // so module evaluation order is safe.
 import { CompareCard, CompareTabBody } from "./app.jsx";
-import { HowCalculated, tenureOf } from "./money.jsx";
-import { fmtMinutes, fmtWon, fmtWonShort } from "../money/format.js";
+import { HowCalculated, PurchasePayments, isTradeHousing, tenureOf } from "./money.jsx";
+import { fmtMinutes, fmtWon, fmtWonShort, fmtWonLump } from "../money/format.js";
 import { fmtMoney, currencyOf } from "../money/currency.js";
 import { monthlyHousingOf } from "../money/monthly.js";
 import { myScore, priorityValues } from "../priorities.js";
@@ -861,6 +861,16 @@ export function ReportCheck({ report, names, onRetry, lang = LANG }) {
   return (<VStack gap={2}>{timeline}</VStack>);
 }
 
+// 35b: the 매매 one-off breakdown for a result row, or null.
+function tradeOneOffOf(doc, label, days) {
+  const mh = monthlyHousingOf(doc, label, days);
+  if (mh.missing || mh.tenure !== "매매" || !isTradeHousing(mh.housingDoc)) return null;
+  const b = mh.housingDoc.breakdown;
+  return { mh,
+    total: (Number(b.price_won) || 0) + (Number(b.one_off_total_won) || 0),
+    own: Number(b.own_money_won) || 0, loan: Number(b.loan_won) || 0 };
+}
+
 export function ResultSummary({ data, lang = LANG }) {
   const state = useSyncExternalStore(store.subscribe, store.getState, store.getState);
   const labels = data.labels || [];
@@ -918,6 +928,22 @@ export function ResultSummary({ data, lang = LANG }) {
             <span key={`money-${l}`} className="ui-result-value"
               title={fmtWon(mh.monthly, { monthly: true })}>
               {fmtWonShort(mh.monthly)}
+            </span>
+          );
+        }),
+      ]}
+      {showMoney && labels.some((l) => tradeOneOffOf(data.moneyDoc, l, days)) && [
+        <span key="onetime-label" className="ui-result-label">살 때 드는 돈</span>,
+        ...labels.map((l) => {
+          const ob = tradeOneOffOf(data.moneyDoc, l, days);
+          if (!ob) {
+            return <span key={`onetime-${l}`} className="ui-result-value">–</span>;
+          }
+          return (
+            <span key={`onetime-${l}`} className="ui-result-value"
+              title={`살 때 한 번에 ${fmtWonLump(ob.total)}`}>
+              <span className="ui-result-main">{fmtWonLump(ob.total)}</span>
+              <span className="ui-result-note">{ob.loan === 0 ? `내 돈 ${fmtWonLump(ob.own)} · 대출 없음` : `내 돈 ${fmtWonLump(ob.own)} · 대출 ${fmtWonLump(ob.loan)}`}</span>
             </span>
           );
         }),
@@ -1033,6 +1059,9 @@ export function SimulationCard({ data, example, onRetry, onScene, onReportRetry 
   const calcs = (data.moneyDoc && data.moneyDoc.currency !== "USD" ? labels : []).map((l) => ({
     label: l, mh: monthlyHousingOf(data.moneyDoc, l, days),
   })).filter(({ mh }) => !mh.missing);
+  // 35b: any 매매 home answers "내가 내는 돈" and opens the section.
+  const anyTradeCalc = calcs.some(({ mh }) =>
+    mh.tenure === "매매" && isTradeHousing(mh.housingDoc));
   const texts = data.momentTexts || [];
   const moments = data.moments || [];
   return (
@@ -1069,8 +1098,8 @@ export function SimulationCard({ data, example, onRetry, onScene, onReportRetry 
         <ReportCheck report={data.report} names={names} onRetry={onReportRetry} />
         <DiarySection diary={data.diary} customId={data.customId} onScene={onScene} />
         {calcs.length > 0 && (
-          <details className="ui-section">
-            <summary className="ui-section-head">어떻게 계산했나요</summary>
+          <details className="ui-section"{...(anyTradeCalc ? { open: true } : null)}>
+            <summary className="ui-section-head">{anyTradeCalc ? "내가 내는 돈" : "어떻게 계산했나요"}</summary>
             <div className="ui-section-body">
               {calcs.map(({ label, mh }) => (
                 <VStack gap={1} key={label}>
@@ -1078,8 +1107,13 @@ export function SimulationCard({ data, example, onRetry, onScene, onReportRetry 
                     <span className="ui-pick-disc" aria-hidden="true"{...(/^[AB]$/.test(label) ? { "data-home": label } : null)}>{label}</span>
                     <Text type="supporting">{trayDisplayName((names[label] || "").trim() || label)}</Text>
                   </HStack>
-                  <HowCalculated tenure={mh.tenure} housing={mh.housingDoc}
-                    maintenanceWon={mh.maintenanceWon} transitWon={mh.transitWon} />
+                  {mh.tenure === "매매" && isTradeHousing(mh.housingDoc) ? (
+                    <PurchasePayments housing={mh.housingDoc}
+                      maintenanceWon={mh.maintenanceWon} transitWon={mh.transitWon} />
+                  ) : (
+                    <HowCalculated tenure={mh.tenure} housing={mh.housingDoc}
+                      maintenanceWon={mh.maintenanceWon} transitWon={mh.transitWon} />
+                  )}
                 </VStack>
               ))}
             </div>

@@ -87,6 +87,24 @@ export function fmtWonShort(won) {
   return `${neg ? "−" : ""}월 ${body}`;
 }
 
+export function fmtWonLump(won) {
+  const v = Number(won);
+  if (!Number.isFinite(v)) return "–";
+  const neg = v < 0;
+  const abs = Math.round(Math.abs(v));
+  if (abs === 0) return "0 원";
+  if (abs >= 100000000) {
+    const rounded = Math.round(abs / 10000) * 10000;
+    const eok = Math.trunc(rounded / 100000000);
+    const man = Math.trunc((rounded % 100000000) / 10000);
+    let body = `${eok.toLocaleString("ko-KR")}억`;
+    if (man > 0) body += ` ${man.toLocaleString("ko-KR")}만`;
+    body += " 원";
+    return `${neg ? "−" : ""}${body}`;
+  }
+  return fmtWon(v);
+}
+
 export function fmtPct(ratio, digits = 1) {
   if (ratio === null || ratio === undefined) return "–";
   const v = Number(ratio);
