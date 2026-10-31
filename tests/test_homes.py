@@ -354,3 +354,25 @@ def test_slim_home_and_indexes(tmp_path):
     assert (tmp_path / "homes" / "songpa-gu.json").exists()
     assert (tmp_path / "homes" / "summary.json").exists()
     assert out["total_bytes"] > 0
+
+
+def test_repair_broken_names_donor_and_fallback():
+    from pipeline.homes import BROKEN_NAME_NOTE, repair_broken_names
+    homes = [
+        {"id": "home-000001", "name": "더?스타리버",
+         "lon": 127.10, "lat": 37.50},
+        {"id": "home-000002", "name": "더샵스타리버",
+         "lon": 127.1001, "lat": 37.5001},
+        {"id": "home-000003", "name": "혼자?단지",
+         "lon": 128.00, "lat": 38.00},
+        {"id": "home-000004", "name": "정상단지",
+         "lon": 127.10, "lat": 37.50},
+    ]
+    repair_broken_names(homes)
+    assert homes[0]["name"] == "더샵스타리버"
+    assert "name_note" not in homes[0]
+    assert homes[1]["name"] == "더샵스타리버"
+    assert homes[2]["name"] == "혼자단지"
+    assert homes[2]["name_note"] == BROKEN_NAME_NOTE
+    assert homes[3]["name"] == "정상단지"
+    assert "name_note" not in homes[3]

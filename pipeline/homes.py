@@ -432,6 +432,57 @@ def count_photos_near(lon: float, lat: float, photos: list[dict],
     return n
 
 
+BROKEN_NAME_NOTE = "원본 이름의 글자 하나가 깨져 있어요"
+BROKEN_NAME_DONOR_M = 30.0
+
+
+def _broken_name_match(broken: str, peer: str) -> bool:
+    """True when peer matches broken with each '?' as one wildcard char."""
+    if len(broken) != len(peer) or "?" in peer:
+        return False
+    return all(b == "?" or b == p for b, p in zip(broken, peer))
+
+
+def repair_broken_names(homes: list[dict]) -> list[dict]:
+    """Fix transaction names that lost one glyph (e.g. '더?스타리버').
+
+    A name containing '?' takes the name of another home within 30 m
+    matching it with '?' as one wildcard character (deterministic:
+    the smallest such name). Without a donor the '?' is dropped and
+    ``name_note`` explains the broken source glyph. Homes without '?'
+    are untouched. Operates in place and returns ``homes``.
+    """
+    for home in homes:
+        name = home.get("name") or ""
+        if "?" not in name:
+            continue
+        lon, lat = home.get("lon"), home.get("lat")
+        donor = None
+        if (isinstance(lon, (int, float))
+                and isinstance(lat, (int, float))):
+            for peer in homes:
+                if peer is home:
+                    continue
+                pname = peer.get("name") or ""
+                if not _broken_name_match(name, pname):
+                    continue
+                plon, plat = peer.get("lon"), peer.get("lat")
+                if (not isinstance(plon, (int, float))
+                        or not isinstance(plat, (int, float))):
+                    continue
+                if haversine_m(lon, lat, plon, plat) > BROKEN_NAME_DONOR_M:
+                    continue
+                if donor is None or pname < donor:
+                    donor = pname
+        if donor is not None:
+            home["name"] = donor
+            home.pop("name_note", None)
+        else:
+            home["name"] = name.replace("?", "")
+            home["name_note"] = BROKEN_NAME_NOTE
+    return homes
+
+
 def build_homes_index(region_rows: dict[str, list[dict]],
                       register: list[dict],
                       boxes: list[dict],
@@ -573,6 +624,7 @@ def build_homes_index(region_rows: dict[str, list[dict]],
     homes.sort(key=lambda h: (h["region"], h["name"], h["pnu"] or ""))
     for i, home in enumerate(homes):
         home["id"] = f"home-{i + 1:06d}"
+    repair_broken_names(homes)
     return homes, report
 
 

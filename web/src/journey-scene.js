@@ -11,7 +11,8 @@
 // paused clock never stalls the map.
 
 import * as THREE from "three";
-import { lonLatToXY } from "./frame.js";
+import { lonLatToXY, xyToLonLat } from "./frame.js";
+import { uvForLonLat } from "./aerial/tiles.js";
 import { BAND_COLORS, STATION_DOT_PX, corridorLoadPlan, markerScaleFor, patternById, trainPosition } from "./journey.js";
 import { baseMapBounds, hexToRgb, sliceGeometry, tileBuildings, tileLines,
   tileRoadRibbons, tileWater, tileWaterRibbons } from "./corridor.js";
@@ -36,6 +37,36 @@ function soupGeometry(soup) {
   geo.setAttribute("normal", new THREE.Float32BufferAttribute(soup.normals, 3));
   geo.setAttribute("color", new THREE.Float32BufferAttribute(soup.colors, 3));
   return geo;
+}
+
+// 36c2: split a non-indexed triangle soup into roof vertex indices
+// (face normal y > 0.9) and wall indices (the rest). Stored normals win
+// when present (corridor roof caps may wind either way); otherwise the
+// geometric normal from positions decides. Pure, no three.js.
+export function splitRoofWall(positions, normals = null) {
+  const roofIdx = [];
+  const wallIdx = [];
+  const tris = Math.floor(positions.length / 9);
+  for (let t = 0; t < tris; t++) {
+    const i0 = t * 3, i1 = i0 + 1, i2 = i0 + 2;
+    let ny = NaN;
+    if (normals && normals.length >= (i2 + 1) * 3) {
+      ny = (normals[i0 * 3 + 1] + normals[i1 * 3 + 1] + normals[i2 * 3 + 1]) / 3;
+    }
+    if (!Number.isFinite(ny)) {
+      const ax = positions[i0 * 3], ay = positions[i0 * 3 + 1], az = positions[i0 * 3 + 2];
+      const bx = positions[i1 * 3], by = positions[i1 * 3 + 1], bz = positions[i1 * 3 + 2];
+      const cx = positions[i2 * 3], cy = positions[i2 * 3 + 1], cz = positions[i2 * 3 + 2];
+      const ux = bx - ax, uy = by - ay, uz = bz - az;
+      const vx = cx - ax, vy = cy - ay, vz = cz - az;
+      const nx = uy * vz - uz * vy, nyy = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+      const len = Math.hypot(nx, nyy, nz);
+      ny = len > 0 ? nyy / len : -1;
+    }
+    if (ny > 0.9) roofIdx.push(i0, i1, i2);
+    else wallIdx.push(i0, i1, i2);
+  }
+  return { roofIdx, wallIdx };
 }
 
 export function stopCoords(network) {
@@ -64,6 +95,11 @@ export function createJourneyLayer(scene, origin, { look = null, tags = null } =
   // stations separate from the blocks on the regional view.
   const buildingMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 });
   buildingMat.color.setScalar(Number.isFinite(l.corridorDarken) ? l.corridorDarken : 1);
+  // 36c2: corridor roofs share the corridor aerial texture once the
+  // drape lands (white base so the photo reads true, like station
+  // roofs); walls always keep buildingMat.
+  const roofAerialMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 });
+  roofAerialMat.color.setRGB(1, 1, 1);
   const lineMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.9 });
   const waterMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0 });
   const roadMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 });
@@ -96,6 +132,7 @@ export function createJourneyLayer(scene, origin, { look = null, tags = null } =
   let rideKey = "";
   let manifest = null;
   let drapeHook = null; // 36c: corridor aerial drape (registered by main.js)
+  let corridorMosaic = null; // 36c2: { texture, range, zoom } once the corridor drape lands
   let network = null;
   let congestion = null;
   let dayKind = "weekday";
@@ -452,6 +489,82 @@ export function createJourneyLayer(scene, origin, { look = null, tags = null } =
     drapeHook = typeof fn === "function" ? fn : null;
   }
 
+  // 36c2: corridor buildings as one two-group mesh — walls (group 0,
+  // today's material) then roofs (group 1: the aerial texture once the
+  // corridor drape lands, else the wall material exactly as today).
+  function buildCorridorBuildings(soup) {
+    const { roofIdx, wallIdx } = splitRoofWall(soup.positions, soup.normals);
+    const order = wallIdx.concat(roofIdx);
+    const n = order.length;
+    const positions = new Float32Array(n * 3);
+    const normals = new Float32Array(n * 3);
+    const colors = new Float32Array(n * 3);
+    const uvs = new Float32Array(n * 2);
+    for (let dst = 0; dst < n; dst++) {
+      const src = order[dst];
+      positions[dst * 3] = soup.positions[src * 3];
+      positions[dst * 3 + 1] = soup.positions[src * 3 + 1];
+      positions[dst * 3 + 2] = soup.positions[src * 3 + 2];
+      normals[dst * 3] = soup.normals[src * 3];
+      normals[dst * 3 + 1] = soup.normals[src * 3 + 1];
+      normals[dst * 3 + 2] = soup.normals[src * 3 + 2];
+      colors[dst * 3] = soup.colors[src * 3];
+      colors[dst * 3 + 1] = soup.colors[src * 3 + 1];
+      colors[dst * 3 + 2] = soup.colors[src * 3 + 2];
+      if (dst >= wallIdx.length && corridorMosaic) {
+        const [lon, lat] = xyToLonLat(soup.positions[src * 3],
+          -soup.positions[src * 3 + 2], origin);
+        const [u, v] = uvForLonLat(lon, lat,
+          corridorMosaic.range, corridorMosaic.zoom);
+        uvs[dst * 2] = u;
+        uvs[dst * 2 + 1] = v;
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
+    geo.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    geo.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+    geo.addGroup(0, wallIdx.length, 0);
+    geo.addGroup(wallIdx.length, roofIdx.length, 1);
+    const mesh = new THREE.Mesh(geo,
+      [buildingMat, corridorMosaic ? roofAerialMat : buildingMat]);
+    mesh.userData.corridorRoof = true;
+    mesh.userData.corridorWallCount = wallIdx.length;
+    return mesh;
+  }
+
+  // 36c2: the corridor drape landed (possibly after tiles) — point
+  // every tile roof at the aerial texture and fill roof UVs over the
+  // mosaic range. Tiles loaded later use the stored mosaic directly.
+  function applyCorridorMosaic() {
+    if (!corridorMosaic) return;
+    roofAerialMat.map = corridorMosaic.texture;
+    roofAerialMat.needsUpdate = true;
+    for (const slot of tiles.values()) {
+      for (const m of slot.meshes) {
+        if (!m || !m.userData.corridorRoof) continue;
+        const pos = m.geometry.attributes.position;
+        const uv = m.geometry.attributes.uv;
+        const wallCount = m.userData.corridorWallCount || 0;
+        for (let i = wallCount; i < pos.count; i++) {
+          const [lon, lat] = xyToLonLat(pos.getX(i), -pos.getZ(i), origin);
+          const [u, v] = uvForLonLat(lon, lat,
+            corridorMosaic.range, corridorMosaic.zoom);
+          uv.setXY(i, u, v);
+        }
+        uv.needsUpdate = true;
+        m.material = [buildingMat, roofAerialMat];
+      }
+    }
+  }
+
+  function setCorridorMosaic(mosaic) {
+    if (!mosaic || !mosaic.texture || !mosaic.range) return;
+    corridorMosaic = { texture: mosaic.texture, range: mosaic.range, zoom: mosaic.zoom };
+    applyCorridorMosaic();
+  }
+
   function setManifest(m) {
     if ((m && m.id) === (manifest && manifest.id)) return;
     if (preload) {
@@ -460,10 +573,20 @@ export function createJourneyLayer(scene, origin, { look = null, tags = null } =
     }
     unloadAllTiles();
     manifest = m || null;
+    corridorMosaic = null; // the next drape brings its own range
     buildBaseMap();
     if (manifest && manifest.bounds && drapeHook) {
       try {
-        drapeHook(manifest.bounds, groundMesh);
+        const p = drapeHook(manifest.bounds, groundMesh);
+        if (p && typeof p.then === "function") {
+          p.then((r) => {
+            if (r && r.ok && r.texture && r.range) {
+              setCorridorMosaic({ texture: r.texture, range: r.range, zoom: r.zoom });
+            }
+          }).catch(() => {
+            // Painted fallback: the land-coloured plane stays as it is.
+          });
+        }
       } catch {
         // Painted fallback: the land-coloured plane stays as it is.
       }
@@ -566,7 +689,7 @@ export function createJourneyLayer(scene, origin, { look = null, tags = null } =
     const meshes = [];
     const soup = tileBuildings(tile, origin);
     if (soup.triangles > 0) {
-      const mesh = new THREE.Mesh(soupGeometry(soup), buildingMat);
+      const mesh = buildCorridorBuildings(soup);
       mesh.frustumCulled = false;
       meshes.push(mesh);
     }
@@ -633,7 +756,7 @@ export function createJourneyLayer(scene, origin, { look = null, tags = null } =
 
   resetBaseMap();
 
-  return { setPath, setTrain, setManifest, drapeCorridor, updateTiles, preloadCorridor,
+  return { setPath, setTrain, setManifest, drapeCorridor, setCorridorMosaic, updateTiles, preloadCorridor,
     tileProgress, updateStationLabels, updateMarkerScale, pathBounds,
     counts, setVisible, dispose, group };
 }

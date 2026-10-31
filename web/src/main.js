@@ -444,7 +444,8 @@ function buildWorld(area, scene14, opts = {}) {
   // build too.
   if ((LIVE_API || isUsArea(area)) && PARAMS.get("ground") !== "paint") {
     drapeAerial({ THREE, renderer, scene, area, origin, terrainMesh,
-      groundMesh, roadMeshes: sceneRoadMeshes, roofMesh, look: LOOK, style: STYLE })
+      groundMesh, roadMeshes: sceneRoadMeshes, roofMesh, fringeMesh: base,
+      look: LOOK, style: STYLE })
       .then((r) => {
         if (r && r.ok) {
           console.log(`[aerial] ok ${r.tiles} tiles z${r.zoom}`);

@@ -7,6 +7,7 @@
 // same helper the station labels use and renders into the #tags layer.
 
 import { displayNameFor } from "./homes.js";
+import { haversineM } from "./frame.js";
 import { placeNameEn } from "./ui/scene-chrome.js";
 
 export const OVERVIEW_MIN_M = 400;
@@ -184,6 +185,37 @@ export function homeDisplayName(name, runHomeName, candidate = null) {
   return n;
 }
 
+// 36c2: a source name lost one glyph ('더?스타리버' next to
+// '더샵스타리버' at the same spot). With a same-length peer within 30 m
+// matching the name with '?' as one wildcard character, the peer name
+// wins; otherwise the '?' is dropped and the note explains the broken
+// source glyph. Pure — mirrors pipeline.homes.repair_broken_names.
+export const BROKEN_NAME_NOTE = "원본 이름의 글자 하나가 깨져 있어요";
+
+export function repairComplexName(name, lon, lat, peers = []) {
+  const s = String(name == null ? "" : name);
+  if (!s.includes("?")) return { name: s, note: null };
+  const matches = (peer) => {
+    if (typeof peer !== "string") return false;
+    if (peer.length !== s.length || peer.includes("?")) return false;
+    for (let i = 0; i < s.length; i++) {
+      if (s[i] !== "?" && s[i] !== peer[i]) return false;
+    }
+    return true;
+  };
+  let donor = null;
+  if (Number.isFinite(lon) && Number.isFinite(lat)) {
+    for (const p of peers || []) {
+      if (!p || typeof p.name !== "string" || !matches(p.name)) continue;
+      if (!Number.isFinite(p.lon) || !Number.isFinite(p.lat)) continue;
+      if (haversineM(lon, lat, p.lon, p.lat) > 30) continue;
+      if (donor === null || String(p.name) < donor) donor = String(p.name);
+    }
+  }
+  if (donor !== null) return { name: donor, note: null };
+  return { name: s.replaceAll("?", ""), note: BROKEN_NAME_NOTE };
+}
+
 // Items: { id, level, title, sub, glyph, accent, lon, lat }.
 // Order: home pill first, then destination, then complexes / POIs / dongs.
 export function labelItemsFor(area, opts = {}) {
@@ -229,7 +261,12 @@ export function labelItemsFor(area, opts = {}) {
   }
 
   if (cameraDistM > OVERVIEW_MIN_M) {
-    for (const c of area?.complexes || []) {
+    const complexes = area?.complexes || [];
+    const peers = complexes.map((p) => {
+      const a = anchorOf(p);
+      return { name: p.name, lon: a ? a[0] : NaN, lat: a ? a[1] : NaN };
+    });
+    for (const c of complexes) {
       if (!c.name) continue;
       const anchor = anchorOf(c);
       if (!anchor) continue;
@@ -237,10 +274,13 @@ export function labelItemsFor(area, opts = {}) {
         c.households ? `${c.households}세대` : "",
         c.max_floors ? `최고 ${c.max_floors}층` : "",
       ]).join(" · ");
+      const repaired = String(c.name).includes("?")
+        ? repairComplexName(c.name, anchor[0], anchor[1], peers).name
+        : String(c.name);
       items.push({
         id: `complex:${c.id || c.name}`,
         level: "complex",
-        title: String(c.name),
+        title: repaired,
         sub,
         lon: anchor[0],
         lat: anchor[1],
