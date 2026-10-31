@@ -1,102 +1,92 @@
 {
-  "_note": "Draft v2.1 (narrated) (2026-11-01). English UI on the Seoul scenario, per the user. The orchestrator writes and the user approves the words; Muse builds the scenes from this file and never rewrites the copy. Times in seconds at 30 fps. `asset` paths are under video/public/. {stat:key} reads data/stats.json; a null stat drops the whole line.",
+  "_note": "Draft v3.0 (narrated, buying) (2026-11-01). English UI, the Seoul couple buys a home near Pangyo (real Muse Spark 1.3 run on the dev server). The orchestrator writes and the user approves the words; Muse builds the scenes from this file and never rewrites the copy. Times in seconds at 30 fps. `asset` paths are under video/public/. {stat:key} reads data/stats.json; a null stat drops the whole line.",
   "fps": 30,
   "width": 1920,
   "height": 1080,
   "scenes": [
     {
       "id": "hook",
-      "duration": 8.5,
+      "duration": 11,
       "kind": "title",
       "lines_en": [
-        "In Seoul, a two-year jeonse lease is often signed after one short viewing.",
+        "In Seoul, buying a home takes your savings and a large loan, often decided after one short viewing.",
         "What if you could live there first?"
       ],
       "lines_ko": [],
-      "start": 0
-    },
-    {
-      "id": "korea",
-      "duration": 8.0,
-      "kind": "screen",
-      "asset": "clips/10-seoul-en.mp4",
-      "clip_from": 0,
-      "caption_en": "Ithaca started from Seoul's jeonse problem. What follows is a real run with Muse Spark 1.3, sped up in places.",
-      "start": 8.5
+      "start": 0.0
     },
     {
       "id": "pitch",
-      "duration": 9.0,
+      "duration": 8.5,
       "kind": "title",
       "image": "brand/ithaca-banner.png",
       "lines_en": [
-        "An AI household lives 30 days in the homes you pick, before you sign."
+        "An AI household lives 30 days in the homes you pick, before you buy."
       ],
       "lines_ko": [],
-      "start": 16.5
+      "start": 11.0
     },
     {
       "id": "ask",
-      "duration": 12,
+      "duration": 16.5,
       "kind": "screen",
-      "asset": "clips/10-seoul-en.mp4",
-      "clip_from": 2,
+      "asset": "clips/20-buy-en.mp4",
+      "clip_from": 0,
       "playback_rate": 1.6,
-      "caption_en": "Say your situation in plain words. Muse Spark 1.3 reads it and calls real tools.",
+      "caption_en": "A couple working in Pangyo says it in plain words. Muse Spark 1.3 reads it and calls real tools.",
       "zooms": [
         {
-          "at": 4.5,
-          "until": 11.5,
+          "at": 0.5,
+          "until": 6.0,
           "rect": [
-            0.2,
-            0.0,
-            0.6,
-            0.4
+            0.15,
+            0.05,
+            0.7,
+            0.45
           ]
         }
       ],
       "callouts": [
         {
-          "at": 5,
-          "text_en": "Each step Muse takes is shown"
+          "at": 6.5,
+          "text_en": "Salaries ₩60M + ₩50M · ₩200M saved · buy for ₩700M or less"
         }
       ],
-      "start": 25.5
+      "start": 19.5
     },
     {
       "id": "candidates",
-      "duration": 10,
+      "duration": 9.5,
       "kind": "screen",
-      "asset": "clips/10-seoul-en.mp4",
-      "clip_from": 22,
-      "caption_en": "Candidates come from the government's real transaction records, on a real map.",
+      "asset": "clips/20-buy-en.mp4",
+      "clip_from": 27,
+      "caption_en": "Candidates from the government's real purchase records, one per neighbourhood, with the commute to Pangyo.",
       "zooms": [
         {
-          "at": 1.5,
-          "until": 9.5,
+          "at": 1.0,
+          "until": 9.0,
           "rect": [
-            0.49,
-            0.4,
-            0.22,
-            0.44
+            0.5,
+            0.05,
+            0.42,
+            0.8
           ]
         }
       ],
       "callouts": [
         {
-          "at": 2,
-          "text_en": "Price = median of recent real jeonse deals"
+          "at": 1.5,
+          "text_en": "Price = median of real purchase deals"
         }
       ],
-      "start": 37.5
+      "start": 36.0
     },
     {
       "id": "live",
-      "duration": 12,
+      "duration": 10.5,
       "kind": "screen",
-      "asset": "clips/10-seoul-en.mp4",
-      "clip_from": 25.5,
-      "playback_rate": 2,
+      "asset": "clips/20-buy-en.mp4",
+      "clip_from": 47,
       "caption_en": "Pick two. Muse lives 30 days in each home: the same household, the same seed.",
       "callouts": [
         {
@@ -104,47 +94,51 @@
           "text_en": "No ranking, no winner"
         }
       ],
-      "start": 47.5
+      "start": 45.5
     },
     {
       "id": "days",
-      "duration": 12.0,
+      "duration": 12,
       "kind": "screen",
-      "asset": "clips/11-3d-commute-en.mp4",
-      "clip_from": 0,
-      "caption_en": "Every trip is simulated minute by minute: real walking routes, the subway timetable, measured crowding.",
+      "asset": "clips/21-3d-ride-en.mp4",
+      "clip_from": 0.3,
+      "playback_rate": 0.5,
+      "caption_en": "Every trip, minute by minute: real walking paths, subway timetables, measured crowding.",
       "zooms": [
         {
-          "at": 2.5,
+          "at": 6.5,
           "until": 11.5,
           "rect": [
-            0.72,
-            0.1,
-            0.28,
-            0.36
+            0.68,
+            0.08,
+            0.32,
+            0.45
           ]
         }
       ],
       "callouts": [
         {
-          "at": 3,
-          "text_en": "Measured or assumed: every line says which"
+          "at": 1,
+          "text_en": "Recorded month: Songpa → Pangyo on four lines"
+        },
+        {
+          "at": 6,
+          "text_en": "Measured or assumed: every leg says which"
         }
       ],
-      "start": 59.5,
-      "playback_rate": 0.5
+      "start": 56.0
     },
     {
       "id": "results",
-      "duration": 12,
+      "duration": 11,
       "kind": "screen",
-      "asset": "clips/10-seoul-en.mp4",
-      "clip_from": 55,
-      "caption_en": "After 30 days: what it costs, how long the commute really is, and what living there showed.",
+      "asset": "clips/20-buy-en.mp4",
+      "clip_from": 58,
+      "caption_en": "After 30 days: the cost to buy, what you pay each month, and the real commute.",
       "zooms": [
         {
           "at": 1,
-          "until": 11.5,
+          "until": 10.5,
           "rect": [
             0.0,
             0.03,
@@ -159,24 +153,63 @@
           "text_en": "A score on your own criteria, never a verdict"
         }
       ],
-      "start": 71.5
+      "start": 68.0
+    },
+    {
+      "id": "pay",
+      "duration": 13.5,
+      "kind": "screen",
+      "asset": "clips/20-buy-en.mp4",
+      "clip_from": 84,
+      "playback_rate": 1.1,
+      "caption_en": "What you pay, line by line, each with the law it comes from.",
+      "zooms": [
+        {
+          "at": 0.5,
+          "until": 6.0,
+          "rect": [
+            0.0,
+            0.03,
+            0.37,
+            0.62
+          ]
+        },
+        {
+          "at": 6.5,
+          "until": 13.0,
+          "rect": [
+            0.0,
+            0.36,
+            0.37,
+            0.62
+          ]
+        }
+      ],
+      "callouts": [
+        {
+          "at": 1,
+          "text_en": "Loan payment each month · taxes and agent fee once"
+        }
+      ],
+      "start": 79.0
     },
     {
       "id": "verify",
-      "duration": 13,
+      "duration": 14,
       "kind": "screen",
-      "asset": "clips/10-seoul-en.mp4",
-      "clip_from": 74,
+      "asset": "clips/20-buy-en.mp4",
+      "clip_from": 99,
+      "playback_rate": 1.3,
       "caption_en": "Muse writes the report, code re-checks every number, and each moment opens the minute it came from.",
       "zooms": [
         {
           "at": 0.5,
-          "until": 4.5,
+          "until": 5.0,
           "rect": [
             0.0,
-            0.45,
+            0.03,
             0.37,
-            0.5
+            0.62
           ]
         }
       ],
@@ -186,11 +219,11 @@
           "text_en": "Report check: passed on the first try"
         },
         {
-          "at": 7,
-          "text_en": "Day 1, 07:54, in 3D"
+          "at": 8,
+          "text_en": "Day 1, 08:00, in 3D"
         }
       ],
-      "start": 83.5
+      "start": 92.5
     },
     {
       "id": "meta",
@@ -219,7 +252,7 @@
           "Say it instead of typing it"
         ]
       ],
-      "start": 96.5
+      "start": 106.5
     },
     {
       "id": "end",
@@ -234,7 +267,7 @@
         "{stat:site_url}",
         "{stat:repo_url}"
       ],
-      "start": 114.5
+      "start": 124.5
     }
   ]
 }
