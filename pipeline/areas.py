@@ -21,6 +21,7 @@ import osmium
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_RAW_PBF = REPO_ROOT / "data" / "raw" / "south-korea-latest.osm.pbf"
 US_RAW_PBF = REPO_ROOT / "data" / "raw" / "us" / "norcal-latest.osm.pbf"
+US_GTFS_ZIP = REPO_ROOT / "data" / "raw" / "us" / "caltrain" / "caltrain-ca-us.zip"
 DEFAULT_BUILD_DIR = REPO_ROOT / "data" / "build"
 
 AREA_IDS = ("pangyo", "seongsu", "songpa", "songpa-jamsil")
@@ -355,7 +356,47 @@ def _lookup_us_station(station: str, raw_pbf: str | Path,
         sub = _CandidateScan(set(names))
         sub.hits = [h for h in hits if h in pool]
         hits = sub.hits
-    return _pick_station(hits, names)
+    try:
+        return _pick_station(hits, names)
+    except LookupError:
+        pass
+    try:
+        return _gtfs_parent_station_coord(station)
+    except (LookupError, OSError, ValueError):
+        raise LookupError(
+            f"station {names[0]!r}: no railway station match")
+
+
+def _gtfs_parent_station_coord(station: str,
+                               gtfs_zip: str | Path | None = None) -> dict:
+    """GTFS fallback for a US box station: parent-station coordinate.
+
+    Used when no OSM ``railway=station`` name matches (e.g. the OSM
+    station is named ``San Francisco Caltrain`` / ``4th & King``).
+    Matches ``stops.txt`` parent stations (``location_type=1``) whose
+    ``stop_name`` starts with the box's station; ``San Francisco`` also
+    matches a ``4th & King`` stop. Northernmost match wins.
+    """
+    from .caltrain import clean_name, load_gtfs, parent_stations
+
+    data = load_gtfs(US_GTFS_ZIP if gtfs_zip is None else gtfs_zip)
+    cands = []
+    for s in parent_stations(data["stops"]).values():
+        raw = (s.get("stop_name") or "").strip()
+        if not raw:
+            continue
+        if raw.startswith(station) or clean_name(raw) == station:
+            cands.append(s)
+        elif (station == "San Francisco" and "4th" in raw
+                and "king" in raw.lower()):
+            cands.append(s)
+    if not cands:
+        raise LookupError(f"station {station!r}: no GTFS parent match")
+    best = max(cands, key=lambda s: float(s.get("stop_lat") or 0.0))
+    return {"name": station,
+            "lon": float(best.get("stop_lon") or 0.0),
+            "lat": float(best.get("stop_lat") or 0.0),
+            "osm_kind": "gtfs", "osm_id": (best.get("stop_id") or "")}
 
 
 def _resolve_us_station_box(area_id: str,

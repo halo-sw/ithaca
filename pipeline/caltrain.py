@@ -187,17 +187,49 @@ def build_caltrain(gtfs_zip: str | Path, out_build_dir: str | Path,
                 seg_times.setdefault((a, b), []).append(
                     abs(station_dep[b] - station_dep[a]))
 
+    seg_pairs = list(zip([s["id"] for s in stations],
+                         [s["id"] for s in stations][1:]))
+    seg_dists = [round(chain[b] - chain[a], 3) for a, b in seg_pairs]
+    seg_meds: list[int | None] = [
+        round(statistics.median(seg_times[(a, b)]))
+        if seg_times.get((a, b)) else None for a, b in seg_pairs]
+
+    def _interp_rate(idx: int) -> float | None:
+        before = next((seg_meds[j] / seg_dists[j]
+                       for j in range(idx - 1, -1, -1)
+                       if seg_meds[j] is not None and seg_dists[j] > 0),
+                      None)
+        after = next((seg_meds[k] / seg_dists[k]
+                      for k in range(idx + 1, len(seg_pairs))
+                      if seg_meds[k] is not None and seg_dists[k] > 0),
+                     None)
+        if before is not None and after is not None:
+            j = next(j for j in range(idx - 1, -1, -1)
+                     if seg_meds[j] is not None and seg_dists[j] > 0)
+            k = next(k for k in range(idx + 1, len(seg_pairs))
+                     if seg_meds[k] is not None and seg_dists[k] > 0)
+            span = seg_dists[j] + seg_dists[k]
+            if span > 0:
+                return (seg_meds[j] + seg_meds[k]) / span
+            return None
+        return before if before is not None else after
+
+    interpolated: list[str] = []
     rows_csv = []
     cum = 0.0
-    for i, (a, b) in enumerate(zip([s["id"] for s in stations],
-                                   [s["id"] for s in stations][1:])):
-        mins = seg_times.get((a, b), [])
-        med = round(statistics.median(mins)) if mins else ""
-        dist = round(chain[b] - chain[a], 3)
+    for i, ((a, b), dist) in enumerate(zip(seg_pairs, seg_dists)):
+        med = seg_meds[i]
+        if med is None:
+            rate = _interp_rate(i)
+            if rate is not None and dist > 0:
+                med = max(1, round(rate * dist))
         cum = round(cum + dist, 3)
+        name = next(s["name"] for s in stations if s["id"] == b)
+        if seg_meds[i] is None and med is not None:
+            interpolated.append(name)
         rows_csv.append({"연번": str(i + 1), "호선": LINE_NAME,
-                         "역명": next(s["name"] for s in stations if s["id"] == b),
-                         "소요시간": str(med),
+                         "역명": name,
+                         "소요시간": f"{med:02d}:00" if med is not None else "",
                          "역간거리(km)": str(dist),
                          "호선별누계(km)": str(cum)})
     out_scen = Path(out_scenarios_dir)
@@ -210,7 +242,8 @@ def build_caltrain(gtfs_zip: str | Path, out_build_dir: str | Path,
         w.writerows(rows_csv)
 
     # AM file: per station, ride minutes to Menlo Park + headway.
-    am: dict = {"stations": [], "meta": dict(network["meta"])}
+    am: dict = {"stations": [], "meta": {**network["meta"],
+                                         "interpolated": interpolated}}
     if menlo_id is not None:
         for s in stations:
             sid = s["id"]

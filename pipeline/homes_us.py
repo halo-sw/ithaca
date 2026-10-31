@@ -27,6 +27,10 @@ ZORI_LABEL = "Zillow ZORI (typical rent for this ZIP, all home types)"
 
 CANDIDATE_BUILDINGS = {"apartments", "residential", "dormitory"}
 NO_NAME_RE = re.compile(r"^Building\s+\S+$", re.IGNORECASE)
+DIGIT_NAME_RE = re.compile(r"^\d+\s*[A-Za-z]?$")
+SINGLE_LETTER_RE = re.compile(r"^[A-Za-z]$")
+NODE_ATTACH_M = 60.0
+NODE_BUILDINGS = {"apartments", "residential"}
 ZIP_RE = re.compile(r"^(\d{5})")
 MONTH_COL_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 ROAD_HIGHWAYS = {"residential", "tertiary", "secondary", "primary",
@@ -248,6 +252,81 @@ def _ring_area(ring: list) -> float:
     return abs(area) / 2.0
 
 
+def _geom_contains(geom: dict, lon: float, lat: float) -> bool:
+    """True when a GeoJSON Polygon/MultiPolygon covers (lon, lat).
+
+    Every outer ring counts (unlike the largest-ring shortcut in
+    :func:`_as_ring_list`); holes exclude.
+    """
+    if not isinstance(geom, dict):
+        return False
+    coords = geom.get("coordinates")
+    if not coords:
+        return False
+    if geom.get("type") == "Polygon":
+        polys = [coords]
+    elif geom.get("type") == "MultiPolygon":
+        polys = coords
+    else:
+        return False
+    for poly in polys:
+        if not poly or not poly[0]:
+            continue
+        if _point_in_ring(lon, lat, poly[0]):
+            if any(_point_in_ring(lon, lat, ring) for ring in poly[1:]):
+                continue
+            return True
+    return False
+
+
+def _named_residential_areas(area: dict,
+                             area_dir: str | Path) -> list[dict]:
+    """Named ``landuse=residential`` areas from the parsed extract.
+
+    Reads ``landuse`` from ``area.json`` (inline or ``$ref``): each
+    named residential Polygon/MultiPolygon becomes
+    ``{"name", "geometry"}``. An area without landuse yields [].
+    """
+    try:
+        raw = _resolve(Path(area_dir), area, "landuse") or []
+    except (OSError, ValueError):
+        return []
+    out = []
+    for feat in raw:
+        if not isinstance(feat, dict):
+            continue
+        if feat.get("kind") != "landuse:residential":
+            continue
+        name = str(feat.get("name") or "").strip()
+        geom = feat.get("geometry")
+        if not name or not isinstance(geom, dict):
+            continue
+        if geom.get("type") not in ("Polygon", "MultiPolygon"):
+            continue
+        out.append({"name": name, "geometry": geom})
+    return out
+
+
+def _shared_address(idxs: list[int], cands: list,
+                    addresses: list) -> str | None:
+    """The ``"<housenumber> <street>"`` every member resolves to, if one.
+
+    Each building resolves via its own ring-aware nearest address
+    (40 m); the result counts only when all members agree.
+    """
+    if not addresses:
+        return None
+    found: set[str] = set()
+    for i in idxs:
+        b, clon, clat = cands[i]
+        ring = _building_ring(b.get("geometry"))
+        addr = nearest_address(clon, clat, addresses, 40, ring=ring)
+        if addr is None:
+            return None
+        found.add(addr)
+    return found.pop() if len(found) == 1 else None
+
+
 def nearest_address(lon: float, lat: float,
                     addresses: list[tuple[float, float, str, str]],
                     max_m: float = 40, ring=None) -> str | None:
@@ -395,7 +474,65 @@ def _dijkstra(adj: dict, start: str) -> dict[str, float]:
 
 
 def _has_name(name: object) -> bool:
-    return bool(name) and not NO_NAME_RE.match(str(name).strip())
+    if not name or NO_NAME_RE.match(str(name).strip()):
+        return False
+    # A bare house number (or number + unit letter) is not a name:
+    # the home is named from its OSM address instead.
+    if DIGIT_NAME_RE.match(str(name).strip()):
+        return False
+    # A single letter (or "Building X", above) is a unit label, not a
+    # home name: address, else the existing fallback.
+    if SINGLE_LETTER_RE.match(str(name).strip()):
+        return False
+    return True
+
+
+def _is_named_residential_node(tags: dict) -> bool:
+    """True for a named node that can name a home (Stage 29N1b).
+
+    ``building=apartments|residential`` on a node, a named node with
+    ``addr:*`` plus a residential tag, or anything named ``Anton Menlo``
+    (the product-owner-named complex, OSM node-only).
+    """
+    name = str(tags.get("name") or "").strip()
+    if not name:
+        return False
+    if "anton menlo" in name.lower():
+        return True
+    building = tags.get("building")
+    if building in NODE_BUILDINGS:
+        return True
+    if (tags.get("addr:housenumber") and tags.get("addr:street")
+            and (building in CANDIDATE_BUILDINGS
+                 or tags.get("landuse") == "residential")):
+        return True
+    return False
+
+
+def collect_named_nodes(pbf_path: str | Path) -> list[dict]:
+    """Named residential nodes in an extract: ``[{name, lon, lat}]``."""
+    import osmium
+
+    class _Scan(osmium.SimpleHandler):
+        def __init__(self) -> None:
+            super().__init__()
+            self.out: list[dict] = []
+
+        def node(self, n) -> None:
+            if not n.location.valid():
+                return
+            try:
+                tags = dict(n.tags)
+            except (AttributeError, LookupError):
+                return
+            if _is_named_residential_node(tags):
+                self.out.append({
+                    "name": str(tags["name"]).strip(),
+                    "lon": n.location.lon, "lat": n.location.lat})
+
+    scan = _Scan()
+    scan.apply_file(str(pbf_path), locations=True)
+    return scan.out
 
 
 def _building_ring(geom: dict | None) -> list | None:
@@ -423,8 +560,33 @@ def _building_area(geom: dict | None) -> float:
 SHUTTLE_MIN_ASSUMED = 15  # Meta connector incl. wait (assumed, not public)
 
 
-def _commute_facts(station: dict | None, commute: dict) -> dict:
-    """Precomputed Caltrain commute facts for one ``us-st-*`` home."""
+def _straight_estimate(lon: float, lat: float,
+                      hq: dict | None) -> tuple[float | None, float | None]:
+    """(walk_min, bike_min) for straight-line km x 1.3 at 15 km/h biking."""
+    if hq is None:
+        return None, None
+    try:
+        km = haversine_m(lon, lat, hq["lon"], hq["lat"]) / 1000.0 * 1.3
+    except (KeyError, TypeError, ValueError):
+        return None, None
+    return (round(km * 1000.0 / WALK_MPS / 60, 1),
+            round(km / 15 * 60, 1))
+
+
+def _commute_facts(station: dict | None, commute: dict,
+                   lon: float | None = None, lat: float | None = None,
+                   meta_hq: dict | None = None,
+                   area_id: str | None = None,
+                   graph_walk: float | None = None,
+                   graph_bike: float | None = None) -> dict:
+    """Precomputed commute facts for one US home (Stage 29N1b).
+
+    ``total_min`` stays the Caltrain route (station boxes); ``best`` is
+    the fastest of walk (only when <= 40 min), ``bike_direct_min`` and
+    the Caltrain route. ``bike_direct_min`` rides the area walk/bike
+    graph when HQ is inside the area (us-menlo), else a straight-line
+    x1.3 estimate at 15 km/h (``source: "estimate"``).
+    """
     walk = station.get("walk_minutes") if station else None
     ride = commute.get("caltrain_min")
     headway = commute.get("headway_min")
@@ -435,6 +597,29 @@ def _commute_facts(station: dict | None, commute: dict) -> dict:
         total = round(walk + headway / 2 + ride + bike, 1)
     else:
         total = None
+    est_walk, est_bike = (
+        _straight_estimate(lon, lat, meta_hq)
+        if lon is not None and lat is not None else (None, None))
+    if area_id == AREA_ID:
+        bike_direct, bike_source = (
+            (graph_bike, "osm_graph") if graph_bike is not None
+            else (est_bike, "estimate"))
+        walk_direct, walk_source = (
+            (graph_walk, "osm_graph") if graph_walk is not None
+            else (est_walk, "estimate"))
+    else:
+        bike_direct, bike_source = est_bike, "estimate"
+        walk_direct, walk_source = est_walk, "estimate"
+    options: list[tuple[str, float]] = []
+    if walk_direct is not None and walk_direct <= 40:
+        options.append(("walk", walk_direct))
+    if bike_direct is not None:
+        options.append(("bike", bike_direct))
+    if total is not None:
+        options.append(("caltrain", total))
+    best = ({"mode": min(options, key=lambda t: (t[1], t[0]))[0],
+             "min": min(t[1] for t in options)}
+            if options else None)
     return {
         "destination": "Menlo Park",
         "walk_to_station_min": {"value": walk, "source": "osm_graph"},
@@ -448,6 +633,9 @@ def _commute_facts(station: dict | None, commute: dict) -> dict:
         },
         "total_min": {"value": total,
                       "sources": ["osm_graph", "caltrain_gtfs"]},
+        "bike_direct_min": {"value": bike_direct, "source": bike_source},
+        "walk_direct_min": {"value": walk_direct, "source": walk_source},
+        "best": best,
     }
 
 
@@ -457,7 +645,9 @@ def build_us_homes(area_dir: str | Path, zori: dict[str, dict],
                    addresses: list | None = None,
                    area_id: str | None = None,
                    default_zip: str = "94025",
-                   commute: dict | None = None) -> list[dict]:
+                   commute: dict | None = None,
+                   named_nodes: list | None = None,
+                   named_areas: list | None = None) -> list[dict]:
     """Group OSM apartment buildings into homes with ZORI rent.
 
     ``area_id`` defaults to the ``area`` key of ``area.json`` (``us-menlo``
@@ -504,16 +694,127 @@ def build_us_homes(area_dir: str | Path, zori: dict[str, dict],
             continue
         cands.append((b, c[0], c[1]))
 
+    if named_nodes is None:
+        named_nodes = []
+        for cand_name in ("extract.osm.pbf", "extract.buffered.osm.pbf"):
+            pbf = area_dir / cand_name
+            if pbf.exists():
+                try:
+                    named_nodes = collect_named_nodes(pbf)
+                except Exception:
+                    named_nodes = []
+                break
+    # Named residential nodes: the nearest candidate building within
+    # 60 m takes the node's name; a node with no building nearby
+    # becomes its own candidate home at its coordinate.
+    node_names: set[str] = set()
+    attached: dict[int, tuple[float, str]] = {}
+    orphans: list[tuple[str, float, float]] = []
+    for node in named_nodes or []:
+        nname = str(node.get("name") or "").strip()
+        try:
+            nlon, nlat = float(node["lon"]), float(node["lat"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if not nname:
+            continue
+        best_i, best_d = None, NODE_ATTACH_M
+        for i, (_b, clon, clat) in enumerate(cands):
+            d = haversine_m(nlon, nlat, clon, clat)
+            if d <= best_d and (best_i is None or d < best_d):
+                best_i, best_d = i, d
+        if best_i is None:
+            orphans.append((nname, nlon, nlat))
+        elif best_i not in attached or best_d < attached[best_i][0]:
+            attached[best_i] = (best_d, nname)
+    for i, (_d, nname) in attached.items():
+        cands[i][0]["name"] = nname
+        node_names.add(nname)
+    n_orphans = len(orphans)
+    for k, (nname, nlon, nlat) in enumerate(orphans):
+        node_names.add(nname)
+        cands.append(({"id": f"osm-node-{k}", "building": "residential",
+                       "name": nname,
+                       "geometry": {"type": "Point",
+                                    "coordinates": [nlon, nlat]}},
+                      nlon, nlat))
+    n_buildings = len(cands) - n_orphans
+
+    # Named residential areas: candidate buildings whose centroid lies
+    # inside a named polygon form one home per polygon, named after it
+    # (match "osm_area_name", coordinate of the largest building). A
+    # named ``building=apartments`` area holding other candidates works
+    # the same way. Orphan node homes keep their own names.
+    if named_areas is None:
+        named_areas = _named_residential_areas(area, area_dir)
+    claimed = [False] * len(cands)
+    groups: list[tuple[str | None, list[int]]] = []
+    extra: dict[tuple[int, ...], dict] = {}
+
+    def _largest(idxs: list[int]) -> int:
+        return max(idxs, key=lambda i: (
+            _building_area(cands[i][0].get("geometry")), i))
+
+    def _finish_grouped(home_name: str, idxs: list[int],
+                        match: str) -> None:
+        ordered = sorted(idxs)
+        big = cands[_largest(ordered)]
+        groups.append((home_name, ordered))
+        extra[tuple(ordered)] = {
+            "match": match, "lon": big[1], "lat": big[2],
+            "address": _shared_address(ordered, cands, addresses),
+        }
+
+    for poly in sorted(named_areas or [],
+                       key=lambda a: str(a.get("name") or "")):
+        aname = str(poly.get("name") or "").strip()
+        geom = poly.get("geometry")
+        if not aname or not isinstance(geom, dict):
+            continue
+        inside = [i for i in range(n_buildings)
+                  if not claimed[i]
+                  and _geom_contains(geom, cands[i][1], cands[i][2])]
+        if not inside:
+            continue
+        for i in inside:
+            claimed[i] = True
+        _finish_grouped(aname, inside, "osm_area_name")
+
+    holders: list[tuple[str, int, list[int]]] = []
+    for i in range(n_buildings):
+        if claimed[i]:
+            continue
+        b = cands[i][0]
+        if not _has_name(b.get("name")):
+            continue
+        geom = b.get("geometry")
+        if (not isinstance(geom, dict)
+                or geom.get("type") not in ("Polygon", "MultiPolygon")):
+            continue
+        inside = [j for j in range(n_buildings)
+                  if j != i and not claimed[j]
+                  and _geom_contains(geom, cands[j][1], cands[j][2])]
+        if inside:
+            holders.append((str(b.get("name")).strip(), i, inside))
+    for hname, hi, hinside in sorted(holders):
+        if claimed[hi]:
+            continue
+        members = [hi] + [j for j in hinside if not claimed[j]]
+        for m in members:
+            claimed[m] = True
+        _finish_grouped(hname, members, "osm_area_name")
+
     named: dict[str, list[int]] = defaultdict(list)
     unnamed: list[int] = []
     for i, (b, _lon, _lat) in enumerate(cands):
+        if claimed[i]:
+            continue
         name = b.get("name")
         if _has_name(name):
             named[str(name).strip()].append(i)
         else:
             unnamed.append(i)
 
-    groups: list[tuple[str | None, list[int]]] = []
     for name in sorted(named):
         idxs = named[name]
         parent = {i: i for i in idxs}
@@ -535,8 +836,35 @@ def build_us_homes(area_dir: str | Path, zori: dict[str, dict],
             clusters[_find(i)].append(i)
         for key in sorted(clusters, key=lambda k: min(clusters[k])):
             groups.append((name, sorted(clusters[key])))
+    # One address + one road-name stem outside any named polygon is
+    # one home the same way (so a complex is not split into numbered
+    # "Apartments on X" homes). Members without a shared address or
+    # without a road stem stay single homes.
+    addr_of: dict[int, str | None] = {}
+    stem_of: dict[int, str | None] = {}
+    for i in unnamed:
+        b, clon, clat = cands[i]
+        bring = _building_ring(b.get("geometry"))
+        addr_of[i] = (nearest_address(clon, clat, addresses, 40,
+                                      ring=bring)
+                      if addresses else None)
+        road = _nearest_road_name(clon, clat, roads)
+        stem_of[i] = f"Apartments on {road}" if road else None
+    buckets: dict[tuple[str, str], list[int]] = defaultdict(list)
+    for i in unnamed:
+        if addr_of[i] and stem_of[i]:
+            buckets[(addr_of[i], stem_of[i])].append(i)  # type: ignore[index]
+    seen_stems: set[tuple[str, str]] = set()
     for i in sorted(unnamed):
-        groups.append((None, [i]))
+        key = ((addr_of[i], stem_of[i])  # type: ignore[misc]
+               if addr_of[i] and stem_of[i] else None)
+        if key is not None and len(buckets[key]) > 1:
+            if key in seen_stems:
+                continue
+            seen_stems.add(key)
+            _finish_grouped(key[1], buckets[key], "osm")
+        else:
+            groups.append((None, [i]))
 
     nodes = graph.get("nodes") or {}
     walk_adj = _adjacency((graph.get("edges") or {}).get("walk"))
@@ -550,8 +878,13 @@ def build_us_homes(area_dir: str | Path, zori: dict[str, dict],
     fallback_n = 0
     seq = 0
     for name, idxs in groups:
-        lon = sum(cands[i][1] for i in idxs) / len(idxs)
-        lat = sum(cands[i][2] for i in idxs) / len(idxs)
+        key = tuple(idxs)
+        info = extra.get(key)
+        if info is not None:
+            lon, lat = info["lon"], info["lat"]
+        else:
+            lon = sum(cands[i][1] for i in idxs) / len(idxs)
+            lat = sum(cands[i][2] for i in idxs) / len(idxs)
         lon_r, lat_r = round(lon, 7), round(lat, 7)
         zip_code, zip_source = zip_for(lon, lat, points,
                                          default=default_zip)
@@ -560,8 +893,13 @@ def build_us_homes(area_dir: str | Path, zori: dict[str, dict],
             dropped += 1
             continue
         seq += 1
-        if name is not None:
-            home_name, match = name, "osm_name"
+        shared_addr: str | None = None
+        if info is not None:
+            home_name, match = name, info["match"]
+            shared_addr = info.get("address")
+        elif name is not None:
+            home_name = name
+            match = "osm_node_name" if name in node_names else "osm_name"
         else:
             addr = None
             if addresses:
@@ -573,6 +911,7 @@ def build_us_homes(area_dir: str | Path, zori: dict[str, dict],
                                        ring=bring)
             if addr:
                 home_name, match = addr, "osm_address"
+                shared_addr = addr
             else:
                 road = _nearest_road_name(lon, lat, roads)
                 if road:
@@ -609,6 +948,11 @@ def build_us_homes(area_dir: str | Path, zori: dict[str, dict],
                         entry["bike_minutes"] = round(
                             dist[hq_node] / BIKE_MPS / 60, 1)
             work_targets = {"meta-hq": entry}
+        raw_levels = [cands[i][0].get("levels") for i in idxs]
+        levels_max = max(
+            (v for v in raw_levels
+             if isinstance(v, int) and not isinstance(v, bool)),
+            default=None)
         home = {
             "id": f"us-home-{seq:04d}",
             "name": home_name,
@@ -619,7 +963,10 @@ def build_us_homes(area_dir: str | Path, zori: dict[str, dict],
             "build_year": None,
             "pnu": None,
             "match": match,
-            "osm_name": name,
+            "osm_name": name if info is None else None,
+            "buildings": len(idxs),
+            "levels_max": levels_max,
+            "address": shared_addr,
             "scene": area_id,
             "station": station,
             "buckets": [{
@@ -641,8 +988,11 @@ def build_us_homes(area_dir: str | Path, zori: dict[str, dict],
                       "label": ZORI_LABEL},
             "work_targets": work_targets,
         }
-        if commute is not None:
-            home["commute"] = _commute_facts(station, commute)
+        gw = work_targets.get("meta-hq", {}).get("walk_minutes")
+        gb = work_targets.get("meta-hq", {}).get("bike_minutes")
+        home["commute"] = _commute_facts(
+            station, commute or {}, lon=lon, lat=lat, meta_hq=meta_hq,
+            area_id=area_id, graph_walk=gw, graph_bike=gb)
         homes.append(home)
     by_name: dict[str, list[int]] = defaultdict(list)
     for k, h in enumerate(homes):
