@@ -91,8 +91,7 @@ export function commuteShortLine(candidate, destName) {
   if (c.ride && c.ride.known && Number.isFinite(c.ride.minutes) && c.ride.minutes > 0) {
     const total = Math.round(((c.walk.known ? c.walk.minutes : 0) + c.ride.minutes) * 10) / 10;
     const src = c.ride.source === "customer" ? "said"
-      : c.ride.derived && (c.ride.derived.methodsUsed || []).includes("estimate")
-        && !(c.ride.derived.methodsUsed || []).includes("schedule") ? "estimate" : "official";
+      : c.ride.derived && (c.ride.derived.methodsUsed || []).includes("estimate") ? "estimate" : "official";
     const where = destName ? `${destName}까지 ` : "";
     // 18d: the pre-run estimate keeps its own label — never the 30-day
     // 살아 보기 편도 (oneWayCommuteOfRun) shown after the run.
@@ -134,8 +133,7 @@ export function commuteRowLine(candidate, destName) {
   const rideKnown = !!(c.ride && c.ride.known
     && Number.isFinite(c.ride.minutes) && c.ride.minutes > 0);
   const src = c.ride && c.ride.source === "customer" ? "said"
-    : c.ride && c.ride.derived && (c.ride.derived.methodsUsed || []).includes("estimate")
-      && !(c.ride.derived.methodsUsed || []).includes("schedule") ? "estimate" : "official";
+    : c.ride && c.ride.derived && (c.ride.derived.methodsUsed || []).includes("estimate") ? "estimate" : "official";
   const near = (m) => (m < 1 ? "1분 이내" : `${Math.round(m)}분`);
   void destName;
   if (rideKnown && walkKnown) {
