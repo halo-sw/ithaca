@@ -9,7 +9,7 @@
 // lines along the subway for picked homes.
 
 import { findPath, normalizeStation } from "./engine/journey.js";
-import { fmtMoney } from "./money/currency.js";
+import { fmtMoney, fmtWonEn } from "./money/currency.js";
 
 export const MAP_COLORS = {
   ground: "#f3f1ec",
@@ -526,24 +526,31 @@ export function tagHeaderFor(pin, lang) {
 
 const TENURE_FIRST = { jeonse: "전", wolse: "월", monthly: "월", sale: "매", maemae: "매" };
 
-// 31j: English tenure initials over the same short Korean-unit
-// price (`J 2억 7,000`, `M 60 / 1,000`, `S 3억`). USD stays `$4,261`.
+// 31j: English tenure initials over the card's short money style
+// (`J ₩260M`, `M ₩600K / ₩10M`, `S ₩300M`). USD stays `$4,261`.
+// 34a: built from the tenure numbers (never by the DOM translator),
+// Korean output byte-identical.
 const TENURE_FIRST_EN = { jeonse: "J", wolse: "M", monthly: "M", sale: "S", maemae: "S" };
-const TENURE_KO_TO_EN = { 전: "J", 월: "M", 매: "S" };
 
 export function tagPriceLine(candidate, tenure, lang) {
   const short = shortPinPrice(candidate, tenure);
   if (!short || short === "가격 미정" || short.startsWith("$")) return short;
   if (lang === "en") {
-    const pre = String(short).match(/^[전월매]\s*/);
-    if (pre) {
-      const initial = TENURE_KO_TO_EN[pre[0].trim()];
-      return `${initial} ${String(short).slice(pre[0].length)}`;
-    }
     const list = (candidate && candidate.tenures) || [];
     const entry = list.find((t) => t.tenure === tenure) || list[0] || null;
     const initial = TENURE_FIRST_EN[tenure || (entry && entry.tenure)];
-    return initial ? `${initial} ${short}` : short;
+    if (entry && entry.tenure === "wolse") {
+      const dep = Number(entry.deposit_median_won);
+      const mon = Number(entry.median_won);
+      if (Number.isFinite(dep) && Number.isFinite(mon)) {
+        const line = `${fmtWonEn(mon)} / ${fmtWonEn(dep)}`;
+        return initial ? `${initial} ${line}` : line;
+      }
+    } else if (entry && Number.isFinite(Number(entry.median_won))) {
+      const line = fmtWonEn(entry.median_won);
+      return initial ? `${initial} ${line}` : line;
+    }
+    return short;
   }
   if (/^[전월매]/.test(short)) return short;
   const list = (candidate && candidate.tenures) || [];

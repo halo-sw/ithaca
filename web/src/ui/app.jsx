@@ -802,7 +802,9 @@ export function CompareTabBody({ state }) {
       {cmp.metrics.some((m) => m.unit === "index") && (
         <Text type="supporting">피곤한 정도 0–10, 높을수록 피곤해요</Text>
       )}
-      <MetadataList>
+      {/* 34a: labels stack above the A/B values — the value
+         column never squeezes to one letter. */}
+      <MetadataList label={{ position: "top" }}>
         {rows.map((m) => {
           // 18d: label, then A | B in two columns, then the plain-words
           // line below — the delta never runs together with the values.
@@ -812,11 +814,11 @@ export function CompareTabBody({ state }) {
             : `Δ ${m.delta_b_minus_a > 0 ? "+" : ""}${fmtMetric(m.unit, m.delta_b_minus_a)}`;
           return (
             <MetadataListItem key={m.key} label={m.label}>
-              <div style={{ display: "flex", gap: 8 }}>
-                <div style={{ flex: "1 1 0" }}>
+              <div className="ui-cmp-ab">
+                <div className="ui-cmp-cell">
                   <Text hasTabularNumbers>{`A ${fmtMetric(m.unit, m.a)}`}</Text>
                 </div>
-                <div style={{ flex: "1 1 0" }}>
+                <div className="ui-cmp-cell">
                   <Text hasTabularNumbers>{`B ${fmtMetric(m.unit, m.b)}`}</Text>
                 </div>
               </div>
@@ -881,15 +883,27 @@ export function CompareCard({ state, bare }) {
     .filter((g) => visibleTabs(g.tabs).length > 0)
     .map((g) => ({ value: g.id, label: g.label }));
   const tabItems = visibleTabs(tabsInGroup(group)).map((v) => ({ value: v, label: labelForTab(v) }));
+  // 34a: the in-flow (bare) form has no title row of its own — the
+  // panel header owns the one title and the one Close. It keeps only
+  // the share action so the drawer section keeps its entry point.
+  const head = bare ? (
+    <HStack gap={2} vAlign="center">
+      <span className="ui-panel-spacer" />
+      <Button size="sm" variant="secondary" label="결과 공유"
+        onClick={() => store.set({ shareOpen: true })} />
+    </HStack>
+  ) : (
+    <HStack gap={2} vAlign="center">
+      <Heading level={4}>30일 생활 비교</Heading>
+      <span className="ui-panel-spacer" />
+      <Button size="sm" variant="secondary" label="결과 공유"
+        onClick={() => store.set({ shareOpen: true })} />
+      <Button size="sm" variant="ghost" label="닫기" onClick={() => act("toggleCompare")} />
+    </HStack>
+  );
   const body = (
     <VStack gap={2}>
-      <HStack gap={2} vAlign="center">
-        <Heading level={4}>30일 생활 비교</Heading>
-        <span className="ui-panel-spacer" />
-        <Button size="sm" variant="secondary" label="결과 공유"
-          onClick={() => store.set({ shareOpen: true })} />
-        <Button size="sm" variant="ghost" label="닫기" onClick={() => act("toggleCompare")} />
-      </HStack>
+      {head}
       <SegControl label="비교 묶음" value={group}
         onChange={(g) => act("setCompareTab", visibleTabs(tabsInGroup(g))[0])} items={groupItems} />
       <SegControl label="비교 탭" value={tab}

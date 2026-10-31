@@ -201,6 +201,8 @@ const seedPhrases = {
   "▸ 실거래 확인 · 출근 계산": "Real deal prices checked · commute computed",
   "✓ 문장 8개 모두 기록과 대조": "All 8 sentences checked against the record",
   "비교": "Compare",
+  "돈": "Money",
+  "안심": "Safety",
   "문제": "The problem",
   "쓰임": "Use cases",
   "순서": "Steps",
@@ -393,6 +395,13 @@ const seedPhrases = {
   "리포트 검증을 하지 못했어요 (연결 문제).": "Couldn't verify the report (connection trouble).",
   "확인해 주셔서 고마워요. 확인이 필요한 문장은 표시해 둔 채로 결과를 열어 둘게요.": "Thanks for checking. I'll keep the result open with the sentences that need a look marked.",
   "비교 리포트를 검증하는 중이에요. 통과하면 결과를 열게요.": "Still verifying the comparison report. I'll open the result once it passes.",
+  // 34a: compare-row labels read label-first in English
+  "30일 동안 걸은 거리": "Distance walked over 30 days",
+  "30일 동안 출퇴근·등교로 걸은 시간": "Time walked commuting or to school over 30 days",
+  "30일 동안 장본 횟수": "Grocery trips over 30 days",
+  "30일 동안 공원 산책 횟수": "Park walks over 30 days",
+  "30일 동안 걸어서 이동한 횟수": "Trips on foot over 30 days",
+  "30일 동안 차·지하철을 탄 시간": "Time in a car or on the subway over 30 days",
 };
 
 // 29c1b: "920m"/"1.3km" reads with a space in English ("920 m"/"1.3 km").
@@ -514,6 +523,11 @@ const seedPatterns = [
   { ko: "다 살아 봤어요. A {0}는 출근 편도 평균 {1}, B {2}는 {3}, C {4}는 {5}이었어요. 일기는 이번에 못 썼어요.", en: "Done. Average one-way commute: A {0} {1}, B {2} {3}, C {4} {5}. No diary this time." },
   { ko: "다 살아 봤어요. A {0}는 출근 편도 평균 {1}, B {2}는 {3}이었어요. 일기는 이번에 못 썼어요.", en: "Done. Average one-way commute: A {0} {1}, B {2} {3}. No diary this time." },
   { ko: "다 살아 봤어요. {0}", en: "Done living in them. {0}" },
+  // 34a: plain-words compare readings
+  { ko: "{0}가 하루 평균 {1} 더 출퇴근길에 걸어요", en: "{0} walks {1} more per day on the commute" },
+  { ko: "{0}가 하루 평균 {1} 더 차·지하철을 타요", en: "{0} rides {1} more per day by car or subway" },
+  { ko: "{0}가 하루 평균 {1} 더 저녁에 집에 머물러요", en: "{0} spends {1} more per day at home in the evening" },
+  { ko: "{0}가 하루 평균 {1} 더 만원 지하철을 타요", en: "{0} rides {1} more per day on crowded trains" },
 ];
 
 // The seed wins over the generated table (one-off fixes go above).
