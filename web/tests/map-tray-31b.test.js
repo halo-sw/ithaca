@@ -173,19 +173,24 @@ describe("31b pin z-order", () => {
     const dots = indices(html, 'r="4"');
     const leaders = indices(html, "<line");
     const tags = indices(html, 'data-layer="home-pin"');
-    assert.equal(tags.length, 5, "one tag per pin");
+    const rows = indices(html, 'data-layer="group-row"');
+    const cards = indices(html, 'data-layer="group-card"');
+    // 29M2: the ~50 m trio draws as one list card, so two pins keep
+    // single tags and three render as card rows.
+    assert.equal(tags.length, 2, "one tag per ungrouped pin");
+    assert.equal(rows.length, 3, "one row per grouped pin");
+    assert.equal(cards.length, 1, "one card for the tight trio");
     assert.ok(dots.length >= 1, `moved tags mark their spots (saw ${dots.length})`);
-    assert.ok(leaders.length >= 1, "close tags grow leaders");
-    assert.ok(Math.max(...dots, ...leaders) < Math.min(...tags),
-      "no dot or leader paints over a tag");
+    assert.ok(Math.max(...dots, ...leaders) < Math.min(...tags, ...cards),
+      "no dot or leader paints over a tag or card");
   });
 
   it("renders the highlighted tag last", async () => {
-    const html = await mapHtml({ cardHi: "home:h-3" });
+    const html = await mapHtml({ cardHi: "home:h-far-s" });
     const plain = await mapHtml();
     const labelsOf = (src) => [...src.matchAll(
       /data-layer="home-pin"[^>]*aria-label="([^"]*)"/g)].map((m) => m[1]);
-    assert.equal(labelsOf(html).length, 5, "one interactive tag per pin");
+    assert.equal(labelsOf(html).length, 2, "one interactive tag per ungrouped pin");
     assert.deepEqual(labelsOf(html), labelsOf(plain),
       "interactive tags keep the order of the render without cardHi");
     const tops = html.match(/<g[^>]*data-layer="home-pin-top"[^>]*>/g) || [];

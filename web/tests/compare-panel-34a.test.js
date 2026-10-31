@@ -83,14 +83,14 @@ describe("34a compare rows stack instead of squeezing", () => {
 describe("34a English pins speak the card money style", () => {
   it("jeonse ₩260,000,000", () => {
     const c = { tenures: [{ tenure: "jeonse", median_won: 260000000, deals: 5 }] };
-    assert.equal(tagPriceLine(c, "jeonse", "en"), "J ₩260M");
+    assert.equal(tagPriceLine(c, "jeonse", "en"), "₩260M");
     assert.equal(tagPriceLine(c, "jeonse"), "전 2억 6,000");
   });
 
   it("monthly 600,000 over 10,000,000 deposit", () => {
     const c = { tenures: [{ tenure: "wolse", median_won: 600000,
       deposit_median_won: 10000000, deals: 3 }] };
-    assert.equal(tagPriceLine(c, "wolse", "en"), "M ₩600K / ₩10M");
+    assert.equal(tagPriceLine(c, "wolse", "en"), "₩600K / ₩10M");
     assert.equal(tagPriceLine(c, "wolse"), "월 60 / 1,000");
   });
 

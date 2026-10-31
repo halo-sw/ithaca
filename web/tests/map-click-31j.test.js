@@ -67,19 +67,17 @@ describe("31j tag lines per language", () => {
     assert.equal(lines.commute, "출근 5분");
   });
 
-  it("EN: header uses m², price uses initials, commute is short", () => {
+  it("EN: header uses m², no tenure letter on a shared tenure, commute is short", () => {
     const p = pin(1, { area_m2: 30, tenures: [jeonse(270000000)] }, 5);
     const lines = tagLines(p, { tenure: "jeonse", lang: "en" });
     assert.equal(lines.header, "1 · 30 m²");
-    assert.ok(lines.price.startsWith("J "), `en jeonse price: ${lines.price}`);
+    assert.equal(lines.price, "₩270M");
     assert.equal(lines.commute, "5 min");
     const w = pin(2, { tenures: [{ tenure: "wolse", median_won: 600000,
       deposit_median_won: 10000000, deals: 3 }] }, null);
-    assert.ok(tagLines(w, { tenure: "wolse", lang: "en" }).price.startsWith("M "),
-      tagLines(w, { tenure: "wolse", lang: "en" }).price);
+    assert.equal(tagLines(w, { tenure: "wolse", lang: "en" }).price, "₩600K / ₩10M");
     const s = pin(3, { tenures: [{ tenure: "sale", median_won: 320000000, deals: 2 }] }, null);
-    assert.ok(tagLines(s, { tenure: "sale", lang: "en" }).price.startsWith("S "),
-      tagLines(s, { tenure: "sale", lang: "en" }).price);
+    assert.equal(tagLines(s, { tenure: "sale", lang: "en" }).price, "₩320M");
   });
 
   it("a missing or 0 area reads as just the number", () => {

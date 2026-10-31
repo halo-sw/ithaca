@@ -1002,13 +1002,16 @@ body.printing-share #share-print { display: block !important; padding: var(--ui-
   bottom: calc(var(--ds-s-48) * 2 + var(--ds-s-24)); }
 /* 31h: filter chips — the top line, left-aligned, one line that
    scrolls sideways instead of wrapping. The row stops clear of the
-   close button; with chips the title drops to the line under it. */
+   close button; with chips the title drops to the line under it.
+   29M2: the row ends a full close-button width plus an 8 px gap
+   before the ✕ and scrolls horizontally inside itself, so every
+   chip keeps its full label. */
 .ui-chatmap-filters { position: absolute; z-index: 6;
   top: var(--ds-s-12); left: var(--ds-s-12);
-  right: calc(var(--ds-s-40) + var(--ds-s-12));
+  right: calc(var(--ds-s-40) + var(--ds-s-12) + var(--ds-s-8));
   display: flex; gap: var(--ds-s-8); flex-wrap: nowrap;
   overflow-x: auto; scrollbar-width: none;
-  width: fit-content; max-width: calc(100% - var(--ds-s-40) - var(--ds-s-12));
+  width: fit-content; max-width: calc(100% - var(--ds-s-40) - var(--ds-s-12) - var(--ds-s-8));
   pointer-events: none; }
 .ui-chatmap-filters::-webkit-scrollbar { display: none; }
 .ui-chatmap-chip { flex: none; display: inline-flex; align-items: center;

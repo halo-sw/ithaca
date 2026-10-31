@@ -492,7 +492,7 @@ export function pinPillWidthPx(short) {
 // type sizes below.
 export const TAG_HEADER_H = 18;
 
-function tagLineWidthPx(text, px) {
+export function tagLineWidthPx(text, px) {
   let tw = 0;
   for (const ch of String(text || "")) tw += ch.codePointAt(0) > 0xff ? px : Math.round(px * 0.58);
   return tw;
@@ -536,23 +536,30 @@ const TENURE_FIRST = { jeonse: "전", wolse: "월", monthly: "월", sale: "매",
 // Korean output byte-identical.
 const TENURE_FIRST_EN = { jeonse: "J", wolse: "M", monthly: "M", sale: "S", maemae: "S" };
 
-export function tagPriceLine(candidate, tenure, lang) {
+export function tagPriceLine(candidate, tenure, lang, opts) {
   const short = shortPinPrice(candidate, tenure);
   if (!short || short === "가격 미정" || short.startsWith("$")) return short;
   if (lang === "en") {
     const list = (candidate && candidate.tenures) || [];
     const entry = list.find((t) => t.tenure === tenure) || list[0] || null;
     const initial = TENURE_FIRST_EN[tenure || (entry && entry.tenure)];
+    // 29M2: one shared tenure needs no letter in English (the legend
+    // names it); mixed tenures keep the 34a letters. An explicit
+    // mixedTenure wins; otherwise a multi-tenure candidate reads as
+    // mixed.
+    const mixed = opts && opts.mixedTenure !== undefined
+      ? !!opts.mixedTenure : list.length > 1;
+    const withInitial = (line) => (mixed && initial ? `${initial} ${line}` : line);
     if (entry && entry.tenure === "wolse") {
       const dep = Number(entry.deposit_median_won);
       const mon = Number(entry.median_won);
       if (Number.isFinite(dep) && Number.isFinite(mon)) {
         const line = `${fmtWonEn(mon)} / ${fmtWonEn(dep)}`;
-        return initial ? `${initial} ${line}` : line;
+        return withInitial(line);
       }
     } else if (entry && Number.isFinite(Number(entry.median_won))) {
       const line = fmtWonEn(entry.median_won);
-      return initial ? `${initial} ${line}` : line;
+      return withInitial(line);
     }
     return short;
   }
@@ -590,7 +597,8 @@ export function tagLines(pin, opts) {
   }
   return {
     header: tagHeaderFor(pin, o.lang),
-    price: tagPriceLine(pin && pin.candidate, o.tenure, o.lang),
+    price: tagPriceLine(pin && pin.candidate, o.tenure, o.lang,
+      { mixedTenure: o.mixedTenure }),
     commute,
   };
 }
@@ -601,7 +609,9 @@ export function tagLines(pin, opts) {
 // is measured on the rendering-language lines.
 export function tagSizePx(pin, tenure, lang, opts) {
   const t = tagFontPx(opts);
-  const lines = tagLines(pin, { tenure, lang, sharedRent: opts && opts.sharedRent });
+  const lines = tagLines(pin, { tenure, lang,
+    sharedRent: opts && opts.sharedRent,
+    mixedTenure: opts && opts.mixedTenure });
   // 31m: { short: true } measures the compact form — header +
   // price, no commute line — for crowded stages.
   const commute = (opts && opts.short) ? null : lines.commute;
@@ -955,6 +965,12 @@ export function stationLabelName(name, lang) {
 // boxes (station dots and label boxes, chrome). When every side
 // collides it keeps the right side with a short leader line back to
 // the anchor. Returns { box, leader, side }.
+const clampPill8 = (box, W, H) => ({
+  ...box,
+  x: Math.min(Math.max(box.x, 8), Math.max(8, W - box.w - 8)),
+  y: Math.min(Math.max(box.y, 8), Math.max(8, H - box.h - 8)),
+});
+
 export function placeWorkplacePill(x, y, w, h, W, H, obstacles = []) {
   const ww = Math.max(1, Number(W) || 1);
   const hh = Math.max(1, Number(H) || 1);
@@ -963,12 +979,219 @@ export function placeWorkplacePill(x, y, w, h, W, H, obstacles = []) {
     { side: "left", box: { x: x - PILL_GAP - w, y: y - h / 2, w, h } },
     { side: "above", box: { x: x - w / 2, y: y - 6 - h, w, h } },
     { side: "below", box: { x: x - w / 2, y: y + PILL_GAP, w, h } },
-  ].map((c) => ({ side: c.side, box: clampPill(c.box, ww, hh) }));
+  // 29M2: the workplace pill keeps ≥ 8 px from every stage edge.
+  ].map((c) => ({ side: c.side, box: clampPill8(c.box, ww, hh) }));
   const hit = (b) => (obstacles || []).some((q) => q && boxHit(b, q));
   const free = sides.find((c) => !hit(c.box));
   if (free) return { box: free.box, leader: null, side: free.side };
   const home = sides[0];
   return { box: home.box, leader: nearestOnBox(home.box, x, y), side: home.side };
+}
+
+// --- 29M2: the map frames what is drawn ------------------------------------------
+
+// True when the map's pins span more than one tenure — only then do
+// English price lines keep their tenure letter.
+export function mapTenuresMixed(pins) {
+  const kinds = new Set();
+  for (const p of pins || []) {
+    const list = (p && p.candidate && p.candidate.tenures) || [];
+    for (const t of list) if (t && t.tenure) kinds.add(t.tenure);
+  }
+  return kinds.size > 1;
+}
+
+// Tight groups: connected components of pill anchors under the fan
+// radius (the same PIN_FAN_PX the dot fan uses). Groups of 3–8 pins
+// draw as one list card; larger groups keep the +N cluster path, so
+// only the length filter happens here.
+export function groupTightAnchors(items, radiusPx = PIN_FAN_PX) {
+  const list = items || [];
+  const r = Math.max(0, Number(radiusPx) || 0);
+  const comp = list.map((_, i) => i);
+  const find = (i) => (comp[i] === i ? i : (comp[i] = find(comp[i])));
+  for (let i = 0; i < list.length; i++) {
+    for (let j = i + 1; j < list.length; j++) {
+      if (Math.hypot(list[i].x - list[j].x, list[i].y - list[j].y) < r) {
+        const a = find(i);
+        const b = find(j);
+        if (a !== b) comp[b] = a;
+      }
+    }
+  }
+  const groups = new Map();
+  list.forEach((p, i) => {
+    const k = find(i);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(p);
+  });
+  return [...groups.values()].filter((g) => g.length >= 3);
+}
+
+// One list card for a tight group: header `6 homes` / `집 6곳`, then
+// one row per home in list order — the tag's own lines (the price
+// line only when the group's prices differ, then the commute line).
+export function groupCardHeader(count, lang) {
+  return lang === "en" ? `${count} homes` : `집 ${count}곳`;
+}
+
+export function groupCardRows(infos) {
+  const prices = new Set((infos || []).map((r) => String(r.price ?? "")));
+  const differ = prices.size > 1;
+  return (infos || []).map((r) => {
+    const parts = [String(r.n ?? "")];
+    if (differ) {
+      if (r.price) parts.push(String(r.price));
+    } else if (!r.commute && r.price) {
+      parts.push(String(r.price));
+    }
+    if (r.commute) parts.push(String(r.commute));
+    return parts.join(" · ");
+  });
+}
+
+// Measured card size; rowH/headerH ride along so the painter uses the
+// same row geometry the measurer did.
+export function groupCardSizePx(header, rows, opts) {
+  const t = tagFontPx(opts);
+  const rowH = 20;
+  const w = Math.max(t.minW, Math.ceil(Math.max(
+    tagLineWidthPx(header, t.header),
+    ...rows.map((r) => tagLineWidthPx(r, t.commute)),
+  )) + t.pad);
+  return { w, h: TAG_HEADER_H + rows.length * rowH + 8, rowH, headerH: TAG_HEADER_H };
+}
+
+// The free area: the stage minus the chrome insets.
+export function freeAreaOf(W, H, pad) {
+  const w = Math.max(1, Number(W) || 1);
+  const h = Math.max(1, Number(H) || 1);
+  const p = pad || {};
+  const l = Math.max(0, Number(p.left) || 0);
+  const r = Math.max(0, Number(p.right) || 0);
+  const t = Math.max(0, Number(p.top) || 0);
+  const b = Math.max(0, Number(p.bottom) || 0);
+  return { x: l, y: t, w: Math.max(1, w - l - r), h: Math.max(1, h - t - b) };
+}
+
+export function boxesLeaveFreeArea(boxes, free, margin = 4) {
+  const m = Math.max(0, Number(margin) || 0);
+  for (const b of boxes || []) {
+    if (!b || !(b.w > 0) || !(b.h > 0)) continue;
+    if (b.x < free.x + m || b.y < free.y + m
+      || b.x + b.w > free.x + free.w - m
+      || b.y + b.h > free.y + free.h - m) return true;
+  }
+  return false;
+}
+
+// Zoom out to the union of the laid-out boxes (corners back in
+// lon/lat through the current projection, plus the anchors) with the
+// usual margin. Returns a fresh fitMapView-style fit.
+export function refitViewForBoxes(fit, boxes, anchors, W, H, pad, margin = MAP_FIT_MARGIN) {
+  const pts = [];
+  const push = (lon, lat) => {
+    if (Number.isFinite(lon) && Number.isFinite(lat)) pts.push({ lon, lat });
+  };
+  for (const b of boxes || []) {
+    if (!b || !(b.w > 0) || !(b.h > 0)) continue;
+    const [a0, a1] = fit.toLonLat(b.x, b.y);
+    const [c0, c1] = fit.toLonLat(b.x + b.w, b.y + b.h);
+    push(a0, a1); push(c0, a1); push(a0, c1); push(c0, c1);
+  }
+  for (const a of anchors || []) push(a.lon, a.lat);
+  if (pts.length === 0) return fit;
+  return fitMapView(pts, W, H, margin, pad);
+}
+
+// One stage pipeline for the chat map and its tests: fit the focus,
+// lay out the tags (tight groups of 3–8 as one list card), and — when
+// a laid-out box leaves the free area — refit once on the union of
+// the drawn boxes and lay out again. At most two passes.
+//
+// specs: [{ id, kind ("work"|"pill"), lon, lat, w, h, alt, rank, pin }]
+// (pin carries n/picked/letter/candidate/commuteMin for card rows).
+// Returns { fit, laid, cards } — cards maps a group id to
+// { header, rows: [{ id, text, picked }], members, rowH, headerH }.
+export function layoutChatStage({ focus, specs, W, H, pad, obstacles,
+  tenure, lang, compact, sharedRent, mixedTenure, allowRefit = true }) {
+  const w = Math.max(1, Number(W) || 1);
+  const h = Math.max(1, Number(H) || 1);
+  const free = freeAreaOf(w, h, pad);
+  const pass = (fit) => {
+    const cards = new Map();
+    const homes = (specs || [])
+      .filter((s) => s.kind !== "work")
+      .map((s) => {
+        const [x, y] = fit.toXY(s.lon, s.lat);
+        return { ...s, x, y };
+      });
+    const groups = groupTightAnchors(homes).filter((g) => g.length <= 8);
+    const inGroup = new Set();
+    for (const g of groups) for (const m of g) inGroup.add(m);
+    const items = [];
+    for (const s of specs || []) {
+      if (s.kind === "work") {
+        const [x, y] = fit.toXY(s.lon, s.lat);
+        items.push({ ...s, x, y });
+      }
+    }
+    const orderOf = (s) => {
+      const p = s.pin || {};
+      return [(p.n ?? 0), String(s.id)];
+    };
+    for (const g of groups) {
+      const ordered = [...g].sort((a, b) =>
+        (orderOf(a)[0] - orderOf(b)[0]) || (orderOf(a)[1] < orderOf(b)[1] ? -1 : 1));
+      const cx = g.reduce((t, m) => t + m.x, 0) / g.length;
+      const cy = g.reduce((t, m) => t + m.y, 0) / g.length;
+      const infos = ordered.map((m) => {
+        const p = m.pin || {};
+        const lines = tagLines(p, { tenure, lang, sharedRent, mixedTenure });
+        const glyph = (p.picked && p.letter) ? p.letter : String(p.n ?? "");
+        return { n: glyph, price: lines.price, commute: lines.commute };
+      });
+      const header = groupCardHeader(g.length, lang);
+      const texts = groupCardRows(infos);
+      const size = groupCardSizePx(header, texts, { compact });
+      const id = `group:${ordered.map((m) => m.id).join("-")}`;
+      const rows = ordered.map((m, i) => ({ id: m.id,
+        text: texts[i], picked: !!(m.pin && m.pin.picked) }));
+      cards.set(id, { header, rows,
+        members: ordered.map((m) => ({ id: m.id, x: m.x, y: m.y })),
+        rowH: size.rowH, headerH: size.headerH,
+        cx, cy });
+      items.push({ id, kind: "group", x: cx, y: cy,
+        w: size.w, h: size.h,
+        rank: ordered.some((m) => m.pin && m.pin.picked) ? 1 : 2 });
+    }
+    for (const m of homes) {
+      if (inGroup.has(m)) continue;
+      const { pin, ...rest } = m;
+      items.push(rest);
+    }
+    const laid = layoutMapPills(items, w, h, obstacles);
+    for (const l of laid) {
+      const c = cards.get(l.id);
+      if (c && l.kind === "group") {
+        l.members = c.members;
+        l.rows = c.rows;
+        l.header = c.header;
+        l.rowH = c.rowH;
+        l.headerH = c.headerH;
+      }
+    }
+    return { laid, cards };
+  };
+  let fit = fitMapView(focus, w, h, MAP_FIT_MARGIN, pad);
+  let out = pass(fit);
+  if (allowRefit && boxesLeaveFreeArea(
+    out.laid.map((l) => l.box).filter(Boolean), free)) {
+    fit = refitViewForBoxes(fit,
+      out.laid.map((l) => l.box).filter(Boolean), focus, w, h, pad);
+    out = pass(fit);
+  }
+  return { fit, laid: out.laid, cards: out.cards };
 }
 
 // 21b: at most 4 neighbourhood names for the candidates' 동 — one
