@@ -47,7 +47,7 @@
 
 | | Step | What happens | Status |
 |---|---|---|---|
-| 1 | **Say it in your own words** | "맞벌이 예비부부, 강남 출근, 전세 4억 이하, 59㎡ 이상". The consult agent turns this into a household profile. Every value the customer said is marked "내가 말한 값", and every gap is marked "물어볼 값". | built (text and voice) |
+| 1 | **Say it in your own words** | "맞벌이 예비부부, 판교 출근, 연봉 6천·5천, 모은 돈 2억, 7억 이하로 50㎡ 이상 집 사기" (a two-income engaged couple, Pangyo commute, salaries ₩60M and ₩50M, ₩200M saved, buying a home of 50 m² or more for ₩700M or less). The consult agent turns this into a household profile. Every value the customer said is marked "내가 말한 값", and every gap is marked "물어볼 값". | built (text and voice) |
 | 2 | **Get real candidate homes** | Candidates come from real transactions in 11 areas of south-east Seoul and Gyeonggi, with ride times from the operator's schedule and public rentals from the LH · 마이홈 API. They appear on a map with the subway lines, the workplace and the commute minutes. | built |
 | 3 | **The household lives there for 30 days** | The household commutes, shops, walks in the park and visits clinics on the real walking graph, in both homes at once. Runs are paired over 10 seeds, so the gap between homes comes from the homes and not from chance. | built |
 | 4 | **The report is checked before you see it** | The agent's checklist and report are scored against a ground-truth checklist. Numbers must match the engine, and every sentence must cite a simulation event. A failed report goes back to the agent up to 3 times, then to the customer. Each try and its reason show in the chat while it runs. | built (scorer, claim checks, Muse judge, retry loop, on-screen timeline) |
@@ -82,7 +82,7 @@ The live chat shares a daily Muse limit. When it runs out, or the relay is down,
 
 ### Your first live session
 
-1. **Say it in one sentence**: who lives there, where you work, and your budget. For example *"판교로 출근하는 신입, 연봉 4천, 모은 돈 5천, 전세 2억 이하"*. Anything missing shows up as a chip (*Who with?*, *Deposit limit?*). Tap one to fill it in, or skip it.
+1. **Say it in one sentence**: who lives there, where you work, and your budget. For example *"판교로 출근하는 신입, 연봉 4천, 모은 돈 1억, 4억 이하 집을 사고 싶어"* (a first-job worker in Pangyo, ₩40M salary, ₩100M saved, buying for ₩400M or less). Buying is the default; say jeonse, monthly rent or public rental to search those instead. Anything missing shows up as a chip (*Who with?*, *Purchase price limit?*). Tap one to fill it in, or skip it.
 2. **Read the candidates.** Each card and map pin shows the median of real deals and the door-to-work minutes. The pins show the same minutes as the cards.
 3. **Save two.** Tap **Pick** on two cards, or say *"1번, 2번 담아 줘"* (*"Save 1 and 2"*).
 4. **Let them live there.** Say *"두 집에서 살아 봐 줘"* (*"Live in both homes"*). The household lives 30 days in each home, and the chat shows each check while it runs.
@@ -146,22 +146,22 @@ How each check works, with the diagram: [docs/verification.md](docs/verification
     <td><sub><b>The answer first.</b> After 30 days in each home: the customer's own 내 기준 점수 (computed with every weight at 보통 until they set their own), monthly housing cost and the one-way commute side by side, then moments and the checked diary. No winner is named.</sub></td>
   </tr>
   <tr>
-    <td><img src="briefs/img/1031-3d.jpg" alt="The 3D neighbourhood following 나 on 신분당선 강남→판교 with 15분 남음, the scene breakdown 오늘 출근 44분 = 걷기 14분 + 지하철 26분 + 기다림 4분, crowding labelled 측정 or 가정값, and the day timeline."></td>
+    <td><img src="briefs/img/1101-3d.jpg" alt="The 3D neighbourhood following 나 (me) on Line 8 from Seokchon to Bokjeong, under Songpa-daero: the line and stations over the aerial photo, 25 min left, 7 min walking measured + 20 min subway assumed + 12 min transfer and wait assumed, crowding 70% assumed on Line 9, Suin-Bundang and Gyeonggang, crowding 100% measured on Line 8 (Seoul Metro)."></td>
     <td><img src="briefs/img/1031-phone.jpg" alt="Two phone screens: the Chat tab with the checked diary, Only living there tells you and sources; the Map & homes tab with six price pins around Meta HQ, A 11 min and B 12 min, and See the result."></td>
   </tr>
   <tr>
-    <td><sub><b>Follow one person.</b> The 3D neighbourhood built from building-register data: 나 on 신분당선 from 강남 to 판교, how this scene counts toward the result (오늘 출근 44분 = 걷기 14분 + 지하철 26분 + 기다림 4분), measured vs assumed crowding, and the day's trips.</sub></td>
+    <td><sub><b>Follow one person.</b> A 3D neighbourhood built from building-register data and the aerial photo, following one commuter from Songpanaru via Seokchon, Bokjeong and Imae to Pangyo. Walking, subway and transfers each carry their own measured or assumed tag, and crowding says which line was measured. How well the home building, route and heights match the records: <a href="docs/3d-fidelity.md">3D fidelity check</a>.</sub></td>
     <td><sub><b>On a phone.</b> Chat and Map &amp; homes as two tabs: the checked diary, “Only living there tells you” and its sources, and map pins that show the same door-to-work minutes as the cards.</sub></td>
   </tr>
   <tr>
-    <td colspan="2"><img src="briefs/img/1031-seoul.jpg" alt="Seoul, in Korean: a couple commuting to 강남. The diary, '살아 봐야 아는 것' and sources on the left; six 전세 candidates with real-transaction prices and commute minutes over subway lines 2 and 신분당선 on the right."></td>
+    <td colspan="2"><img src="briefs/img/1101-seoul.jpg" alt="Seoul, in Korean: an engaged couple working in Pangyo buys a home for ₩700M or less, replayed from a real Muse Spark 1.3 session. Left: the one-off purchase total ₩355.25M (₩200M own money, ₩155.25M borrowed), the monthly ₩1,036,388 (loan payment ₩741,188, maintenance, transit) and Only living there tells you. Right: six homes to buy, one per neighbourhood, with real-transaction prices and commute minutes over the subway lines; A Baekgung Dongyang Paragon (₩570M, 7 min) and B Yuji Villa 3 (₩350M, 35 min) are picked."></td>
   </tr>
   <tr>
-    <td colspan="2"><sub><b>Two countries, one engine.</b> Seoul, in Korean: a couple commuting to 강남. The diary, '살아 봐야 아는 것' and sources on the left; six 전세 candidates with real-transaction prices and commute minutes over subway lines 2 and 신분당선 on the right.</sub></td>
+    <td colspan="2"><sub><b>Two countries, one engine.</b> Seoul, in Korean: an engaged couple working in Pangyo buys a home. What they pay once at purchase and every month on the left; six homes to buy, one per neighbourhood, with real-transaction prices and commute minutes on the right.</sub></td>
   </tr>
 </table>
 
-Every image is a real GPU capture (Apple M4 Max, Metal) of the running app on 2026-10-31, saved in [`briefs/img/`](briefs/img/).
+Every image is a real GPU capture (Apple M4 Max, Metal) of the running app on 2026-10-31 and 11-01, saved in [`briefs/img/`](briefs/img/).
 
 ## Run it locally
 
@@ -201,7 +201,7 @@ Useful URLs (add to `/?mode=sim&scenario=demo-two-homes`):
 | URL | Shows |
 |---|---|
 | `&tour=demo` | 3-minute guided tour |
-| `&home=A&day=1&t=08:50&follow=1` | Follow the commute |
+| `&home=A&day=1&t=07:52&follow=1` | Follow the commute (the Line 8 leg) |
 | `&tab=money` | Living costs |
 | `&tab=listings&fill=example` | Check a listing, with a labelled example |
 | `&tab=money&share=1` | Result card |
