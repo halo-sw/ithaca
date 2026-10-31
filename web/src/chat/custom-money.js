@@ -246,7 +246,10 @@ export function buildCustomMoneyDoc({ scenario, runs, picked, profile,
       }
       const housing = tenureCost({ tenure, ...inputs, cash_won: cashWon,
         loan_rate_pct: A.loan_rate_pct, loan_years: A.loan_years,
-        jeonse_loan_cap_won: A.jeonse_loan_cap_won, source: inputs.source });
+        jeonse_loan_cap_won: A.jeonse_loan_cap_won, source: inputs.source,
+        area_m2: areaM2, kind: cand.kind
+          ?? (scenario.money && scenario.money.kind
+            ? scenario.money.kind[label] : undefined) });
       const tl = moneyTimeline(run, scenario, { ...spendBase,
         housing_monthly_won: housing.monthly_won, tenure,
         housing_source: inputs.source });

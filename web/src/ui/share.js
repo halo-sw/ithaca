@@ -325,7 +325,12 @@ export function resultCardData({ money, compare = null, tenures = {},
   for (const label of ["A", "B"]) {
     const h = money && money.homes && money.homes[label];
     if (!h) continue;
-    const tenure = tenures[label] || "전세";
+    // The money tab falls back to the scenario's own tenure (the money
+    // doc's default_tenure); the headline does the same so it never
+    // claims 전세 for a 매매 scenario before the customer picks one.
+    const tenure = tenures[label]
+      || (money && money.default_tenure && money.default_tenure[label])
+      || "전세";
     const area = num(h.area_m2);
     homes.push({
       label, complex_name: h.complex_name || "", area_m2: area, tenure,

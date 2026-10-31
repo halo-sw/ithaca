@@ -61,11 +61,12 @@ describe("21a first sentence fills the profile", () => {
       assert.ok(!fields.includes(f), f);
     }
   });
-  it("empty profile still asks household, workplace, tenure", () => {
+  it("empty profile still asks household, workplace, buying budget (never tenure)", () => {
     const fields = missingQuestions(emptyProfile()).map((q) => q.field);
-    for (const f of ["members", "workplaces", "tenure"]) {
+    for (const f of ["members", "workplaces", "priceMax", "cash"]) {
       assert.ok(fields.includes(f), f);
     }
+    assert.ok(!fields.includes("tenure"), "no tenure question");
   });
 });
 

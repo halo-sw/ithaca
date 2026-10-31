@@ -298,6 +298,46 @@ def _chain_ways(ways: list[list[tuple[float, float]]]) -> list[tuple[float, floa
     return chains[0]
 
 
+def _chain_travel_order(coords: list[tuple[float, float]],
+                         stops: list[dict]) -> list[tuple[float, float]]:
+    """Chain coords oriented so travel runs from stops[0] to stops[-1].
+
+    Mirrors the direction choice in _chainage_km (more forward-projecting
+    pairs wins; ties keep the as-chained order) without touching chainage.
+    """
+    if len(coords) < 2 or not stops:
+        return list(coords)
+    try:
+        from shapely.geometry import LineString as _LS, Point as _Pt
+        line = _LS(coords)
+        rline = _LS(list(reversed(coords)))
+    except ValueError:
+        return list(coords)
+    MAX_PROJECT_DEG = 0.005
+
+    def _fracs(ln) -> list:
+        out = []
+        for s in stops:
+            try:
+                pt = _Pt(s["lon"], s["lat"])
+                out.append(None if pt.distance(ln) > MAX_PROJECT_DEG
+                           else ln.project(pt, normalized=True))
+            except Exception:
+                out.append(None)
+        return out
+
+    def _forward(fs) -> int:
+        return sum(1 for a, b in zip(fs, fs[1:])
+                   if a is not None and b is not None and b >= a)
+
+    try:
+        if _forward(_fracs(rline)) > _forward(_fracs(line)):
+            return list(reversed(coords))
+    except Exception:
+        pass
+    return list(coords)
+
+
 def _chainage_km(coords: list[tuple[float, float]],
                  stops: list[dict]) -> tuple[list[float], list[str]]:
     """Per-stop km along the chained geometry in travel order.
@@ -491,7 +531,8 @@ def build_network(rel_file: Path, mem_file: Path,
                                        "name": key, "key": key,
                                        "lon": _rnd(s["lon"]), "lat": _rnd(s["lat"])}
                 stop_ids.append(line_stops[key]["id"])
-            geom = [[_rnd(x), _rnd(y)] for x, y in p["chained"]]
+            chained = _chain_travel_order(p["chained"], p["stops"])
+            geom = [[_rnd(x), _rnd(y)] for x, y in chained]
             if len(geom) >= 2:
                 try:
                     simple = LineString(geom).simplify(GEOM_SIMPLIFY_DEG,

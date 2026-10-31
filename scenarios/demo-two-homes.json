@@ -1,6 +1,6 @@
 {
   "name": "demo-two-homes",
-  "_note": "Workplace is a place (stage 9c): 직장 (가정: 판교역 인근) at the 신분당선 판교역 stop coords from data/build/region/network.json (OSM-derived: 127.111187, 37.394364). Home A rides 잠실→판교 (customer input 30 min); home B walks when within C-walk-commute-max.",
+  "_note": "데모 부부(연봉 6천+5천, 모은 돈 2억)가 살 수 있는 집 비교: A 올림픽카운티(송파나루→판교) 매매, B 분당 엠코 헤리츠(미금→판교) 매매. 승차 시간은 노선 거리 × 평균 속도 추정(derived_estimate). 직장(가정: 판교역 인근)은 data/build/region/network.json의 신분당선 판교역 정거장 좌표(127.111187, 37.394364).",
   "start_date": "2026-11-02",
   "days": 30,
   "seed": 20261102,
@@ -24,14 +24,19 @@
         "work": {
           "type": "station_ride",
           "station_name": {
-            "A": "잠실",
-            "B": "판교"
+            "A": "송파나루",
+            "B": "미금"
           },
-          "ride_minutes": 30,
-          "ride_minutes_source": "user_assumption",
-          "needs_user_input": true,
+          "ride_minutes": {
+            "A": 32.2,
+            "B": 6.6
+          },
+          "ride_minutes_source": "derived_estimate",
+          "ride_minutes_note": "A 32.2분: 9호선 → 8호선 → 수인·분당선 → 경강선, 환승 석촌·복정·이매(3 × 4분 포함). 8호선 구간만 운행시간표, 나머지는 노선 거리 × 1.43분/km. B 6.6분: 신분당선 미금 → 정자 → 판교, 노선 거리 × 1.43분/km. 추정 (노선 거리 × 평균 속도).",
+          "needs_user_input": false,
           "destination_station": {
-            "A": "판교"
+            "A": "판교",
+            "B": "판교"
           },
           "place": {
             "name": "직장 (가정: 판교역 인근)",
@@ -61,14 +66,19 @@
         "work": {
           "type": "station_ride",
           "station_name": {
-            "A": "잠실",
-            "B": "판교"
+            "A": "송파나루",
+            "B": "미금"
           },
-          "ride_minutes": 30,
-          "ride_minutes_source": "user_assumption",
-          "needs_user_input": true,
+          "ride_minutes": {
+            "A": 32.2,
+            "B": 6.6
+          },
+          "ride_minutes_source": "derived_estimate",
+          "ride_minutes_note": "A 32.2분: 9호선 → 8호선 → 수인·분당선 → 경강선, 환승 석촌·복정·이매(3 × 4분 포함). 8호선 구간만 운행시간표, 나머지는 노선 거리 × 1.43분/km. B 6.6분: 신분당선 미금 → 정자 → 판교, 노선 거리 × 1.43분/km. 추정 (노선 거리 × 평균 속도).",
+          "needs_user_input": false,
           "destination_station": {
-            "A": "판교"
+            "A": "판교",
+            "B": "판교"
           },
           "place": {
             "name": "직장 (가정: 판교역 인근)",
@@ -88,17 +98,19 @@
   "homes": [
     {
       "label": "A",
-      "area": "songpa-jamsil",
-      "complex_name": "레이크팰리스"
+      "area": "st-송파나루",
+      "complex_name": "효성올림픽카운티"
     },
     {
       "label": "B",
-      "area": "pangyo",
-      "complex_name": "백현마을"
+      "area": "st-미금",
+      "complex_name": "분당 엠코 헤리츠",
+      "lon": 127.1082913,
+      "lat": 37.3493344
     }
   ],
   "money": {
-    "_note": "PLACEHOLDER inputs for the demo couple (not real customer data): m1 연봉 6,000만, m2 연봉 5,000만, 보유현금 2억, A 59.97㎡, B 84.82㎡, both 전세.",
+    "_note": "PLACEHOLDER inputs for the demo couple (not real customer data): m1 연봉 6,000만, m2 연봉 5,000만, 보유현금 2억, A 아파트 56.22㎡ 매매, B 오피스텔 61.18㎡ 매매. 가격은 money.mjs가 실거래 중간값(60㎡대, 각 5건: A 6.25억, B 5.87억)으로 채움.",
     "members": {
       "m1": {
         "annual_salary_won": 60000000
@@ -109,12 +121,16 @@
     },
     "cash_won": 200000000,
     "tenure": {
-      "A": "전세",
-      "B": "전세"
+      "A": "매매",
+      "B": "매매"
+    },
+    "kind": {
+      "A": "아파트",
+      "B": "오피스텔"
     },
     "area_m2": {
-      "A": 59.97,
-      "B": 84.82
+      "A": 56.22,
+      "B": 61.18
     },
     "assumptions": {
       "loan_rate_pct": 4.0,

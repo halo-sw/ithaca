@@ -26,9 +26,10 @@ import { nearestStationByWalk } from "./walkgraph.js";
 import { fmtMoney } from "./money/currency.js";
 import { usAreaLabel } from "./region-names.js";
 
-export const HOME_SORTS = ["commute", "monthly", "deals", "priority"];
-export const DEFAULT_HOME_SORT = "commute";
+export const HOME_SORTS = ["areas", "commute", "monthly", "deals", "priority"];
+export const DEFAULT_HOME_SORT = "areas";
 export const HOME_SORT_KO = {
+  areas: "동네별로 한 곳씩",
   commute: "출퇴근 짧은 순",
   monthly: "매달 드는 돈 적은 순",
   deals: "거래 많은 순",
@@ -36,6 +37,7 @@ export const HOME_SORT_KO = {
 };
 // 31i: short sort-tab labels (full HOME_SORT_KO stays in title/aria-label).
 export const HOME_SORT_SHORT_KO = {
+  areas: "동네별",
   commute: "출근순",
   monthly: "비용순",
   deals: "거래순",
@@ -542,6 +544,11 @@ function sortResults(rows, sort, profile, boxes) {
       && !rows.some((r) => r.commute.walk.known)) {
     note = "정렬: 출퇴근 짧은 순 (도보 확인된 집이 없어 거래 많은 순으로 보여드려요)";
   }
+  // 36a: areas orders by commute (same key as commute) but the note
+  // names the neighbourhood spread.
+  if (sort === "areas") {
+    note = "정렬: 동네별로 한 곳씩 (가까운 동네부터 먼 동네까지 고르게)";
+  }
   if (sort === "priority" && rows.length > 0
       && (topPrio === "edu" || topPrio === "life" || topPrio === "convenience")) {
     const cat = topPrio === "edu" ? "school" : topPrio === "life" ? "shop" : "park";
@@ -670,6 +677,73 @@ export function displayNameFor(candidate) {
   if (station) return `${station}역 근처 (${lot})`;
   if (kind) return `${kind} (${lot})`;
   return candidate.name;
+}
+
+// 36a: one home per departure neighbourhood, spread evenly from the
+// nearest origin to the farthest within the commute cap. Pure: rows
+// arrive in commute order and each returned row is a copy with origin
+// ({ station, dest, label_ko }) and commute_total_min. The returned
+// array carries commute_cap ({ minutes, source }); rows without any
+// origin (US work commutes) come back as rows.slice(0, limit) with no
+// cap attached. Exported for tests.
+export function pickByNeighbourhood(rows, limit, commuteMax) {
+  const byOrigin = new Map();
+  for (const r of rows) {
+    const st = r && r.commute && r.commute.walk && r.commute.walk.known
+      ? r.commute.walk.station : null;
+    if (!st) continue;
+    const rideOk = r.commute.ride && r.commute.ride.known
+      && Number.isFinite(r.commute.ride.minutes);
+    const sameOk = r.commute.sameStation
+      || (r.commute.ride && r.commute.ride.sameStation);
+    if (!rideOk && !sameOk) continue;
+    if (!byOrigin.has(st)) byOrigin.set(st, []);
+    byOrigin.get(st).push(r);
+  }
+  if (byOrigin.size === 0) return rows.slice(0, limit);
+  const cap = commuteMax === null || commuteMax === undefined
+    ? { minutes: 60, source: "default" }
+    : { minutes: commuteMax, source: "customer" };
+  const totalOf = (r) => {
+    const walk = r.commute.walk && r.commute.walk.known ? r.commute.walk.minutes : 0;
+    const ride = r.commute.ride && Number.isFinite(r.commute.ride.minutes)
+      ? r.commute.ride.minutes : 0;
+    return Math.round(walk + ride);
+  };
+  // One representative per origin: the first in rows order (commute
+  // order, so the shortest walk to that station); a thin-deal row only
+  // when the origin has nothing else.
+  const reps = [];
+  for (const [station, list] of byOrigin) {
+    const rep = list.find((r) => !r.thin_deal) || list[0];
+    const minutes = totalOf(rep);
+    if (minutes > cap.minutes) continue;
+    const dest = (rep.commute && rep.commute.destStation) || null;
+    reps.push({ row: rep, station, minutes, dest });
+  }
+  reps.sort((a, b) => a.minutes - b.minutes
+    || (a.station < b.station ? -1 : a.station > b.station ? 1 : 0));
+  const lim = Math.max(1, limit);
+  let picked = reps;
+  if (reps.length > lim) {
+    if (lim <= 1) {
+      picked = [reps[0]];
+    } else {
+      const idx = [];
+      for (let i = 0; i < lim; i++) {
+        idx.push(Math.round((i * (reps.length - 1)) / (lim - 1)));
+      }
+      picked = [...new Set(idx)].map((k) => reps[k]);
+    }
+  }
+  const out = picked.map(({ row, station, minutes, dest }) => ({
+    ...row,
+    origin: { station, dest, label_ko: dest ? `${station} → ${dest}` : station },
+    commute_total_min: minutes,
+  }));
+  out.sort((a, b) => a.commute_total_min - b.commute_total_min);
+  out.commute_cap = cap;
+  return out;
 }
 
 export function find_homes(profile, index, opts = {}) {
@@ -829,15 +903,27 @@ export function find_homes(profile, index, opts = {}) {
     });
   }
   const { rows: sorted, sort_note } = sortResults(rows, sort, profile, boxes);
+  // 36a: the areas default spreads one home per neighbourhood instead
+  // of lining up homes next to the workplace.
   // 29N2a: a multi-area US commute search opens spread out (at most 2
   // homes per area on the first page); a bigger limit ("show more")
   // continues in pure commute order.
+  let candidates;
+  let commute_cap = null;
   const usAreas = new Set(sorted.filter((r) => r && typeof r.region === "string"
     && r.region.startsWith("us-")).map((r) => r.region));
   const spread = sort === "commute" && limit <= 6 && usAreas.size > 1
     && sorted.length > 0 && sorted.every((r) => r && (r.currency === "USD"
       || (typeof r.region === "string" && r.region.startsWith("us-"))));
-  const candidates = spread ? spreadUsFirstPage(sorted, limit, 2) : sorted.slice(0, limit);
+  if (sort === "areas") {
+    const picked = pickByNeighbourhood(sorted, limit, commuteMax);
+    candidates = picked;
+    if (picked.commute_cap) commute_cap = picked.commute_cap;
+  } else if (spread) {
+    candidates = spreadUsFirstPage(sorted, limit, 2);
+  } else {
+    candidates = sorted.slice(0, limit);
+  }
   if (manifest) {
     for (const row of candidates) {
       row.photos = photosNear(row.lon, row.lat, manifest, { limit: 6 });
@@ -849,6 +935,7 @@ export function find_homes(profile, index, opts = {}) {
     total_matching: rows.length,
     sort,
     sort_note,
+    ...(commute_cap ? { commute_cap } : {}),
     candidates,
     tenure: tenure || "undecided",
   };

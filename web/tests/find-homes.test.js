@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   find_homes, find_public_rentals, pickBucket, budgetFit, commuteLine,
   amenityMinutes, publicRentalCoverage, regionOfAddress, NO_PUBLIC_RENTAL_NOTE,
-  DEFAULT_HOME_SORT, HOME_SORT_KO,
+  DEFAULT_HOME_SORT, HOME_SORTS, HOME_SORT_KO,
 } from "../src/homes.js";
 import { field, emptyProfile } from "../src/profile.js";
 import { parseInterstationCsv } from "../src/transit/schedule.js";
@@ -120,7 +120,7 @@ describe("find_homes filters", () => {
   });
 
   it("labels unknown walk and ride, never guesses", () => {
-    const r = find_homes(profile(), INDEX, { network: NETWORK });
+    const r = find_homes(profile(), INDEX, { network: NETWORK, sort: "commute" });
     const far = r.candidates.find((c) => c.id === "home-000003");
     assert.match(far.commute_ko, /도보 미확인/);
     assert.match(far.commute_ko, /승차 미확인/);
@@ -157,9 +157,27 @@ describe("find_homes sorting and no-score contract", () => {
     ],
   };
 
-  it("defaults to 출퇴근 짧은 순 and shows the sort", () => {
-    assert.equal(DEFAULT_HOME_SORT, "commute");
-    const r = find_homes(profile(), INDEX, { network: NETWORK });
+  it("defaults to 동네별 spread and shows the sort", () => {
+    assert.equal(DEFAULT_HOME_SORT, "areas");
+    assert.equal(HOME_SORTS[0], "areas");
+    // 36b: the spread keeps ridable origins only, so the fixture needs
+    // a schedule (like production) for the 정자→판교 ride estimate.
+    const SCHED = parseInterstationCsv([
+      "연번,호선,역명,소요시간,역간거리(km),호선별누계(km)",
+      "1,2,A,00:00,0,0",
+      "2,2,B,02:00,1.0,1.0",
+      "3,2,C,01:30,0.8,1.8",
+    ].join("\n"));
+    const r = find_homes(profile(), INDEX, { network: NETWORK, schedule: SCHED });
+    assert.equal(r.sort, "areas");
+    assert.match(r.sort_note, /동네별로 한 곳씩/);
+    // Both homes share the 정자 origin, so the spread keeps one.
+    assert.deepEqual(r.candidates.map((c) => c.id), ["home-b"]);
+    assert.deepEqual(r.commute_cap, { minutes: 60, source: "default" });
+  });
+
+  it("sorts by commute on request", () => {
+    const r = find_homes(profile(), INDEX, { network: NETWORK, sort: "commute" });
     assert.equal(r.sort, "commute");
     assert.match(r.sort_note, /출퇴근 짧은 순/);
     assert.deepEqual(r.candidates.map((c) => c.id), ["home-b", "home-a"]);
@@ -169,7 +187,7 @@ describe("find_homes sorting and no-score contract", () => {
     const unknown = {
       homes: [home({ id: "u1", station: null, scene: null })],
     };
-    const r = find_homes(profile(), unknown, {});
+    const r = find_homes(profile(), unknown, { sort: "commute" });
     assert.match(r.sort_note, /도보 확인된 집이 없어/);
   });
 
@@ -329,14 +347,14 @@ describe("find_homes derived ride minutes (12a2)", () => {
     assert.match(c.commute_ko, /승차 25분 \(고객님이 알려주신 값\)/);
   });
 
-  it("sorts the default commute by walk+ride total, unknown walk last", () => {
+  it("sorts commute by walk+ride total, unknown walk last", () => {
     const index = { homes: [
       lineHome("far", "A", 5), // ride 3.5 → total 8.5
       lineHome("near", "B", 5), // ride 1.5 → total 6.5
       lineHome("unknown", null, null),
     ] };
     const r = find_homes(lineProfile(), index,
-      { network: LINE2, schedule: SCHEDULE });
+      { network: LINE2, schedule: SCHEDULE, sort: "commute" });
     assert.deepEqual(r.candidates.map((c) => c.id), ["near", "far", "unknown"]);
   });
 });

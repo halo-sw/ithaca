@@ -104,6 +104,8 @@ function parseWork(raw, where) {
       ride_minutes: rideMinutes, // number or {homeLabel: minutes} per path
       ride_minutes_source: raw.ride_minutes_source || "user_assumption",
       needs_user_input: raw.needs_user_input === true,
+      // 36e: free-form basis note for the ride minutes (e.g. 노선 거리 × 평균 속도 근거).
+      ...(raw.ride_minutes_note !== undefined ? { ride_minutes_note: raw.ride_minutes_note } : {}),
       // Optional workplace (stage 9c): the engine derives the commute per
       // home — walk when the workplace is in-area within C-walk-commute-max,
       // else station ride + destination walk. Absent → the old form.
@@ -406,6 +408,7 @@ function parseMoney(raw, members, homes) {
     members: {},
     cash_won: 0,
     tenure: {},
+    kind: {},
     area_m2: {},
     assumptions: { ...DEFAULT_MONEY_ASSUMPTIONS },
     burden_threshold_pct: DEFAULT_BURDEN_THRESHOLD_PCT,
@@ -441,6 +444,12 @@ function parseMoney(raw, members, homes) {
       fail(`money.tenure[${h.label}] wants one of ${TENURE_KINDS.join("/")}`);
     } else {
       out.tenure[h.label] = t;
+    }
+    // 36e: optional home kind per label (아파트 | 오피스텔 | …) for purchase-cost rules.
+    const k = (raw.kind || {})[h.label];
+    if (k !== undefined && k !== null) {
+      if (typeof k !== "string" || k.trim() === "") fail(`money.kind[${h.label}] wants a kind string`);
+      out.kind[h.label] = k;
     }
     const am2 = (raw.area_m2 || {})[h.label];
     if (am2 !== undefined && am2 !== null) {
@@ -494,6 +503,58 @@ function buildingAnchorLonLat(building) {
 // graph node nearest to that point, with the nearest building as the
 // home building. Same determinism rules; the returned anchor says
 // which path was taken (recorded in run.meta.home_anchor).
+// 36d: names that mark a non-dwelling annex (guard booth, management
+// office, shops, parking, machine/electric rooms, senior/child care,
+// community rooms). A real home resolves to a dwelling first.
+const ANNEX_NAME = /경비|관리|상가|주차|기계|전기|경로당|어린이집|노인정|커뮤니티|부속/;
+function dwellingNameOf(b) {
+  const reg = b && b.register;
+  return (reg && reg.sub_name) || (b && b.name) || "";
+}
+function isDwellingBuilding(b) {
+  if (!b) return false;
+  if (ANNEX_NAME.test(dwellingNameOf(b))) return false;
+  if (Number.isFinite(b.levels) && b.levels < 3) return false;
+  return true;
+}
+
+// 36f: an officetel reads 업무시설 in the register, so the lon/lat
+// fallback must still treat it as a dwelling candidate: register use
+// 업무시설 with apartments, or 오피스텔 in the register or building name.
+function officetelNameOf(b) {
+  const reg = b && b.register;
+  return `${(reg && (reg.sub_name || reg.name)) || ""} ${b && b.name ? b.name : ""}`;
+}
+function isOfficetelHome(b) {
+  if (!b || b.residential !== "none") return false;
+  if (/오피스텔/.test(officetelNameOf(b))) return true;
+  const reg = b.register || {};
+  return reg.use === "업무시설" && b.building === "apartments";
+}
+
+function ringContains(ring, lon, lat) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0];
+    const yi = ring[i][1];
+    const xj = ring[j][0];
+    const yj = ring[j][1];
+    if ((yi > lat) !== (yj > lat)
+      && lon < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function footprintContains(b, lon, lat) {
+  const g = b.geometry;
+  if (!g || !Array.isArray(g.coordinates)) return false;
+  const polys = g.type === "Polygon" ? [g.coordinates]
+    : g.type === "MultiPolygon" ? g.coordinates : [];
+  return polys.some((poly) => Array.isArray(poly) && Array.isArray(poly[0])
+    && ringContains(poly[0], lon, lat));
+}
 export function resolveHome(area, home, router) {
   const matches = (area.complexes || [])
     .filter((c) => c.name === home.complex_name)
@@ -501,33 +562,94 @@ export function resolveHome(area, home, router) {
   const byId = new Map((area.buildings || []).map((b) => [b.id, b]));
   if (matches.length > 0) {
     const complex = matches[0];
+    const pool = [...complex.building_ids].sort()
+      .map((bid) => byId.get(bid))
+      .filter((b) => b && b.geometry);
+    const dwellings = pool.filter(isDwellingBuilding);
+    const dwellingFilter = dwellings.length > 0;
+    // 36d2: a dwelling anchored to a stub footpath that serves only
+    // its own island (e.g. 백현마을 702동: 6 nodes, 3 buildings, no
+    // station route) breaks every station commute. Prefer dwellings
+    // whose node walks to at least two distinct other buildings'
+    // nodes — the shared street network, not a private stub. When
+    // none do (or the graph has no walk edges, as in fixtures),
+    // keep today's distance choice.
+    const nodeOf = new Map();
+    for (const b of pool) {
+      const [lon, lat] = buildingAnchorLonLat(b);
+      nodeOf.set(b.id, router.nearestNode(lon, lat).id);
+    }
+    const reachesStreet = (b) => {
+      const from = nodeOf.get(b.id);
+      if (from === null) return false;
+      const seenNodes = new Set();
+      for (const o of pool) {
+        if (o.id === b.id) continue;
+        const to = nodeOf.get(o.id);
+        if (to === null || to === from || seenNodes.has(to)) continue;
+        if (router.route(from, to)) {
+          seenNodes.add(to);
+          if (seenNodes.size >= 2) return true;
+        }
+      }
+      return false;
+    };
+    const connected = dwellings.filter(reachesStreet);
+    const choices = connected.length > 0 ? connected
+      : dwellingFilter ? dwellings : pool;
     let best = null;
-    for (const bid of [...complex.building_ids].sort()) {
-      const b = byId.get(bid);
-      if (!b || !b.geometry) continue;
+    for (const b of choices) {
+      const bid = b.id;
       const [lon, lat] = buildingAnchorLonLat(b);
       const n = router.nearestNode(lon, lat);
       if (n.id === null) continue;
+      const areaM2 = Number.isFinite(b.area_m2) ? b.area_m2 : -1;
       if (best === null || n.distM < best.distM
-          || (n.distM === best.distM && (bid < best.buildingId
-            || (bid === best.buildingId && n.id < best.nodeId)))) {
-        best = { buildingId: bid, nodeId: n.id, distM: n.distM };
+          || (n.distM === best.distM && (areaM2 > best.areaM2
+            || (areaM2 === best.areaM2 && (bid < best.buildingId
+              || (bid === best.buildingId && n.id < best.nodeId)))))) {
+        best = { buildingId: bid, nodeId: n.id, distM: n.distM, areaM2 };
       }
     }
     if (best === null) fail(`home ${home.label}: complex ${JSON.stringify(home.complex_name)} has no graph-anchored building`);
     return { complex, buildingId: best.buildingId, nodeId: best.nodeId,
-      anchor: { method: "complex", complex_name: complex.name } };
+      anchor: { method: "complex", complex_name: complex.name,
+        dwelling_filter: dwellingFilter } };
   }
   if (Number.isFinite(home.lon) && Number.isFinite(home.lat)) {
     const n = router.nearestNode(home.lon, home.lat);
     if (n.id === null) fail(`home ${home.label}: no graph node near ${home.lon},${home.lat}`);
+    // 36f: a footprint containing the point wins whatever its
+    // residential flag (an officetel registered as 업무시설 still
+    // houses the customer). Pure point-in-polygon on the geometry.
+    const contained = (area.buildings || [])
+      .filter((b) => b && b.geometry && footprintContains(b, home.lon, home.lat))
+      .map((b) => {
+        const [lon, lat] = buildingAnchorLonLat(b);
+        return { b, d: Math.hypot(lon - home.lon, lat - home.lat) };
+      })
+      .sort((x, y) => (x.d < y.d ? -1 : x.d > y.d ? 1
+        : String(x.b.id) < String(y.b.id) ? -1 : 1));
+    const nodeDistM = Math.round(n.distM * 10) / 10;
+    if (contained.length > 0) {
+      return {
+        complex: { name: home.complex_name },
+        buildingId: contained[0].b.id,
+        nodeId: n.id,
+        anchor: { method: "point-in-footprint", lon: home.lon, lat: home.lat,
+          node_dist_m: nodeDistM },
+      };
+    }
     let best = null;
     for (const b of [...(area.buildings || [])].sort((x, y) =>
         (String(x.id) < String(y.id) ? -1 : 1))) {
       if (!b || !b.geometry) continue;
       const [lon, lat] = buildingAnchorLonLat(b);
       const d = Math.hypot(lon - home.lon, lat - home.lat);
-      const res = (b.residential && b.residential !== "none") ? 0 : 1;
+      // 36f: residential "none" still counts as a dwelling when the
+      // register says 업무시설 with apartments, or the name says
+      // 오피스텔 — else an officetel loses to a farther apartment.
+      const res = ((b.residential && b.residential !== "none") || isOfficetelHome(b)) ? 0 : 1;
       const key = [res, d, String(b.id)];
       if (best === null || keyLess(key, best.key)) {
         best = { key, buildingId: b.id };
@@ -538,8 +660,8 @@ export function resolveHome(area, home, router) {
       complex: { name: home.complex_name },
       buildingId: best.buildingId,
       nodeId: n.id,
-      anchor: { method: "coordinate", lon: home.lon, lat: home.lat,
-        node_dist_m: Math.round(n.distM * 10) / 10 },
+      anchor: { method: "nearest", lon: home.lon, lat: home.lat,
+        node_dist_m: nodeDistM },
     };
   }
   fail(`home ${home.label}: no complex named ${JSON.stringify(home.complex_name)}`);

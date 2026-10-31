@@ -91,7 +91,7 @@ describe("english action 26x2", () => {
   it("a still-Korean retry on an action turn answers the translatable confirmation", async () => {
     const complete = scripted([
       toolReply([
-        { id: "c1", name: "find_homes", args: { profile: profile() } },
+        { id: "c1", name: "find_homes", args: { profile: profile(), sort: "commute" } },
         { id: "c2", name: "pick_homes", args: { candidate_ids: ["x1", "x2"] } },
       ]),
       textReply(KO),
@@ -110,7 +110,7 @@ describe("english action 26x2", () => {
   it("a still-Korean retry with no action keeps the Korean text", async () => {
     const complete = scripted([
       toolReply([
-        { id: "c1", name: "find_homes", args: { profile: profile() } },
+        { id: "c1", name: "find_homes", args: { profile: profile(), sort: "commute" } },
       ]),
       textReply(KO),
       textReply(KO),
@@ -137,7 +137,7 @@ describe("english guard-correction retry 26x3", () => {
   it("a still-Korean correction retry on an action turn answers the translatable confirmation", async () => {
     const complete = scripted([
       toolReply([
-        { id: "c1", name: "find_homes", args: { profile: profile() } },
+        { id: "c1", name: "find_homes", args: { profile: profile(), sort: "commute" } },
         { id: "c2", name: "pick_homes", args: { candidate_ids: ["x1", "x2"] } },
       ]),
       textReply(BAD),

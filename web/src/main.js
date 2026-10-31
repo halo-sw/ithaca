@@ -14,14 +14,15 @@ import { buildGround } from "./ground.js";
 import { ARCH_FOV_DEG, GLIDE_FRAME_M, STOP_FRAME_M, TOUR_AZIMUTH, applyFollowOffset, archLensPose, cameraStyle, distanceForWidth, followZoomAfterWheel, footprintsOf, frameWidthFor, hostTowerIds, journeyCruisePose, occludingIds, pickStopAzimuth, resolveStyle, tourFrameWidths, tourOffset, zoomClampDistances } from "./camera.js";
 import { loadArea, originOf } from "./load.js";
 import { assetUrl, STATIC_SITE, LIVE_API } from "./paths.js";
-import { drapeAerial, isUsArea } from "./aerial/drape.js";
+import { drapeAerial, drapeCorridorAerial, isUsArea } from "./aerial/drape.js";
+import { drapeAreaOnce } from "./area-ground.js";
 import { compare as compareRuns } from "./engine/simulate.js";
 import { oneWayByLabel } from "./verify/numbers.js";
 import { CRITERIA_GROUPS, criterionDefault, criterionValuesLine, resolveCriteria } from "./engine/criteria.js";
 import { parseScenario } from "./engine/scenario.js";
 import { highlightFor } from "./highlight.js";
 import { placeTag, simViewOffset, tagBoxBlocked } from "./stage-tags.js";
-import { commuteSegments, corridorFor, journeyBanner, journeyCameraState, trainPosition } from "./journey.js";
+import { commuteSegments, corridorFor, journeyBanner, journeyCameraState, joinWalkToRide, trainPosition } from "./journey.js";
 import { createJourneyLayer } from "./journey-scene.js";
 import { dayKindFor } from "./engine/journey.js";
 import { pickMoments } from "./engine/moments.js";
@@ -443,15 +444,18 @@ function buildWorld(area, scene14, opts = {}) {
   // 26e: US areas fetch USGS tiles directly, so they drape on a static
   // build too.
   if ((LIVE_API || isUsArea(area)) && PARAMS.get("ground") !== "paint") {
-    drapeAerial({ THREE, renderer, scene, area, origin, terrainMesh,
-      groundMesh, roadMeshes: sceneRoadMeshes, roofMesh, look: LOOK, style: STYLE })
+    // 36f: the home drape goes through the shared once-per-area
+    // helper — the second (workplace) area uses the same function.
+    drapeAreaOnce({ areaId: area.area || areaId,
+      args: { THREE, renderer, scene, area, origin, terrainMesh,
+        groundMesh, roadMeshes: sceneRoadMeshes, roofMesh, fringeMesh: base,
+        look: LOOK, style: STYLE },
+      onOk: (id, r) => {
+        console.log(`[aerial] ok ${r.tiles} tiles z${r.zoom}`);
+        store.set({ aerial: true });
+      } })
       .then((r) => {
-        if (r && r.ok) {
-          console.log(`[aerial] ok ${r.tiles} tiles z${r.zoom}`);
-          store.set({ aerial: true });
-        } else {
-          console.log("[aerial] off (no key)");
-        }
+        if (!r || !r.ok) console.log("[aerial] off (no key)");
       })
       .catch(() => console.log("[aerial] off (no key)"));
   }
@@ -2578,6 +2582,22 @@ async function bootSim() {
   // minute, so ?t= captures are deterministic at any speed.
   const journeyLayer = createJourneyLayer(scene, origin,
     { look: LOOK, tags: document.getElementById("tags") });
+  // 36c: one map everywhere — the corridor base plane gets the same
+  // aerial mosaic (manifest.bounds); on failure the painted plane stays.
+  let corridorAerialId = null;
+  journeyLayer.drapeCorridor((bounds, mesh) => {
+    const id = corridorAerialId;
+    if (!mesh) return Promise.resolve({ ok: false, reason: "bounds" });
+    return drapeCorridorAerial({ THREE, renderer, groundMesh: mesh,
+      bounds, look: LOOK })
+      .then((r) => {
+        if (r && r.ok && corridorAerialId === id) {
+          store.set({ aerialCorridor: true });
+        }
+        return r;
+      })
+      .catch(() => ({ ok: false, reason: "status" }));
+  });
   let regionNetwork = null;
   let regionCongestion = null; // lazy: 1.2 MB, fetched on first journey
   let corridorsIndex = null;
@@ -2751,18 +2771,60 @@ async function bootSim() {
 
   // Lite second world: ground + buildings + water under an offset group
   // (no trees/streetlife/lit — the journey camera never lingers there).
-  function buildAreaLite(areaData) {
+  function buildAreaLite(areaData, scene14b, liteId) {
     const liteOrigin = originOf(areaData);
     const g = new THREE.Group();
     const byId = new Map((areaData.buildings || []).map((b) => [b.id, b]));
-    const gd = buildGround(areaData.roads, areaData.landuse, areaData.complexes, byId, liteOrigin);
+    // 36f: the destination area gets the same scene ground as a home
+    // area — the fringe plane, scene.json terrain when present, and
+    // the merged ground layer (+ lane paint + water).
+    const liteBox = bboxToXY(areaData.bbox, liteOrigin);
+    const liteCx = (liteBox.minX + liteBox.maxX) / 2;
+    const liteCy = (liteBox.minY + liteBox.maxY) / 2;
+    const liteSpan = Math.max(liteBox.maxX - liteBox.minX, liteBox.maxY - liteBox.minY);
+    const liteHeightAt = scene14b ? makeHeightAt(scene14b.terrain) : flatHeightAt();
+    const liteDemMin = scene14b ? scene14b.meta.dem.min_m : 0;
+    const fringe = new THREE.Mesh(
+      new THREE.PlaneGeometry(liteSpan * 1.5, liteSpan * 1.5),
+      new THREE.MeshStandardMaterial({
+        color: STYLE === "painted" ? LOOK.terrainBase : BASE_GROUND,
+        roughness: 1, metalness: 0 }));
+    fringe.rotation.x = -Math.PI / 2;
+    fringe.position.set(liteCx, scene14b ? liteDemMin - 1 : -0.05, -liteCy);
+    fringe.receiveShadow = true;
+    g.add(fringe);
+    let liteTerrain = null;
+    if (scene14b) {
+      const lt = buildTerrainMesh(scene14b.terrain, LOOK);
+      const lcanvas = document.createElement("canvas");
+      lcanvas.width = MASK_SIZE;
+      lcanvas.height = MASK_SIZE;
+      paintLandMask(lcanvas.getContext("2d"), scene14b.lands, scene14b.terrain, LOOK);
+      const lmask = new THREE.CanvasTexture(lcanvas);
+      lmask.colorSpace = THREE.SRGBColorSpace;
+      lmask.anisotropy = maxAniso2;
+      liteTerrain = new THREE.Mesh(toIndexedGeometry(lt),
+        new THREE.MeshStandardMaterial({ map: lmask, vertexColors: true,
+          roughness: 1, metalness: 0, polygonOffset: true,
+          polygonOffsetFactor: 1, polygonOffsetUnits: 1 }));
+      liteTerrain.receiveShadow = true;
+      g.add(liteTerrain);
+    }
+    const gd = buildGround(areaData.roads, areaData.landuse, areaData.complexes, byId, liteOrigin,
+      scene14b ? { heightAt: liteHeightAt, sceneRoads: true, specWidths: true } : {});
     const gm = new THREE.Mesh(toGeometry(gd), groundMaterial({ aniso: maxAniso2 }));
     gm.receiveShadow = true;
     g.add(gm);
+    if (gd.markings.triangles > 0) {
+      const liteMark = new THREE.Mesh(toGeometry(gd.markings), markingMaterial());
+      liteMark.receiveShadow = true;
+      g.add(liteMark);
+    }
     if (gd.water.triangles > 0) {
       g.add(new THREE.Mesh(toGeometry(gd.water), waterMaterial()));
     }
-    const built = buildBuildings(areaData.buildings, areaData.complexes, liteOrigin);
+    const built = buildBuildings(areaData.buildings, areaData.complexes, liteOrigin,
+      scene14b ? { baseAt: (rings) => seatOnTerrain(liteHeightAt, rings) } : {});
     for (const [cls, data] of Object.entries(built.detail.walls)) {
       if (data.triangles === 0) continue;
       const mesh = new THREE.Mesh(toGeometry(data), facadeMaterial(cls, { aniso: maxAniso2 }));
@@ -2785,6 +2847,22 @@ async function bootSim() {
     const [ox, oy] = lonLatToXY(liteOrigin.lon, liteOrigin.lat, origin);
     g.position.set(ox, 0, -oy);
     scene.add(g);
+    // 36f: the same drapeAerial call as the home area — its own mosaic
+    // and bounds, once per area id — so roofs and ground read as photo
+    // instead of white over black. UVs are world-frame under the group
+    // offset, so the home origin applies here.
+    if ((LIVE_API || isUsArea(areaData)) && PARAMS.get("ground") !== "paint") {
+      drapeAreaOnce({ areaId: liteId || areaData.area,
+        args: { THREE, renderer, scene, area: areaData, origin,
+          terrainMesh: liteTerrain, groundMesh: gm, roadMeshes: [],
+          roofMesh: liteRoof, fringeMesh: fringe, look: LOOK, style: STYLE },
+        onOk: (id, r) => {
+          console.log(`[aerial] ok ${r.tiles} tiles z${r.zoom} (${id})`);
+          store.set({ aerialSecondByArea:
+            { ...(store.getState().aerialSecondByArea || {}), [id]: true } });
+        } })
+        .catch(() => {});
+    }
     return { group: g, origin: liteOrigin };
   }
 
@@ -2800,7 +2878,13 @@ async function bootSim() {
     store.set({ journeyLoading: `${label} 지도 불러오는 중…` });
     try {
       const data = await fetchArea(areaId);
-      const lite = buildAreaLite(data);
+      let scene14b = null;
+      try {
+        scene14b = await fetchScene(areaId);
+      } catch {
+        scene14b = null;
+      }
+      const lite = buildAreaLite(data, scene14b, areaId);
       secondAreas.set(areaId, lite);
       return lite;
     } catch {
@@ -2839,8 +2923,11 @@ async function bootSim() {
         const corridor = corridorFor(corridorsIndex, firstLeg.from, lastLeg.to);
         if (corridor) {
           try {
-            journeyLayer.setManifest(
-              await fetchJson(assetUrl(`/data/region/corridor/${corridor.id}/manifest.json`)));
+            const manifest = await fetchJson(
+              assetUrl(`/data/region/corridor/${corridor.id}/manifest.json`));
+            corridorAerialId = manifest && manifest.id;
+            store.set({ aerialCorridor: false });
+            journeyLayer.setManifest(manifest);
           } catch {
             // The line still draws; tiles just stay empty.
           }
@@ -2928,11 +3015,40 @@ async function bootSim() {
       : dayAways.find((a) => a.kind === "ride"
         && (a.detail && a.detail.direction || "out") === state.dir)
         || dayAways.find((a) => a.kind === "work") || null;
+    // 36g: the walk ends at the OSM station node while the ride
+    // starts at the line data's stop (~145 m apart), so join them for
+    // drawing — the boarding walk's last node and the alighting walk's
+    // first node (indexed trips + nodeLonLat) onto the ride's stop path.
+    const dayTrips = (indexed.tripsByAgent.get(agent.key) || [])
+      .filter((t) => t.day === day && !t.remote
+        && Array.isArray(t.path) && t.path.length > 0);
+    let walkBoard = null;
+    let walkAlight = null;
+    if (span) {
+      let boardTrip = null;
+      let alightTrip = null;
+      for (const t of dayTrips) {
+        if (t.arrive_min <= span.start
+          && (!boardTrip || t.arrive_min >= boardTrip.arrive_min)) boardTrip = t;
+        if (t.depart_min >= span.end
+          && (!alightTrip || t.depart_min < alightTrip.depart_min)) alightTrip = t;
+      }
+      if (boardTrip) walkBoard = nodeLonLat.get(boardTrip.path[boardTrip.path.length - 1]) || null;
+      if (alightTrip) walkAlight = nodeLonLat.get(alightTrip.path[0]) || null;
+    }
+    const rideStops = [];
+    for (const leg of ride.legs || []) {
+      for (const sid of leg.stopIds || []) {
+        const c = stopPos(sid);
+        if (c) rideStops.push(c);
+      }
+    }
     const frame = { ...idle, phase: state.phase, away, ride,
       dir: state.dir, elapsed: state.elapsed, progress: state.progress,
       spanStart: span ? span.start : 0, rideMinutes: ride.minutesTotal,
       riding: { rideMinutes: ride.minutesTotal },
-      hasDetailDest: hasDetail, destLonLat: dest, boardLonLat: board };
+      hasDetailDest: hasDetail, destLonLat: dest, boardLonLat: board,
+      walkEnds: joinWalkToRide(walkBoard, rideStops, walkAlight) };
     if (state.phase === "hold") {
       // Arrival hold: stay at the destination while they work (or walk
       // the last stretch there).
@@ -3101,7 +3217,7 @@ async function bootSim() {
       const cong = await ensureCongestion();
       journeyLayer.setPath({ ride: jf.ride, network: regionNetwork,
         congestion: cong, dayKind: dayKindFor(weekdayOfDay(day)),
-        minute: jf.spanStart,
+        minute: jf.spanStart, walkEnds: jf.walkEnds,
         fallback: criterionDefault("C-congestion", "fallback_pct") });
     }
     store.set({ journey: { ...jf.banner, dir: jf.dir,
@@ -3640,6 +3756,11 @@ async function bootSim() {
     paintHighlightFrame();
     paintLabels20b();
     const jfTrain = journeyFrame();
+    trackSimViewOffset(camera); // 13e5: stage centre, not canvas centre
+    controls.update();
+    // 36h5: size and place the ride markers with the camera that renders
+    // the frame — after trackSimViewOffset/controls.update, right before
+    // renderCtl.renderFrame.
     if (jfTrain.ride && (jfTrain.phase === "rising" || jfTrain.phase === "cruise"
         || jfTrain.phase === "descending" || jfTrain.phase === "boarding")) {
       journeyLayer.setTrain(jfTrain.ride, minute - Math.floor(minute) + jfTrain.elapsed,
@@ -3651,13 +3772,13 @@ async function bootSim() {
     // show unscaled (36 m) dots.
     journeyLayer.updateMarkerScale(camera,
       (renderer.domElement && renderer.domElement.clientHeight) || 800);
-    // Station names ride along the line during the regional phases only.
+    // Station names ride along the line during every visible journey
+    // phase (rising/cruise/descending/boarding); the hidden layer hides
+    // the labels with the line and dots.
     if (jfTrain.ride && (jfTrain.phase === "rising" || jfTrain.phase === "cruise"
-        || jfTrain.phase === "descending")) {
+        || jfTrain.phase === "descending" || jfTrain.phase === "boarding")) {
       journeyLayer.updateStationLabels(camera);
     }
-    trackSimViewOffset(camera); // 13e5: stage centre, not canvas centre
-    controls.update();
     if (sceneMarkingsMesh) {
       sceneMarkingsMesh.visible = (simFramedWidth ?? 0) <= MARKINGS_HIDE_M;
     }

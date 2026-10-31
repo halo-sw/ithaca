@@ -2,7 +2,7 @@ import { assetUrl } from "../paths.js";
 
 export const RECORDINGS = [
   { id: "menlo-month", title: "Meta 본사 출근 · 두 사람의 한 달", titleEn: "Commuting to Meta HQ · a month for two" },
-  { id: "seoul-couple", title: "강남 출근 예비부부 · 30일", titleEn: "Engaged couple, Gangnam commute · 30 days" },
+  { id: "seoul-couple", title: "판교 출근 예비부부 · 집 사기 · 30일", titleEn: "Engaged couple buying a home, Pangyo commute · 30 days" },
 ];
 
 export function recordingUrl(id) {

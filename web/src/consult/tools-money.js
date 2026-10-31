@@ -34,6 +34,8 @@ export const AREA_RTMS_DISTRICT = {
   "songpa": "songpa",
   "seongsu": "seongdong",
   "pangyo": "bundang",
+  "st-송파나루": "songpa",
+  "st-미금": "bundang",
 };
 
 // 12a: station boxes resolve to their region's RTMS district via
@@ -306,6 +308,8 @@ async function living_cost(session, args) {
       loan_rate_pct: A.loan_rate_pct, loan_years: A.loan_years,
       jeonse_loan_cap_won: A.jeonse_loan_cap_won,
       source: price.source,
+      area_m2: price.area_m2,
+      kind: args.kind ?? (scenario.money.kind || {})[hit.home],
     });
   } catch (err) {
     return fail(err.message);

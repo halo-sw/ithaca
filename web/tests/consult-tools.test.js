@@ -415,20 +415,20 @@ describe("consult tools", () => {
       return;
     }
     const s = createSession({ scenario: await demoScenario(), loadArea: realLoadArea });
-    const cx = await callTool(s, "list_complexes", { area: "songpa-jamsil" });
+    const cx = await callTool(s, "list_complexes", { area: "st-송파나루", query: "올림픽" });
     assert.equal(cx.ok, true);
-    assert.ok(cx.complexes.some((c) => c.name === "레이크팰리스"));
-    const st = await callTool(s, "list_stations", { area: "songpa-jamsil" });
-    assert.ok(st.stations.some((x) => x.name === "잠실"));
+    assert.ok(cx.complexes.some((c) => c.name === "효성올림픽카운티"));
+    const st = await callTool(s, "list_stations", { area: "st-송파나루" });
+    assert.ok(st.stations.some((x) => x.name === "송파나루"));
     const pl = await callTool(s, "find_places",
-      { area: "songpa-jamsil", category: "convenience", home: "A" });
+      { area: "st-송파나루", category: "convenience", home: "A" });
     assert.equal(pl.ok, true);
     assert.ok(pl.places.length > 0);
     assert.equal(pl.places[0].source, "graph");
     const ok = await callTool(s, "update_scenario", {
       homes: [
-        { label: "A", area: "songpa-jamsil", complex_name: "레이크팰리스" },
-        { label: "B", area: "pangyo", complex_name: "백현마을" },
+        { label: "A", area: "st-송파나루", complex_name: "효성올림픽카운티" },
+        { label: "B", area: "st-미금", complex_name: "청솔마을한라아파트" },
       ],
     });
     assert.equal(ok.ok, true);

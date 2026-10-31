@@ -69,6 +69,86 @@ async function loadArea(areaId) {
   return area;
 }
 
+// Pure workplace resolution (straight-line pin distance only).
+// Order: work.place (lon/lat) → destination_station (areas, then region
+// network) → null. Never work.station_name (the home boarding station).
+export function resolveWorkplace(scenarioArg, areasByIdArg, networkArg) {
+  const members = (scenarioArg && scenarioArg.household
+    && scenarioArg.household.members) || [];
+  for (const m of members) {
+    const w = (m && m.work) || {};
+    const place = w.place;
+    if (place && Number.isFinite(place.lon) && Number.isFinite(place.lat)) {
+      return { label: String(place.name || "직장"),
+        lon: place.lon, lat: place.lat, area: null };
+    }
+  }
+  const wants = [];
+  for (const m of members) {
+    const w = (m && m.work) || {};
+    const dst = w.destination_station;
+    const dstName = typeof dst === "string" ? dst
+      : dst && typeof dst === "object" ? Object.values(dst)[0] : null;
+    if (dstName) wants.push(String(dstName));
+  }
+  if (!wants.length) return null;
+  const matchName = (name, want) => name === want || name === `${want}역`
+    || `${want}역` === name || name.startsWith(want) || want.startsWith(name);
+  const byId = areasByIdArg || {};
+  const stationPoi = (area) => (area.pois || []).filter((p) =>
+    p.category === "railway:station" || p.category === "railway:stop");
+  // Prefer full stations over stops.
+  for (const cats of [["railway:station"], ["railway:stop"]]) {
+    for (const want of wants) {
+      for (const area of Object.values(byId)) {
+        for (const p of stationPoi(area)) {
+          if (!cats.includes(p.category)) continue;
+          const name = String(p.name || "");
+          if (name && matchName(name, want)) {
+            const [lon, lat] = (p.geometry && p.geometry.coordinates) || [];
+            if (Number.isFinite(lon) && Number.isFinite(lat)) {
+              return { label: name.endsWith("역") ? name : `${name}역`,
+                lon, lat, area: area.area || area.id || null };
+            }
+          }
+        }
+      }
+    }
+  }
+  const lines = (networkArg && networkArg.lines) || [];
+  for (const want of wants) {
+    for (const line of lines) {
+      for (const s of (line && line.stops) || []) {
+        const name = String(s.name || "");
+        if (name && matchName(name, want)
+          && Number.isFinite(s.lon) && Number.isFinite(s.lat)) {
+          return { label: name.endsWith("역") ? name : `${name}역`,
+            lon: s.lon, lat: s.lat, area: null };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+export function workplaceNote(workplace) {
+  if (!workplace) return "직장 위치를 찾지 못해서 거리를 재지 못했어요.";
+  const label = String(workplace.label);
+  if (label.startsWith("직장")) return `${label}에서 직선 거리예요. 출퇴근 시간은 아니에요.`;
+  return label.includes("(")
+    ? `직장 위치(${label})에서 직선 거리예요. 출퇴근 시간은 아니에요.`
+    : `직장(${label})에서 직선 거리예요. 출퇴근 시간은 아니에요.`;
+}
+
+// Importable for tests: the CLI body below runs only when executed
+// directly (`node web/scripts/money.mjs --scenario …`).
+const MONEY_CLI_MAIN = (() => {
+  try {
+    return !!process.argv[1]
+      && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+  } catch { return false; }
+})();
+if (MONEY_CLI_MAIN) {
 const opts = args(process.argv.slice(2));
 const scenarioRaw = JSON.parse(await readFile(resolve(REPO, opts.scenario), "utf8"));
 
@@ -267,7 +347,8 @@ const housingFor = (label, tenure) => {
   return { pi, housing: tenureCost({ tenure, ...pi,
     cash_won: scenario.money.cash_won,
     loan_rate_pct: A.loan_rate_pct, loan_years: A.loan_years,
-    jeonse_loan_cap_won: A.jeonse_loan_cap_won, source: pi.source }) };
+    jeonse_loan_cap_won: A.jeonse_loan_cap_won, source: pi.source,
+    kind: scenario.money.kind ? scenario.money.kind[label] : undefined }) };
 };
 const paired = runPaired(pairedAreas, scenarioRaw, {
   ...(region ? { region } : {}),
@@ -312,7 +393,8 @@ for (const h of scenario.homes) {
     const housing = tenureCost({ tenure, ...pi,
       cash_won: scenario.money.cash_won,
       loan_rate_pct: A.loan_rate_pct, loan_years: A.loan_years,
-      jeonse_loan_cap_won: A.jeonse_loan_cap_won, source: pi.source });
+      jeonse_loan_cap_won: A.jeonse_loan_cap_won, source: pi.source,
+      kind: scenario.money.kind ? scenario.money.kind[h.label] : undefined });
     const tl = moneyTimeline(run, scenario, {
       transit_fare_won: A.transit_fare_won, basket_won: A.basket_won,
       maintenance_won_month: A.maintenance_won_month, other_fixed_won_month: A.other_fixed_won_month,
@@ -405,41 +487,9 @@ for (const h of scenario.homes) {
 // Workplace: the first named destination/work station resolved to a
 // station POI in the loaded areas (straight-line pin distance only).
 function findWorkplace() {
-  const wants = [];
-  for (const m of scenario.household.members || []) {
-    const w = m.work || {};
-    const dst = w.destination_station;
-    const dstName = typeof dst === "string" ? dst
-      : dst && typeof dst === "object" ? Object.values(dst)[0] : null;
-    const st = w.station_name;
-    const stName = typeof st === "string" ? st
-      : st && typeof st === "object" ? Object.values(st)[0] : null;
-    if (dstName) wants.push(String(dstName));
-    if (stName) wants.push(String(stName));
-  }
-  const stationPoi = (area) => (area.pois || []).filter((p) =>
-    p.category === "railway:station" || p.category === "railway:stop");
-  const matchName = (name, want) => name === want || name === `${want}역`
-    || `${want}역` === name || name.startsWith(want) || want.startsWith(name);
-  // Prefer full stations over stops.
-  for (const cats of [["railway:station"], ["railway:stop"]]) {
-    for (const want of wants) {
-      for (const area of Object.values(areasById)) {
-        for (const p of stationPoi(area)) {
-          if (!cats.includes(p.category)) continue;
-          const name = String(p.name || "");
-          if (name && matchName(name, want)) {
-            const [lon, lat] = (p.geometry && p.geometry.coordinates) || [];
-            if (Number.isFinite(lon) && Number.isFinite(lat)) {
-              return { label: name.endsWith("역") ? name : `${name}역`,
-                lon, lat, area: area.area || area.id || null };
-            }
-          }
-        }
-      }
-    }
-  }
-  return null;
+  const network = (typeof region !== "undefined" && region && region.network)
+    || null;
+  return resolveWorkplace(scenario, areasById, network);
 }
 
 // Public listings block: every snapshot complex (compact) with
@@ -456,9 +506,7 @@ if (housingSnap) {
     fetched_at: shaped.fetched_at,
     attribution: shaped.attribution,
     workplace,
-    workplace_note: workplace
-      ? `직장(${workplace.label})에서 직선 거리예요. 출퇴근 시간은 아니에요.`
-      : "직장 위치를 찾지 못해서 거리를 재지 못했어요.",
+    workplace_note: workplaceNote(workplace),
     complexes: shaped.complexes.map((c) => ({
       ...c, distance_to_work_m: c.distance_km === null ? null : Math.round(c.distance_km * 1000),
     })),
@@ -498,3 +546,4 @@ const outDir = resolve(REPO, opts.out);
 await mkdir(outDir, { recursive: true });
 await writeFile(join(outDir, `${scenario.name}-money.json`), `${canon(doc)}\n`, "utf8");
 console.log(JSON.stringify({ file: join(opts.out, `${scenario.name}-money.json`) }));
+} // MONEY_CLI_MAIN

@@ -16,6 +16,7 @@ import pytest
 
 from pipeline.network import (
     _canonical_pair,
+    _chain_travel_order,
     _chain_ways,
     _chainage_km,
     _direction_for,
@@ -286,3 +287,91 @@ def test_real_pbf_deterministic():
     first = build_network(rel_file, mem_file, None)
     second = build_network(rel_file, mem_file, None)
     assert json.dumps(first, sort_keys=True) == json.dumps(second, sort_keys=True)
+
+
+# Stage 36h: pattern geometry must be stored in travel order (stops[0] →
+# stops[-1]) so web consumers can interpolate it by chainage. A way chain
+# drawn from the last stop back to the first used to be written as-is,
+# sending the journey marker the wrong way (8호선 석촌 → 복정 rode north).
+REV_FIXTURE_OSM = """<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="pytest-fixture">
+  <node id="1" lat="37.5000000" lon="127.0000000">
+    <tag k="name" v="김역"/>
+    <tag k="railway" v="stop_position"/>
+  </node>
+  <node id="2" lat="37.5100000" lon="127.0100000">
+    <tag k="name" v="이역"/>
+    <tag k="public_transport" v="stop_position"/>
+  </node>
+  <node id="3" lat="37.5200000" lon="127.0200000"/>
+  <node id="4" lat="37.5000000" lon="127.0050000"/>
+  <way id="10">
+    <nd ref="2"/><nd ref="3"/><nd ref="4"/><nd ref="1"/>
+    <tag k="railway" v="subway"/>
+  </way>
+  <relation id="100">
+    <member type="node" ref="1" role="stop"/>
+    <member type="node" ref="2" role="stop"/>
+    <member type="way" ref="10" role=""/>
+    <tag k="type" v="route"/>
+    <tag k="route" v="subway"/>
+    <tag k="name" v="서울 지하철 9호선: 김역 → 이역"/>
+  </relation>
+</osm>
+"""
+
+
+def _only_pattern(network):
+    line = next(line for line in network["lines"] if line["id"] == "line9")
+    assert len(line["patterns"]) == 1
+    return line, line["patterns"][0]
+
+
+def test_build_network_reversed_chain_geometry_in_travel_order(tmp_path):
+    osm_file = tmp_path / "reversed.osm"
+    osm_file.write_text(REV_FIXTURE_OSM, encoding="utf-8")
+    network = build_network(osm_file, osm_file, None)
+    line, pat = _only_pattern(network)
+    names = {s["id"]: s["name"] for s in line["stops"]}
+    assert names[pat["stops"][0]] == "김"
+    first = next(s for s in line["stops"] if s["id"] == pat["stops"][0])
+    g0 = pat["geometry"][0]
+    assert haversine_m(g0[0], g0[1], first["lon"], first["lat"]) <= 50
+    # Chainage is direction-independent, so today's values are unchanged.
+    stops = [{"lon": 127.0, "lat": 37.5}, {"lon": 127.01, "lat": 37.51}]
+    fwd = [(127.0, 37.5), (127.005, 37.5), (127.02, 37.52), (127.01, 37.51)]
+    assert pat["chainage_km"] == pytest.approx(
+        _chainage_km(fwd, stops)[0], abs=0.001)
+    assert pat["chainage_km"] == pytest.approx(
+        _chainage_km(list(reversed(fwd)), stops)[0], abs=0.001)
+    assert _chain_travel_order(list(reversed(fwd)), stops)[0] == fwd[0]
+
+
+needs_cache = pytest.mark.skipif(
+    not (CACHE_DIR / "network-routes.osm.pbf").exists()
+    or not (CACHE_DIR / "network-members.osm.pbf").exists(),
+    reason="network cache missing")
+
+
+@needs_cache
+def test_real_cache_geometry_starts_at_first_stop():
+    network = build_network(CACHE_DIR / "network-routes.osm.pbf",
+                            CACHE_DIR / "network-members.osm.pbf", None)
+    checked = 0
+    for line in network["lines"]:
+        coords = {s["id"]: (s["lon"], s["lat"]) for s in line["stops"]}
+        for p in line["patterns"]:
+            ids = p["stops"]
+            if len(ids) < 2 or len(p["geometry"]) < 2:
+                continue
+            if p.get("direction") in ("inner", "outer"):
+                continue  # loops read the same both ways
+            if ids[0] == ids[-1]:
+                continue
+            first = coords[ids[0]]
+            g0, gN = p["geometry"][0], p["geometry"][-1]
+            d0 = haversine_m(g0[0], g0[1], first[0], first[1])
+            dN = haversine_m(gN[0], gN[1], first[0], first[1])
+            assert d0 < dN, p["id"]
+            checked += 1
+    assert checked > 0

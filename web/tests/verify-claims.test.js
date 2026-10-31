@@ -308,15 +308,15 @@ describe("real-build engine values (16b)", () => {
     if (!existsSync(p)) return null; // built data is not committed
     return JSON.parse(readFileSync(p, "utf-8"));
   };
-  it("demo-two-homes-A C01 is 42.7", () => {
+  it("demo-two-homes-A C01 is 39.2", () => {
     const run = loadRun("demo-two-homes-A.json");
     if (!run) return;
-    assert.deepEqual(engineValue("C01", run), { value: 42.7, unit: "분" });
+    assert.deepEqual(engineValue("C01", run), { value: 39.2, unit: "분" });
   });
-  it("demo-two-homes-B C01 is 16.5", () => {
+  it("demo-two-homes-B C01 is 8.3", () => {
     const run = loadRun("demo-two-homes-B.json");
     if (!run) return;
-    assert.deepEqual(engineValue("C01", run), { value: 16.5, unit: "분" });
+    assert.deepEqual(engineValue("C01", run), { value: 8.3, unit: "분" });
   });
   it("persona-newlywed-couple-B N01 h1 is 46.5", () => {
     const run = loadRun("persona-newlywed-couple-B.json");

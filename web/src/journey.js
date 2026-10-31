@@ -8,6 +8,58 @@
 
 import { congestionBand } from "./engine/journey.js";
 
+// Join a ride path to its boarding/alighting walks (drawing only).
+// Prepends the boarding walk's end point (the station node the walk
+// reached) and appends the alighting walk's start point, filling each
+// join with interpolated points at most 5 m apart so the follow
+// marker moves continuously from walk to train. The middle of the
+// ride path is untouched; minutes, km and leg times stay unchanged.
+export function joinWalkToRide(walkEnd, ridePath, walkStart) {
+  const mid = (Array.isArray(ridePath) ? ridePath : [])
+    .filter((p) => p && Number.isFinite(p[0]) && Number.isFinite(p[1]))
+    .map((p) => [p[0], p[1]]);
+  const head = walkEnd && Number.isFinite(walkEnd[0]) && Number.isFinite(walkEnd[1])
+    ? [walkEnd[0], walkEnd[1]] : null;
+  const tail = walkStart && Number.isFinite(walkStart[0]) && Number.isFinite(walkStart[1])
+    ? [walkStart[0], walkStart[1]] : null;
+  const out = [];
+  // One join segment, densified to ≤5 m steps (haversine).
+  const fillJoin = (a, b) => {
+    if (a[0] === b[0] && a[1] === b[1]) return;
+    const d = haversineM(a, b);
+    const n = Math.max(1, Math.ceil(d / 5));
+    for (let i = 1; i < n; i++) {
+      out.push([a[0] + ((b[0] - a[0]) * i) / n, a[1] + ((b[1] - a[1]) * i) / n]);
+    }
+    out.push([b[0], b[1]]);
+  };
+  if (mid.length === 0) {
+    if (head) out.push(head);
+    if (tail) {
+      if (head) fillJoin(head, tail);
+      else out.push(tail);
+    }
+    return out;
+  }
+  // A walk end already on the path is not a join — keep the middle as is.
+  const needHead = head && !(head[0] === mid[0][0] && head[1] === mid[0][1]);
+  const midLast = mid[mid.length - 1];
+  const needTail = tail && !(tail[0] === midLast[0] && tail[1] === midLast[1]);
+  if (needHead) {
+    out.push(head);
+    fillJoin(head, mid[0]);
+  } else {
+    out.push(mid[0]);
+  }
+  for (let i = 1; i < mid.length; i++) {
+    const p = mid[i];
+    const l = out[out.length - 1];
+    if (l[0] !== p[0] || l[1] !== p[1]) out.push(p);
+  }
+  if (needTail) fillJoin(midLast, tail);
+  return out;
+}
+
 // Congestion band → line colour (legend: 여유 / 보통 / 혼잡 / 매우 혼잡).
 export const BAND_COLORS = {
   calm: 0x4a9b6b, // 여유 (≤34 %: seated)
@@ -116,6 +168,20 @@ export function trainPosition(network, ride, elapsed) {
 export const TRAIN_MARKER_PX = 28;
 export const STATION_DOT_PX = 14;
 export const MARKER_MIN_SCALE = 0.02;
+
+// 36h3: one height for the pin, the drawn path and the dots —
+// separate lifts parallax apart at the low follow camera.
+export const RIDE_LIFT = 60;
+// 36h3: authored station-dot diameter (metres); dotGeo is built from it.
+export const DOT_DIAM = 36;
+
+// 36h3: view-depth (camera-space depth) of a world point. Marker
+// perspective size depends on depth, not on Euclidean distance.
+export function viewDepthM(camPos, camDir, p) {
+  const dx = p.x - camPos.x, dy = p.y - camPos.y, dz = p.z - camPos.z;
+  const d = dx * camDir.x + dy * camDir.y + dz * camDir.z;
+  return Math.max(1, d);
+}
 
 export function markerScaleFor(camDistM, fovDeg, viewHpx, worldHM, maxPx) {
   const d = Math.max(1, Number(camDistM) || 1);

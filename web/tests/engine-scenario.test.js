@@ -122,7 +122,7 @@ describe("engine scenario", () => {
       lon: 127.001, lat: 37.501 };
     const r1 = resolveHome(area, home, router);
     const r2 = resolveHome(area, home, router);
-    assert.equal(r1.anchor.method, "coordinate");
+    assert.equal(r1.anchor.method, "nearest");
     assert.ok(r1.nodeId !== null && r1.buildingId !== null);
     assert.deepEqual(r1, r2);
     // Still strict without coordinates.

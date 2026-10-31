@@ -260,6 +260,7 @@ describe("loadDestArea", () => {
 
 const P = {
   jamsil: "../../data/build/songpa-jamsil/area.json",
+  songpanaru: "../../data/build/st-송파나루/area.json",
   pangyo: "../../data/build/pangyo/area.json",
   network: "../../data/build/region/network.json",
   congestion: "../../data/build/region/congestion.json",
@@ -310,6 +311,19 @@ async function realDemo({ days = 3, background = 0 } = {}) {
   return raw;
 }
 
+// The new scenario houses B at st-미금 (rides); the B-walk cases move B
+// back onto pangyo/백현마을 (11.1-minute origin walk) with a 판교 station.
+function bWalkOverride(raw) {
+  const bHome = raw.homes.find((h) => h.label === "B");
+  bHome.area = "pangyo";
+  bHome.complex_name = "백현마을";
+  for (const m of raw.household.members) {
+    m.work.station_name = { A: "송파나루", B: "판교" };
+    m.work.destination_station = { A: "판교" };
+  }
+  return raw;
+}
+
 function edgeSet(graph) {
   return new Set((graph.edges.walk || []).map((e) => `${e.from}>${e.to}`));
 }
@@ -331,10 +345,10 @@ function peakReadingOf(run, member) {
 describe("place derivation on the real graph + network", () => {
   it("rides from A, walks from B", async (t) => {
     if (!haveRealData()) return t.skip("needs data/build");
-    const [jamsil, pangyo, region] = await Promise.all(
-      [realArea(P.jamsil), realArea(P.pangyo), realRegion()]);
-    const runA = simulate(jamsil, await realDemo(), "A", { region, destArea: pangyo });
-    const runB = simulate(pangyo, await realDemo(), "B", { region, destArea: pangyo });
+    const [songpanaru, pangyo, region] = await Promise.all(
+      [realArea(P.songpanaru), realArea(P.pangyo), realRegion()]);
+    const runA = simulate(songpanaru, await realDemo(), "A", { region, destArea: pangyo });
+    const runB = simulate(pangyo, bWalkOverride(await realDemo()), "B", { region, destArea: pangyo });
     assert.equal(runA.meta.dest_area, "pangyo");
     assert.equal(runB.meta.dest_area, "pangyo");
     // A: walk → ride → work labelled by the workplace.
@@ -352,7 +366,7 @@ describe("place derivation on the real graph + network", () => {
     const peakAll = peakH2 && peakH2.pct > peakReadingOf(runA, "h1").pct
       ? peakH2 : peakReadingOf(runA, "h1");
     assert.equal(runA.totals.household.fatigue_peak_congestion_pct, peakAll.pct);
-    // B: the workplace is a 16-minute walk — no rides at all.
+    // B: the workplace is an 11.1-minute walk — no rides at all.
     assert.ok(!runB.aways.some((a) => a.kind === "ride"), "B walks, never rides");
     const bWork = runB.aways.find((a) => a.agent === "h1" && a.kind === "work");
     assert.equal(bWork.label, "직장 (가정: 판교역 인근) 근무");
@@ -366,15 +380,15 @@ describe("place derivation on the real graph + network", () => {
 
   it("walks the destination graph remotely (path on pangyo edges)", async (t) => {
     if (!haveRealData()) return t.skip("needs data/build");
-    const [jamsil, pangyo, region] = await Promise.all(
-      [realArea(P.jamsil), realArea(P.pangyo), realRegion()]);
+    const [songpanaru, pangyo, region] = await Promise.all(
+      [realArea(P.songpanaru), realArea(P.pangyo), realRegion()]);
     // A workplace 154 m from the 판교역 stop (CGV 판교점, real OSM POI):
     // the destination walk is a real non-zero graph leg.
     const raw = await realDemo();
     for (const m of raw.household.members) {
       m.work.place = { name: "직장 (가정: 판교역 인근)", lon: 127.1123628, lat: 37.3933342 };
     }
-    const run = simulate(jamsil, raw, "A", { region, destArea: pangyo });
+    const run = simulate(songpanaru, raw, "A", { region, destArea: pangyo });
     const dw = run.trips.find((x) => x.agent === "h1" && x.day === 0
       && x.from.label === "판교" && x.to.label === "직장 (가정: 판교역 인근)");
     assert.ok(dw, "expected a destination walk trip");
@@ -397,11 +411,11 @@ describe("place derivation on the real graph + network", () => {
 
   it("takes per-path ride minutes", async (t) => {
     if (!haveRealData()) return t.skip("needs data/build");
-    const [jamsil, pangyo, region] = await Promise.all(
-      [realArea(P.jamsil), realArea(P.pangyo), realRegion()]);
+    const [songpanaru, pangyo, region] = await Promise.all(
+      [realArea(P.songpanaru), realArea(P.pangyo), realRegion()]);
     const raw = await realDemo();
     for (const m of raw.household.members) m.work.ride_minutes = { A: 25 };
-    const run = simulate(jamsil, raw, "A", { region, destArea: pangyo });
+    const run = simulate(songpanaru, raw, "A", { region, destArea: pangyo });
     const out = run.aways.find((a) => a.agent === "h1" && a.day === 0
       && a.kind === "ride" && a.detail.direction === "out");
     assert.equal(out.end_min - out.start_min, 25);
@@ -412,11 +426,11 @@ describe("place derivation on the real graph + network", () => {
   it("rides from B when the walk limit drops below the B walk", async (t) => {
     if (!haveRealData()) return t.skip("needs data/build");
     const [pangyo, region] = await Promise.all([realArea(P.pangyo), realRegion()]);
-    const raw = await realDemo();
+    const raw = bWalkOverride(await realDemo());
     raw.criteria_overrides = { "C-walk-commute-max": { max_min: 10 } };
     const run = simulate(pangyo, raw, "B", { region, destArea: pangyo });
     const rides = run.aways.filter((a) => a.agent === "h1" && a.kind === "ride");
-    assert.ok(rides.length > 0, "B rides once the 16-minute walk exceeds the limit");
+    assert.ok(rides.length > 0, "B rides once the 11.1-minute walk exceeds the limit");
     assert.ok(run.totals.per_member.h1.commute_ride_minutes > 0);
     assert.equal(rides[0].detail.ride, null);
     assert.equal(rides[0].detail.journey_note, "목적지 역 없음");
@@ -433,7 +447,7 @@ describe("place derivation on the real graph + network", () => {
     // B forced onto the subway (limit 1) with a same-station destination:
     // the 판교역→CGV walk runs on the home graph — a visible trip, not
     // a remote one.
-    const raw = await realDemo();
+    const raw = bWalkOverride(await realDemo());
     raw.criteria_overrides = { "C-walk-commute-max": { max_min: 1 } };
     for (const m of raw.household.members) {
       m.work.place = { name: "직장 (가정: 판교역 인근)", lon: 127.1123628, lat: 37.3933342 };
@@ -458,9 +472,9 @@ describe("place derivation on the real graph + network", () => {
 
   it("re-runs byte-identically with a destination area", async (t) => {
     if (!haveRealData()) return t.skip("needs data/build");
-    const [jamsil, pangyo, region] = await Promise.all(
-      [realArea(P.jamsil), realArea(P.pangyo), realRegion()]);
-    const mk = async () => simulate(jamsil, await realDemo(), "A", { region, destArea: pangyo });
+    const [songpanaru, pangyo, region] = await Promise.all(
+      [realArea(P.songpanaru), realArea(P.pangyo), realRegion()]);
+    const mk = async () => simulate(songpanaru, await realDemo(), "A", { region, destArea: pangyo });
     assert.equal(canon(await mk()), canon(await mk()));
   });
 });

@@ -230,7 +230,29 @@ async function find_homes(session, args) {
   const schedule = await needTransit(session);
   // 29a7: a USD profile (or a Meta-HQ workplace) searches the US
   // corridor set — never Korean regions (same rule as the client path).
-  const regions = args.regions ? regionsForNames(args.regions) : usRegionsForProfile(profile);
+  // 36b: the workplace (출근지) is never a live-in region — the default
+  // 동네별 sort already spreads homes around it.
+  const normPlace = (s) => String(s || "").trim().replace(/역$/, "");
+  let regionsIgnored = [];
+  let wantedRegions = Array.isArray(args.regions) ? args.regions : null;
+  if (sort === "areas" && wantedRegions && wantedRegions.length > 0) {
+    const wpWords = new Set();
+    const wps = (profile && profile.workplaces && Array.isArray(profile.workplaces.value))
+      ? profile.workplaces.value : [];
+    for (const w of wps) {
+      if (w && typeof w.text === "string" && w.text.trim()) wpWords.add(normPlace(w.text));
+      const rst = w && w.resolved;
+      const st = rst && typeof rst.station === "string" ? rst.station
+        : (typeof rst === "string" ? rst : null);
+      if (st && st.trim()) wpWords.add(normPlace(st));
+    }
+    if (wpWords.size > 0) {
+      const kept = wantedRegions.filter((r) => !wpWords.has(normPlace(r)));
+      regionsIgnored = wantedRegions.filter((r) => wpWords.has(normPlace(r)));
+      wantedRegions = kept.length > 0 ? kept : null;
+    }
+  }
+  const regions = wantedRegions ? regionsForNames(wantedRegions) : usRegionsForProfile(profile);
   let index;
   let effRegions = regions;
   if (isUsProfile(profile, regions)) {
@@ -283,6 +305,7 @@ async function find_homes(session, args) {
     ok: true,
     profile_used: clone(profile),
     ...final,
+    ...(regionsIgnored.length > 0 ? { regions_ignored: [...regionsIgnored] } : {}),
     asked_for: { regions: effRegions || "all", kind: kind || "all" },
     next: final.candidates.length > 0
       ? "show 3–6 candidates with numbers + source badges; the customer picks 2 (or 3), then build_scenario"
@@ -383,14 +406,14 @@ export const SEARCH_TOOL_DEFS = [
           description: "Current profile to extend (omit for a fresh one)." },
       }, required: ["text"] } } },
   { type: "function", function: { name: "find_homes",
-    description: "Candidate homes from real transactions for the profile: tenure+budget medians, size, commute (graph walk where known; ride minutes are the customer's number when given, else the operator schedule / 1–8-line average estimate with source labels; unknown walk/ride are labelled, never guessed), must-haves inside built boxes. Sorting is the customer's choice (default 출퇴근 짧은 순, shown). No score, no ranking. Each result carries numbers, source badges, scene (box id or null) and up to 6 nearby photos.",
+    description: "Candidate homes from real transactions for the profile: tenure+budget medians, size, commute (graph walk where known; ride minutes are the customer's number when given, else the operator schedule / 1–8-line average estimate with source labels; unknown walk/ride are labelled, never guessed), must-haves inside built boxes. Sorting is the customer's choice (default 동네별: one home per neighbourhood, spread from near to far within the commute cap, shown). No score, no ranking. Each result carries numbers, source badges, scene (box id or null) and up to 6 nearby photos.",
     parameters: { type: "object", additionalProperties: false,
       properties: {
         profile: { type: "object", additionalProperties: true },
         sort: { type: "string",
-          description: "One of: commute, monthly, deals, priority (default commute)." },
+          description: "One of: areas, commute, monthly, deals, priority (default areas)." },
         limit: { type: "integer", description: "How many (1..12, default 6)." },
-        regions: { type: "array", description: "Region ids/words, only when the customer named any.",
+        regions: { type: "array", description: "Region ids/words where the customer wants to LIVE, only when they named one. Never the workplace (출근지) — the default 동네별 sort already spreads homes around it.",
           items: { type: "string" } },
         kind: { type: "string", description: "아파트, 연립·다세대(빌라) or 오피스텔 (omit for all)." },
       }, required: ["profile"] } } },

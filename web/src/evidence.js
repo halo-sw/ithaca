@@ -63,8 +63,15 @@ function findRide(run, agentKey, day, minute) {
 // split (legs carry the train time, transfers carry walk/wait). Without
 // leg detail the away window itself is the ride time.
 function rideParts(away) {
-  const out = { ride: 0, wait: 0, assumed: [] };
+  // 36d: whether this away's ride minutes come from the schedule
+  // (timetable / interstation derived) rather than an assumption.
+  // 36e: derived_estimate (노선 거리 × 평균 속도) stays an assumption —
+  // only "derived" reads 측정, so the subway part of a derived_estimate
+  // ride is 가정값.
+  const out = { ride: 0, wait: 0, assumed: [], assumedLines: [], measured: [],
+    schedule: false };
   const d = (away && away.detail) || {};
+  out.schedule = d.ride_minutes_source === "derived";
   const details = [];
   if (d.ride && typeof d.ride === "object") details.push(d.ride);
   else if (d.rides && typeof d.rides === "object") {
@@ -83,9 +90,14 @@ function rideParts(away) {
     for (const leg of r.legs || []) {
       if (Number.isFinite(leg.minutes)) out.ride += leg.minutes;
       const c = leg.congestion;
-      if (c && (c.source === ASSUMED_SOURCE || c.hasData === false)
-          && Number.isFinite(c.valuePct)) {
-        out.assumed.push(c.valuePct);
+      if (c && Number.isFinite(c.valuePct)) {
+        const lineName = String(c.line || leg.line || leg.lineName || leg.name || "");
+        if (c.hasData === true) {
+          out.measured.push({ lineName, pct: c.valuePct, source: c.source || "" });
+        } else if (c.source === ASSUMED_SOURCE || c.hasData === false) {
+          out.assumed.push(c.valuePct);
+          if (lineName) out.assumedLines.push(lineName);
+        }
       }
     }
     let w = 0;
@@ -105,6 +117,23 @@ function rideParts(away) {
 // One direction's door-to-door commute for this agent, day and am|pm
 // half: the walk trips plus the ride away(s). The total is defined as
 // the sum of the rounded parts, so the parts always add up.
+// 36d: per-part English labels (the transfer/wait part reads
+// "transfer & wait", matching the Korean 환승·기다림).
+const EN_PART_LABEL = { "걷기": "walking", "자전거": "biking",
+  "지하철": "subway", "환승·기다림": "transfer & wait" };
+// 36h3: English line names built in code (the page translator splits
+// on ·, so 수인·분당선 must never reach it in halves).
+const EN_LINE_NAME = { "1호선": "Line 1", "2호선": "Line 2",
+  "3호선": "Line 3", "4호선": "Line 4", "5호선": "Line 5",
+  "6호선": "Line 6", "7호선": "Line 7", "8호선": "Line 8",
+  "9호선": "Line 9", "신분당선": "Shinbundang Line",
+  "수인·분당선": "Suin-Bundang Line", "경강선": "Gyeonggang Line" };
+function enLineName(n) {
+  return EN_LINE_NAME[String(n)] || String(n);
+}
+function enPartText(label, minutes) {
+  return `${minutes} min ${EN_PART_LABEL[label] || label}`;
+}
 // 26i: a 26d bike trip reads 자전거 and the line is 가정값 (assumed
 // 15 km/h, C-bike-speed) — trips without a mode key stay 걷기/측정.
 export function commuteLines(run, agentKey, current, currentStart, lang = currentLang()) {
@@ -122,27 +151,53 @@ export function commuteLines(run, agentKey, current, currentStart, lang = curren
   let ride = 0;
   let wait = 0;
   const assumed = [];
+  const assumedLines = [];
+  const measured = [];
+  // 36d: one tag per part. Walk is graph-measured; bike and
+  // transfer/wait are assumed; the subway is measured only when every
+  // ride's minutes come from the schedule (ride_minutes_source derived).
+  // The one-line text keeps its wording for one-line screens; parts
+  // carry the per-part tag (and the 환승·기다림 name) for the panel.
+  let allSchedule = rides.length > 0;
   for (const a of rides) {
     const p = rideParts(a);
     ride += p.ride;
     wait += p.wait;
     assumed.push(...p.assumed);
+    assumedLines.push(...(p.assumedLines || []));
+    measured.push(...(p.measured || []));
+    if (!p.schedule) allSchedule = false;
   }
   ride = Math.round(ride);
   wait = Math.round(wait);
   const total = walk + bike + ride + wait;
   const dir = half === "am" ? "출근" : "퇴근";
-  const parts = bikeTrips.length === 0 ? [`걷기 ${walk}분`] : [
-    ...(walk > 0 ? [`걷기 ${walk}분`] : []),
-    `자전거 ${bike}분`,
+  const subwayMeasured = ride > 0 && allSchedule;
+  // 36f: only real parts — zero minutes or an empty label renders
+  // no part and no tag, so a part never carries two tags.
+  const rawParts = [
+    { label: "걷기", minutes: walk, tag: "측정" },
+    ...(bikeTrips.length > 0 ? [{ label: "자전거", minutes: bike, tag: "가정값" }] : []),
+    { label: "지하철", minutes: ride, tag: subwayMeasured ? "측정" : "가정값" },
+    { label: "환승·기다림", minutes: wait, tag: "가정값" },
   ];
-  if (ride > 0) parts.push(`지하철 ${ride}분`);
-  if (wait > 0) parts.push(`기다림 ${wait}분`);
-  const tag = bikeTrips.length === 0 ? "측정" : "가정값";
+  const baseParts = rawParts.filter((p) => p.label && p.minutes > 0);
+  const withText = (rows) => rows.map((p) => ({ ...p, text: `${p.label} ${p.minutes}분` }));
+  const partRows = withText(baseParts);
+  const parts = [
+    ...(walk > 0 ? [`걷기 ${walk}분`] : []),
+    ...(bikeTrips.length > 0 && bike > 0 ? [`자전거 ${bike}분`] : []),
+    ...(ride > 0 ? [`지하철 ${ride}분`] : []),
+    ...(wait > 0 ? [`기다림 ${wait}분`] : []),
+  ];
+  const tag = partRows.every((p) => p.tag === "측정") ? "측정" : "가정값";
   // 29L2: English built in code (Today's commute home: …), never glossaried.
   if (lang === "en") {
+    const enParts = partRows.map((p) => ({ ...p,
+      label: EN_PART_LABEL[p.label] || p.label,
+      text: enPartText(p.label, p.minutes) }));
     const lines = [{ text: commuteBreakdownEn({ dir: half === "am" ? "work" : "home",
-      total, walk, bike, subway: ride, wait }), tag }];
+      total, walk, bike, subway: ride, wait }), tag, parts: enParts }];
     const avg = commuteOneWayMinutes(run, agentKey);
     if (Number.isFinite(avg)) {
       const days = (run && run.meta && run.meta.days) || 30;
@@ -152,11 +207,22 @@ export function commuteLines(run, agentKey, current, currentStart, lang = curren
     }
     if (assumed.length > 0) {
       const pct = Math.round(Math.max(...assumed));
-      lines.push({ text: `Crowding ${pct}% is assumed (not measured)`, tag: "가정값" });
+      const names = [...new Set(assumedLines.filter(Boolean))];
+      lines.push(names.length > 0
+        ? { text: `Crowding ${pct}% on ${names.map(enLineName).join(", ")} is assumed (not measured)`, tag: "가정값", noI18n: true }
+        : { text: `Crowding ${pct}% is assumed (not measured)`, tag: "가정값" });
+    }
+    if (measured.length > 0) {
+      const top = measured.reduce((a, b) => (b.pct > a.pct ? b : a));
+      const pct = Math.round(top.pct);
+      const src = /서울교통공사|Seoul Metro/.test(top.source) ? "Seoul Metro" : (top.source || "Seoul Metro");
+      lines.push(top.lineName
+        ? { text: `Crowding ${pct}% on ${enLineName(top.lineName)} is measured (${src})`, tag: "측정", noI18n: true }
+        : { text: `Crowding ${pct}% is measured (${src})`, tag: "측정" });
     }
     return lines;
   }
-  const lines = [{ text: `오늘 ${dir} ${total}분 = ${parts.join(" + ")}`, tag }];
+  const lines = [{ text: `오늘 ${dir} ${total}분 = ${parts.join(" + ")}`, tag, parts: partRows }];
   const avg = commuteOneWayMinutes(run, agentKey);
   if (Number.isFinite(avg)) {
     const days = (run && run.meta && run.meta.days) || 30;
@@ -168,7 +234,18 @@ export function commuteLines(run, agentKey, current, currentStart, lang = curren
   }
   if (assumed.length > 0) {
     const pct = Math.round(Math.max(...assumed));
-    lines.push({ text: `혼잡 ${pct}%는 가정값이에요 (실측 없음)`, tag: "가정값" });
+    const names = [...new Set(assumedLines.filter(Boolean))];
+    lines.push(names.length > 0
+      ? { text: `${names.join("·")} 혼잡 ${pct}%는 가정값이에요 (실측 없음)`, tag: "가정값" }
+      : { text: `혼잡 ${pct}%는 가정값이에요 (실측 없음)`, tag: "가정값" });
+  }
+  if (measured.length > 0) {
+    const top = measured.reduce((a, b) => (b.pct > a.pct ? b : a));
+    const pct = Math.round(top.pct);
+    const src = top.source || "서울교통공사";
+    lines.push(top.lineName
+      ? { text: `${top.lineName} 혼잡 ${pct}%는 ${src} 실측이에요`, tag: "측정" }
+      : { text: `혼잡 ${pct}%는 ${src} 실측이에요`, tag: "측정" });
   }
   return lines;
 }

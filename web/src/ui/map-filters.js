@@ -11,7 +11,7 @@ import { TENURE_KO } from "../profile.js";
 // The trade types the search really supports (find_homes runs
 // jeonse / wolse / trade; public rentals are not normal homes).
 // USD profiles read monthly rent only, so they get no tenure chip.
-export const FILTER_TENURES = ["jeonse", "wolse", "trade"];
+export const FILTER_TENURES = ["trade", "jeonse", "wolse"];
 
 // Budget scales in profile units (KRW won, USD dollars) — the same
 // values the intake budget step writes, passed through unchanged by

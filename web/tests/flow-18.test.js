@@ -165,15 +165,16 @@ describe("18-2 intake never re-asks the sentence", () => {
     assert.match(took[0], /1인/);
     assert.match(took[0], /판교 출근/);
     assert.match(took[0], /연봉 4,000만 원/);
-    assert.match(took[0], /모은 돈 5,000만 원/);
-    assert.match(took[0], /전세 2억 원 이하/);
+    assert.match(took[0], /모은 돈 1억 원/);
+    assert.match(took[0], /매매 4억 원 이하/);
     assert.match(took[1], /2인/);
     assert.match(took[1], /강남 출근/);
-    assert.match(took[1], /전세 4억 원 이하/);
-    assert.match(took[1], /59㎡ 이상/);
+    assert.match(took[1], /모은 돈 3억 원/);
+    assert.match(took[1], /매매 9억 원 이하/);
     assert.match(took[2], /3인/);
     assert.match(took[2], /잠실 출근/);
-    assert.match(took[2], /전세 6억 원 이하/);
+    assert.match(took[2], /모은 돈 5억 원/);
+    assert.match(took[2], /매매 15억 원 이하/);
   });
 
   it("leaves missing fields out of the took line (no null)", () => {

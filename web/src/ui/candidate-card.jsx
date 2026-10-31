@@ -93,8 +93,7 @@ export function commuteShortLine(candidate, destName) {
   if (c.ride && c.ride.known && Number.isFinite(c.ride.minutes) && c.ride.minutes > 0) {
     const total = Math.round(((c.walk.known ? c.walk.minutes : 0) + c.ride.minutes) * 10) / 10;
     const src = c.ride.source === "customer" ? "said"
-      : c.ride.derived && (c.ride.derived.methodsUsed || []).includes("estimate")
-        && !(c.ride.derived.methodsUsed || []).includes("schedule") ? "estimate" : "official";
+      : c.ride.derived && (c.ride.derived.methodsUsed || []).includes("estimate") ? "estimate" : "official";
     const where = destName ? `${destName}까지 ` : "";
     // 18d: the pre-run estimate keeps its own label — never the 30-day
     // 살아 보기 편도 (oneWayCommuteOfRun) shown after the run.
@@ -171,14 +170,24 @@ export function commuteRowLine(candidate, destName) {
   const rideKnown = !!(c.ride && c.ride.known
     && Number.isFinite(c.ride.minutes) && c.ride.minutes > 0);
   const src = c.ride && c.ride.source === "customer" ? "said"
-    : c.ride && c.ride.derived && (c.ride.derived.methodsUsed || []).includes("estimate")
-      && !(c.ride.derived.methodsUsed || []).includes("schedule") ? "estimate" : "official";
+    : c.ride && c.ride.derived && (c.ride.derived.methodsUsed || []).includes("estimate") ? "estimate" : "official";
   const near = (m) => (m < 1 ? "1분 이내" : `${Math.round(m)}분`);
   void destName;
   if (rideKnown && walkKnown) {
     const total = Math.round(c.walk.minutes + c.ride.minutes);
+    // 36a: neighbourhood-spread candidates name the origin pair first.
+    if (candidate.origin && candidate.origin.label_ko) {
+      return { text: `${candidate.origin.label_ko} 총 ${total}분 · ${c.walk.station}역 걸어서 ${near(c.walk.minutes)} + 지하철 ${Math.round(c.ride.minutes)}분`,
+        estimate: src === "estimate", source: src };
+    }
     return { text: `총 ${total}분 · ${c.walk.station}역 걸어서 ${near(c.walk.minutes)} + 지하철 ${Math.round(c.ride.minutes)}분`,
       estimate: src === "estimate", source: src };
+  }
+  // Same station as the workplace: no subway at all — the walk is the
+  // whole trip.
+  if (walkKnown && (c.sameStation || (c.ride && c.ride.sameStation))) {
+    return { text: `${c.walk.station}역까지 걸어서 ${near(c.walk.minutes)} (지하철 안 타요)`,
+      estimate: false, source: "official" };
   }
   if (walkKnown) {
     return { text: `총 ${near(c.walk.minutes)} · ${c.walk.station}역 걸어서`,
@@ -382,6 +391,40 @@ export function reportListThumbKind(id, kind) {
   if (kind === "street" && id !== undefined && id !== null) {
     listStreetIds.add(String(id));
   }
+}
+
+// 36d: one photo per card. The list key of a street photo (its id, else
+// its url) — photos without either carry no key and never collide.
+export function streetPhotoKey(photo) {
+  if (!photo) return null;
+  const k = photo.id ?? photo.page_url ?? photo.thumb_url ?? photo.url;
+  return k === undefined || k === null || k === "" ? null : String(k);
+}
+
+// 36d: batch photo assignment over one candidate list. Each row offers
+// its photos in preference order (row.photos, else row.streetPhotos);
+// the row takes its first photo no earlier row took, else null — null
+// rows fall through to the silhouette/model thumbnail as when a row has
+// no photo at all. Pure; returns Map(id → photo|null).
+export function assignListPhotos(candidates) {
+  const used = new Set();
+  const out = new Map();
+  for (const row of candidates || []) {
+    const id = row && (row.id ?? (row.candidate && row.candidate.id));
+    const opts = Array.isArray(row && row.photos) ? row.photos
+      : Array.isArray(row && row.streetPhotos) ? row.streetPhotos : [];
+    let pick = null;
+    for (const p of opts) {
+      if (!p) continue;
+      const k = streetPhotoKey(p);
+      if (k !== null && used.has(k)) continue;
+      pick = p;
+      if (k !== null) used.add(k);
+      break;
+    }
+    out.set(id, pick);
+  }
+  return out;
 }
 
 // 32c: the thumbnail kinds actually shown across the list, in row
@@ -735,7 +778,7 @@ function RowEstimateTag({ row }) {
 export function CandidateCard({ candidate, tenure, destName, photos, index,
   onLive, onJeonse, onDetail, picked = false, variant = "row",
   pickLetter = null, highlighted = false, note = "", budgetWon = null,
-  sharedRent = false }) {
+  sharedRent = false, usedPhotoKeys = null }) {
   const [slide, setSlide] = useState(0);
   const [street, setStreet] = useState(null);
   const thumbRef = useRef(null);
@@ -747,6 +790,14 @@ export function CandidateCard({ candidate, tenure, destName, photos, index,
     const load = () => {
       streetPhotoFor(candidate).then((s) => {
         if (!live || !s) return;
+        // 36d: one photo per card — a photo an earlier row of this list
+        // already shows falls through to the silhouette/model thumbnail
+        // as when the row has no street photo at all.
+        const key = streetPhotoKey(s);
+        if (usedPhotoKeys && key !== null) {
+          if (usedPhotoKeys.has(key)) return;
+          usedPhotoKeys.add(key);
+        }
         setStreet(s);
         reportListThumbKind(candidate && candidate.id, "street");
       });

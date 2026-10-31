@@ -118,7 +118,7 @@
     }
   ],
   "money": {
-    "_note": "PLACEHOLDER (가정값): 연봉 5,500만 + 4,500만 · 보유현금 1.5억 · 대출금리 4.0% · A 59.97㎡ · B 84.82㎡ · both 전세. The child has no income.",
+    "_note": "PLACEHOLDER (가정값): 연봉 5,500만 + 4,500만 · 보유현금 5억 · 매매가 상한 15억 · 대출금리 4.0% · A 59.97㎡ · B 84.82㎡ · both 매매. The child has no income.",
     "members": {
       "m1": {
         "annual_salary_won": 55000000
@@ -127,10 +127,10 @@
         "annual_salary_won": 45000000
       }
     },
-    "cash_won": 150000000,
+    "cash_won": 500000000,
     "tenure": {
-      "A": "전세",
-      "B": "전세"
+      "A": "매매",
+      "B": "매매"
     },
     "area_m2": {
       "A": 59.97,

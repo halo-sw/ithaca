@@ -45,7 +45,7 @@ html, body {
   border-radius: 8px; padding: 2px 8px; margin-top: -6px;
 }
 .trainpin {
-  position: absolute; transform: translate(-50%, -50%);
+  position: absolute; transform: translate(-10px, -50%);
   display: flex; align-items: center; gap: 6px;
   pointer-events: none; white-space: nowrap;
 }

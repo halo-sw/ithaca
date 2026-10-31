@@ -42,7 +42,7 @@ import { chipDisplay, tickerDisplay, FATIGUE_MODEL_NOTE, familyRowText } from ".
 import { hhmm, navFromOutings, outingIndexAt, stepIndexAt } from "../timeline.js";
 import { ActivityIcon, ActivityLegend } from "./timeline.jsx";
 import { todayStepEn, todayStepNoI18n } from "./scene-chrome.js";
-import { aerialCreditFor } from "../aerial/drape.js";
+import { aerialCreditFor, USGS_CREDIT } from "../aerial/drape.js";
 import { currentLang } from "../i18n/lang.js";
 
 // 26e: the screens below carry no area bbox; a USD moneyDoc marks a US
@@ -456,10 +456,7 @@ function SimHero({ state }) {
           <div className="ui-hero-evidence-head">이 장면이 결과에 들어가는 곳</div>
           <ul className="ui-hero-evidence-list">
             {n.evidence.map((e, i) => (
-              <li key={i} className="ui-hero-evidence-line">
-                <span>{e.text}</span>
-                {e.tag && <span className="ui-tag">{e.tag}</span>}
-              </li>
+              <EvidenceLine key={i} e={e} />
             ))}
           </ul>
         </div>
@@ -479,6 +476,26 @@ function SimHero({ state }) {
       )}
       <div className="ui-hero-next">{`다음: ${n.next}`}</div>
     </div>
+  );
+}
+
+// 36f: one tag per part — the line-level tag shows only for tag-less
+// text lines, so a part never reads two tags (측정 + 가정값).
+export function EvidenceLine({ e }) {
+  // 36h3: English crowding lines are built in code (never glossaried),
+  // so they render in a data-no-i18n node like the 29L2 commute line.
+  const noI18n = e && e.noI18n ? { "data-no-i18n": true } : {};
+  return (
+    <li className="ui-hero-evidence-line">
+      {e.parts ? (
+        <span>{e.parts.map((p, j) => (
+          <span key={j}>{j > 0 ? " + " : ""}{p.text}{p.tag && <span className="ui-tag">{p.tag}</span>}</span>
+        ))}</span>
+      ) : (
+        <span {...noI18n}>{e.text}</span>
+      )}
+      {!e.parts && e.tag && <span className="ui-tag">{e.tag}</span>}
+    </li>
   );
 }
 
@@ -1003,10 +1020,36 @@ function LegendCard({ state, onClose }) {
 // 29L2: on phones (≤ 480 px, CSS picks) the short form shows on one
 // line — Korean and English the same — with the full text in title.
 export function SimCredit({ state }) {
-  const full = state.aerial
+  // 36c: the aerial part follows the photo the camera is looking at —
+  // the station drape outside a ride, the corridor drape during one.
+  // 36f: a draped second (workplace) area counts too — VWorld shows
+  // when the camera's area is draped.
+  const secondDraped = !!(state.aerialSecondByArea
+    && Object.keys(state.aerialSecondByArea).length > 0);
+  const photo = state.journey ? (state.aerialCorridor || secondDraped) : state.aerial;
+  // 36g: English builds the whole line as one string (US areas keep
+  // their USGS credit); Korean is unchanged.
+  // 36h6: English renders the same full/short pair as Korean so the
+  // CSS picks the short form on phones (≤ 480 px).
+  if (currentLang() === "en") {
+    const area = areaForCredit(state);
+    const full = !photo ? "© OpenStreetMap"
+      : aerialCreditFor(area) === USGS_CREDIT ? `${USGS_CREDIT} · © OpenStreetMap`
+      : "Aerial photo © MOLIT Spatial Information Open Platform (VWorld) · © OpenStreetMap";
+    const short = !photo ? "© OpenStreetMap"
+      : aerialCreditFor(area) === USGS_CREDIT ? `${USGS_CREDIT} · © OpenStreetMap`
+      : "© VWorld · © OpenStreetMap";
+    return (
+      <div className="ui-simcredit" data-testid="sim-credit" data-no-i18n title={full}>
+        <span className="ui-simcredit-full" data-no-i18n>{full}</span>
+        <span className="ui-simcredit-short" data-no-i18n>{short}</span>
+      </div>
+    );
+  }
+  const full = photo
     ? `${aerialCreditFor(areaForCredit(state))} · © OpenStreetMap`
     : "© OpenStreetMap";
-  const short = state.aerial ? "© VWorld · © OpenStreetMap" : "© OpenStreetMap";
+  const short = photo ? "© VWorld · © OpenStreetMap" : "© OpenStreetMap";
   return (
     <div className="ui-simcredit" data-testid="sim-credit" data-no-i18n title={full}>
       <span className="ui-simcredit-full">{full}</span>

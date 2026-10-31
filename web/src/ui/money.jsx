@@ -4,6 +4,7 @@
 import { Banner } from "@astryxdesign/core/Banner";
 import { Button } from "@astryxdesign/core/Button";
 import { Collapsible } from "@astryxdesign/core/Collapsible";
+import { Divider } from "@astryxdesign/core/Divider";
 import { Heading } from "@astryxdesign/core/Heading";
 import { HStack } from "@astryxdesign/core/HStack";
 import { VStack } from "@astryxdesign/core/VStack";
@@ -16,12 +17,13 @@ import { Gloss } from "./gloss.jsx";
 import { glossaryTerms } from "./glossary.js";
 import { monthlyHousingLabel, BURDEN_PLAIN_LABEL, BURDEN_PLAIN_NOTE,
   REMAINING_PLAIN_LABEL, HOW_CALCULATED } from "./copy.js";
-import { fmtWon, fmtPct, fmtMinutes, fmtMinutesTable, fmtCount, fmtIndex } from "../money/format.js";
+import { fmtWon, fmtWonLump, fmtPct, fmtMinutes, fmtMinutesTable, fmtCount, fmtIndex } from "../money/format.js";
 import { fmtMoney } from "../money/currency.js";
 import { FATIGUE_MODEL_NOTE } from "../nowcard.js";
 import { congestionPeakLine } from "../engine/journey.js";
 import { MONEY_CATEGORY_KO } from "../money/timeline.js";
-import { TENURE_DISCLAIMER, TRADE_TAX_NOTE } from "../money/tenure.js";
+import { TENURE_DISCLAIMER, TRADE_COSTS_NOTE } from "../money/tenure.js";
+import { purchaseCosts } from "../money/purchase.js";
 import { ELIGIBILITY_NOTE } from "../money/housing.js";
 
 const act = (name, ...args) => store.act(name, ...args);
@@ -82,6 +84,110 @@ export function HowCalculated({ tenure, housing, maintenanceWon, transitWon = nu
         ))}
       </VStack>
     </Collapsible>
+  );
+}
+
+// 35b: is this the 매매 one-off breakdown (35a)?
+export function isTradeHousing(housing) {
+  return !!(housing && housing.breakdown && housing.breakdown.kind === "trade");
+}
+
+// 35b: 매매 "내가 내는 돈" — 살 때 한 번에, 매달, 넣지 않은 돈.
+// Pure render from the trade breakdown (35a). Numbers only, no verdicts.
+export function PurchasePayments({ housing, maintenanceWon, transitWon = null, lang }) {
+  const b = (housing && housing.breakdown) || {};
+  const items = Array.isArray(b.one_off_items) ? b.one_off_items : [];
+  const price = Number(b.price_won) || 0;
+  const oneOff = Number(b.one_off_total_won) || 0;
+  const own = Number(b.own_money_won) || 0;
+  const loan = Number(b.loan_won) || 0;
+  const share = Number(b.loan_share_pct) || 0;
+  const rate = b.loan_rate_pct ?? (housing && housing.rate_pct);
+  const years = b.loan_years ?? (housing && housing.years);
+  const monthly = Number(housing && housing.monthly_won) || 0;
+  const maint = Number(maintenanceWon) || 0;
+  const hasTransit = transitWon !== null && transitWon !== undefined;
+  const transit = hasTransit ? Number(transitWon) || 0 : 0;
+  const showTransit = hasTransit && transit > 0;
+  const monthlyTotal = monthly + maint + (showTransit ? transit : 0);
+  const noLoan = !(loan > 0);
+  const notes = purchaseCosts({ price_won: price,
+    area_m2: housing && housing.area_m2, kind: b.home_kind }).notes;
+  const itemLabel = (it) => (it.key === "brokerage_cap" ? "중개보수 (상한)" : it.label_ko);
+  const itemSupport = (it) => [it.basis_ko, it.source_ko].filter(Boolean).join(" · ");
+  return (
+    <VStack gap={2}>
+      <VStack gap={1}>
+        <Text weight="semibold">살 때 한 번에 내는 돈</Text>
+        <HStack gap={2} hAlign="between" vAlign="start" wrap="wrap">
+          <Text>집값</Text>
+          <Text hasTabularNumbers style={{ flexShrink: 0 }}>{fmtWonLump(price)}</Text>
+        </HStack>
+        {items.map((it) => (
+          <VStack gap={1} key={it.key}>
+            <HStack gap={2} hAlign="between" vAlign="start" wrap="wrap">
+              <Text>{itemLabel(it)}</Text>
+              <Text hasTabularNumbers style={{ flexShrink: 0 }}>{fmtWonLump(it.won)}</Text>
+            </HStack>
+            {itemSupport(it) && (
+              <Text type="supporting">{itemSupport(it)}</Text>
+            )}
+          </VStack>
+        ))}
+        <Divider />
+        <HStack gap={2} hAlign="between" vAlign="start" wrap="wrap">
+          <Text weight="semibold">합계</Text>
+          <Text weight="semibold" hasTabularNumbers style={{ flexShrink: 0 }}>{fmtWonLump(price + oneOff)}</Text>
+        </HStack>
+        {noLoan ? (
+          <Text type="supporting">모두 내 돈으로 내요</Text>
+        ) : (
+          <Text type="supporting" hasTabularNumbers>{`그중 내 돈 ${fmtWonLump(own)} · 빌리는 돈 ${fmtWonLump(loan)} (집값의 ${share}%)`}</Text>
+        )}
+      </VStack>
+      <VStack gap={1}>
+        <Text weight="semibold">매달 내는 돈</Text>
+        {noLoan ? (
+          <VStack gap={1}>
+            <HStack gap={2} hAlign="between" vAlign="start" wrap="wrap">
+              <Text>대출 갚는 돈 없음</Text>
+            </HStack>
+            <Text type="supporting">모은 돈으로 다 낼 수 있어요</Text>
+          </VStack>
+        ) : (
+          <VStack gap={1}>
+            <HStack gap={2} hAlign="between" vAlign="start" wrap="wrap">
+              <Text>대출 갚는 돈</Text>
+              <Text hasTabularNumbers style={{ flexShrink: 0 }}>{fmtWon(monthly, { monthly: true })}</Text>
+            </HStack>
+            <Text type="supporting">{`(이자율 ${rate}% · ${years}년 · 매달 같은 금액, 정해 둔 값)`}</Text>
+          </VStack>
+        )}
+        <HStack gap={2} hAlign="between" vAlign="start" wrap="wrap">
+          <Text>관리비</Text>
+          <Text hasTabularNumbers style={{ flexShrink: 0 }}>{fmtWon(maint, { monthly: true })}</Text>
+        </HStack>
+        {showTransit && (
+          <HStack gap={2} hAlign="between" vAlign="start" wrap="wrap">
+            <Text>교통비</Text>
+            <Text hasTabularNumbers style={{ flexShrink: 0 }}>{fmtWon(transit, { monthly: true })}</Text>
+          </HStack>
+        )}
+        <Divider />
+        <HStack gap={2} hAlign="between" vAlign="start" wrap="wrap">
+          <Text weight="semibold">합계</Text>
+          <Text weight="semibold" hasTabularNumbers style={{ flexShrink: 0 }}>{fmtWon(monthlyTotal, { monthly: true })}</Text>
+        </HStack>
+      </VStack>
+      <Collapsible trigger={<Text type="supporting">넣지 않은 돈</Text>} defaultIsOpen={false}>
+        <VStack gap={1}>
+          {notes.map((n, i) => (
+            <Text key={i} type="supporting">{n}</Text>
+          ))}
+          <Text type="supporting">대출을 받을 수 있는지(LTV·DSR)는 판단하지 않아요.</Text>
+        </VStack>
+      </Collapsible>
+    </VStack>
   );
 }
 
@@ -257,8 +363,14 @@ export function MoneyTab({ state }) {
                     </Text>
                   </MetadataListItem>
                 </MetadataList>
-                <HowCalculated tenure={t} housing={sel.housing}
-                  maintenanceWon={Math.abs(sel.totals_by_category.maintenance || 0)} />
+                {t === "매매" && isTradeHousing(sel.housing) ? (
+                  <PurchasePayments housing={sel.housing}
+                    maintenanceWon={Math.abs(sel.totals_by_category.maintenance || 0)}
+                    transitWon={Math.abs(sel.totals_by_category.transit || 0)} />
+                ) : (
+                  <HowCalculated tenure={t} housing={sel.housing}
+                    maintenanceWon={Math.abs(sel.totals_by_category.maintenance || 0)} />
+                )}
                 <Text type="supporting">
                   {`출퇴근 ${fmtCount(sel.counts.commute_legs, "번")} × ${fmtWon(doc.assumptions.transit_fare_won)} · 장보기 ${fmtCount(sel.counts.errand_visits, "번")} × ${fmtWon(doc.assumptions.basket_won)} · ${sel.payday_note}`}
                 </Text>
@@ -304,7 +416,7 @@ export function MoneyTab({ state }) {
         </HStack>
         <Text type="supporting">연봉·가진 돈·정해 둔 값은 상담에서 바꿀 수 있어요.</Text>
         <Text type="supporting">{TENURE_DISCLAIMER}</Text>
-        <Text type="supporting">{TRADE_TAX_NOTE}</Text>
+        <Text type="supporting">{TRADE_COSTS_NOTE}</Text>
         <Text type="supporting">국토교통부 실거래가 공개시스템 참고용 자료라서 법적 효력이 없어요. 계약한 날짜 기준이에요.</Text>
       </VStack>
       {state.moneyCandidates.length > 0 && (

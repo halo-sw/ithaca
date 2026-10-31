@@ -113,6 +113,15 @@
   padding: var(--ui-s8) var(--ui-s12);
 }
 .ui-sim13-stage .ui-tools { top: var(--ui-s12); left: var(--ui-s12); }
+/* 36f: the phone toolbar wraps to two rows instead of clipping, with
+   nothing cut and every target staying >= 44 px. Buttons wrap whole —
+   nothing shortens. Korean stays one row when it fits. */
+.ui-tools > * { min-width: 0; max-width: 100%; }
+.ui-tools button, .ui-tools [role="tab"] { min-height: 44px; }
+@media (max-width: 480px) {
+  .ui-tools { gap: 4px; row-gap: 8px; padding: 8px; }
+  .ui-tools button { white-space: nowrap; }
+}
 /* 31a: the ui-mark avatar is gone — cards take the full message width. */
 
 /* Stage 6 layout: the sim bar docks bottom-left so the frame centre

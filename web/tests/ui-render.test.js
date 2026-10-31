@@ -258,7 +258,7 @@ describe("stage 10b UI render smoke (SSR, no DOM)", { skip: SKIP_ALL }, () => {
     patch.compareTab = "money";
     const html = renderCase(patch,
       "?mode=sim&scenario=demo-two-homes&home=A&day=1&t=08:30&follow=1&tab=money");
-    assert.ok(html.includes("전세로 살면 매달 집에 드는 돈"), "money tab heading");
+    assert.ok(html.includes("내 집 마련해 살면 매달 집에 드는 돈"), "money tab heading");
   });
 
   it("renders the listings tab with the filled example (?fill=example)", () => {
@@ -268,7 +268,7 @@ describe("stage 10b UI render smoke (SSR, no DOM)", { skip: SKIP_ALL }, () => {
     const html = renderCase(patch,
       "?mode=sim&scenario=demo-two-homes&home=A&day=1&t=08:30&follow=1&tab=listings&fill=example");
     assert.ok(html.includes("내가 본 매물 확인하기"), "paste-check heading");
-    assert.ok(html.includes("레이크팰리스"), "example text prefilled from ?fill=example");
+    assert.ok(html.includes("송파구 방이동 올림픽카운티"), "example text prefilled from ?fill=example");
     assert.ok(html.includes("공공 매물·공고"), "public notices section");
   });
 
@@ -281,8 +281,8 @@ describe("stage 10b UI render smoke (SSR, no DOM)", { skip: SKIP_ALL }, () => {
       "?mode=sim&scenario=demo-two-homes&home=A&day=1&t=08:30&follow=1&tab=money&share=1");
     assert.ok(html.includes("결과 공유"), "share dialog title");
     // Stage 11b: with both docs present the rows show numbers, not "—".
-    assert.ok(html.includes("27시간 50분"), "walked-hours A value");
-    assert.ok(html.includes("38시간 3분"), "walked-hours B value");
+    assert.ok(html.includes("12시간 44분"), "walked-hours A value");
+    assert.ok(html.includes("4시간 59분"), "walked-hours B value");
   });
 
   it("shows a loading state until the share docs arrive (stage 11b)", () => {
@@ -295,7 +295,7 @@ describe("stage 10b UI render smoke (SSR, no DOM)", { skip: SKIP_ALL }, () => {
     const html = renderCase(patch,
       "?mode=sim&scenario=demo-two-homes&home=A&day=1&t=08:30&follow=1&tab=money&share=1");
     assert.ok(html.includes("비교 숫자 불러오는 중"), "short loading state");
-    assert.ok(!html.includes("27시간 50분"), "no half-rendered rows");
+    assert.ok(!html.includes("12시간 44분"), "no half-rendered rows");
   });
 
   it("renders the tour share step with the loading state (stage 11b)", () => {
@@ -311,14 +311,14 @@ describe("stage 10b UI render smoke (SSR, no DOM)", { skip: SKIP_ALL }, () => {
     assert.ok(html.includes("비교 숫자 불러오는 중"), "loading state on the tour step");
   });
 
-  it("renders the ride-time hero (t=08:40) with no React errors", () => {
-    const patch = simPatch({ home: "A", day: 0, minute: parseTParam("08:40"), follow: 1 });
-    assert.ok(patch.journey, "08:40 is inside the A commute ride");
+  it("renders the ride-time hero (t=08:00) with no React errors", () => {
+    const patch = simPatch({ home: "A", day: 0, minute: parseTParam("08:00"), follow: 1 });
+    assert.ok(patch.journey, "08:00 is inside the A commute ride");
     const html = renderCase(patch,
-      "?mode=sim&scenario=demo-two-homes&home=A&day=1&t=08:40&follow=1");
+      "?mode=sim&scenario=demo-two-homes&home=A&day=1&t=08:00&follow=1");
     // 13f2: the drawer hero names the current leg, not the whole trip.
     assert.ok(html.includes(patch.journey.where), "hero sentence");
-    assert.ok(html.includes(`${patch.journey.minutesLeft}분 남음`), "hero big number");
+    assert.ok(html.includes(`${Math.ceil(patch.journey.minutesLeft)}분 남음`), "hero big number");
     assert.ok(html.includes("다음:"), "hero next event");
     assert.ok(html.includes("왜 이렇게 판단했나"), "folded why section");
   });
@@ -388,11 +388,11 @@ describe("stage 10b UI render smoke (SSR, no DOM)", { skip: SKIP_ALL }, () => {
     const html = renderCase(patch,
       "?mode=sim&scenario=demo-two-homes&home=A&day=1&t=08:50&follow=1");
     // 13f2: steps live in the drawer's 오늘 list (source word → badge).
-    assert.ok(html.includes("2호선 잠실→강남 (9분, 혼잡 91%)"), "ride step");
-    assert.ok(html.includes("강남 환승 4분"), "transfer step");
+    assert.ok(html.includes("8호선 석촌→복정 (6분, 혼잡 100% 실측)"), "ride step");
+    assert.ok(html.includes("석촌 환승 4분"), "transfer step");
     assert.ok(html.includes("이전 이동"), "prev trip");
     assert.ok(html.includes("다음 이동"), "next trip");
-    assert.ok(html.includes("08:21–08:35 걷기"), "walk segment title");
+    assert.ok(html.includes("07:37–07:44 걷기"), "walk segment title");
     assert.ok(html.includes("30일 고르기"), "month strip");
     assert.ok(html.includes("ui-bar13f2-row"), "one-row bar");
     assert.ok(html.includes("더 보기"), "overflow menu");

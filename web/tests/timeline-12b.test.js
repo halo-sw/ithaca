@@ -220,21 +220,25 @@ describe("monthStrip", () => {
 });
 
 describe("timeline on the real demo build", { skip: SKIP_RUN }, () => {
-  it("matches the 08:50 A example", () => {
+  it("matches the 08:00 A example", () => {
     const run = JSON.parse(readFileSync(RUN_A, "utf8"));
-    const { steps, current } = routeSteps({ run, agentKey: "h1", day: 0, minute: 530 });
+    const { steps, current } = routeSteps({ run, agentKey: "h1", day: 0, minute: 480 });
     assert.deepEqual(steps.map((s) => s.label), [
-      "레이크팰리스",
-      "잠실 (걸어서 14분)",
-      "2호선 잠실→강남 (9분, 혼잡 91% 실측)",
-      "강남 환승 4분",
-      "신분당선 강남→판교 (17분, 혼잡 70% 가정)",
+      "효성올림픽카운티",
+      "송파나루 (걸어서 7분)",
+      "9호선 송파나루→석촌 (1분, 혼잡 70% 가정)",
+      "석촌 환승 4분",
+      "8호선 석촌→복정 (6분, 혼잡 100% 실측)",
+      "복정 환승 4분",
+      "수인·분당선 복정→이매 (11분, 혼잡 70% 가정)",
+      "이매 환승 4분",
+      "경강선 이매→판교 (2분, 혼잡 70% 가정)",
       "직장 (가정: 판교역 인근) 근무",
     ]);
-    assert.equal(current, 4);
+    assert.equal(current, 8);
     const segs = daySegments({ run, agentKey: "h1", day: 0 });
     assert.ok(segs.some((s) => segmentTitle(s)
-      === "08:21–08:35 걷기 · 레이크팰리스 → 잠실 14분"));
+      === "07:37–07:44 걷기 · 효성올림픽카운티 → 송파나루 7분"));
   });
 
   it("covers 30 days with weekend flags", () => {
@@ -242,7 +246,7 @@ describe("timeline on the real demo build", { skip: SKIP_RUN }, () => {
     const days = monthStrip({ run, agentKey: "h1" });
     assert.equal(days.length, 30);
     assert.equal(days[0].weekend, false);
-    assert.equal(days[0].commuteMin, 85);
+    assert.equal(days[0].commuteMin, 78);
     assert.ok(days.some((d) => d.weekend), "a weekend exists");
     for (const d of days) {
       if (d.weekend) assert.equal(d.commuteMin, 0);

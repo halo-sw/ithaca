@@ -65,14 +65,17 @@ export function commuteBreakdownEn({ dir = "home", total, walk = 0, bike = 0, su
   return `Today's commute ${where}: ${total} min = ${parts.join(" + ")}`;
 }
 
-// Trip status: "Me · Commuting · Jamsil → Lake Palace (4 min walk
-// left)". The Korean twin is "출근 중 · 잠실 → 레이크팰리스 (걸어서
+// Trip status: "Me · Commuting · Songpanaru → Olympic County (4 min walk
+// left)". The Korean twin is "출근 중 · 송파나루 → 올림픽카운티 (걸어서
 // 4분 남음)" (nowcard.js).
 // Named places with an English name keep it (complexes first);
 // everything else romanises through the shared helper, so English
 // strings built in code never carry Hangul.
 const PLACE_EN = {
   "레이크팰리스": "Lake Palace",
+  "올림픽카운티": "Olympic County",
+  "효성올림픽카운티": "Hyosung Olympic County",
+  "분당 엠코 헤리츠": "Bundang Emco Heritz",
 };
 
 const HAS_HANGUL = /[㐀-䶿가-힣]/;

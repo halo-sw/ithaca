@@ -39,7 +39,7 @@ describe("quality of life card", () => {
   it("counts station names once (real data)", async (t) => {
     let area;
     try {
-      const dir = join(REPO, "data", "build", "songpa-jamsil");
+      const dir = join(REPO, "data", "build", "st-송파나루");
       area = JSON.parse(await readFile(join(dir, "area.json"), "utf8"));
       for (const [key, value] of Object.entries(area)) {
         if (value && typeof value === "object" && !Array.isArray(value)
@@ -59,14 +59,14 @@ describe("quality of life card", () => {
     assert.ok(card.convenience.grocery > 0);
     assert.ok(card.convenience.station_pois >= card.convenience.station);
     assert.ok(card.time.commute_minutes_per_day > 0);
-    // 잠실역 is a ~14 min walk from 레이크팰리스, so 10 min holds none —
-    // widening the radius must find it (naming still dedupes entrances).
+    // 송파나루역 is a ~7 min walk from 효성올림픽카운티, so the 10 min
+    // radius already holds it (naming still dedupes entrances).
     const { resolveHome } = await import("../src/engine/scenario.js");
     const resolved = resolveHome(area,
-      { label: "A", area: "songpa-jamsil", complex_name: "레이크팰리스" },
+      { label: "A", area: "st-송파나루", complex_name: "효성올림픽카운티" },
       new Router(area.graph));
-    const wide = convenienceCounts(area, new Router(area.graph), resolved.nodeId, 20);
-    assert.ok(wide.station >= 1, JSON.stringify(wide));
-    assert.ok(wide.station_pois >= wide.station);
+    const near = convenienceCounts(area, new Router(area.graph), resolved.nodeId, 10);
+    assert.ok(near.station >= 1, JSON.stringify(near));
+    assert.ok(near.station_pois >= near.station);
   });
 });

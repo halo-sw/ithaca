@@ -75,16 +75,16 @@ describe("17-3 pickMoments on the demo build", { skip: !hasDemo }, () => {
     assert.ok(crowded, "demo A has measured rides");
     assert.equal(crowded.detail.source, "서울교통공사");
     assert.match(crowded.text_ko, /실측/);
-    assert.match(crowded.text_ko, /^2호선 잠실→강남 혼잡 93% \(실측\)$/);
+    assert.match(crowded.text_ko, /^8호선 석촌→복정 혼잡 109% \(실측\)$/);
   });
 
   it("recomputes evening-at-home minutes exactly like the engine", () => {
     const A = demoA();
     const B = demoB();
     assert.equal(householdEveningMinutes(A).total,
-      A.totals.household.home_evening_minutes);
+      Math.round(A.totals.household.home_evening_minutes));
     assert.equal(householdEveningMinutes(B).total,
-      B.totals.household.home_evening_minutes);
+      Math.round(B.totals.household.home_evening_minutes));
   });
 });
 
