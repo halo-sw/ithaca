@@ -371,6 +371,17 @@ export function placeLabels(items, viewW, viewH, reserved = [], opts = {}) {
   return placed;
 }
 
+// 29L2c: the placed box IS the painted box. left/top land on the
+// placed (x, y) plus the stage→wrap offset, with no translate — the
+// old translate(-50%,-100%) painted the anchor box, which is not the
+// box placeLabels clamped.
+export function labelPaintStyle(item, wrapOffset = {}) {
+  const o = wrapOffset || {};
+  const ox = Number(o.x ?? o.left ?? 0) || 0;
+  const oy = Number(o.y ?? o.top ?? 0) || 0;
+  return { left: ox + (item.x ?? 0), top: oy + (item.y ?? 0), transform: "none" };
+}
+
 function estimateW(item) {
   const title = String(item.title || "");
   const glyph = item.glyph ? 20 : 0;

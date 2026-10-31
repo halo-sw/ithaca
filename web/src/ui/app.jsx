@@ -41,6 +41,7 @@ import { criterionTitle } from "../engine/criteria.js";
 import { chipDisplay, tickerDisplay, FATIGUE_MODEL_NOTE, familyRowText } from "../nowcard.js";
 import { hhmm, navFromOutings, outingIndexAt, stepIndexAt } from "../timeline.js";
 import { ActivityIcon, ActivityLegend } from "./timeline.jsx";
+import { todayStepEn } from "./scene-chrome.js";
 import { aerialCreditFor } from "../aerial/drape.js";
 import { currentLang } from "../i18n/lang.js";
 
@@ -294,6 +295,7 @@ function stepLabelShown(label) {
 
 export function TodayList({ state }) {
   const journey = state.journey;
+  const lang = currentLang();
   const loading = state.journeyLoading;
   const outings = (state.routeSteps && state.routeSteps.outings) || [];
   const minute = Math.floor(state.clock.minute);
@@ -335,7 +337,7 @@ export function TodayList({ state }) {
                   aria-label={`${hhmm(s.minute)} ${s.label}${isNow ? " (지금)" : ""}`}>
                   <span className="ui-today-time">{hhmm(s.minute)}</span>
                   <ActivityIcon activity={STEP_ICON[s.kind] || "other"} />
-                  <span className="ui-today-label">{stepLabelShown(s.label)}</span>
+                  <span className="ui-today-label" {...(lang === "en" ? { "data-no-i18n": true } : {})}>{lang === "en" ? todayStepEn(s) : stepLabelShown(s.label)}</span>
                   {band && (
                     <span className={`ui-dot ui-dot-${band}`} aria-hidden="true" />
                   )}
@@ -609,11 +611,14 @@ function FamilySection({ state }) {
       <div className="ui-hero-top">
         <span className="ui-hero-name">지금 식구들 모습</span>
       </div>
-      {n.familyRows.map((r) => (
-        <div key={r.agentKey} className="ui-hero-line">
-          {familyRowText(r)}
-        </div>
-      ))}
+      {n.familyRows.map((r) => {
+        const lang = currentLang();
+        return (
+          <div key={r.agentKey} className="ui-hero-line" {...(lang === "en" && r.lineEn ? { "data-no-i18n": true } : {})}>
+            {familyRowText(r, lang)}
+          </div>
+        );
+      })}
     </div>
   );
 }

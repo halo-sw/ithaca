@@ -11,7 +11,7 @@
 import { chosenLabel, DECISION_KIND_KO, purposeLabel } from "./sim.js";
 import { journeyBanner, legAt, rideStateFor } from "./journey.js";
 import { hhmm } from "./timeline.js";
-import { homeStatusEn, memberEnFor, tripStatusEn } from "./ui/scene-chrome.js";
+import { homeStatusEn, memberEnFor, placeNameEn, tripStatusEn } from "./ui/scene-chrome.js";
 import { standShare } from "./engine/journey.js";
 import { fmtWon } from "./money/format.js";
 
@@ -180,7 +180,7 @@ export function nowCardFor({ run, indexed, agentKey, day, minute }) {
     const member = labelEn || "Me";
     const nowEn = away.kind === "work"
       ? `${member} · At work · until ${hhmm(away.end_min)}`
-      : `${member} · Out · ${away.label} · ${remain} min left`;
+      : `${member} · Out · ${placeNameEn(away.label)} · ${remain} min left`;
     const progress = Math.min(1, Math.max(0, (minute - away.start_min) / dur));
     if (!away.cause) {
       return { ...base, state: away.kind === "work" ? "away" : "place", now, nowEn,
@@ -338,9 +338,11 @@ export function fatigueFor({ run, agentKey, day, minute }) {
 export function familyRowText({ label, labelEn, line, lineEn, fatigue }, lang = "ko") {
   if (lang === "en" && (labelEn || lineEn)) {
     const who = labelEn || memberEnFor(label);
-    const what = lineEn || line;
+    let what = lineEn || line;
+    const prefix = `${who} · `;
+    if (what.startsWith(prefix)) what = what.slice(prefix.length);
     const tail = fatigue === null || fatigue === undefined || fatigue === ""
-      ? "" : ` · tiredness ${Math.round(Number(fatigue))}/100`;
+      ? "" : ` · Tiredness ${Math.round(Number(fatigue))}/100`;
     return `${who} · ${what}${tail}`;
   }
   const fixed = String(line || "").replace(/(\d+(?:\.\d+)?)분/g, (m, n) => `${Math.round(Number(n))}분`);

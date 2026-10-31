@@ -6,11 +6,12 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { placeLabels, labelCapForWidth } from "../src/labels3d.js";
+import { placeLabels, labelCapForWidth, labelPaintStyle } from "../src/labels3d.js";
 import {
   toolsLabelFor, memberEnFor, commuteBreakdownEn, tripStatusEn,
-  workplaceLabel, stripCompareLabel,
+  workplaceLabel, stripCompareLabel, placeNameEn, todayStepEn,
 } from "../src/ui/scene-chrome.js";
+import { familyRowText } from "../src/nowcard.js";
 import { activityLabelEn } from "../src/timeline.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -133,5 +134,56 @@ describe("29L2 toolbar inset tokens", () => {
   it("ui.css insets .ui-sim13-stage .ui-tools with the spacing token", () => {
     assert.ok(css.includes(".ui-sim13-stage .ui-tools"), "stage toolbar rule exists");
     assert.ok(css.includes("top: var(--ui-s12)"), "top inset uses --ui-s12");
+  });
+});
+
+describe("29L2c the placed box is the painted box", () => {
+  it("a label anchored at (10, 300) with w=200, h=22 paints at its clamped box, no translate", () => {
+    // The caller hands placeLabels the real box: x = anchorX - w/2, y = anchorY - h.
+    const anchor = { id: "home", level: "always", title: "t",
+      x: 10 - 200 / 2, y: 300 - 22, w: 200, h: 22, _sx: 10, _sy: 300, _ox: 0, _oy: 0 };
+    const placed = placeLabels([anchor], 1440, 900, []);
+    assert.equal(placed.length, 1);
+    assert.ok(placed[0].x >= 4, `x=${placed[0].x}`);
+    const st = labelPaintStyle(placed[0], { x: placed[0]._ox ?? 0, y: placed[0]._oy ?? 0 });
+    assert.equal(st.left, placed[0].x);
+    assert.equal(st.top, placed[0].y);
+    assert.equal(st.transform, "none");
+  });
+
+  it("labelPaintStyle adds the stage-to-wrap offset", () => {
+    const st = labelPaintStyle({ x: 4, y: 278 }, { x: 12, y: 8 });
+    assert.equal(st.left, 16);
+    assert.equal(st.top, 286);
+    assert.equal(st.transform, "none");
+  });
+});
+
+describe("29L2c English strings romanise place names", () => {
+  it("status helper reads Jamsil → Lake Palace with no Hangul", () => {
+    const s = tripStatusEn({ member: "Me", activity: "Commuting",
+      from: "잠실", to: "레이크팰리스", remainMin: 4 });
+    assert.ok(s.includes("Jamsil → Lake Palace"), s);
+    assert.ok(!/[가-힣]/.test(s), s);
+  });
+
+  it("placeNameEn keeps complex English names and romanises stations", () => {
+    assert.equal(placeNameEn("레이크팰리스"), "Lake Palace");
+    assert.equal(placeNameEn("잠실"), "Jamsil");
+    assert.equal(placeNameEn("판교역"), "Pangyo Stn");
+    assert.equal(placeNameEn("Lake Palace"), "Lake Palace");
+  });
+
+  it("English household row for 배우자 at home starts with Your partner · Home", () => {
+    const row = familyRowText({ label: "배우자", labelEn: "Your partner",
+      line: "집 · 저녁 시간", lineEn: "Your partner · Home · Evening", fatigue: 23 }, "en");
+    assert.ok(row.startsWith("Your partner · Home"), row);
+  });
+
+  it("English Today rows read Home and the assumed workplace", () => {
+    assert.equal(todayStepEn({ kind: "place", label: "집", home: true }), "Home");
+    assert.equal(todayStepEn({ kind: "place", label: "직장 근무", dest: "판교", destEn: "Pangyo" }),
+      "Work (assumed: near Pangyo Stn)");
+    assert.equal(todayStepEn({ kind: "walk", label: "잠실역 (걸어서 14분)" }), "Jamsil Stn");
   });
 });

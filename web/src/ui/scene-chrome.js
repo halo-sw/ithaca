@@ -4,6 +4,8 @@
 // word-by-word through the glossary — and render inside data-no-i18n
 // nodes. Korean output is byte-identical to the old inline strings.
 
+import { romanizeName } from "../i18n/romanize.js";
+
 export function toolsLabelFor(label, { phone = false, lang = "ko" } = {}) {
   if (!phone) return label;
   if (lang === "en") {
@@ -55,10 +57,29 @@ export function commuteBreakdownEn({ dir = "home", total, walk = 0, bike = 0, su
 // Trip status: "Me · Commuting · Jamsil → Lake Palace (4 min walk
 // left)". The Korean twin is "출근 중 · 잠실 → 레이크팰리스 (걸어서
 // 4분 남음)" (nowcard.js).
+// Named places with an English name keep it (complexes first);
+// everything else romanises through the shared helper, so English
+// strings built in code never carry Hangul.
+const PLACE_EN = {
+  "레이크팰리스": "Lake Palace",
+};
+
+const HAS_HANGUL = /[㐀-䶿가-힣]/;
+
+export function placeNameEn(name) {
+  const s = String(name == null ? "" : name).trim();
+  if (!s || !HAS_HANGUL.test(s)) return s;
+  if (Object.hasOwn(PLACE_EN, s)) return PLACE_EN[s];
+  return s.split(/(\s+)/).map((w) => {
+    if (!w || /^\s+$/.test(w) || !HAS_HANGUL.test(w)) return w;
+    if (Object.hasOwn(PLACE_EN, w)) return PLACE_EN[w];
+    return romanizeName(w);
+  }).join("");
+}
 export function tripStatusEn({ member, activity = "Commuting", from, to, remainMin, bike = false }) {
   const move = bike ? "bike ride" : "walk";
   const tail = remainMin <= 0 ? "(arriving soon)" : `(${remainMin} min ${move} left)`;
-  return `${member} · ${activity} · ${from} → ${to} ${tail}`;
+  return `${member} · ${activity} · ${placeNameEn(from)} → ${placeNameEn(to)} ${tail}`;
 }
 
 const HOME_NOTE_EN = {
@@ -85,4 +106,20 @@ export function workplaceLabel(dest, lang = "ko", destEn = null) {
 export function stripCompareLabel(home, lang = "ko") {
   if (lang === "en") return `${home} · same time`;
   return `${home} · 같은 시각`;
+}
+
+// Today-list rows in English, built in code per language (Korean
+// keeps the engine text): home is "Home", a work stay reads
+// workplaceLabel, every other stop romanises its bare name (the
+// trailing "(…)" / "N분" leg notes are not stops).
+export function todayStepEn(step) {
+  const s = step || {};
+  const label = String(s.label || "").trim();
+  if (s.home || (s.kind === "place" && (label === "집" || label === "Home"))) return "Home";
+  if (s.kind === "place" && /근무\s*$/.test(label)) {
+    if (s.dest) return workplaceLabel(s.dest, "en", s.destEn || romanizeName(s.dest));
+    return "Work";
+  }
+  const bare = label.replace(/\s*\([^)]*\)\s*$/, "").replace(/\s*\d+(?:\.\d+)?분\s*$/, "").trim();
+  return placeNameEn(bare || label);
 }

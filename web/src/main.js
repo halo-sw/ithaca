@@ -9,7 +9,7 @@ import { LineMaterial } from "three/addons/lines/LineMaterial.js";
 import "./style.css";
 import { bboxToXY, lonLatToWorld, lonLatToXY } from "./frame.js";
 import { buildBuildings } from "./buildings.js";
-import { buildingCard, destSuffixFor, labelItemsFor, placeLabels } from "./labels3d.js";
+import { buildingCard, destSuffixFor, labelItemsFor, labelPaintStyle, placeLabels } from "./labels3d.js";
 import { buildGround } from "./ground.js";
 import { ARCH_FOV_DEG, GLIDE_FRAME_M, STOP_FRAME_M, TOUR_AZIMUTH, applyFollowOffset, archLensPose, cameraStyle, distanceForWidth, followZoomAfterWheel, footprintsOf, frameWidthFor, hostTowerIds, journeyCruisePose, occludingIds, pickStopAzimuth, resolveStyle, tourFrameWidths, tourOffset, zoomClampDistances } from "./camera.js";
 import { loadArea, originOf } from "./load.js";
@@ -1504,7 +1504,7 @@ async function bootSim() {
   const tagEls = household.map((a) => {
     const el = document.createElement("div");
     el.className = "hhtag";
-    el.textContent = a.label;
+    el.textContent = currentLang() === "en" ? memberEnFor(a.label) : a.label;
     tagsLayer.appendChild(el);
     return el;
   });
@@ -1787,11 +1787,12 @@ async function bootSim() {
         el.append(sub);
       }
     }
+    const st = labelPaintStyle(item, { x: (item._ox ?? 0), y: (item._oy ?? 0) });
     el.style.display = "block";
     el.style.position = "absolute";
-    el.style.transform = "translate(-50%,-100%)";
-    el.style.left = `${item._sx}px`;
-    el.style.top = `${item._sy}px`;
+    el.style.transform = st.transform;
+    el.style.left = `${st.left}px`;
+    el.style.top = `${st.top}px`;
     el.style.pointerEvents = "none";
   }
   function paintLabels20b() {
@@ -1828,8 +1829,9 @@ async function bootSim() {
         const glyphW = item.glyph ? 20 : 0;
         const w = [...String(item.title || "")].length * 13 + 24 + glyphW;
         const h = item.level === "complex" && item.sub ? 36 : 22;
-        projected.push({ ...item, x: sx - rect.left, y: sy - rect.top, w, h,
-          _sx: sx - wrap.left, _sy: sy - wrap.top });
+        projected.push({ ...item, x: sx - rect.left - w / 2, y: sy - rect.top - h, w, h,
+          _sx: sx - wrap.left, _sy: sy - wrap.top,
+          _ox: rect.left - wrap.left, _oy: rect.top - wrap.top });
       }
       // 20e label safe zones: the top-left toolbar (A·B / 집만 밝게 보기 /
       // 범례) and the bottom timeline reserve screen space. Overlapping
@@ -2012,6 +2014,8 @@ async function bootSim() {
       const marked = s.visible || s.state === "home";
       ringMeshes[i].position.set(x, heightAt(x, -y) + 0.3, -y);
       ringMeshes[i].visible = marked;
+      const wantTag = currentLang() === "en" ? memberEnFor(a.label) : a.label;
+      if (tagEls[i].textContent !== wantTag) tagEls[i].textContent = wantTag;
       paintTag(tagEls[i], x, tagY(x, -y, 6), -y, marked);
     });
   }
