@@ -68,6 +68,40 @@ export function validateScript(script) {
         }
       }
     }
+    if (s.zooms !== undefined) {
+      if (!Array.isArray(s.zooms)) {
+        errors.push(`scene ${s.id} zooms is not an array`);
+      } else {
+        for (let j = 0; j < s.zooms.length; j += 1) {
+          const z = s.zooms[j];
+          const timingOk =
+            z &&
+            Number.isFinite(z.at) &&
+            Number.isFinite(z.until) &&
+            z.at >= 0 &&
+            z.at < z.until &&
+            z.until <= s.duration;
+          const r = z ? z.rect : undefined;
+          const rectOk =
+            Array.isArray(r) &&
+            r.length === 4 &&
+            r.every((v) => Number.isFinite(v)) &&
+            r[0] >= 0 &&
+            r[1] >= 0 &&
+            r[0] <= 1 &&
+            r[1] <= 1 &&
+            r[2] > 0 &&
+            r[3] > 0 &&
+            r[0] + r[2] <= 1 &&
+            r[1] + r[3] <= 1;
+          if (!timingOk || !rectOk) {
+            errors.push(
+              `scene ${s.id} zoom ${j} invalid (need 0 <= at < until <= ${s.duration} and rect [x, y, w, h] inside [0, 1] with w, h > 0)`
+            );
+          }
+        }
+      }
+    }
   }
   return errors;
 }

@@ -8,25 +8,51 @@ import { BORDER, COLORS, FONT_FAMILY, RADII, SHADOW, TYPE } from "../theme.js";
 // has not been recorded yet, a placeholder with the scene id + expected path.
 // A clip shorter than its scene holds its last frame (the video element
 // clamps past its end); a longer clip is cut by the surrounding Sequence.
-export function ClipCard({ asset, sceneId, width, height }) {
+// `zoom` ({ scale, tx, ty } from zoom.js) is applied as a CSS transform on
+// the inner media; the card keeps overflow hidden. `startFrom` is in frames,
+// `playbackRate` passes through to the video element.
+export function ClipCard({
+  asset,
+  sceneId,
+  width,
+  height,
+  zoom,
+  startFrom = 0,
+  playbackRate = 1,
+  radius = RADII.screenCard,
+  shadow = SHADOW,
+}) {
   const status = assetStatus(asset, assetManifest.files);
   const cardStyle = {
     width,
     height,
     backgroundColor: COLORS.card,
-    borderRadius: RADII.screenCard,
-    boxShadow: SHADOW,
+    borderRadius: radius,
+    boxShadow: shadow,
     border: status === "missing" ? `2px dashed ${COLORS.ink3}` : BORDER,
     overflow: "hidden",
     position: "relative",
     flex: "none",
   };
+  const zoomStyle =
+    zoom && (zoom.scale !== 1 || zoom.tx !== 0 || zoom.ty !== 0)
+      ? {
+          transform: `translate(${zoom.tx}px, ${zoom.ty}px) scale(${zoom.scale})`,
+        }
+      : undefined;
   if (status === "video") {
     return (
       <div style={cardStyle}>
         <OffthreadVideo
           src={staticFile(asset)}
-          style={{ width: "100%", height: "100%", objectFit: "contain" }}
+          startFrom={startFrom}
+          playbackRate={playbackRate}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "contain",
+            ...zoomStyle,
+          }}
         />
       </div>
     );
@@ -36,7 +62,12 @@ export function ClipCard({ asset, sceneId, width, height }) {
       <div style={cardStyle}>
         <Img
           src={staticFile(asset)}
-          style={{ width: "100%", height: "100%", objectFit: "contain" }}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "contain",
+            ...zoomStyle,
+          }}
         />
       </div>
     );

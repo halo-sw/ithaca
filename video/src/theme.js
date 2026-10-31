@@ -32,6 +32,9 @@ export const RADII = {
   pill: 999,
 };
 
+// Full-width caption bar under screen-scene clips (bottom of the 1080p frame).
+export const CAPTION_BAR = 128;
+
 // Type scale for 1080p (brief). Korean second lines render at 0.6x in ink2.
 export const TYPE = {
   title: 72,

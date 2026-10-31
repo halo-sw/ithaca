@@ -1,5 +1,5 @@
 import React from "react";
-import { AbsoluteFill, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Img, staticFile, useCurrentFrame } from "remotion";
 import stats from "../../data/stats.json";
 import { fillLines, fillSource } from "../copy.js";
 import { appearOpacity, riseOffset, sceneOpacity } from "../fade.js";
@@ -7,13 +7,21 @@ import { COLORS, FONT_FAMILY, MOTION, TYPE } from "../theme.js";
 
 // Centred lines on the page colour, staggered 8 frames per line. English
 // first, then the Korean lines under them at 0.6 size in ink2. Optional
-// source bottom-left, optional footer bottom-centre.
+// image (a path under public/) centred above the lines, optional source
+// bottom-left, optional footers (or the old single footer) bottom-centre.
 export function TitleScene({ scene, durationInFrames }) {
   const frame = useCurrentFrame();
   const en = fillLines(scene.lines_en, stats);
   const ko = fillLines(scene.lines_ko, stats);
   const source = fillSource(scene.source, stats);
-  const footer = fillSource(scene.footer, stats);
+  const footers = fillLines(scene.footers, stats);
+  const legacyFooter = fillSource(scene.footer, stats);
+  // The old single footer keeps working: when no `footers` array is given
+  // it renders exactly as before; otherwise it joins the stack.
+  const footerStack =
+    footers.length > 0
+      ? [...footers, ...(legacyFooter ? [legacyFooter] : [])]
+      : [];
   const lines = [
     ...en.map((text) => ({ text, korean: false })),
     ...ko.map((text) => ({ text, korean: true })),
@@ -37,6 +45,21 @@ export function TitleScene({ scene, durationInFrames }) {
           paddingRight: 96,
         }}
       >
+        {scene.image ? (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              marginBottom: 48,
+              opacity: appearOpacity(frame, 0),
+            }}
+          >
+            <Img
+              src={staticFile(scene.image)}
+              style={{ maxWidth: 1100, display: "block" }}
+            />
+          </div>
+        ) : null}
         {lines.map((line, i) => {
           const appearFrame = i * MOTION.stagger;
           return (
@@ -75,7 +98,34 @@ export function TitleScene({ scene, durationInFrames }) {
           {source}
         </div>
       ) : null}
-      {footer ? (
+      {footerStack.length > 0 ? (
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 64,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          {footerStack.map((text, i) => (
+            <div
+              key={i}
+              style={{
+                fontFamily: FONT_FAMILY,
+                fontSize: TYPE.subtitle,
+                color: COLORS.ink2,
+                textAlign: "center",
+              }}
+            >
+              {text}
+            </div>
+          ))}
+        </div>
+      ) : legacyFooter ? (
         <div
           style={{
             position: "absolute",
@@ -88,7 +138,7 @@ export function TitleScene({ scene, durationInFrames }) {
             color: COLORS.ink2,
           }}
         >
-          {footer}
+          {legacyFooter}
         </div>
       ) : null}
     </AbsoluteFill>

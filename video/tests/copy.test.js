@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { fillLine, fillLines, fillSource } from "../src/copy.js";
+import { fillLine, fillLines, fillSource, fillTable } from "../src/copy.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const stats = JSON.parse(
@@ -73,14 +73,41 @@ test("never prints null/undefined/empty for missing stats", () => {
   }
 });
 
+test("fillTable fills both cells and drops a null-text row", () => {
+  const out = fillTable(
+    [
+      ["plain label", "text {stat:tests_js}"],
+      ["drop me", "gone {stat:rtms_rows}"],
+      ["{stat:tests_js} models", "plain text"],
+    ],
+    stats
+  );
+  assert.deepEqual(out, [
+    ["plain label", `text ${stats.tests_js}`],
+    [`${stats.tests_js} models`, "plain text"],
+  ]);
+});
+
+test("fillTable returns [] when absent", () => {
+  assert.deepEqual(fillTable(undefined, stats), []);
+});
+
 test("real meta rows: last row drops, first three stay", () => {
   const script = JSON.parse(
     readFileSync(join(here, "../data/script.json"), "utf8")
   );
   const meta = script.scenes.find((s) => s.id === "meta");
-  const rows = fillLines(meta.rows_en, stats);
-  assert.equal(rows.length, 3);
-  assert.ok(rows[0].includes(String(stats.muse_stages)));
-  assert.ok(rows[1].includes(String(stats.tests_js)));
-  assert.ok(rows[2].includes(String(stats.spark_open_judgments)));
+  if (meta.table_en) {
+    const full = fillTable(meta.table_en, stats);
+    assert.equal(full.length, meta.table_en.length);
+    const nulled = { ...stats, spark_open_same: null };
+    const dropped = fillTable(meta.table_en, nulled);
+    assert.equal(dropped.length, full.length - 1);
+  } else {
+    const rows = fillLines(meta.rows_en, stats);
+    assert.equal(rows.length, 3);
+    assert.ok(rows[0].includes(String(stats.muse_stages)));
+    assert.ok(rows[1].includes(String(stats.tests_js)));
+    assert.ok(rows[2].includes(String(stats.spark_open_judgments)));
+  }
 });

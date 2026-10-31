@@ -39,6 +39,28 @@ export function fillLines(lines, stats) {
   return out;
 }
 
+// A `table_en` is [[label, text], ...]: {stat:} filling works in both
+// cells, and a row whose text fills to null is dropped (no gap).
+export function fillTable(table, stats) {
+  if (!Array.isArray(table)) {
+    return [];
+  }
+  const out = [];
+  for (const row of table) {
+    if (!Array.isArray(row)) {
+      continue;
+    }
+    const [label, text] = row;
+    const filledText = fillLine(text, stats);
+    if (filledText === null) {
+      continue;
+    }
+    const filledLabel = fillLine(label, stats);
+    out.push([filledLabel === null ? "" : filledLabel, filledText]);
+  }
+  return out;
+}
+
 // A `source` (or footer) field whose stat is null/missing is dropped too.
 export function fillSource(source, stats) {
   if (typeof source !== "string") {

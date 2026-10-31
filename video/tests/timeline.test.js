@@ -22,7 +22,11 @@ test("sceneToFrames converts seconds to frames", () => {
 });
 
 test("total duration is the end of the last scene", () => {
-  assert.equal(totalDurationInFrames(script), 180 * 30);
+  const last = script.scenes[script.scenes.length - 1];
+  assert.equal(
+    totalDurationInFrames(script),
+    Math.round((last.start + last.duration) * script.fps)
+  );
 });
 
 test("real script.json has no overlaps, gaps or stray callouts", () => {
@@ -65,6 +69,49 @@ test("detects a callout outside its scene", () => {
       `at=${at} should error`
     );
   }
+});
+
+test("a fixture with a bad zoom produces an error", () => {
+  const cases = [
+    // until before at
+    { at: 5, until: 3, rect: [0, 0, 0.5, 0.5] },
+    // until past the scene duration
+    { at: 8, until: 11, rect: [0, 0, 0.5, 0.5] },
+    // negative at
+    { at: -1, until: 3, rect: [0, 0, 0.5, 0.5] },
+    // rect wider than the clip
+    { at: 1, until: 3, rect: [0.8, 0, 0.5, 0.5] },
+    // zero width
+    { at: 1, until: 3, rect: [0, 0, 0, 0.5] },
+    // negative height
+    { at: 1, until: 3, rect: [0, 0, 0.5, -0.1] },
+  ];
+  for (const zoom of cases) {
+    const bad = {
+      fps: 30,
+      scenes: [{ id: "a", start: 0, duration: 10, zooms: [zoom] }],
+    };
+    const errors = validateScript(bad);
+    assert.ok(
+      errors.some((e) => e.includes("zoom")),
+      `${JSON.stringify(zoom)} should error`
+    );
+  }
+});
+
+test("accepts a valid zoom", () => {
+  const ok = {
+    fps: 30,
+    scenes: [
+      {
+        id: "a",
+        start: 0,
+        duration: 10,
+        zooms: [{ at: 1, until: 5, rect: [0.5, 0.5, 0.5, 0.5] }],
+      },
+    ],
+  };
+  assert.deepEqual(validateScript(ok), []);
 });
 
 test("accepts callouts at the scene edges", () => {
