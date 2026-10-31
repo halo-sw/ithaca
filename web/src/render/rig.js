@@ -102,6 +102,9 @@ export function createSkyRig(scene, renderer, { span = 1000 } = {}) {
     hemi.color.setHex(p.hemiSky);
     hemi.groundColor.setHex(p.hemiGround);
     hemi.intensity = p.hemiIntensity * (l.hemiGain || 1);
+    // 29L1: readable dusk — lift the fill after dark only (day untouched)
+    // so walls, roofs, roads and ground stay four distinct tones at 18:30.
+    if (!p.skyVisible) hemi.intensity *= 1.35;
 
     sky.visible = p.skyVisible;
     if (p.skyVisible) {

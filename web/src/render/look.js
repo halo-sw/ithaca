@@ -115,6 +115,10 @@ export const PAINTED_NIGHT_ROAD_GLOW = 0x2a2118;
 // diffuse is ~zero, so the emissive IS the road's night colour.
 export const PAINTED_NIGHT_ROAD_LIT = 0x554a3d;
 export const PAINTED_NIGHT_WALL = 0x3a4152;
+// 29L1: roof caps stay lighter than walls after dusk so blocks separate
+// from each other (walls dark slate, roofs pale grey-blue, roads warm lit,
+// ground navy — four distinct tones at 18:30).
+export const PAINTED_NIGHT_ROOF = 0x6b7690;
 export const PAINTED_WATER = 0x3f6f8f;
 
 // Night self-lit emissive target for a painted nightMats-style entry
