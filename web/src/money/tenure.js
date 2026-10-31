@@ -1,3 +1,5 @@
+import { purchaseCosts } from "./purchase.js";
+
 // Housing cost per tenure (pure).
 //
 // Monthly + one-off cost from real data: 월세 = deposit from cash +
@@ -15,8 +17,11 @@ export const JEONSE_LOAN_CAP_DEFAULT_WON = 500000000;
 export const TENURE_DISCLAIMER =
   "돈을 빌릴 수 있는지와 입주 자격은 판단하지 않아요.";
 
-export const TRADE_TAX_NOTE =
-  "집을 살 때 내는 세금·중개수수료는 포함하지 않아요.";
+export const TRADE_COSTS_NOTE =
+  "취득세·지방교육세·중개보수 상한을 넣었어요. 등기 비용·인지세·이사비·재산세는 빠져 있어요.";
+
+export const TRADE_TAX_NOTE = TRADE_COSTS_NOTE;
+
 
 // Standard amortised monthly payment (원리금균등상환).
 export function amortisedMonthly(principalWon, annualRatePct, years) {
@@ -99,13 +104,23 @@ export function tenureCost(args = {}) {
     }
     return rec;
   }
-  // 매매
+  // 매매: cash pays the one-off purchase costs first, then the price.
   const price = Math.max(0, Math.round(Number(args.price_won) || 0));
-  const loan = Math.max(0, price - cash);
+  const one_off = purchaseCosts({ price_won: price, area_m2: args.area_m2 });
+  const upfront = price + one_off.total_won;
+  const loan = Math.max(0, upfront - cash);
   const monthly = amortisedMonthly(loan, rate, years);
-  return out(monthly, price, loan, {
+  return out(monthly, upfront, loan, {
     kind: "trade",
     price_won: price,
+    one_off_items: one_off.items,
+    one_off_total_won: one_off.total_won,
+    cash_won: cash,
+    loan_won: loan,
+    own_money_won: Math.min(cash, upfront),
+    loan_rate_pct: rate,
+    loan_years: years,
+    loan_share_pct: price > 0 ? Math.round((loan / price) * 100) : 0,
     note: "빌린 돈을 매달 같은 금액씩 갚을 때 한 달에 내는 돈이에요.",
-  }, { notes: [TRADE_TAX_NOTE] });
+  }, { notes: [TRADE_COSTS_NOTE] });
 }

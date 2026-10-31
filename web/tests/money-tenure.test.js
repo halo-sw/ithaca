@@ -41,15 +41,18 @@ describe("tenure costs (worked examples)", () => {
     assert.equal(small.flags.loan_shortfall, false);
   });
 
-  it("trade: amortised payment + tax note", () => {
+  it("trade: amortised payment + one-off costs note", () => {
     const m = amortisedMonthly(2150000000, 4.0, 30);
     assert.equal(m, 10264429); // standard PMT, ceil
     assert.equal(amortisedMonthly(12000000, 0, 1), 1000000); // zero rate: straight split
     assert.equal(amortisedMonthly(0, 4, 30), 0);
     const r = tenureCost({ tenure: "매매", price_won: 2650000000, cash_won: 500000000,
       loan_rate_pct: 4.0, loan_years: 30 });
-    assert.equal(r.monthly_won, 10264429);
-    assert.equal(r.loan_won, 2150000000);
+    // one-off: 취득세 79,500,000 + 지방교육세 7,950,000 + 중개보수 상한 18,550,000 (0.7%)
+    assert.equal(r.breakdown.one_off_total_won, 106000000);
+    assert.equal(r.loan_won, 2256000000);
+    assert.equal(r.monthly_won, amortisedMonthly(2256000000, 4.0, 30));
+    assert.equal(r.upfront_won, 2650000000 + 106000000);
     assert.equal(r.years, 30); // 매매 still amortises over 30 years
     assert.ok(r.disclaimers.includes(TRADE_TAX_NOTE));
   });

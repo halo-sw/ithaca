@@ -306,6 +306,7 @@ async function living_cost(session, args) {
       loan_rate_pct: A.loan_rate_pct, loan_years: A.loan_years,
       jeonse_loan_cap_won: A.jeonse_loan_cap_won,
       source: price.source,
+      area_m2: price.area_m2,
     });
   } catch (err) {
     return fail(err.message);
