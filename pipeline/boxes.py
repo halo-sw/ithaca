@@ -90,6 +90,17 @@ def _is_metro_station(tags: dict) -> bool:
     return impl(tags)
 
 
+def _is_caltrain_station(tags: dict) -> bool:
+    from .areas import _is_caltrain_station as impl
+
+    return impl(tags)
+
+
+def _is_trunk_station(tags: dict) -> bool:
+    """Metro or Caltrain station: either can centre a scene box."""
+    return _is_metro_station(tags) or _is_caltrain_station(tags)
+
+
 def _norm_station(name: str) -> str:
     return (name or "").strip().removesuffix("역").strip()
 
@@ -180,9 +191,9 @@ def dedupe_stations(stations: list[dict]) -> list[dict]:
         by_name.setdefault(_norm_station(s["tags"]["name"]), []).append(s)
 
     def rank(s):
-        metro = 0 if _is_metro_station(s["tags"]) else 1
+        trunk = 0 if _is_trunk_station(s["tags"]) else 1
         kind = {"node": 0, "way": 1}.get(s["kind"], 2)
-        return (metro, kind, s["id"])
+        return (trunk, kind, s["id"])
 
     return [sorted(group, key=rank)[0]
             for group in sorted(by_name.values(), key=lambda g: g[0]["id"])]

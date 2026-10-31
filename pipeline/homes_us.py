@@ -420,11 +420,51 @@ def _building_area(geom: dict | None) -> float:
     return _ring_area(ring) if ring else 0.0
 
 
+SHUTTLE_MIN_ASSUMED = 15  # Meta connector incl. wait (assumed, not public)
+
+
+def _commute_facts(station: dict | None, commute: dict) -> dict:
+    """Precomputed Caltrain commute facts for one ``us-st-*`` home."""
+    walk = station.get("walk_minutes") if station else None
+    ride = commute.get("caltrain_min")
+    headway = commute.get("headway_min")
+    bike = commute.get("last_mile_bike_min")
+    foot = commute.get("last_mile_walk_min")
+    if (walk is not None and headway is not None
+            and ride is not None and bike is not None):
+        total = round(walk + headway / 2 + ride + bike, 1)
+    else:
+        total = None
+    return {
+        "destination": "Menlo Park",
+        "walk_to_station_min": {"value": walk, "source": "osm_graph"},
+        "caltrain_min": {"value": ride, "source": "caltrain_gtfs"},
+        "headway_min": {"value": headway, "source": "caltrain_gtfs"},
+        "last_mile": {
+            "bike_min": {"value": bike, "source": "osm_graph"},
+            "walk_min": {"value": foot, "source": "osm_graph"},
+            "shuttle_min_assumed": {"value": SHUTTLE_MIN_ASSUMED,
+                                    "assumed": True, "source": "assumed"},
+        },
+        "total_min": {"value": total,
+                      "sources": ["osm_graph", "caltrain_gtfs"]},
+    }
+
+
 def build_us_homes(area_dir: str | Path, zori: dict[str, dict],
                    points=None,
                    stats: dict | None = None,
-                   addresses: list | None = None) -> list[dict]:
-    """Group OSM apartment buildings into homes with ZORI rent."""
+                   addresses: list | None = None,
+                   area_id: str | None = None,
+                   default_zip: str = "94025",
+                   commute: dict | None = None) -> list[dict]:
+    """Group OSM apartment buildings into homes with ZORI rent.
+
+    ``area_id`` defaults to the ``area`` key of ``area.json`` (``us-menlo``
+    for the legacy file). ``commute`` (``us-st-*`` boxes only) carries the
+    Caltrain ride/headway and the Menlo Park last mile; each home then gets
+    a labelled ``commute`` block.
+    """
     if isinstance(points, dict):
         if addresses is None:
             addresses = points.get("addresses") or []
@@ -448,12 +488,16 @@ def build_us_homes(area_dir: str | Path, zori: dict[str, dict],
     meta_hq = next((w for w in workplaces if w.get("id") == "meta-hq"),
                    None)
 
+    if area_id is None:
+        area_id = area.get("area") or AREA_ID
+
     cands = []
     for b in sorted(buildings, key=lambda b: str(b.get("id"))):
         bval = b.get("building")
-        if bval == "dormitory":
+        keep_name = "anton menlo" in str(b.get("name") or "").lower()
+        if not keep_name and bval == "dormitory":
             continue  # student housing
-        if bval not in CANDIDATE_BUILDINGS:
+        if not keep_name and bval not in CANDIDATE_BUILDINGS:
             continue
         c = _geom_centroid(b.get("geometry") or {})
         if c is None:
@@ -509,7 +553,8 @@ def build_us_homes(area_dir: str | Path, zori: dict[str, dict],
         lon = sum(cands[i][1] for i in idxs) / len(idxs)
         lat = sum(cands[i][2] for i in idxs) / len(idxs)
         lon_r, lat_r = round(lon, 7), round(lat, 7)
-        zip_code, zip_source = zip_for(lon, lat, points)
+        zip_code, zip_source = zip_for(lon, lat, points,
+                                         default=default_zip)
         z = zori.get(zip_code)
         if z is None:
             dropped += 1
@@ -564,18 +609,18 @@ def build_us_homes(area_dir: str | Path, zori: dict[str, dict],
                         entry["bike_minutes"] = round(
                             dist[hq_node] / BIKE_MPS / 60, 1)
             work_targets = {"meta-hq": entry}
-        homes.append({
+        home = {
             "id": f"us-home-{seq:04d}",
             "name": home_name,
             "kind": "아파트",
-            "region": AREA_ID,
+            "region": area_id,
             "lon": lon_r,
             "lat": lat_r,
             "build_year": None,
             "pnu": None,
             "match": match,
             "osm_name": name,
-            "scene": AREA_ID,
+            "scene": area_id,
             "station": station,
             "buckets": [{
                 "center_m2": None,
@@ -595,7 +640,10 @@ def build_us_homes(area_dir: str | Path, zori: dict[str, dict],
                       "zip_source": zip_source, "month": z["month"],
                       "label": ZORI_LABEL},
             "work_targets": work_targets,
-        })
+        }
+        if commute is not None:
+            home["commute"] = _commute_facts(station, commute)
+        homes.append(home)
     by_name: dict[str, list[int]] = defaultdict(list)
     for k, h in enumerate(homes):
         by_name[h["name"]].append(k)
@@ -610,80 +658,186 @@ def build_us_homes(area_dir: str | Path, zori: dict[str, dict],
     return homes
 
 
+def us_area_ids() -> list[str]:
+    """All US home areas: ``us-menlo`` plus every ``us-st-*`` box."""
+    from .regions import US_CALTRAIN_BOX_IDS
+
+    return [AREA_ID, *US_CALTRAIN_BOX_IDS]
+
+
+def default_zip_for(area_id: str) -> str:
+    """Per-box fallback ZIP when no ``addr:postcode`` is near a home."""
+    if area_id == AREA_ID:
+        return "94025"
+    from .regions import US_CALTRAIN_BOXES
+
+    for spec in US_CALTRAIN_BOXES:
+        if spec["id"] == area_id:
+            return spec["default_zip"]
+    return "94025"
+
+
+def load_caltrain_am(build_dir: str | Path) -> dict[str, dict]:
+    """Station name -> ride/headway minutes from ``caltrain-am.json``."""
+    path = Path(build_dir) / "region-us" / "caltrain-am.json"
+    if not path.exists():
+        return {}
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    out = {}
+    for row in doc.get("stations", []):
+        out[row.get("station")] = {
+            "caltrain_min": row.get("ride_min_to_menlo_park"),
+            "headway_min": row.get("headway_min")}
+    return out
+
+
+def menlo_last_mile(build_dir: str | Path) -> tuple[float | None,
+                                                    float | None]:
+    """Walk/bike minutes Menlo Park station → Meta HQ on the us-menlo graph.
+
+    Returns ``(walk_min, bike_min)``; either may be ``None`` when the
+    graph or the station coordinate is unavailable.
+    """
+    build_dir = Path(build_dir)
+    try:
+        network = json.loads(
+            (build_dir / "region-us" / "network.json").read_text(
+                encoding="utf-8"))
+        menlo = next(s for line in network.get("lines", [])
+                     for s in line.get("stops", [])
+                     if s.get("key") == "Menlo Park")
+        area = json.loads(
+            (build_dir / AREA_ID / "area.json").read_text(encoding="utf-8"))
+        graph = json.loads(
+            (build_dir / AREA_ID / "graph.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError, StopIteration):
+        return None, None
+    workplaces = area.get("workplaces") or {}
+    if isinstance(workplaces, dict):
+        workplaces = list(workplaces.values())
+    meta_hq = next((w for w in workplaces if w.get("id") == "meta-hq"), None)
+    nodes = graph.get("nodes") or {}
+    if meta_hq is None or not nodes:
+        return None, None
+    station_node = _nearest_node(menlo["lon"], menlo["lat"], nodes)
+    hq_node = _nearest_node(meta_hq["lon"], meta_hq["lat"], nodes)
+    if not station_node or not hq_node:
+        return None, None
+    out: list = []
+    for key, speed in (("walk", WALK_MPS), ("bike", BIKE_MPS)):
+        adj = _adjacency((graph.get("edges") or {}).get(key))
+        dist = _dijkstra(adj, station_node) if adj else {}
+        out.append(round(dist[hq_node] / speed / 60, 1)
+                   if hq_node in dist else None)
+    return out[0], out[1]
+
+
 def run_us_homes(build_dir: str | Path = DEFAULT_BUILD_DIR,
                  raw_dir: str | Path = DEFAULT_RAW_DIR) -> dict:
-    """Write data/build/homes/us-menlo.json; update summary.json."""
+    """Write ``data/build/homes/us-*.json``; update summary.json."""
     build_dir, raw_dir = Path(build_dir), Path(raw_dir)
-    area_dir = build_dir / AREA_ID
     zori = load_zori(raw_dir / ZORI_CSV)
-    extract = area_dir / "extract.osm.pbf"
-    scanned = address_points(extract) if extract.exists() else {
-        "postcodes": [], "addresses": []}
-    points = scanned["postcodes"]
-    stats: dict = {}
-    homes = build_us_homes(area_dir, zori, points, stats=stats,
-                           addresses=scanned["addresses"])
+    present = [a for a in us_area_ids()
+               if (build_dir / a / "buildings.json").exists()]
+    area_ids = present or [AREA_ID]
+    am = load_caltrain_am(build_dir)
+    last_walk, last_bike = menlo_last_mile(build_dir)
 
     out_dir = build_dir / "homes"
     out_dir.mkdir(parents=True, exist_ok=True)
     month = max((z["month"] for z in zori.values()), default=None)
-    doc = {
-        "region": AREA_ID,
-        "country": "US",
-        "currency": "USD",
-        "sources": [
-            {"id": "zillow_zori",
-             "name": "Zillow Observed Rent Index (ZORI), ZIP, "
-                     "smoothed, all homes",
-             "url": ZORI_URL,
-             "month": month},
-            {"id": "osm", "name": "OpenStreetMap contributors",
-             "license": "ODbL"},
-        ],
-        "homes": homes,
-    }
-    (out_dir / f"{AREA_ID}.json").write_text(
-        json.dumps(doc, ensure_ascii=False, indent=1) + "\n",
-        encoding="utf-8")
 
     summary_path = out_dir / "summary.json"
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
     other = dict(summary.get("other_regions") or {})
-    other[AREA_ID] = {"homes": len(homes), "country": "US",
+
+    reports = {}
+    for area_id in area_ids:
+        area_dir = build_dir / area_id
+        extract = area_dir / "extract.osm.pbf"
+        scanned = address_points(extract) if extract.exists() else {
+            "postcodes": [], "addresses": []}
+        points = scanned["postcodes"]
+        stats: dict = {}
+        commute = None
+        if area_id != AREA_ID:
+            from .regions import US_CALTRAIN_BOXES
+
+            spec = next(s for s in US_CALTRAIN_BOXES
+                        if s["id"] == area_id)
+            ride = am.get(spec["station"], {})
+            commute = {"station": spec["station"],
+                       "caltrain_min": ride.get("caltrain_min"),
+                       "headway_min": ride.get("headway_min"),
+                       "last_mile_bike_min": last_bike,
+                       "last_mile_walk_min": last_walk}
+        homes = build_us_homes(area_dir, zori, points, stats=stats,
+                               addresses=scanned["addresses"],
+                               area_id=area_id,
+                               default_zip=default_zip_for(area_id),
+                               commute=commute)
+        doc = {
+            "region": area_id,
+            "country": "US",
+            "currency": "USD",
+            "sources": [
+                {"id": "zillow_zori",
+                 "name": "Zillow Observed Rent Index (ZORI), ZIP, "
+                         "smoothed, all homes",
+                 "url": ZORI_URL,
+                 "month": month},
+                {"id": "osm", "name": "OpenStreetMap contributors",
+                 "license": "ODbL"},
+            ],
+            "homes": homes,
+        }
+        if area_id != AREA_ID:
+            doc["sources"].append(
+                {"id": "caltrain_gtfs",
+                 "name": "Caltrain GTFS (2026-06), weekday AM ride/headway",
+                 "month": None})
+        (out_dir / f"{area_id}.json").write_text(
+            json.dumps(doc, ensure_ascii=False, indent=1) + "\n",
+            encoding="utf-8")
+        other[area_id] = {"homes": len(homes), "country": "US",
                       "currency": "USD"}
+        zips: dict[str, int] = {}
+        named = sum(1 for h in homes if h["match"] == "osm_name")
+        named_by_address = sum(1 for h in homes
+                               if h["match"] == "osm_address")
+        names = [h["name"] for h in homes]
+        duplicate_names_after = len(names) - len(set(names))
+        with_station = sum(1 for h in homes if h.get("station"))
+        bikes = [h["work_targets"]["meta-hq"]["bike_minutes"]
+                 for h in homes
+                 if h.get("work_targets", {}).get("meta-hq", {})
+                 .get("bike_minutes") is not None]
+        for h in homes:
+            z = h["price"]["zip"]
+            zips[z] = zips.get(z, 0) + 1
+        reports[area_id] = {
+            "area": area_id,
+            "homes": len(homes),
+            "named": named,
+            "unnamed": len(homes) - named,
+            "named_by_address": named_by_address,
+            "duplicate_names_after": duplicate_names_after,
+            "dropped_no_zori": stats.get("dropped_no_zori", 0),
+            "zips": zips,
+            "station_walk_share": (round(with_station / len(homes), 3)
+                                   if homes else 0.0),
+            "bike_minutes": {
+                "min": min(bikes) if bikes else None,
+                "median": statistics.median(bikes) if bikes else None,
+                "max": max(bikes) if bikes else None,
+            },
+        }
     summary["other_regions"] = other
     summary_path.write_text(
         json.dumps(summary, ensure_ascii=False, indent=1) + "\n",
         encoding="utf-8")
-
-    zips: dict[str, int] = {}
-    named = sum(1 for h in homes if h["match"] == "osm_name")
-    named_by_address = sum(1 for h in homes
-                           if h["match"] == "osm_address")
-    names = [h["name"] for h in homes]
-    duplicate_names_after = len(names) - len(set(names))
-    with_station = sum(1 for h in homes if h.get("station"))
-    bikes = [h["work_targets"]["meta-hq"]["bike_minutes"]
-             for h in homes
-             if h.get("work_targets", {}).get("meta-hq", {})
-             .get("bike_minutes") is not None]
-    for h in homes:
-        z = h["price"]["zip"]
-        zips[z] = zips.get(z, 0) + 1
-    return {
-        "area": AREA_ID,
-        "homes": len(homes),
-        "named": named,
-        "unnamed": len(homes) - named,
-        "named_by_address": named_by_address,
-        "duplicate_names_after": duplicate_names_after,
-        "dropped_no_zori": stats.get("dropped_no_zori", 0),
-        "zips": zips,
-        "station_walk_share": (round(with_station / len(homes), 3)
-                               if homes else 0.0),
-        "bike_minutes": {
-            "min": min(bikes) if bikes else None,
-            "median": statistics.median(bikes) if bikes else None,
-            "max": max(bikes) if bikes else None,
-        },
-    }
+    if len(reports) == 1:
+        return reports[area_ids[0]]
+    return {"areas": reports,
+            "homes": sum(r["homes"] for r in reports.values()),
+            "area_ids": area_ids}
