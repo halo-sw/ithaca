@@ -185,17 +185,41 @@ export function reportDigest({ runs, labels, homes, persona, groundTruth, names 
               meaning_ko = "ZIP 평균 월세(Zillow), 관리비 없음";
               meaning_en = "typical monthly rent for the ZIP (Zillow), no fees";
             } else if (tenure === "trade") {
-              meaning_ko = "대출 상환·관리비·공과금을 더한 한 달 금액";
-              meaning_en = "loan payment plus maintenance and utilities for one month";
+              const parts_ko = [];
+              const parts_en = [];
+              if (Number.isFinite(home.monthly_won)) { parts_ko.push("대출 상환"); parts_en.push("loan payment"); }
+              if (Number.isFinite(home.maintenance_won_month)) { parts_ko.push("관리비"); parts_en.push("maintenance"); }
+              if (Number.isFinite(home.utilities_won_month)) { parts_ko.push("공과금"); parts_en.push("utilities"); }
+              const last = parts_ko[parts_ko.length - 1];
+              const particle = (last === "공과금" || last === "대출 상환") ? "을" : "를";
+              meaning_ko = parts_ko.length ? `${parts_ko.join("·")}${particle} 더한 한 달 금액` : "집에 드는 한 달 금액";
+              meaning_en = parts_en.length ? `${parts_en.join(" plus ")} for one month` : "monthly housing cost";
             } else if (tenure === "jeonse") {
-              meaning_ko = "관리비·공과금을 더한 한 달 금액 (전세는 월세 없음)";
-              meaning_en = "maintenance and utilities for one month (jeonse has no rent)";
+              const parts_ko = [];
+              const parts_en = [];
+              if (Number.isFinite(home.maintenance_won_month)) { parts_ko.push("관리비"); parts_en.push("maintenance"); }
+              if (Number.isFinite(home.utilities_won_month)) { parts_ko.push("공과금"); parts_en.push("utilities"); }
+              const last = parts_ko[parts_ko.length - 1];
+              const particle = (last === "공과금" || last === "대출 상환") ? "을" : "를";
+              meaning_ko = parts_ko.length ? `${parts_ko.join("·")}${particle} 더한 한 달 금액 (전세는 월세 없음)` : "집에 드는 한 달 금액 (전세는 월세 없음)";
+              meaning_en = parts_en.length ? `${parts_en.join(" plus ")} for one month (jeonse has no rent)` : "monthly housing cost (jeonse has no rent)";
             } else if (tenure === "wolse" || tenure === "public") {
-              meaning_ko = "월세·관리비·공과금을 더한 한 달 금액";
-              meaning_en = "rent plus maintenance and utilities for one month";
+              const parts_ko = [];
+              const parts_en = [];
+              if (Number.isFinite(home.monthly_won)) { parts_ko.push("월세"); parts_en.push("rent"); }
+              if (Number.isFinite(home.maintenance_won_month)) { parts_ko.push("관리비"); parts_en.push("maintenance"); }
+              if (Number.isFinite(home.utilities_won_month)) { parts_ko.push("공과금"); parts_en.push("utilities"); }
+              const last = parts_ko[parts_ko.length - 1];
+              const particle = (last === "공과금" || last === "대출 상환") ? "을" : "를";
+              meaning_ko = parts_ko.length ? `${parts_ko.join("·")}${particle} 더한 한 달 금액` : "집에 드는 한 달 금액";
+              meaning_en = parts_en.length ? `${parts_en.join(" plus ")} for one month` : "monthly housing cost";
             } else {
-              meaning_ko = "집에 드는 한 달 금액 (관리비·공과금 포함)";
-              meaning_en = "monthly housing cost incl. maintenance and utilities";
+              const parts_ko = [];
+              const parts_en = [];
+              if (Number.isFinite(home.maintenance_won_month)) { parts_ko.push("관리비"); parts_en.push("maintenance"); }
+              if (Number.isFinite(home.utilities_won_month)) { parts_ko.push("공과금"); parts_en.push("utilities"); }
+              meaning_ko = parts_ko.length ? `집에 드는 한 달 금액 (${parts_ko.join("·")} 포함)` : "집에 드는 한 달 금액";
+              meaning_en = parts_en.length ? `monthly housing cost incl. ${parts_en.join(" plus ")}` : "monthly housing cost";
             }
             values[label] = { ...v, meaning_ko, meaning_en };
           } else {

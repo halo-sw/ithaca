@@ -58,6 +58,19 @@ describe("36i4 C02 meaning follows tenure", () => {
     assert.ok(!v.meaning_ko.includes("월세"));
     assert.ok(v.meaning_ko.includes("관리비·공과금"));
   });
+  it("trade home without utilities names only the summed parts", () => {
+    const v = c02Of({ tenure: "trade", monthly_won: 500000, maintenance_won_month: 100000 });
+    assert.equal(v.meaning_ko, "대출 상환·관리비를 더한 한 달 금액");
+    assert.equal(v.meaning_en, "loan payment plus maintenance for one month");
+    assert.ok(!v.meaning_ko.includes("공과금"));
+    assert.ok(!v.meaning_ko.includes("월세"));
+    assert.ok(!v.meaning_en.includes("rent"));
+  });
+  it("trade home with utilities also names 공과금", () => {
+    const v = c02Of({ tenure: "trade", monthly_won: 500000, maintenance_won_month: 100000, utilities_won_month: 50000 });
+    assert.ok(v.meaning_ko.includes("공과금"));
+    assert.ok(v.meaning_en.includes("utilities"));
+  });
 });
 
 describe("36i4 REPORT_PROMPT states the C02 wording rule", () => {
