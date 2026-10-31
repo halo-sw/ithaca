@@ -2634,18 +2634,7 @@ export function ChatScreen() {
         }
       }
       const bubble = turnBubble(out);
-      // 29M1: English turns register Muse's home names first — server
-      // names, tool-candidate name_en, then the reply harvest last (the
-      // app matches what the customer just read) — so cards and words
-      // below render the same English name.
-      if (LANG === "en" && out && !out.off) {
-        const seen = toolMessageHomeNames(out.messages);
-        registerHomeNamesEn(out.names_en);
-        registerHomeNamesEn(seen.en);
-        const liveKo = (liveCands || []).map((c) => c && c.name).filter(Boolean);
-        registerHomeNamesEn(harvestHomeNamesEn(
-          (bubble && bubble.content) || "", [...seen.ko, ...liveKo]));
-      }
+      absorbHomeNamesEn(out, bubble && bubble.content, liveCands);
       // 29h2: cards first, then Muse's words — the turn ends on the
       // next move, never on a wall of cards.
       appendToolCards(out.messages);
@@ -3859,6 +3848,19 @@ function toolMessageHomeNames(messages) {
     visit(r);
   }
   return { en, ko };
+}
+// 29M1c: one-line registration so the turn block stays compact — server
+// names, tool-candidate name_en, then the reply harvest last (the app
+// matches what the customer just read). Runs before the messages are set,
+// so cards and words below render the same English name.
+function absorbHomeNamesEn(out, replyText, koNames) {
+  if (LANG === "en" && out && !out.off) {
+    const seen = toolMessageHomeNames(out.messages);
+    registerHomeNamesEn(out.names_en);
+    registerHomeNamesEn(seen.en);
+    const liveKo = (koNames || []).map((c) => c && c.name).filter(Boolean);
+    registerHomeNamesEn(harvestHomeNamesEn(replyText || "", [...seen.ko, ...liveKo]));
+  }
 }
 export function trayNameFor(candidate, lang = LANG) {
   return trayDisplayName(displayNameFor(candidate), lang);

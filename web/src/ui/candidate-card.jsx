@@ -3,7 +3,7 @@
 // Two variants: "row" (default, the chat list — name first, ~112 px)
 // and "full" (the 19a side-panel detail — photo, name, price first).
 // SSR-safe.
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@astryxdesign/core/Button";
 import { SegmentedControl, SegmentedControlItem } from "@astryxdesign/core/SegmentedControl";
 import { Text } from "@astryxdesign/core/Text";
@@ -16,7 +16,7 @@ import { aerialCreditFor } from "../aerial/drape.js";
 import { basemapApiBase, isUsLonLat } from "../basemap.js";
 import { SceneThumb, MiniMap, AerialThumb } from "./preview.jsx";
 import { LANG } from "../i18n/lang.js";
-import { homeNameEn, subscribeHomeNamesEn, homeNamesEnVersion } from "../i18n/home-names.js";
+import { homeNameEn } from "../i18n/home-names.js";
 
 export function tenurePriceLine(candidate, tenure) {
   const t = (candidate.tenures || []).find((x) => x.tenure === tenure)
@@ -156,8 +156,8 @@ const SRC_CLS = { official: "ui-src-official", estimate: "ui-src-estimate", said
 // 29a1: home/complex names keep the Hangul original (the DOM
 // translator skips it); English mode adds a romanized gloss beside it.
 export function HomeName({ name, lang = LANG }) {
-  // 29M1: re-render when Muse's home names land in the registry.
-  useSyncExternalStore(subscribeHomeNamesEn, homeNamesEnVersion, homeNamesEnVersion);
+  // 29M1c: plain component — re-render comes from the chat state update
+  // that follows every consult response (registration runs before set).
   const original = String(name ?? "");
   const gloss = lang === "en" && /[가-힣]/.test(original)
     ? homeNameEn(original) : "";
