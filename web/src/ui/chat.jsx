@@ -79,13 +79,14 @@ import { SupportTab } from "./support.jsx";
 import { PasteCheck } from "./listings.jsx";
 import { HOME_SORTS, HOME_SORT_KO, HOME_SORT_SHORT_KO, applyKindPreference, usEmptyHint, displayNameFor } from "../homes.js";
 import { chipSourceIds } from "../sources.js";
-import { META_HQ_EXAMPLE } from "../places-us.js";
+import { META_HQ_EXAMPLE, US_REGION_IDS } from "../places-us.js";
 import { EXAMPLE_PROFILE_LABEL, noCommuteEntry } from "../profile.js";
 import { outingsFor, hhmm } from "../timeline.js";
 import { runDigest } from "../diary/digest.js";
 import {
   extractStep, searchStep, searchWithBoxes, scenarioStep, runStep,
-  loadHomesIndex, loadNetwork, loadSchedule, loadPhotosManifest,
+  loadHomesIndex, loadNetwork, loadUsNetwork, networkWithUs,
+  loadSchedule, loadPhotosManifest,
   loadNamedPhotos, loadRegions, loadPayroll, loadCorridorTiles,
   loadBoxArea, createWorkerRunner, fieldRows, sourceKo,
   profileSummary, missingChips, regionsForNames, simReadyFor,
@@ -1949,16 +1950,21 @@ export function ChatScreen() {
   async function ensureData(regions) {
     const key = (regions || []).join(",") || "all";
     if (dataRef.current && dataRef.current.regionsKey === key) return dataRef.current;
-    const [index, network, schedule, manifest, named, regionsDoc] = await Promise.all([
+    // 29N2a: a US search also loads the Caltrain line doc so the map
+    // draws it like a Seoul subway line.
+    const wantUs = (regions || []).some((r) => r === "us-menlo" || r.startsWith("us-st-"));
+    const [index, network, usNetwork, schedule, manifest, named, regionsDoc] = await Promise.all([
       loadHomesIndex(fetchJson, regions && regions.length > 0 ? regions : null),
       loadNetwork(fetchJson),
+      wantUs ? loadUsNetwork(fetchJson) : Promise.resolve(null),
       loadSchedule(fetchText),
       loadPhotosManifest(fetchJson),
       loadNamedPhotos(fetchJson),
       loadRegions(fetchJson),
     ]);
     setNamedPhotos(named);
-    dataRef.current = { index, network, schedule, manifest, named, regionsDoc, regionsKey: key };
+    dataRef.current = { index, network: networkWithUs(network, usNetwork, wantUs),
+      schedule, manifest, named, regionsDoc, regionsKey: key };
     return dataRef.current;
   }
 
@@ -1991,15 +1997,16 @@ export function ChatScreen() {
     }
     const words = regionWordsIn(text, REGION_NAME_ALIASES);
     let named = words.length > 0 ? regionsForNames(words) : null;
-    // 26c: a US search loads exactly us-menlo — never Korean regions.
-    // A pre-read of this turn decides it (the full extract follows once
-    // the data is in); a USD profile from an earlier turn counts too.
+    // 29N2a: a US search loads the Caltrain-corridor set — never
+    // Korean regions. A pre-read of this turn decides it (the full
+    // extract follows once the data is in); a USD profile from an
+    // earlier turn counts too.
     const pre = extractStep(text, stateRef.current.profile, []);
     const preProfile = pre.value && pre.value.profile;
     const preCurrency = preProfile && preProfile.currency
       ? preProfile.currency.value : null;
-    if ((named && named.includes("us-menlo")) || preCurrency === "USD") {
-      named = ["us-menlo"];
+    if ((named && named.some((r) => US_REGION_IDS.includes(r))) || preCurrency === "USD") {
+      named = [...US_REGION_IDS];
     }
     const data = await ensureData(named);
     // The evidence guard is per call (same as the server tool), so
@@ -2034,7 +2041,7 @@ export function ChatScreen() {
       pushMsg({ role: "assistant", kind: "profile", replace: true,
         data: { profile: prof }, example: stateRef.current.exampleId,
         tool_calls: [{ id: exId, name: "extract_profile" }] });
-      await runSearch(prof, data, { sort: "commute" });
+      await runSearch(prof, data, { sort: "commute", limit: searchLimitFor(text) });
       return;
     }
     // 13: after the first message the guided intake pre-fills from the
@@ -2047,7 +2054,7 @@ export function ChatScreen() {
     pushMsg({ role: "assistant", kind: "profile", replace: true,
       data: { profile: prof }, example: stateRef.current.exampleId,
       tool_calls: [{ id: exId, name: "extract_profile" }] });
-    await runSearch(prof, data, { sort: "commute" });
+    await runSearch(prof, data, { sort: "commute", limit: searchLimitFor(text) });
   }
 
   // Merge an intake patch into the profile as customer values.
@@ -2144,15 +2151,20 @@ export function ChatScreen() {
   // 29a3: profile summary the last search ran with — a newer
   // profile means "조건이 바뀌었어요" until 다시 찾기 runs again.
   const lastSearchRef = useRef("");
-  async function runSearch(prof, data, { sort }) {
+  // 29N2a: "show more" ("다른 후보 더 보여 줘") re-runs with limit
+  // 12 — the corridor first page spreads, the longer list stays pure.
+  function searchLimitFor(t) {
+    return String(t || "").trim() === "다른 후보 더 보여 줘" ? 12 : 6;
+  }
+  async function runSearch(prof, data, { sort, limit = 6 }) {
     lastSearchRef.current = profileSummary(prof);
     const tenure = (prof.tenure && prof.tenure.value) || "undecided";
     const t0 = Date.now();
-    let result = searchStep(prof, data.index, data, { sort, limit: 6 }).value;
+    let result = searchStep(prof, data.index, data, { sort, limit }).value;
     // Second pass with box graphs only when must-haves need measuring.
     const mustHaves = (prof.mustHaves && prof.mustHaves.value) || [];
     if (mustHaves.length > 0) {
-      result = await searchWithBoxes(fetchJson, prof, data.index, result, data, { sort, limit: 6 });
+      result = await searchWithBoxes(fetchJson, prof, data.index, result, data, { sort, limit });
     }
     // 21a: the customer's own housing-type words filter the list (kept
     // when at least 3 remain, else filled + labelled).

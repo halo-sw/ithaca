@@ -28,6 +28,7 @@ import { parseScenario } from "../engine/scenario.js";
 // Region/kind words live client-safe in region-names.js (the browser
 // chat shares them); re-exported here so tool imports keep working.
 import { REGION_NAME_ALIASES, regionsForNames, kindForName } from "../region-names.js";
+import { US_REGION_IDS } from "../places-us.js";
 
 export { REGION_NAME_ALIASES, regionsForNames, kindForName };
 
@@ -156,7 +157,7 @@ async function extract_profile(session, args) {
       : "essentials present — call find_homes",
   };
   if (isUsProfile(r.profile, null)) {
-    out.next = "US profile — call find_homes now (Menlo Park homes)";
+    out.next = "US profile — call find_homes now (Caltrain corridor homes)";
   }
   return out;
 }
@@ -180,10 +181,11 @@ export async function boxesForHomes(session, homes, max = 6) {
   return boxes;
 }
 
-// 29a7: default regions for a US profile — exactly us-menlo, the same
-// rule as the 26c client path; implemented with isUsProfile.
+// 29a7: default regions for a US profile — the Caltrain-corridor set
+// (us-menlo first), the same rule as the 26c client path; implemented
+// with isUsProfile.
 export function usRegionsForProfile(profile) {
-  return isUsProfile(profile) ? ["us-menlo"] : null;
+  return isUsProfile(profile) ? [...US_REGION_IDS] : null;
 }
 
 // 26y: the server tool mirrors the browser rule flow — a US profile
@@ -199,10 +201,11 @@ function workplacesUsRegion(profile) {
     && e.resolved.region.startsWith("us-"));
 }
 
-function isUsProfile(profile, namedRegions) {
+export function isUsProfile(profile, namedRegions) {
   if (profile && profile.currency && profile.currency.value === "USD") return true;
   if (workplacesUsRegion(profile)) return true;
-  return Array.isArray(namedRegions) && namedRegions.includes("us-menlo");
+  return Array.isArray(namedRegions)
+    && namedRegions.some((r) => US_REGION_IDS.includes(r));
 }
 
 async function needUsHomes(session) {
@@ -225,8 +228,8 @@ async function find_homes(session, args) {
   const network = await needNetwork(session);
   const manifest = await needPhotos(session);
   const schedule = await needTransit(session);
-  // 29a7: a USD profile (or a Meta-HQ workplace) searches exactly
-  // us-menlo — never Korean regions (same rule as the 26c client path).
+  // 29a7: a USD profile (or a Meta-HQ workplace) searches the US
+  // corridor set — never Korean regions (same rule as the client path).
   const regions = args.regions ? regionsForNames(args.regions) : usRegionsForProfile(profile);
   let index;
   let effRegions = regions;
@@ -239,16 +242,19 @@ async function find_homes(session, args) {
       }
     } else {
       // 29a7: no US loader on this session — search the merged index
-      // (regions still narrow it to us-menlo); fail honestly when the
-      // merged index carries no US home at all.
+      // (regions still narrow it to the corridor); fail honestly when
+      // the merged index carries no US home at all.
       const raw = await needHomes(session);
       const homes = raw && Array.isArray(raw.homes) ? raw.homes : [];
-      if (!homes.some((h) => isUsHome(h) || (h && h.region === "us-menlo"))) {
+      if (!homes.some((h) => isUsHome(h)
+        || (h && typeof h.region === "string" && h.region.startsWith("us-")))) {
         return fail("US homes are not available on this server");
       }
       index = raw;
     }
-    effRegions = ["us-menlo"];
+    // 29N2a: customer-named corridor areas narrow the set; otherwise
+    // the whole corridor (us-menlo first) is searched.
+    effRegions = (regions && regions.length > 0) ? regions : usRegionsForProfile(profile);
   } else {
     const raw = await needHomes(session);
     index = raw && Array.isArray(raw.homes)

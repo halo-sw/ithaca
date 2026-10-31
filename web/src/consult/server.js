@@ -17,6 +17,7 @@ import { createRunCache } from "./tools.js";
 import { createCsvBackend } from "../money/rtms.js";
 import { normalizeSnapshot, createHousingApi, HOUSING_KEY_ENV } from "../money/housing.js";
 import { parseInterstationCsv } from "../transit/schedule.js";
+import { US_REGION_IDS } from "../places-us.js";
 
 export const CONSULT_BODY_MAX = 1048576; // 1 MB (scenario + history)
 
@@ -137,20 +138,23 @@ async function loadDecisionsFs(readText, scenarioName, label) {
   return null;
 }
 
-// 26y: the Menlo Park file for US searches. Same readText reader as
-// every other data file, so the relay needs no change. Missing file
-// reads as empty — find_homes then fails honestly instead of falling
-// back to Korean homes.
+// 29N2a: every corridor file for US searches (us-menlo first).
+// Same readText reader as every other data file, so the relay needs
+// no change. A missing file is skipped — find_homes fails honestly
+// instead of falling back to Korean homes when none load at all.
 export function createUsHomesLoader(read) {
   let cache = null;
   return async () => {
     if (!cache) {
-      try {
-        const doc = JSON.parse(await read("data", "homes/us-menlo.json"));
-        cache = (doc && doc.homes) || [];
-      } catch {
-        cache = [];
-      }
+      const lists = await Promise.all(US_REGION_IDS.map(async (id) => {
+        try {
+          const doc = JSON.parse(await read("data", `homes/${id}.json`));
+          return (doc && doc.homes) || [];
+        } catch {
+          return [];
+        }
+      }));
+      cache = lists.flat();
     }
     return cache;
   };

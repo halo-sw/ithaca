@@ -3,7 +3,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { META_HQ_EXAMPLE } from "../src/places-us.js";
+import { META_HQ_EXAMPLE, US_REGION_IDS } from "../src/places-us.js";
 import { chipSourceIds } from "../src/sources.js";
 import { citationsFor } from "../src/ui/agent-float.js";
 import {
@@ -175,7 +175,7 @@ describe("29a7 English every turn (tool turn)", () => {
 
 describe("29a7 find_homes routes a USD profile to us-menlo", () => {
   it("usRegionsForProfile pins the routing", () => {
-    assert.deepEqual(usRegionsForProfile(usdProfile()), ["us-menlo"]);
+    assert.deepEqual(usRegionsForProfile(usdProfile()), [...US_REGION_IDS]);
     assert.equal(usRegionsForProfile({
       currency: { value: "KRW", source: "customer", note: "" },
     }), null);
@@ -194,7 +194,7 @@ describe("29a7 find_homes routes a USD profile to us-menlo", () => {
     const res = await callTool(session, "find_homes",
       { profile: usdProfile() });
     assert.equal(res.ok, true);
-    assert.deepEqual(res.asked_for.regions, ["us-menlo"]);
+    assert.deepEqual(res.asked_for.regions, [...US_REGION_IDS]);
     assert.ok(res.candidates.length >= 1);
     for (const c of res.candidates) {
       assert.ok(c.id.startsWith("us-"), c.id);

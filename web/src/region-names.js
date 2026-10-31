@@ -17,9 +17,35 @@ export const REGION_NAME_ALIASES = {
   jeongja: ["정자", "jeongja"],
   migeum: ["미금", "migeum"],
   "us-menlo": ["menlo park", "멘로파크", "멘로 파크", "east palo alto",
-    "이스트 팔로알토", "palo alto", "팔로알토", "belle haven",
+    "이스트 팔로알토", "belle haven", "벨헤이븐",
     "meta", "메타", "facebook", "hacker way"],
+  "us-st-san-francisco": ["san francisco", "샌프란시스코", "sf"],
+  "us-st-belmont": ["belmont", "벨몬트"],
+  "us-st-san-carlos": ["san carlos", "샌카를로스", "san carlos stn"],
+  "us-st-redwood-city": ["redwood city", "레드우드시티"],
+  "us-st-palo-alto": ["palo alto", "팔로알토"],
+  "us-st-mountain-view": ["mountain view", "마운틴뷰"],
+  "us-st-sunnyvale": ["sunnyvale", "서니베일"],
 };
+
+// 29N2a: the US Caltrain-corridor area names for cards and results
+// (English + Korean). us-menlo homes sit in Belle Haven.
+export const US_AREA_LABELS = {
+  "us-menlo": { en: "Belle Haven", ko: "벨헤이븐" },
+  "us-st-san-francisco": { en: "San Francisco", ko: "샌프란시스코" },
+  "us-st-belmont": { en: "Belmont", ko: "벨몬트" },
+  "us-st-san-carlos": { en: "San Carlos", ko: "샌카를로스" },
+  "us-st-redwood-city": { en: "Redwood City", ko: "레드우드시티" },
+  "us-st-palo-alto": { en: "Palo Alto", ko: "팔로알토" },
+  "us-st-mountain-view": { en: "Mountain View", ko: "마운틴뷰" },
+  "us-st-sunnyvale": { en: "Sunnyvale", ko: "서니베일" },
+};
+
+export function usAreaLabel(region, lang) {
+  const e = US_AREA_LABELS[String(region || "")];
+  if (!e) return null;
+  return lang === "en" ? e.en : e.ko;
+}
 
 const PLACE_TO_REGION = { pangyo: "bundang", jeongja: "bundang", migeum: "bundang" };
 

@@ -69,6 +69,7 @@ export const LINE_COLORS = {
   bundang: "#F5A200",
   sinbundang: "#D4003B",
   gyeonggang: "#003DA5",
+  caltrain: "#E31837",
 };
 export const LINE_FALLBACK_COLOR = "#6b7280";
 
@@ -283,8 +284,10 @@ export function extractGreenRings(landuse) {
   return { water: [...water.values()], parks: [...parks.values()] };
 }
 
-// Door-to-work minutes (commute.work) when known, else the walk + ride sum.
+// Door-to-work minutes: the labelled Caltrain total for corridor
+// homes, else (commute.work) when known, else the walk + ride sum.
 export function commuteMinutesOf(candidate) {
+  if (candidate && Number.isFinite(candidate.corridor_min)) return candidate.corridor_min;
   const c = (candidate && candidate.commute) || {};
   const workMin = c.work && c.work.minutes;
   if (Number.isFinite(workMin)) return Math.round(workMin * 10) / 10;

@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { US_REGION_IDS } from "../src/places-us.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (p) => fs.readFileSync(path.join(here, p), "utf8");
@@ -13,10 +14,10 @@ describe("29g2 regionsForDoc", () => {
   before(async () => {
     ({ regionsForDoc } = await import("../src/chat/engine.js"));
   });
-  it("USD profile with no candidates loads us-menlo", () => {
+  it("USD profile with no candidates loads the US corridor set", () => {
     assert.deepEqual(
       regionsForDoc({ profile: { currency: { value: "USD" } }, candidatesData: null }),
-      ["us-menlo"]);
+      [...US_REGION_IDS]);
   });
   it("unique non-empty candidate regions, in order", () => {
     const candidatesData = { result: { candidates:
@@ -25,12 +26,12 @@ describe("29g2 regionsForDoc", () => {
       regionsForDoc({ profile: { currency: { value: "KRW" } }, candidatesData }),
       ["gangnam", "songpa"]);
   });
-  it("any us-menlo / USD candidate loads exactly us-menlo", () => {
+  it("any US-corridor / USD candidate loads the corridor set", () => {
     const candidatesData = { result: { candidates:
       [{ region: "us-menlo", currency: "USD" }] } };
     assert.deepEqual(
       regionsForDoc({ profile: { currency: { value: "KRW" } }, candidatesData }),
-      ["us-menlo"]);
+      [...US_REGION_IDS]);
   });
   it("no regions anywhere loads nothing (null)", () => {
     assert.equal(
@@ -43,7 +44,7 @@ describe("29g2 regionsForDoc", () => {
   it("both recordings resolve to their regions", () => {
     const menlo = JSON.parse(read("../public/recorded/menlo-month.json"));
     const seoul = JSON.parse(read("../public/recorded/seoul-couple.json"));
-    assert.deepEqual(regionsForDoc(menlo), ["us-menlo"]);
+    assert.deepEqual(regionsForDoc(menlo), [...US_REGION_IDS]);
     const kr = regionsForDoc(seoul);
     assert.ok(Array.isArray(kr) && kr.length > 0, "seoul replay loads a non-empty Korean list");
     assert.ok(kr.every((r) => typeof r === "string" && r !== "" && r !== "us-menlo"));

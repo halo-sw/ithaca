@@ -10,12 +10,14 @@ import { Text } from "@astryxdesign/core/Text";
 import { TENURE_KO } from "../profile.js";
 import { fmtWon } from "../money/format.js";
 import { fmtMoney, currencyOf } from "../money/currency.js";
-import { SAME_STATION_KO, displayNameFor, KIND_MISMATCH_KO } from "../homes.js";
+import { SAME_STATION_KO, displayNameFor, KIND_MISMATCH_KO,
+  caltrainBreakdownText, CALTRAIN_SHUTTLE_LINE } from "../homes.js";
+import { usAreaLabel } from "../region-names.js";
 import { simBadgeFor } from "../mapsim.js";
 import { aerialCreditFor } from "../aerial/drape.js";
 import { basemapApiBase, isUsLonLat } from "../basemap.js";
 import { SceneThumb, MiniMap, AerialThumb } from "./preview.jsx";
-import { LANG } from "../i18n/lang.js";
+import { LANG, currentLang } from "../i18n/lang.js";
 import { homeNameEn } from "../i18n/home-names.js";
 
 export function tenurePriceLine(candidate, tenure) {
@@ -127,6 +129,25 @@ export function pinCardModel(pin, { tenure, picks } = {}) {
 }
 
 export function commuteRowLine(candidate, destName) {
+  // 29N2a: a station-box home prints its labelled Caltrain breakdown
+  // (built in code, English + Korean) with the assumed-shuttle second
+  // line; the bike leg is assumed-speed, so the Estimate badge shows.
+  const bd = candidate && candidate.commute_breakdown;
+  const parts = (candidate && candidate.corridor) || (bd && {
+    total_min: bd.total_min, walk_min: bd.walk_min, wait_min: bd.wait_min,
+    train_min: bd.train_min, bike_min: bd.bike_min }) || null;
+  if (bd && bd.en && bd.ko) {
+    const en = currentLang() === "en";
+    return { text: en ? bd.en : bd.ko,
+      shuttle: en ? bd.shuttle_en : bd.shuttle_ko,
+      estimate: true, source: "estimate" };
+  }
+  if (parts) {
+    const en = currentLang() === "en";
+    return { text: caltrainBreakdownText(parts, en ? "en" : "ko"),
+      shuttle: en ? CALTRAIN_SHUTTLE_LINE.en : CALTRAIN_SHUTTLE_LINE.ko,
+      estimate: true, source: "estimate" };
+  }
   const c = candidate.commute;
   if (!c) return { text: "출퇴근 정보를 확인 중이에요", estimate: false, source: "unknown" };
   if (c.work) return usWorkRow(c.work, destName);
@@ -185,10 +206,21 @@ export function SourceDot({ source }) {
 // 29a2: with a budget for the shown tenure and a median row price, the
 // budget fact names the difference (억/만 via fmtWon, no trailing 원);
 // without a budget it falls back to the fit wording.
+// 29N2a: the card area name (corridor results carry both languages).
+export function cardAreaFor(candidate) {
+  if (!candidate || (!candidate.area_label && !candidate.area_label_ko)) {
+    return usAreaLabel(candidate && candidate.region, currentLang());
+  }
+  return currentLang() === "en"
+    ? (candidate.area_label || candidate.area_label_ko)
+    : (candidate.area_label_ko || candidate.area_label);
+}
+
 export function factsFor(candidate, price, budgetWon, tenure) {
   const first = candidate.tenures?.[0] || null;
   const center = first ? first.bucket_center_m2 : null;
   return [
+    cardAreaFor(candidate),
     candidate.kind,
     // 26c: sizeless buckets (US ZIP rents) show no size fact.
     candidate.sizeLabel || (center !== null && center !== undefined ? `${center}㎡` : null),
@@ -725,7 +757,8 @@ export function CandidateCard({ candidate, tenure, destName, photos, index,
   const row = commuteRowLine(candidate, destName);
   const facts = factsFor(candidate, price, budgetWon, tenure);
   // 32b: the row meta line — basis · kind · budget fit.
-  const metaBits = [price.basis, candidate.kind,
+  // 29N2a: corridor cards lead with the area name (Palo Alto …).
+  const metaBits = [cardAreaFor(candidate), price.basis, candidate.kind,
     budgetFactFor(candidate, price, budgetWon, tenure)].filter(Boolean);
   const pickLabel = pickAriaLabel(candidate);
   // 26c: one ZIP rent, so the title names its source vintage.
@@ -777,6 +810,7 @@ export function CandidateCard({ candidate, tenure, destName, photos, index,
         {!sharedRent && (
         <div className="ui-cand-row-commute ui-num" title={row.title}>
           {row.text}{row.estimate || (row.source && row.source !== "unknown") ? " " : null}<RowEstimateTag row={row} />
+          {row.shuttle && (<><br />{row.shuttle}</>)}
         </div>
         )}
         {candidate.kind_mismatch && <Text type="supporting">{KIND_MISMATCH_KO}</Text>}
@@ -942,6 +976,7 @@ function FullCard({ candidate, price, facts, row, hero, rest,
         <div>
           <div className="ui-commute ui-num">
             {row.text}{row.source && row.source !== "unknown" ? " " : null}<RowSourceTag row={row} />
+            {row.shuttle && (<><br />{row.shuttle}</>)}
           </div>
           {detail && <Text type="supporting">{detail}</Text>}
         </div>

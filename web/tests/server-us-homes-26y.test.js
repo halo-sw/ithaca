@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { callTool, createSession } from "../src/consult/tools.js";
 import { createConsultHandler, createUsHomesLoader } from "../src/consult/server.js";
+import { US_REGION_IDS } from "../src/places-us.js";
 import { extract_profile } from "../src/profile.js";
 
 const META_SENTENCE = "I work at Meta HQ in Menlo Park, renting alone, up to $5,000 a month";
@@ -89,7 +90,7 @@ describe("26y find_homes (US)", () => {
       assert.equal(c.currency, "USD");
       assert.equal(c.region, "us-menlo");
     }
-    assert.deepEqual(out.asked_for.regions, ["us-menlo"]);
+    assert.deepEqual(out.asked_for.regions, [...US_REGION_IDS]);
   });
 
   it("returns no USD home for a KRW Pangyo profile", async () => {

@@ -19,11 +19,13 @@ import { assetUrl } from "../paths.js";
 import { parseInterstationCsv } from "../transit/schedule.js";
 import { compare as compareRuns } from "../engine/simulate.js";
 import { regionsForNames, kindForName } from "../region-names.js";
+import { US_REGION_IDS } from "../places-us.js";
 import { fmtMoney, currencyOf } from "../money/currency.js";
 
 export const HOMES_SUMMARY_URL = assetUrl("/data/homes/summary.json");
 export const HOMES_REGION_URL = (id) => assetUrl(`/data/homes/${id}.json`);
 export const NETWORK_URL = assetUrl("/data/region/network.json");
+export const US_NETWORK_URL = assetUrl("/data/region-us/network.json");
 export const SCHEDULE_URL = assetUrl("/scenarios/transit/seoul-metro-interstation.csv");
 export const PHOTOS_MANIFEST_URL = assetUrl("/scenarios/places/commons-photos.json");
 export const NAMED_PHOTOS_URL = assetUrl("/scenarios/places/commons-named.json");
@@ -100,6 +102,25 @@ export async function loadNetwork(fetchJson) {
   }
 }
 
+// 29N2a: the Caltrain line doc (same line schema as the Seoul
+// region/network.json). Null when missing — the map then draws no line.
+export async function loadUsNetwork(fetchJson) {
+  try {
+    const doc = await fetchJson(US_NETWORK_URL);
+    return doc && Array.isArray(doc.lines) ? doc : null;
+  } catch {
+    return null;
+  }
+}
+
+// 29N2a: one network for the map — the Seoul lines plus the Caltrain
+// line when a US search is showing. Pure.
+export function networkWithUs(network, usNetwork, wantUs) {
+  if (!wantUs || !usNetwork || !Array.isArray(usNetwork.lines)) return network;
+  const lines = [...((network && network.lines) || []), ...usNetwork.lines];
+  return { ...(network || {}), lines };
+}
+
 // Corridor ground tiles intersecting a lon/lat bbox (tiny files with
 // real 시군구 boundaries + open water). Null-tolerant: the stage map
 // paints fine without them.
@@ -173,16 +194,16 @@ export function regionsForCurrency(doc, currency) {
 // 29g2: regions to load for a saved or recorded document (replay /
 // transcript restore). The live path derives this from the search;
 // replays never run a search, so derive it from the saved doc:
-// a USD profile or any US candidate means exactly us-menlo,
+// a USD profile or any US candidate means the US corridor set,
 // otherwise the unique non-empty candidate regions, or null.
 export function regionsForDoc({ profile, candidatesData } = {}) {
   const cands = (candidatesData && candidatesData.result && candidatesData.result.candidates)
     || candidatesData?.candidates
     || (Array.isArray(candidatesData) ? candidatesData : [])
     || [];
-  if (currencyOf(profile) === "USD") return ["us-menlo"];
-  if ((cands || []).some((c) => c && (c.region === "us-menlo" || currencyOf(c) === "USD"))) {
-    return ["us-menlo"];
+  if (currencyOf(profile) === "USD") return [...US_REGION_IDS];
+  if ((cands || []).some((c) => c && (US_REGION_IDS.includes(c.region) || currencyOf(c) === "USD"))) {
+    return [...US_REGION_IDS];
   }
   const seen = [];
   for (const c of cands || []) {
