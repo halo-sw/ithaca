@@ -129,7 +129,7 @@ describe("demo tour step machine", () => {
     const schedule = parseInterstationCsv(await readFile(join(REPO, "scenarios",
       "transit", "seoul-metro-interstation.csv"), "utf8"));
     const r = find_homes(ex.profile, build.index,
-      { network: build.network, schedule, photos: build.photos, limit: 6 });
+      { network: build.network, schedule, photos: build.photos, limit: 6, sort: "commute" });
     // 18: 6 public-rental complexes no longer count as 전세 results.
     assert.equal(r.total_matching, 2928);
     assert.deepEqual(r.candidates.map((c) => c.name), [

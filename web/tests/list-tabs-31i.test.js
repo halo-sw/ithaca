@@ -38,8 +38,9 @@ before(async () => {
 });
 
 describe("31i HOME_SORT_SHORT_KO", () => {
-  it("has the four short labels", () => {
+  it("has the five short labels", () => {
     assert.deepEqual(HOME_SORT_SHORT_KO, {
+      areas: "동네별",
       commute: "출근순",
       monthly: "비용순",
       deals: "거래순",
@@ -65,9 +66,9 @@ describe("31i CandidatesCard sort tabs", () => {
     return tags.filter((t) => /ui-cand-tab( |")/.test(t));
   }
 
-  it("renders 4 tab buttons with pressed state on 비용순", () => {
+  it("renders 5 tab buttons with pressed state on 비용순", () => {
     const tabs = tabButtons();
-    assert.equal(tabs.length, 4, "one tab per HOME_SORTS key");
+    assert.equal(tabs.length, 5, "one tab per HOME_SORTS key");
     const pressed = tabs.filter((t) => t.includes('aria-pressed="true"'));
     assert.equal(pressed.length, 1, "exactly one active tab");
     assert.ok(pressed[0].includes("비용순"), "monthly tab is active");

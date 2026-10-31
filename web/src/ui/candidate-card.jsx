@@ -140,6 +140,11 @@ export function commuteRowLine(candidate, destName) {
   void destName;
   if (rideKnown && walkKnown) {
     const total = Math.round(c.walk.minutes + c.ride.minutes);
+    // 36a: neighbourhood-spread candidates name the origin pair first.
+    if (candidate.origin && candidate.origin.label_ko) {
+      return { text: `${candidate.origin.label_ko} 총 ${total}분 · ${c.walk.station}역 걸어서 ${near(c.walk.minutes)} + 지하철 ${Math.round(c.ride.minutes)}분`,
+        estimate: src === "estimate", source: src };
+    }
     return { text: `총 ${total}분 · ${c.walk.station}역 걸어서 ${near(c.walk.minutes)} + 지하철 ${Math.round(c.ride.minutes)}분`,
       estimate: src === "estimate", source: src };
   }
