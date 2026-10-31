@@ -615,37 +615,53 @@ export function actionConfirmation(toolResults, opts = {}) {
 // price-forecast question and no tool produced numbers, answer the
 // polite refusal instead of the "no numbers" line (which reads broken).
 export function numbersOnlyAnswer(toolResults, opts = {}) {
-  const lines = ["도구 결과의 수치만 정리합니다 (가정값 포함):"];
+  // 36i: { lang: "en" } reuses the same formatters with English labels
+  // for the fixed words; no new numbers are added.
+  const en = !!opts && opts.lang === "en";
+  const L = {
+    graph: en ? "graph" : "그래프",
+    assumed: en ? "assumed" : "가정값",
+    total: en ? "total" : "합계",
+    purchase: en ? "purchase" : "매매",
+    jeonse: en ? "jeonse" : "전세",
+    deals: en ? "deals" : "건",
+    realDeals: en ? "real deals" : "실거래",
+    home: en ? "home" : "홈",
+  };
+  const dealCount = (n) => (en ? `${n} deals` : `${n}건`);
+  const lines = [en
+    ? "I checked a lot and stopped here. Numbers the tools returned (assumptions included):"
+    : "도구가 낸 수치만 정리했어요 (가정값 포함):"];
   for (const r of toolResults || []) {
     if (!r || typeof r !== "object") continue;
     if (r.compare && Array.isArray(r.compare.metrics)) {
       for (const m of r.compare.metrics) {
         const fmt = m.unit === "minutes" ? fmtMinutes : m.unit === "metres" ? fmtDistance
-          : m.unit === "index" ? ((n) => (n === null ? "–" : String(n))) : (n) => `${n}회`;
-        const src = m.source === "graph" ? "그래프" : "가정값";
+          : m.unit === "index" ? ((n) => (n === null ? "–" : String(n))) : ((n) => (en ? `${n} times` : `${n}회`));
+        const src = m.source === "graph" ? L.graph : L.assumed;
         lines.push(`- ${m.label}: A ${fmt(m.a)} / B ${fmt(m.b)} (Δ ${fmt(m.delta_b_minus_a)}, ${src})`);
       }
     } else if (r.summary && r.summary.totals) {
       const t = r.summary.totals;
-      lines.push(`- ${r.home || "홈"} 합계: 걸어서 ${fmtMinutes(t.walk_minutes)}/${fmtDistance(t.walk_distance_m)}, 장보기 ${t.errands_done}번, 산책 ${t.park_visits}번`);
+      lines.push(`- ${r.home || L.home} ${L.total}: 걸어서 ${fmtMinutes(t.walk_minutes)}/${fmtDistance(t.walk_distance_m)}, 장보기 ${t.errands_done}번, 산책 ${t.park_visits}번`);
     } else if (Array.isArray(r.trips)) {
       for (const t of r.trips.slice(0, 12)) {
         lines.push(`- ${t.depart}→${t.arrive} ${t.from}→${t.to} ${fmtMinutes(t.minutes)}(${fmtDistance(t.distance_m)})`);
       }
     } else if (Array.isArray(r.places)) {
       for (const p of r.places.slice(0, 8)) {
-        lines.push(`- ${p.name}: ${fmtMinutes(p.minutes)}(${fmtDistance(p.distance_m)}, 그래프)`);
+        lines.push(`- ${p.name}: ${fmtMinutes(p.minutes)}(${fmtDistance(p.distance_m)}, ${L.graph})`);
       }
     } else if (r.reference && (r.reference.trade || r.reference.jeonse)) {
       const ref = r.reference;
       if (ref.trade && ref.trade.count > 0) {
-        lines.push(`- ${r.complex} 매매 ${r.area_m2}㎡: 중간 ${fmtWon(ref.trade.median)} (${fmtWon(ref.trade.p25)}~${fmtWon(ref.trade.p75)}, ${ref.trade.count}건, 실거래)`);
+        lines.push(`- ${r.complex} ${L.purchase} ${r.area_m2}㎡: 중간 ${fmtWon(ref.trade.median)} (${fmtWon(ref.trade.p25)}~${fmtWon(ref.trade.p75)}, ${dealCount(ref.trade.count)}, ${L.realDeals})`);
       }
       if (ref.jeonse && ref.jeonse.count > 0) {
-        lines.push(`- ${r.complex} 전세 ${r.area_m2}㎡: 보증금 중간 ${fmtWon(ref.jeonse.deposit.median)} (${ref.jeonse.count}건, 실거래)`);
+        lines.push(`- ${r.complex} ${L.jeonse} ${r.area_m2}㎡: 보증금 중간 ${fmtWon(ref.jeonse.deposit.median)} (${dealCount(ref.jeonse.count)}, ${L.realDeals})`);
       }
       if (ref.wolse && ref.wolse.count > 0) {
-        lines.push(`- ${r.complex} 월세 ${r.area_m2}㎡: 보증금 중간 ${fmtWon(ref.wolse.deposit.median)} / 월 ${fmtWon(ref.wolse.monthly.median)} (${ref.wolse.count}건, 실거래)`);
+        lines.push(`- ${r.complex} 월세 ${r.area_m2}㎡: 보증금 중간 ${fmtWon(ref.wolse.deposit.median)} / 월 ${fmtWon(ref.wolse.monthly.median)} (${dealCount(ref.wolse.count)}, ${L.realDeals})`);
       }
     } else if (r.timeline && r.housing) {
       lines.push(`- ${r.home} ${r.tenure}: 실수령 ${fmtWon(r.monthly_net_won, { monthly: true })}, 매달 집에 드는 돈 ${fmtWon(r.housing.monthly_won, { monthly: true })}, 월급에서 집에 나가는 비율 ${r.timeline.burden_ratio === null ? "–" : fmtPct(r.timeline.burden_ratio)}, 집값과 생활비를 내고 남는 돈 ${fmtWon(r.timeline.remaining_won, { monthly: true })}`);
@@ -654,7 +670,7 @@ export function numbersOnlyAnswer(toolResults, opts = {}) {
     } else if (Array.isArray(r.candidates) && r.candidates[0] && r.candidates[0].tenures) {
       for (const c of r.candidates.slice(0, 5)) {
         const t = c.tenures[0] || {};
-        lines.push(`- ${c.name}(${c.kind} ${t.bucket_center_m2 || "?"}㎡): 중간 ${fmtWon(t.median_won)} (${t.deals || 0}건, 실거래) · ${c.commute_ko || ""}`);
+        lines.push(`- ${c.name}(${c.kind} ${t.bucket_center_m2 || "?"}㎡): 중간 ${fmtWon(t.median_won)} (${dealCount(t.deals || 0)}, ${L.realDeals}) · ${c.commute_ko || ""}`);
       }
     } else if (Array.isArray(r.candidates)) {
       for (const c of r.candidates.slice(0, 5)) {
@@ -666,7 +682,7 @@ export function numbersOnlyAnswer(toolResults, opts = {}) {
     } else if (Array.isArray(r.rides)) {
       for (const ride of r.rides.slice(0, 2)) {
         if (!ride.out) {
-          lines.push(`- ${ride.stay || "승차"}: ${ride.note || ""} (${ride.ride_minutes}분 가정값)`.trim());
+          lines.push(`- ${ride.stay || "승차"}: ${ride.note || ""} (${ride.ride_minutes}분 ${L.assumed})`.trim());
           continue;
         }
         for (const [dir, ride_] of [["출근", ride.out], ["퇴근", ride.back]]) {
@@ -683,22 +699,22 @@ export function numbersOnlyAnswer(toolResults, opts = {}) {
         lines.push(`- ${r.day}일차: 시작 ${d.start} → 끝 ${d.end}, 최고 ${d.peak} (가정으로 계산한 값)`);
       }
     } else if (r.persona && r.summary) {
-      lines.push(`- 상황: ${r.summary} (가정값)`);
+      lines.push(`- 상황: ${r.summary} (${L.assumed})`);
     } else if (r.weights && typeof r.weights === "object") {
       const w = r.weights;
       lines.push(`- 고객님이 정한 비중: 교육 ${w.edu} · 생활 ${w.life} · 치안 ${w.safety} · 돈 ${w.money} · 생활 편의 ${w.convenience} (0–5)`);
     } else if (Array.isArray(r.groups) && r.column) {
-      lines.push(`- ${r.column} 발생 ${r.total}건 (${r.source}, ${r.period}, ${r.geo_level_ko})`);
+      lines.push(`- ${r.column} 발생 ${dealCount(r.total)} (${r.source}, ${r.period}, ${r.geo_level_ko})`);
       for (const g of r.groups.slice(0, 15)) {
-        lines.push(`  · ${g.cat1} ${g.count}건`);
+        lines.push(`  · ${g.cat1} ${dealCount(g.count)}`);
       }
       lines.push("  · 기록된 곳 기준 발생 건수이며 거주자의 위험도가 아닙니다. 점수·순위·등급을 매기지 않습니다.");
     } else if (r.access && r.access.counts) {
       const c10 = r.access.counts.within_10min || {};
-      lines.push(`- ${r.complex} 10분 안: 초등 ${c10.school_elementary ?? 0} · 중 ${c10.school_middle ?? 0} · 고 ${c10.school_high ?? 0} · 유치원 ${c10.kindergarten ?? 0} · 학원 ${c10.academy ?? 0} (그래프, OSM)`);
+      lines.push(`- ${r.complex} 10분 안: 초등 ${c10.school_elementary ?? 0} · 중 ${c10.school_middle ?? 0} · 고 ${c10.school_high ?? 0} · 유치원 ${c10.kindergarten ?? 0} · 학원 ${c10.academy ?? 0} (${L.graph}, OSM)`);
       for (const [bucket, ko] of [["school", "학교"], ["academy", "학원"], ["library", "도서관"]]) {
         const near = (r.access.nearest || {})[bucket] || [];
-        if (near[0]) lines.push(`  · 가장 가까운 ${ko}: ${near[0].name} ${fmtMinutes(near[0].minutes)} (그래프)`);
+        if (near[0]) lines.push(`  · 가장 가까운 ${ko}: ${near[0].name} ${fmtMinutes(near[0].minutes)} (${L.graph})`);
       }
       for (const s of (r.school_routes || []).slice(0, 2)) {
         if (s.route === null) lines.push(`  · 등교 이동 없음 (${s.note})`);
@@ -727,7 +743,7 @@ export function numbersOnlyAnswer(toolResults, opts = {}) {
           if (!pos || pos.computable !== true) {
             lines.push(`- ${key}: ${pos && pos.note ? pos.note : "비교할 실거래가 적어요."}`);
           } else {
-            lines.push(`- ${key} ${fmtWon(pos.asking_won)}: ${pos.band_text} (한가운데 ${fmtWon(pos.median_won)}, ${pos.n}건)`);
+            lines.push(`- ${key} ${fmtWon(pos.asking_won)}: ${pos.band_text} (한가운데 ${fmtWon(pos.median_won)}, ${dealCount(pos.n)})`);
           }
         }
         if (r.ratio && r.ratio.computable) {
@@ -737,9 +753,9 @@ export function numbersOnlyAnswer(toolResults, opts = {}) {
       }
     } else if (r.ratio && (r.ratio.computable === true || r.ratio.computable === false)) {
       if (!r.ratio.computable) {
-        lines.push(`- ${r.complex} 보증금이 집값의 몇 %인지: 매매 거래가 적어 계산하기 어려워요 (매매 ${r.ratio.trade.count}건 · 전세 ${r.ratio.jeonse.count}건)`);
+        lines.push(`- ${r.complex} 보증금이 집값의 몇 %인지: 매매 거래가 적어 계산하기 어려워요 (매매 ${dealCount(r.ratio.trade.count)} · 전세 ${dealCount(r.ratio.jeonse.count)})`);
       } else {
-        lines.push(`- ${r.complex} 보증금이 집값의 ${r.ratio.ratio_pct}% (${r.ratio.band.label}, 매매 ${r.ratio.trade.count}건 · 전세 ${r.ratio.jeonse.count}건, 실거래)`);
+        lines.push(`- ${r.complex} 보증금이 집값의 ${r.ratio.ratio_pct}% (${r.ratio.band.label}, 매매 ${dealCount(r.ratio.trade.count)} · 전세 ${dealCount(r.ratio.jeonse.count)}, ${L.realDeals})`);
       }
     } else if (r.path_ko && r.deposit_won && r.label === "모의 시나리오") {
       lines.push(`- 모의(${r.path_ko}): 보증금 ${fmtWon(r.deposit_won)} 중 ${fmtWon(r.recovery_won)} 돌려받고, ${fmtWon(r.short_won)} 못 받음 (${r.locked_note}) 법률 자문이 아닙니다.`);
@@ -762,6 +778,10 @@ export function numbersOnlyAnswer(toolResults, opts = {}) {
   if (lines.length === 1) {
     if (forecastQuestion(opts.userText || "")) {
       return priceForecastReply(opts.complex || null);
+    }
+    // 36i: English mode never shows the Korean fallback.
+    if (en) {
+      return "I couldn't finish an answer this time. Try a narrower question, or widen the budget, size or area.";
     }
     lines.push("- 이번 대화의 도구 결과에 수치가 없어요. 조건을 정하면 상담이 다시 실행해 드려요.");
   }

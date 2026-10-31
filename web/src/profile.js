@@ -177,6 +177,10 @@ function findMoney(text) {
     hits.push({ index: m.index, evidence: m[0], kind: "ko" });
   }
   while ((m = enRe.exec(src)) !== null) {
+    // 36i: a number directly followed by an area unit is never money
+    // ("50 m²", "59 m2", "50 sqm") — "300m won" stays money.
+    if (/[mM]$/.test(m[0])
+      && /^(?:²|\^2|2|\s*sq)/i.test(src.slice(m.index + m[0].length))) continue;
     hits.push({ index: m.index, evidence: m[0], kind: "en" });
   }
   hits.sort((a, b) => a.index - b.index || b.evidence.length - a.evidence.length);
@@ -482,6 +486,57 @@ function nearMoney(text, anchorRe, monies, window = 14, boundedBefore = false) {
   return best ? { ...best, anchor: m[0] } : null;
 }
 
+// 36i: a list of amounts after one salary anchor reads as one amount
+// per member, in order ("연봉은 6천, 5천", "salaries are ₩60M and
+// ₩50M", "₩60M and ₩50M a year"). Amounts joined only by short
+// separators (,, ·, /, and, &, 이랑, 하고, 과/와) chain together; all
+// of them are claimed, so none becomes the price, deposit or cap.
+const SALARY_LIST_SEP = /^(?:\s*(?:,|·|・|\/|&|and|이랑|하고|과|와)\s*)+$/i;
+const SALARY_ANCHORS = [/연봉|세전|급여/,
+  /(?<!-)(?:salaries|salary|earn|make|income)(?!-)/i,
+  /\b(?:a year|per year|annual(?:ly)?)\b/i];
+function salaryListAfterAnchor(text, monies) {
+  const src = String(text || "");
+  let anchor = null;
+  for (const re of SALARY_ANCHORS) {
+    const m = re.exec(src);
+    if (m && (!anchor || m.index < anchor.index)) anchor = m;
+  }
+  if (!anchor) return null;
+  const at = anchor.index;
+  const end = at + anchor[0].length;
+  const occ = [];
+  let cursor = 0;
+  for (const money of monies) {
+    const pos = src.indexOf(money.evidence, cursor);
+    if (pos < 0) continue;
+    occ.push({ money, pos, end: pos + money.evidence.length });
+    cursor = pos + money.evidence.length;
+  }
+  let best = -1;
+  let bestKey = Infinity;
+  occ.forEach((o, i) => {
+    const d = o.pos >= end ? o.pos - end : at - o.end;
+    if (d < 0 || d > 24) return;
+    const key = (o.pos >= end ? 0 : 10000) + d;
+    if (key < bestKey) { bestKey = key; best = i; }
+  });
+  if (best < 0) return null;
+  let lo = best;
+  let hi = best;
+  while (lo - 1 >= 0) {
+    const gap = src.slice(occ[lo - 1].end, occ[lo].pos);
+    if (gap.length > 6 || !SALARY_LIST_SEP.test(gap)) break;
+    lo--;
+  }
+  while (hi + 1 < occ.length) {
+    const gap = src.slice(occ[hi].end, occ[hi + 1].pos);
+    if (gap.length > 6 || !SALARY_LIST_SEP.test(gap)) break;
+    hi++;
+  }
+  return occ.slice(lo, hi + 1);
+}
+
 export function extract_profile(text, current = null, opts = {}) {
   const src = String(text || "");
   const profile = current ? clone(current) : emptyProfile();
@@ -519,19 +574,35 @@ export function extract_profile(text, current = null, opts = {}) {
   const salaryHit = nearMoney(src, /연봉|세전|급여/, krwMonies)
     // 36d2: "dual-income" names the household, not a salary — the
     // English anchor never matches inside a hyphenated compound.
-    || nearMoney(src, /(?<!-)(?:salary|earn|make|income)(?!-)/i, krwMonies, 24)
+    // 36i: the English anchor also matches "salaries".
+    || nearMoney(src, /(?<!-)(?:salaries|salary|earn|make|income)(?!-)/i, krwMonies, 24)
     || (/(신입|초봉).*?(4천|3천|5천)/.test(src) ? null : null);
   const cashHit = nearMoney(src, /모은\s*돈|모은돈|보유|현금|수중|마련|종잣돈/, krwMonies, 20)
     || nearMoney(src, /savings|saved|cash|in the bank/i, krwMonies, 24);
+  // 36i: a list after one salary anchor is one amount per member, in
+  // order; a second anchor for the partner sets the second pay.
+  const salaryChain = salaryListAfterAnchor(src, krwMonies);
+  const salaryWons = salaryChain && salaryChain.length > 0
+    ? salaryChain.map((o) => o.money.won)
+    : salaryHit ? [salaryHit.won] : [];
+  const salaryEvidence = salaryChain && salaryChain.length > 0
+    ? src.slice(salaryChain[0].pos, salaryChain[salaryChain.length - 1].end)
+    : salaryHit ? salaryHit.evidence : null;
+  const partnerHit = salaryWons.length > 0
+    ? nearMoney(src, /(?:\bpartner\b|\bspouse\b|\bhusband\b|\bwife\b|배우자|아내|남편)/i,
+        krwMonies.filter((h) => !salaryWons.includes(h.won)
+          && !(cashHit && h.won === cashHit.won)), 24)
+    : null;
+  if (partnerHit) salaryWons.push(partnerHit.won);
   // English budget cues ("under 200M won") also mark the deposit —
   // never an amount already read as the salary or the savings.
   const claimedWon = new Set(
-    [salaryHit, cashHit].filter(Boolean).map((h) => h.won));
+    [...salaryWons, cashHit && cashHit.won].filter((v) => Number.isFinite(v)));
   // 36d: money already read as the salary or the savings never doubles
   // as a price / deposit / monthly cap — those hits read the rest.
   const freeMonies = krwMonies.filter((h) => !claimedWon.has(h.won));
   const depositCueHit = nearMoney(src,
-    /under|up to|at most|no more than|max(?:imum)?|budget(?: of| is)?/i,
+    /under|up to|at most|no more than|max(?:imum)?|budget(?: of| is)?|or less/i,
     freeMonies, 12);
   const depositHit = nearMoney(src, /전세/, freeMonies)
     || nearMoney(src, /보증금/, freeMonies)
@@ -581,11 +652,13 @@ export function extract_profile(text, current = null, opts = {}) {
 
   // Salary: "연봉 4천" anchor; bare "4천" with 연봉 nearby also counts
   // because nearMoney already requires the anchor word.
-  if (salaryHit && profile.salaryAnnual.value === null) {
+  if (salaryWons.length > 0 && profile.salaryAnnual.value === null) {
     const n = (profile.members.value || []).length || 1;
     set("salaryAnnual",
-      Array.from({ length: n }, () => salaryHit.won),
-      salaryHit.evidence, "세전 연봉이에요. 실수령은 따로 계산해요.");
+      salaryWons.length > 1 ? salaryWons.slice()
+        : Array.from({ length: n }, () => salaryWons[0]),
+      partnerHit ? `${salaryEvidence} · ${partnerHit.evidence}` : salaryEvidence,
+      "세전 연봉이에요. 실수령은 따로 계산해요.");
   }
   if (cashHit && profile.cash.value === null) {
     set("cash", cashHit.won, cashHit.evidence, "모은 돈");
@@ -627,8 +700,13 @@ export function extract_profile(text, current = null, opts = {}) {
   }
   if (priceHit && profile.priceMax.value === null) {
     set("priceMax", priceHit.won, priceHit.evidence, "매매가 상한");
+  } else if (!priceHit && tenureNow === "trade" && depositCueHit
+      && profile.priceMax.value === null) {
+    // 36i: a budget/under cue with a buying tenure reads as the
+    // price cap ("budget ₩600M", "under 900M won").
+    set("priceMax", depositCueHit.won, depositCueHit.evidence, "매매가 상한");
   } else if (!priceHit && tenureNow === "trade" && krwMonies.length > 0
-      && profile.priceMax.value === null && !salaryHit) {
+      && profile.priceMax.value === null && salaryWons.length === 0) {
     // "매매 5억" without the price anchor nearby is still the price
     // when no other money reading consumed it — but only with the
     // 매매 anchor present (guarded by evidence below).
