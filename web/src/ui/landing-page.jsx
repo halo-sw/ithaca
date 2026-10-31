@@ -13,10 +13,10 @@ import { PoweredByMuse, MUSE_LOGO_PATH } from "./powered-by-muse.jsx";
 import { IthacaLogo } from "./ithaca-logo.jsx";
 
 const NOTICE = "지금은 서울 동남권과 분당·판교·수지 11곳에서 시작했어요";
-const HERO_PLACEHOLDER = "판교 출근인데 전세 2억 이하로 혼자 살 집 찾아 줘";
-const COMPOSER_FILL = "판교로 출근해요. 전세로 혼자 살 집 찾아 줘";
+const HERO_PLACEHOLDER = "판교 출근, 모은 돈 1억, 4억 이하 매매로 혼자 살 집 찾아 줘";
+const COMPOSER_FILL = "판교로 출근해요. 혼자 살 집을 매매로 찾아 줘";
 const NIGHT_PROMPT = "판교 출근 집 두 곳에서 30일 살아 보고 밤 10시 이후 귀가를 보여 줘";
-const HOOD_PROMPT = "미금역 근처 전세 찾아 주고 동네를 보여 줘";
+const HOOD_PROMPT = "미금역 근처 매매 찾아 주고 동네를 보여 줘";
 const META_HQ_PROMPT = META_HQ_EXAMPLE;
 
 export function replayIdForLang(lang) {
@@ -66,7 +66,7 @@ const NUMBERS = [
 
 const USE_CASES = [
   { img: "uc-first-job", title: "판교 출근 신입의 첫 자취",
-    line: "미금역 7분, 전세 실거래로 좁혀요", prompt: EXAMPLE_PROMPTS[0].prompt },
+    line: "미금역 7분, 매매 실거래로 좁혀요", prompt: EXAMPLE_PROMPTS[0].prompt },
   { img: "uc-couple", title: "결혼 앞둔 두 사람의 비교",
     line: "돈·출근·확인할 것을 나란히", prompt: EXAMPLE_PROMPTS[1].prompt },
   { img: "uc-night", title: "밤 귀갓길이 걱정될 때",

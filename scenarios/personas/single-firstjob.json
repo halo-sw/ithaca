@@ -60,16 +60,16 @@
     }
   ],
   "money": {
-    "_note": "PLACEHOLDER (가정값): 연봉 3,600만 · 보유현금 2,000만 · 대출금리 4.0% · A 59.97㎡ · B 84.82㎡ · both 전세. Small first-job budget on purpose.",
+    "_note": "PLACEHOLDER (가정값): 연봉 3,600만 · 보유현금 1억 · 매매가 상한 4억 · 대출금리 4.0% · A 59.97㎡ · B 84.82㎡ · both 매매. Small first-job budget on purpose.",
     "members": {
       "m1": {
         "annual_salary_won": 36000000
       }
     },
-    "cash_won": 20000000,
+    "cash_won": 100000000,
     "tenure": {
-      "A": "전세",
-      "B": "전세"
+      "A": "매매",
+      "B": "매매"
     },
     "area_m2": {
       "A": 59.97,

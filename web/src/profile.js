@@ -452,6 +452,10 @@ function nearMoney(text, anchorRe, monies, window = 14) {
     for (;;) {
       const hit = text.indexOf(money.evidence, from);
       if (hit < 0) break;
+      if (hit > 0 && /\d/.test(text[hit - 1])) {
+        from = hit + 1;
+        continue;
+      }
       const d = hit >= end ? hit - end : at - (hit + money.evidence.length);
       if (d >= 0 && d < dist) {
         dist = d;
@@ -581,8 +585,13 @@ export function extract_profile(text, current = null, opts = {}) {
       || (usPlace && usPlace.evidence);
     if (usEv) set("tenure", "wolse", usEv, "미국 자료는 월세만 있어요");
   }
-  if (tenure && profile.tenure.value === null) {
+  if (tenure && (profile.tenure.value === null || profile.tenure.source === "default")) {
     set("tenure", tenure.key, tenure.evidence, TENURE_KO[tenure.key]);
+  }
+  if (!isUsd && profile.tenure.value === null && !tenure) {
+    profile.tenure = {
+      ...field("trade", "default", "기본: 매매(집 사기)"), evidence: null,
+    };
   }
   const tenureNow = profile.tenure.value;
   if (depositHit && (tenureNow === "jeonse" || tenureNow === "wolse" || tenureNow === "public")
@@ -678,7 +687,14 @@ export function missingQuestions(profile) {
     out.push({ field: "workplaces", ask: "직장은 어디쯤이세요? (가까운 역 이름으로 알려주세요)" });
   }
   const tenure = v("tenure");
-  if (!tenure) {
+  if ((!tenure || tenure === "trade") && !isUsd) {
+    if (v("priceMax") === null) {
+      out.push({ field: "priceMax", ask: "집값은 얼마까지 보세요? (예: 9억 이하)" });
+    }
+    if (v("cash") === null) {
+      out.push({ field: "cash", ask: "집 사는 데 쓸 수 있는 모은 돈은 얼마예요? (대출 계산에 써요)" });
+    }
+  } else if (!tenure) {
     out.push({ field: "tenure", ask: "전세·월세·매매·공공임대 중 어떻게 살고 싶으세요?" });
   } else if (tenure === "jeonse" || tenure === "wolse" || tenure === "public") {
     if (v("depositMax") === null && !isUsd) {
@@ -688,10 +704,6 @@ export function missingQuestions(profile) {
       out.push(isUsd
         ? { field: "monthlyMax", ask: "한 달 월세는 얼마까지 생각하세요? (예: $4,000 이하)" }
         : { field: "monthlyMax", ask: "월세는 매달 얼마까지 내실 수 있어요?" });
-    }
-  } else if (tenure === "trade") {
-    if (v("priceMax") === null) {
-      out.push({ field: "priceMax", ask: "집값은 얼마까지 보세요? (예: 5억 이하)" });
     }
   }
   if (v("sizeMin") === null && !isUsd) {
@@ -1004,12 +1016,12 @@ export function exampleProfile() {
       "customer", "예시: 판교로 출근"),
     salaryAnnual: field([40000000, 36000000], "customer", "예시 연봉(세전)"),
     takehomeMonthly: field(null, "asked", ""),
-    cash: field(50000000, "customer", "예시: 모은 돈 5천"),
+    cash: field(300000000, "customer", "예시: 모은 돈 3억"),
     debts: field(0, "customer", "예시: 빚 없음"),
-    tenure: field("jeonse", "customer", "예시: 전세"),
-    depositMax: field(300000000, "customer", "예시: 전세 3억 이하"),
+    tenure: field("trade", "customer", "예시: 매매"),
+    depositMax: field(null, "asked", ""),
     monthlyMax: field(null, "asked", ""),
-    priceMax: field(null, "asked", ""),
+    priceMax: field(900000000, "customer", "예시: 9억 이하"),
     sizeMin: field(59, "customer", "예시: 59㎡ 이상"),
     commuteMax: field(60, "customer", "예시: 편도 60분까지"),
     priorities: field({ edu: 3, life: 3, safety: 3, money: 3, convenience: 3 },

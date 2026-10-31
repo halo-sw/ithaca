@@ -3443,7 +3443,7 @@ export const EMPTY_STARTERS = [
   { id: "example", label: "예시로 써 보기" },
 ];
 
-const EMPTY_FIND_TEXT = "판교로 출근해요. 전세 2억 이하로 혼자 살 집 찾아 줘";
+const EMPTY_FIND_TEXT = "판교 출근, 모은 돈 1억, 4억 이하 매매로 혼자 살 집 찾아 줘";
 const META_HQ_TEXT = META_HQ_EXAMPLE;
 
 // 26w: an example card sends its prompt as the first message, the same

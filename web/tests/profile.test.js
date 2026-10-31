@@ -68,10 +68,12 @@ describe("extract_profile", () => {
     const r = extract_profile("그냥 구경 중이에요", null, { stations: STATIONS });
     assert.equal(r.ok, true);
     for (const key of ["salaryAnnual", "cash", "depositMax", "monthlyMax",
-      "priceMax", "workplaces", "members", "tenure"]) {
+      "priceMax", "workplaces", "members"]) {
       assert.equal(r.profile[key].value, null, key);
       assert.equal(r.profile[key].source, "asked", key);
     }
+    assert.equal(r.profile.tenure.value, "trade", "buying default");
+    assert.equal(r.profile.tenure.source, "default", "buying default");
     assert.ok(r.asked.length <= 2);
     assert.ok(r.asked.length >= 1);
   });
@@ -91,10 +93,10 @@ describe("extract_profile", () => {
 });
 
 describe("missingQuestions", () => {
-  it("orders household, workplace, tenure+budget first", () => {
+  it("orders household, workplace, buying budget first", () => {
     const qs = missingQuestions(emptyProfile());
     assert.deepEqual(qs.slice(0, 3).map((q) => q.field),
-      ["members", "workplaces", "tenure"]);
+      ["members", "workplaces", "priceMax"]);
     assert.ok(qs.every((q) => typeof q.ask === "string" && q.ask.length > 5));
   });
 
@@ -164,7 +166,7 @@ describe("example profile", () => {
       assert.ok(p[key] && typeof p[key] === "object", key);
       assert.ok(["customer", "default", "derived", "asked"].includes(p[key].source), key);
     }
-    assert.equal(TENURE_KO[p.tenure.value], "전세");
+    assert.equal(TENURE_KO[p.tenure.value], "매매");
   });
 
   it("engine defaults are labelled constants only", () => {
