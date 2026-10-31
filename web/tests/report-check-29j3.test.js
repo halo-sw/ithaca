@@ -95,7 +95,7 @@ describe("29j3 verifyHomeFor", () => {
       verifyHomeFor({ homes: { A: { by_tenure: { 전세: { housing: { monthly_won: 500000 } } } } },
         default_tenure: { A: "전세" },
         assumptions: { maintenance_won_month: 100000 } }, "A"),
-      { monthly_won: 500000, maintenance_won_month: 100000 });
+      { monthly_won: 500000, maintenance_won_month: 100000, tenure: "jeonse" });
     assert.deepEqual(verifyHomeFor(null, "A"), {});
     assert.deepEqual(verifyHomeFor({}, "A"), {});
   });

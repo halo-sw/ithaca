@@ -176,10 +176,28 @@ export function reportDigest({ runs, labels, homes, persona, groundTruth, names 
           const v = engineValue(it.id, runs[label],
             { home: homes[label] });
           if (it.id === "C02" && v && typeof v === "object") {
-            const usd = homes[label] && homes[label].currency === "USD";
-            values[label] = { ...v,
-              meaning_ko: usd ? "ZIP 평균 월세(Zillow), 관리비 없음" : "월세·관리비를 더한 한 달 금액",
-              meaning_en: usd ? "typical monthly rent for the ZIP (Zillow), no fees" : "rent plus maintenance for one month" };
+            const home = homes[label] || {};
+            const usd = home.currency === "USD";
+            const tenure = home.tenure;
+            let meaning_ko;
+            let meaning_en;
+            if (usd) {
+              meaning_ko = "ZIP 평균 월세(Zillow), 관리비 없음";
+              meaning_en = "typical monthly rent for the ZIP (Zillow), no fees";
+            } else if (tenure === "trade") {
+              meaning_ko = "대출 상환·관리비·공과금을 더한 한 달 금액";
+              meaning_en = "loan payment plus maintenance and utilities for one month";
+            } else if (tenure === "jeonse") {
+              meaning_ko = "관리비·공과금을 더한 한 달 금액 (전세는 월세 없음)";
+              meaning_en = "maintenance and utilities for one month (jeonse has no rent)";
+            } else if (tenure === "wolse" || tenure === "public") {
+              meaning_ko = "월세·관리비·공과금을 더한 한 달 금액";
+              meaning_en = "rent plus maintenance and utilities for one month";
+            } else {
+              meaning_ko = "집에 드는 한 달 금액 (관리비·공과금 포함)";
+              meaning_en = "monthly housing cost incl. maintenance and utilities";
+            }
+            values[label] = { ...v, meaning_ko, meaning_en };
           } else {
             values[label] = v;
           }

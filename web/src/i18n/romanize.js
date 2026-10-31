@@ -96,11 +96,19 @@ export const NAMES = {
   장지: "Jangji",
 };
 
+const SEG_SEP = /(→|·|\/|-)/g;
+
+function romanizeSegment(seg) {
+  if (Object.hasOwn(NAMES, seg)) return NAMES[seg];
+  const r = romanizeWord(seg);
+  return r.charAt(0).toUpperCase() + r.slice(1);
+}
+
 export function romanize(text) {
-  return String(text).split(" ").map((w) => {
-    const r = romanizeWord(w);
-    return r.charAt(0).toUpperCase() + r.slice(1);
-  }).join(" ");
+  return String(text).split(" ").map((w) => w.split(SEG_SEP).map((part) =>
+    (part === "" || part === "→" || part === "·" || part === "/" || part === "-")
+      ? part
+      : romanizeSegment(part)).join("")).join(" ");
 }
 
 // 29L6: trailing building-type parts read as English words, longest
