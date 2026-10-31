@@ -1,0 +1,13 @@
+{
+ "hook": "In Seoul, people often sign a two-year jun-say lease after one short viewing. What if you could live there first?",
+ "korea": "Ithaca started from that problem. What you're seeing is a real run with Muse Spark one point three.",
+ "pitch": "Ithaca is a pre-living agent. An AI household lives thirty days in the homes you pick, before you sign.",
+ "ask": "You describe your situation in plain words. Muse reads it, and calls real tools: your profile, real homes, and the map.",
+ "candidates": "The candidates come from the government's real transaction records. Each price is the median of recent jun-say deals.",
+ "live": "Pick two. Muse lives thirty days in each home, with the same household and the same random seed. There's no ranking, and no winner.",
+ "days": "Every trip is simulated minute by minute: real walking routes, the subway timetable, and measured crowding. Each line says whether it's measured or assumed.",
+ "results": "After thirty days, you see what it costs, how long the commute really is, and what living there showed. The score follows your own criteria. It's never a verdict.",
+ "verify": "Muse writes the report. Code re-checks every number, and Muse judges the evidence again. Tap any moment, and the three-D view opens at the minute it happened.",
+ "meta": "Ithaca is built with Meta AI. Muse Spark one point three talks with you and makes the household's choices. Spark Open made the same choice in eighty-six percent of shared decisions. And Muse Code wrote every line of product code.",
+ "end": "We walk the odyssey. You just come home."
+}

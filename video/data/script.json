@@ -1,12 +1,12 @@
 {
-  "_note": "Draft v2.0 (2026-11-01). English UI on the Seoul scenario, per the user. The orchestrator writes and the user approves the words; Muse builds the scenes from this file and never rewrites the copy. Times in seconds at 30 fps. `asset` paths are under video/public/. {stat:key} reads data/stats.json; a null stat drops the whole line.",
+  "_note": "Draft v2.1 (narrated) (2026-11-01). English UI on the Seoul scenario, per the user. The orchestrator writes and the user approves the words; Muse builds the scenes from this file and never rewrites the copy. Times in seconds at 30 fps. `asset` paths are under video/public/. {stat:key} reads data/stats.json; a null stat drops the whole line.",
   "fps": 30,
   "width": 1920,
   "height": 1080,
   "scenes": [
     {
       "id": "hook",
-      "duration": 7,
+      "duration": 8.5,
       "kind": "title",
       "lines_en": [
         "In Seoul, a two-year jeonse lease is often signed after one short viewing.",
@@ -17,23 +17,23 @@
     },
     {
       "id": "korea",
-      "duration": 6,
+      "duration": 8.0,
       "kind": "screen",
       "asset": "clips/10-seoul-en.mp4",
       "clip_from": 0,
       "caption_en": "Ithaca started from Seoul's jeonse problem. What follows is a real run with Muse Spark 1.3, sped up in places.",
-      "start": 7
+      "start": 8.5
     },
     {
       "id": "pitch",
-      "duration": 6,
+      "duration": 9.0,
       "kind": "title",
       "image": "brand/ithaca-banner.png",
       "lines_en": [
         "An AI household lives 30 days in the homes you pick, before you sign."
       ],
       "lines_ko": [],
-      "start": 13
+      "start": 16.5
     },
     {
       "id": "ask",
@@ -61,7 +61,7 @@
           "text_en": "Each step Muse takes is shown"
         }
       ],
-      "start": 19
+      "start": 25.5
     },
     {
       "id": "candidates",
@@ -88,7 +88,7 @@
           "text_en": "Price = median of recent real jeonse deals"
         }
       ],
-      "start": 31
+      "start": 37.5
     },
     {
       "id": "live",
@@ -104,19 +104,19 @@
           "text_en": "No ranking, no winner"
         }
       ],
-      "start": 41
+      "start": 47.5
     },
     {
       "id": "days",
-      "duration": 8,
+      "duration": 12.0,
       "kind": "screen",
       "asset": "clips/11-3d-commute-en.mp4",
-      "clip_from": 0.5,
+      "clip_from": 0,
       "caption_en": "Every trip is simulated minute by minute: real walking routes, the subway timetable, measured crowding.",
       "zooms": [
         {
           "at": 2.5,
-          "until": 8,
+          "until": 11.5,
           "rect": [
             0.72,
             0.1,
@@ -131,7 +131,8 @@
           "text_en": "Measured or assumed: every line says which"
         }
       ],
-      "start": 53
+      "start": 59.5,
+      "playback_rate": 0.5
     },
     {
       "id": "results",
@@ -158,7 +159,7 @@
           "text_en": "A score on your own criteria, never a verdict"
         }
       ],
-      "start": 61
+      "start": 71.5
     },
     {
       "id": "verify",
@@ -189,11 +190,11 @@
           "text_en": "Day 1, 07:54, in 3D"
         }
       ],
-      "start": 73
+      "start": 83.5
     },
     {
       "id": "meta",
-      "duration": 13,
+      "duration": 18.0,
       "kind": "stats",
       "caption_en": "Built with Meta AI.",
       "table_en": [
@@ -218,7 +219,7 @@
           "Say it instead of typing it"
         ]
       ],
-      "start": 86
+      "start": 96.5
     },
     {
       "id": "end",
@@ -233,7 +234,7 @@
         "{stat:site_url}",
         "{stat:repo_url}"
       ],
-      "start": 99
+      "start": 114.5
     }
   ]
 }
