@@ -169,6 +169,20 @@ export const TRAIN_MARKER_PX = 28;
 export const STATION_DOT_PX = 14;
 export const MARKER_MIN_SCALE = 0.02;
 
+// 36h3: one height for the pin, the drawn path and the dots —
+// separate lifts parallax apart at the low follow camera.
+export const RIDE_LIFT = 60;
+// 36h3: authored station-dot diameter (metres); dotGeo is built from it.
+export const DOT_DIAM = 36;
+
+// 36h3: view-depth (camera-space depth) of a world point. Marker
+// perspective size depends on depth, not on Euclidean distance.
+export function viewDepthM(camPos, camDir, p) {
+  const dx = p.x - camPos.x, dy = p.y - camPos.y, dz = p.z - camPos.z;
+  const d = dx * camDir.x + dy * camDir.y + dz * camDir.z;
+  return Math.max(1, d);
+}
+
 export function markerScaleFor(camDistM, fovDeg, viewHpx, worldHM, maxPx) {
   const d = Math.max(1, Number(camDistM) || 1);
   const fov = Math.max(1, Math.min(120, Number(fovDeg) || 10));

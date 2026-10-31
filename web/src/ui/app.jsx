@@ -482,6 +482,9 @@ function SimHero({ state }) {
 // 36f: one tag per part — the line-level tag shows only for tag-less
 // text lines, so a part never reads two tags (측정 + 가정값).
 export function EvidenceLine({ e }) {
+  // 36h3: English crowding lines are built in code (never glossaried),
+  // so they render in a data-no-i18n node like the 29L2 commute line.
+  const noI18n = e && e.noI18n ? { "data-no-i18n": true } : {};
   return (
     <li className="ui-hero-evidence-line">
       {e.parts ? (
@@ -489,7 +492,7 @@ export function EvidenceLine({ e }) {
           <span key={j}>{j > 0 ? " + " : ""}{p.text}{p.tag && <span className="ui-tag">{p.tag}</span>}</span>
         ))}</span>
       ) : (
-        <span>{e.text}</span>
+        <span {...noI18n}>{e.text}</span>
       )}
       {!e.parts && e.tag && <span className="ui-tag">{e.tag}</span>}
     </li>

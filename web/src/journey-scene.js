@@ -13,7 +13,7 @@
 import * as THREE from "three";
 import { lonLatToXY, xyToLonLat } from "./frame.js";
 import { uvForLonLat } from "./aerial/tiles.js";
-import { BAND_COLORS, STATION_DOT_PX, corridorLoadPlan, markerScaleFor, patternById, trainPosition } from "./journey.js";
+import { BAND_COLORS, DOT_DIAM, RIDE_LIFT, STATION_DOT_PX, corridorLoadPlan, markerScaleFor, patternById, trainPosition, viewDepthM } from "./journey.js";
 import { baseMapBounds, hexToRgb, sliceGeometry, tileBuildings, tileLines,
   tileRoadRibbons, tileWater, tileWaterRibbons } from "./corridor.js";
 import { assetUrl } from "./paths.js";
@@ -108,12 +108,12 @@ export function createJourneyLayer(scene, origin, { look = null, tags = null } =
     roughness: 1, metalness: 0 });
   const rgbRoad = hexToRgb(numOr(l.regionalRoad, DEFAULT_LOOK.regionalRoad));
   const rgbWater = hexToRgb(numOr(l.regionalWater, DEFAULT_LOOK.regionalWater));
-  const dotGeo = new THREE.SphereGeometry(18, 10, 8);
   // 17c: marker outline + sizing. Dots get a dark hull (same instances
   // ×1.25, drawn first) so white reads on beige. World sizes feed
   // markerScaleFor (journey.js). 19e: the train cone is gone — the train
   // is an HTML .trainpin in the tags layer, constant size by construction.
-  const DOT_DIAM = 36;
+  // 36h3: DOT_DIAM is the shared constant from journey.js.
+  const dotGeo = new THREE.SphereGeometry(DOT_DIAM / 2, 10, 8);
   const DOT_HULL = 1.25;
   const OUTLINE_DARK = 0x222222;
 
@@ -287,8 +287,8 @@ export function createJourneyLayer(scene, origin, { look = null, tags = null } =
         if (!firstRGB) firstRGB = [c.r, c.g, c.b];
         lastRGB = [c.r, c.g, c.b];
         for (let k = 0; k + 1 < slice.length; k++) {
-          const p0 = toWorld(slice[k], 60);
-          const p1 = toWorld(slice[k + 1], 60);
+          const p0 = toWorld(slice[k], RIDE_LIFT);
+          const p1 = toWorld(slice[k + 1], RIDE_LIFT);
           positions.push(p0.x, p0.y, p0.z, p1.x, p1.y, p1.z);
           colors.push(c.r, c.g, c.b, c.r, c.g, c.b);
         }
@@ -308,8 +308,8 @@ export function createJourneyLayer(scene, origin, { look = null, tags = null } =
       const run = (pts, rgb) => {
         if (!rgb) return;
         for (let k = 0; k + 1 < pts.length; k++) {
-          const p0 = toWorld(pts[k], 60);
-          const p1 = toWorld(pts[k + 1], 60);
+          const p0 = toWorld(pts[k], RIDE_LIFT);
+          const p1 = toWorld(pts[k + 1], RIDE_LIFT);
           positions.push(p0.x, p0.y, p0.z, p1.x, p1.y, p1.z);
           colors.push(rgb[0], rgb[1], rgb[2], rgb[0], rgb[1], rgb[2]);
         }
@@ -346,7 +346,7 @@ export function createJourneyLayer(scene, origin, { look = null, tags = null } =
         new THREE.MeshBasicMaterial({ color: OUTLINE_DARK, depthTest: false,
           transparent: true, opacity: 0.9 }), dotPositions.length);
       const dummy = new THREE.Object3D();
-      dotWorld = dotPositions.map(([lon, lat]) => toWorld([lon, lat], 60));
+      dotWorld = dotPositions.map(([lon, lat]) => toWorld([lon, lat], RIDE_LIFT));
       // 19g: seed at scale 0 — updateMarkerScale sizes every visible
       // dot to ≤ 14 px each frame, so a phase that skips the rescale
       // can never leave an authored-size (36 m) disc on screen.
@@ -465,7 +465,8 @@ export function createJourneyLayer(scene, origin, { look = null, tags = null } =
       hideTrainPin();
       return pos;
     }
-    trainV.copy(toWorld([pos.lon, pos.lat], 90)).project(camera);
+    // 36h3: same lift as the drawn path and dots — no parallax.
+    trainV.copy(toWorld([pos.lon, pos.lat], RIDE_LIFT)).project(camera);
     if (trainV.z > 1 || trainV.z < -1) {
       hideTrainPin();
       return pos;
@@ -492,13 +493,18 @@ export function createJourneyLayer(scene, origin, { look = null, tags = null } =
   // to the cruise without hiding the road. The train is an HTML pin now
   // (constant size), so only the dots rescale here.
   const markerDummy = new THREE.Object3D();
+  const markerFwd = new THREE.Vector3();
   function updateMarkerScale(camera, viewHpx) {
     if (!camera || !group.visible) return;
     const fov = Number(camera.fov) || 10;
     const vh = Number(viewHpx) || 800;
     if (dotMesh && dotHull && dotWorld.length > 0) {
+      // 36h3: scale by view-depth, not Euclidean distance — dots far
+      // off the view axis (passed stations near the low follow camera)
+      // sit at Euclidean distances many times their depth.
+      camera.getWorldDirection(markerFwd);
       dotWorld.forEach((p, i) => {
-        const s = markerScaleFor(camera.position.distanceTo(p), fov, vh,
+        const s = markerScaleFor(viewDepthM(camera.position, markerFwd, p), fov, vh,
           DOT_DIAM, STATION_DOT_PX);
         markerDummy.position.copy(p);
         markerDummy.scale.setScalar(s);

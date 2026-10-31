@@ -121,6 +121,16 @@ function rideParts(away) {
 // "transfer & wait", matching the Korean 환승·기다림).
 const EN_PART_LABEL = { "걷기": "walking", "자전거": "biking",
   "지하철": "subway", "환승·기다림": "transfer & wait" };
+// 36h3: English line names built in code (the page translator splits
+// on ·, so 수인·분당선 must never reach it in halves).
+const EN_LINE_NAME = { "1호선": "Line 1", "2호선": "Line 2",
+  "3호선": "Line 3", "4호선": "Line 4", "5호선": "Line 5",
+  "6호선": "Line 6", "7호선": "Line 7", "8호선": "Line 8",
+  "9호선": "Line 9", "신분당선": "Shinbundang Line",
+  "수인·분당선": "Suin-Bundang Line", "경강선": "Gyeonggang Line" };
+function enLineName(n) {
+  return EN_LINE_NAME[String(n)] || String(n);
+}
 function enPartText(label, minutes) {
   return `${minutes} min ${EN_PART_LABEL[label] || label}`;
 }
@@ -199,7 +209,7 @@ export function commuteLines(run, agentKey, current, currentStart, lang = curren
       const pct = Math.round(Math.max(...assumed));
       const names = [...new Set(assumedLines.filter(Boolean))];
       lines.push(names.length > 0
-        ? { text: `Crowding ${pct}% on ${names.join("·")} is assumed (not measured)`, tag: "가정값" }
+        ? { text: `Crowding ${pct}% on ${names.map(enLineName).join(", ")} is assumed (not measured)`, tag: "가정값", noI18n: true }
         : { text: `Crowding ${pct}% is assumed (not measured)`, tag: "가정값" });
     }
     if (measured.length > 0) {
@@ -207,7 +217,7 @@ export function commuteLines(run, agentKey, current, currentStart, lang = curren
       const pct = Math.round(top.pct);
       const src = /서울교통공사|Seoul Metro/.test(top.source) ? "Seoul Metro" : (top.source || "Seoul Metro");
       lines.push(top.lineName
-        ? { text: `Crowding ${pct}% on ${top.lineName} is measured (${src})`, tag: "측정" }
+        ? { text: `Crowding ${pct}% on ${enLineName(top.lineName)} is measured (${src})`, tag: "측정", noI18n: true }
         : { text: `Crowding ${pct}% is measured (${src})`, tag: "측정" });
     }
     return lines;
