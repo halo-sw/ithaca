@@ -133,9 +133,11 @@ export function resolveWorkplace(scenarioArg, areasByIdArg, networkArg) {
 
 export function workplaceNote(workplace) {
   if (!workplace) return "직장 위치를 찾지 못해서 거리를 재지 못했어요.";
-  return String(workplace.label).includes("(")
-    ? `직장 위치(${workplace.label})에서 직선 거리예요. 출퇴근 시간은 아니에요.`
-    : `직장(${workplace.label})에서 직선 거리예요. 출퇴근 시간은 아니에요.`;
+  const label = String(workplace.label);
+  if (label.startsWith("직장")) return `${label}에서 직선 거리예요. 출퇴근 시간은 아니에요.`;
+  return label.includes("(")
+    ? `직장 위치(${label})에서 직선 거리예요. 출퇴근 시간은 아니에요.`
+    : `직장(${label})에서 직선 거리예요. 출퇴근 시간은 아니에요.`;
 }
 
 // Importable for tests: the CLI body below runs only when executed

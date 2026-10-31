@@ -268,7 +268,7 @@ function PublicNotices({ doc }) {
       <Heading level={4}>공공 매물·공고</Heading>
       <Text type="supporting">{pl.attribution}</Text>
       <Text type="supporting">
-        {`직장: ${(pl.workplace && pl.workplace.label) || "못 찾음"} · ${pl.workplace_note}`}
+        {(pl.workplace && pl.workplace.label && String(pl.workplace.label).startsWith("직장")) ? pl.workplace_note : `직장: ${(pl.workplace && pl.workplace.label) || "못 찾음"} · ${pl.workplace_note}`}
       </Text>
       <Text type="supporting">{pl.notes.join(" ")}</Text>
       {pl.notice_cap_note && <Text type="supporting">{pl.notice_cap_note}</Text>}

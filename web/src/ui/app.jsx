@@ -1029,14 +1029,20 @@ export function SimCredit({ state }) {
   const photo = state.journey ? (state.aerialCorridor || secondDraped) : state.aerial;
   // 36g: English builds the whole line as one string (US areas keep
   // their USGS credit); Korean is unchanged.
+  // 36h6: English renders the same full/short pair as Korean so the
+  // CSS picks the short form on phones (≤ 480 px).
   if (currentLang() === "en") {
     const area = areaForCredit(state);
-    const line = !photo ? "© OpenStreetMap"
+    const full = !photo ? "© OpenStreetMap"
       : aerialCreditFor(area) === USGS_CREDIT ? `${USGS_CREDIT} · © OpenStreetMap`
       : "Aerial photo © MOLIT Spatial Information Open Platform (VWorld) · © OpenStreetMap";
+    const short = !photo ? "© OpenStreetMap"
+      : aerialCreditFor(area) === USGS_CREDIT ? `${USGS_CREDIT} · © OpenStreetMap`
+      : "© VWorld · © OpenStreetMap";
     return (
-      <div className="ui-simcredit" data-testid="sim-credit" data-no-i18n title={line}>
-        <span data-no-i18n>{line}</span>
+      <div className="ui-simcredit" data-testid="sim-credit" data-no-i18n title={full}>
+        <span className="ui-simcredit-full" data-no-i18n>{full}</span>
+        <span className="ui-simcredit-short" data-no-i18n>{short}</span>
       </div>
     );
   }

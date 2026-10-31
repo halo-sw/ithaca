@@ -44,12 +44,26 @@ describe("resolveWorkplace (36h4)", () => {
     assert.equal(workplaceNote(null), "직장 위치를 찾지 못해서 거리를 재지 못했어요.");
   });
 
-  it("avoids double parenthesis for place labels", () => {
+  it("writes the 직장 label once (36h6)", () => {
     const note = workplaceNote({ label: "직장 (가정: 판교역 인근)" });
-    assert.ok(note.startsWith("직장 위치("));
-    assert.ok(!note.includes("직장(직장"));
+    assert.equal(note,
+      "직장 (가정: 판교역 인근)에서 직선 거리예요. 출퇴근 시간은 아니에요.");
     assert.equal(workplaceNote({ label: "판교역" }),
       "직장(판교역)에서 직선 거리예요. 출퇴근 시간은 아니에요.");
+  });
+
+  it("listings line shows 직장 once before 에서 (36h6)", async () => {
+    const React = (await import("react")).default;
+    const { renderToString } = await import("react-dom/server");
+    const pl = { workplace: { label: "직장 (가정: 판교역 인근)" },
+      workplace_note: workplaceNote({ label: "직장 (가정: 판교역 인근)" }) };
+    const line = (pl.workplace && pl.workplace.label
+      && String(pl.workplace.label).startsWith("직장"))
+      ? pl.workplace_note
+      : `직장: ${pl.workplace.label} · ${pl.workplace_note}`;
+    const html = renderToString(React.createElement("span", null, line));
+    const before = html.slice(0, html.indexOf("에서"));
+    assert.equal((before.match(/직장/g) || []).length, 1, `line: ${html}`);
   });
 });
 
