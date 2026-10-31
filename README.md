@@ -4,6 +4,8 @@
 
 <p align="center">Before you sign, an AI household lives 30 days in each of your two candidate homes.<br>Then you see what a listing photo, a map and a 30-minute viewing never show: the commute day by day, the money, the walk home after dark.</p>
 
+<p align="center"><a href="https://github.com/halo-sw/ithaca/releases/download/demo-video/ithaca-demo.mp4"><img src="briefs/img/demo-video-thumb.jpg" width="720" alt="Demo video: about 2 minutes, narrated, Seoul scenario in English"></a><br><sub>▶ <a href="https://github.com/halo-sw/ithaca/releases/download/demo-video/ithaca-demo.mp4"><b>Demo video</b></a> (about 2 min, narrated, mp4) · Seoul scenario, English UI, a real run with Muse Spark 1.3 · <a href="https://github.com/halo-sw/ithaca/releases/tag/demo-video">release page</a></sub></p>
+
 <p align="center"><b>Built with Meta AI:</b> Meta Model API (<code>api.meta.ai</code>) · Muse Spark 1.3 · Muse Spark Open · Muse Code · Muse Voice</p>
 
 <p align="center">
