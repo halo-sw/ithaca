@@ -79,18 +79,20 @@ import { SupportTab } from "./support.jsx";
 import { PasteCheck } from "./listings.jsx";
 import { HOME_SORTS, HOME_SORT_KO, HOME_SORT_SHORT_KO, applyKindPreference, usEmptyHint, displayNameFor } from "../homes.js";
 import { chipSourceIds } from "../sources.js";
-import { META_HQ_EXAMPLE } from "../places-us.js";
+import { META_HQ_EXAMPLE, US_REGION_IDS } from "../places-us.js";
 import { EXAMPLE_PROFILE_LABEL, noCommuteEntry } from "../profile.js";
 import { outingsFor, hhmm } from "../timeline.js";
 import { runDigest } from "../diary/digest.js";
 import {
   extractStep, searchStep, searchWithBoxes, scenarioStep, runStep,
-  loadHomesIndex, loadNetwork, loadSchedule, loadPhotosManifest,
+  loadHomesIndex, loadNetwork, loadUsNetwork, networkWithUs,
+  loadSchedule, loadPhotosManifest,
   loadNamedPhotos, loadRegions, loadPayroll, loadCorridorTiles,
   loadBoxArea, createWorkerRunner, fieldRows, sourceKo,
   profileSummary, missingChips, regionsForNames, simReadyFor,
   homeForScenario, complexNameForCandidate, stationNames,
   runGate, profileHomeKinds, regionsForCurrency, regionsForDoc,
+  usSearchActive,
 } from "../chat/engine.js";
 import { buildCustomMoneyDoc, buildUsRentMoneyDoc, verifyHomeFor } from "../chat/custom-money.js";
 import { personaFor, slimRunForReport } from "../verify/compare.js";
@@ -110,7 +112,7 @@ import { recordedReplyFor } from "./demotour.js";
 import { REGION_NAME_ALIASES } from "../region-names.js";
 import { agentContext, stripToolLabel, toolActionKo, toolActionEn, viewSystemLine } from "./agent-float.js";
 import { LANG, currentLang } from "../i18n/lang.js";
-import { romanizeName } from "../i18n/romanize.js";
+import { homeNameEn, registerHomeNamesEn, harvestHomeNamesEn, homeNamesEnSnapshot } from "../i18n/home-names.js";
 import { translateExact } from "../i18n/translate.js";
 import { sceneActionLabelFor } from "./scene-chrome.js";
 
@@ -1987,18 +1989,65 @@ export function ChatScreen() {
   async function ensureData(regions) {
     const key = (regions || []).join(",") || "all";
     if (dataRef.current && dataRef.current.regionsKey === key) return dataRef.current;
-    const [index, network, schedule, manifest, named, regionsDoc] = await Promise.all([
+    // 29N2b: a US search also loads the Caltrain line doc so the map
+    // draws it instead of the Seoul lines.
+    const wantUs = (regions || []).some((r) => r === "us-menlo" || r.startsWith("us-st-"));
+    const [index, network, usNetwork, schedule, manifest, named, regionsDoc] = await Promise.all([
       loadHomesIndex(fetchJson, regions && regions.length > 0 ? regions : null),
       loadNetwork(fetchJson),
+      wantUs ? loadUsNetwork(fetchJson) : Promise.resolve(null),
       loadSchedule(fetchText),
       loadPhotosManifest(fetchJson),
       loadNamedPhotos(fetchJson),
       loadRegions(fetchJson),
     ]);
     setNamedPhotos(named);
-    dataRef.current = { index, network, schedule, manifest, named, regionsDoc, regionsKey: key };
+    const picked = networkWithUs(network, usNetwork, wantUs);
+    dataRef.current = { index, network: picked,
+      // 29N2e: which doc the map reads now, so a later search can
+      // swap it when what is showing changes country.
+      usNetwork: !!usNetwork && picked === usNetwork,
+      schedule, manifest, named, regionsDoc, regionsKey: key };
     return dataRef.current;
   }
+
+  // 29N2f: the map's network follows what is showing, on every path.
+  // runSearch, the consult-agent cards, replays and restores all land
+  // through candidatesData, so the swap lives here — not in runSearch.
+  // When the shown set's country differs from the loaded doc, load the
+  // other doc, store it on dataRef, then kick a re-render (dataTick is
+  // a dep too, so a restore whose data lands after the candidates
+  // still swaps). A stale load — the candidates changed again
+  // mid-flight — is dropped by the request token.
+  const usNetReq = useRef(0);
+  useEffect(() => {
+    if (!dataRef.current) return undefined;
+    const cands = (candidatesData && candidatesData.result
+      && candidatesData.result.candidates) || [];
+    const wantUs = usSearchActive(profile, cands);
+    const haveUs = !!dataRef.current.usNetwork;
+    if (wantUs === haveUs) return undefined;
+    usNetReq.current += 1;
+    const token = usNetReq.current;
+    (async () => {
+      if (wantUs) {
+        const usNet = await loadUsNetwork(fetchJson);
+        if (token !== usNetReq.current) return;
+        // Never Seoul lines for US candidates: a failed load draws
+        // no lines rather than the wrong country's.
+        dataRef.current = { ...dataRef.current,
+          network: usNet && Array.isArray(usNet.lines) ? usNet : { lines: [] },
+          usNetwork: true };
+      } else {
+        const krNet = await loadNetwork(fetchJson);
+        if (token !== usNetReq.current) return;
+        dataRef.current = { ...dataRef.current,
+          network: krNet || dataRef.current.network, usNetwork: false };
+      }
+      setDataTick((t) => t + 1);
+    })().catch(() => {});
+    return undefined;
+  }, [candidatesData, profile, dataTick]);
 
   // --- structured flow ---
   async function structuredFlow(text) {
@@ -2029,15 +2078,16 @@ export function ChatScreen() {
     }
     const words = regionWordsIn(text, REGION_NAME_ALIASES);
     let named = words.length > 0 ? regionsForNames(words) : null;
-    // 26c: a US search loads exactly us-menlo — never Korean regions.
-    // A pre-read of this turn decides it (the full extract follows once
-    // the data is in); a USD profile from an earlier turn counts too.
+    // 29N2a: a US search loads the Caltrain-corridor set — never
+    // Korean regions. A pre-read of this turn decides it (the full
+    // extract follows once the data is in); a USD profile from an
+    // earlier turn counts too.
     const pre = extractStep(text, stateRef.current.profile, []);
     const preProfile = pre.value && pre.value.profile;
     const preCurrency = preProfile && preProfile.currency
       ? preProfile.currency.value : null;
-    if ((named && named.includes("us-menlo")) || preCurrency === "USD") {
-      named = ["us-menlo"];
+    if ((named && named.some((r) => US_REGION_IDS.includes(r))) || preCurrency === "USD") {
+      named = [...US_REGION_IDS];
     }
     const data = await ensureData(named);
     // The evidence guard is per call (same as the server tool), so
@@ -2072,7 +2122,7 @@ export function ChatScreen() {
       pushMsg({ role: "assistant", kind: "profile", replace: true,
         data: { profile: prof }, example: stateRef.current.exampleId,
         tool_calls: [{ id: exId, name: "extract_profile" }] });
-      await runSearch(prof, data, { sort: "commute" });
+      await runSearch(prof, data, { sort: "commute", limit: searchLimitFor(text) });
       return;
     }
     // 13: after the first message the guided intake pre-fills from the
@@ -2085,7 +2135,7 @@ export function ChatScreen() {
     pushMsg({ role: "assistant", kind: "profile", replace: true,
       data: { profile: prof }, example: stateRef.current.exampleId,
       tool_calls: [{ id: exId, name: "extract_profile" }] });
-    await runSearch(prof, data, { sort: "commute" });
+    await runSearch(prof, data, { sort: "commute", limit: searchLimitFor(text) });
   }
 
   // Merge an intake patch into the profile as customer values.
@@ -2182,15 +2232,20 @@ export function ChatScreen() {
   // 29a3: profile summary the last search ran with — a newer
   // profile means "조건이 바뀌었어요" until 다시 찾기 runs again.
   const lastSearchRef = useRef("");
-  async function runSearch(prof, data, { sort }) {
+  // 29N2a: "show more" ("다른 후보 더 보여 줘") re-runs with limit
+  // 12 — the corridor first page spreads, the longer list stays pure.
+  function searchLimitFor(t) {
+    return String(t || "").trim() === "다른 후보 더 보여 줘" ? 12 : 6;
+  }
+  async function runSearch(prof, data, { sort, limit = 6 }) {
     lastSearchRef.current = profileSummary(prof);
     const tenure = (prof.tenure && prof.tenure.value) || "undecided";
     const t0 = Date.now();
-    let result = searchStep(prof, data.index, data, { sort, limit: 6 }).value;
+    let result = searchStep(prof, data.index, data, { sort, limit }).value;
     // Second pass with box graphs only when must-haves need measuring.
     const mustHaves = (prof.mustHaves && prof.mustHaves.value) || [];
     if (mustHaves.length > 0) {
-      result = await searchWithBoxes(fetchJson, prof, data.index, result, data, { sort, limit: 6 });
+      result = await searchWithBoxes(fetchJson, prof, data.index, result, data, { sort, limit });
     }
     // 21a: the customer's own housing-type words filter the list (kept
     // when at least 3 remain, else filled + labelled).
@@ -2207,6 +2262,8 @@ export function ChatScreen() {
     const budget = profCur === "USD" && prof.monthlyMax
       ? Number(prof.monthlyMax.value) : null;
     const emptyHint = usEmptyHint((data.index && data.index.homes) || [], budget);
+    // 29N2f: the network swap lives in the candidatesData effect —
+    // setting the candidates is enough on every path.
     setCandidatesData({ result, tenure, sort });
     setWorkOpen(true);
     pushMsg({ role: "assistant", kind: "candidates", replace: true,
@@ -2512,7 +2569,9 @@ export function ChatScreen() {
           + `하루 평균 피곤한 정도 ${Math.round((hh.fatigue_avg_30d || 0) * 10) / 10} — 3D에서 보기로 하루를 보세요.`;
       }
       const payload = { status: "done", compare, moments, labels, customId,
-        names: Object.fromEntries(picked.map((p, i) => [labels[i], displayNameFor(p)])),
+        // 29M1: English reports and headers read Muse's registered home
+        // names; unregistered names stay on the Korean display.
+        names: Object.fromEntries(picked.map((p, i) => [labels[i], reportNameFor(p)])),
         moneyDoc, moneyMissing, anchors, momentTexts, extraLine, noCommute,
         lifeEvents: lifeRows };
       // The chat drawer tabs read the same custom docs as the sim.
@@ -2622,6 +2681,8 @@ export function ChatScreen() {
     // 29j3: Muse sees whether the comparison report is verified.
     const reportStatus = latestReportStatus(st.messages);
     const ctx = { ...agentContext(store.getState()), lang: LANG,
+      // 29M1: English turns tell Muse the names the screen already shows.
+      ...(LANG === "en" ? { names_en: homeNamesEnSnapshot() } : {}),
       candidates: liveCands,
       picks: st.picks.map((id, i) => ({ label: "ABC"[i], id })),
       work_open: workOpen, profile: st.profile || null, customer_text,
@@ -2668,6 +2729,7 @@ export function ChatScreen() {
         }
       }
       const bubble = turnBubble(out);
+      absorbHomeNamesEn(out, bubble && bubble.content, liveCands);
       // 29h2: cards first, then Muse's words — the turn ends on the
       // next move, never on a wall of cards.
       appendToolCards(out.messages);
@@ -3835,8 +3897,65 @@ export function trayDisplayName(full, lang = LANG) {
   if (m && /[A-Za-z]/.test(m[2]) && !/[가-힣]/.test(m[2])) {
     return lang === "en" ? m[2].trim() : m[1].trim();
   }
-  if (lang === "en" && /[가-힣]/.test(s)) return romanizeName(s);
+  if (lang === "en" && /[가-힣]/.test(s)) return homeNameEn(s);
   return s;
+}
+
+// 29M1: report/compare header names — the registered English home name
+// in English mode, else the Korean display (so the English report says
+// Daeha Building, never a fresh romanisation).
+function reportNameFor(p) {
+  const ko = displayNameFor(p);
+  if (LANG !== "en") return ko;
+  const en = homeNamesEnSnapshot()[String(ko ?? "").trim()];
+  return en || ko;
+}
+
+// 29M1: English home names off a consult response — name_en stamped on
+// tool-result candidates, plus the reply harvest. Korean names off the
+// tool results and the live candidates feed the harvest.
+function toolMessageHomeNames(messages) {
+  const en = {};
+  const ko = [];
+  for (const m of messages || []) {
+    if (!m || m.role !== "tool" || typeof m.content !== "string") continue;
+    let r = null;
+    try { r = JSON.parse(m.content); } catch { continue; }
+    const visit = (v) => {
+      if (Array.isArray(v)) { v.forEach(visit); return; }
+      if (v && typeof v === "object") {
+        if (Array.isArray(v.candidates)) {
+          for (const c of v.candidates) {
+            if (!c || typeof c !== "object") continue;
+            const nm = typeof c.name === "string" ? c.name.trim() : "";
+            if (nm && /[가-힣]/.test(nm)) {
+              ko.push(nm);
+              const e = typeof c.name_en === "string" ? c.name_en.trim() : "";
+              if (e) en[nm] = e;
+            }
+          }
+        }
+        for (const k of Object.keys(v)) {
+          if (k !== "candidates") visit(v[k]);
+        }
+      }
+    };
+    visit(r);
+  }
+  return { en, ko };
+}
+// 29M1c: one-line registration so the turn block stays compact — server
+// names, tool-candidate name_en, then the reply harvest last (the app
+// matches what the customer just read). Runs before the messages are set,
+// so cards and words below render the same English name.
+function absorbHomeNamesEn(out, replyText, koNames) {
+  if (LANG === "en" && out && !out.off) {
+    const seen = toolMessageHomeNames(out.messages);
+    registerHomeNamesEn(out.names_en);
+    registerHomeNamesEn(seen.en);
+    const liveKo = (koNames || []).map((c) => c && c.name).filter(Boolean);
+    registerHomeNamesEn(harvestHomeNamesEn(replyText || "", [...seen.ko, ...liveKo]));
+  }
 }
 export function trayNameFor(candidate, lang = LANG) {
   return trayDisplayName(displayNameFor(candidate), lang);

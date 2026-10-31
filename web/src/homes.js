@@ -24,6 +24,7 @@ import { rideMinutes } from "./transit/schedule.js";
 import { photosNear, PHOTOS_DISCLAIMER } from "./places/photos.js";
 import { nearestStationByWalk } from "./walkgraph.js";
 import { fmtMoney } from "./money/currency.js";
+import { usAreaLabel } from "./region-names.js";
 
 export const HOME_SORTS = ["areas", "commute", "monthly", "deals", "priority"];
 export const DEFAULT_HOME_SORT = "areas";
@@ -51,6 +52,12 @@ export const SOURCE_BADGES = {
   estimate: "추정 · 1~8호선 평균 속도",
   photos: "주변 사진",
   public: "공공임대(LH·마이홈)",
+  // 29N2e: US rows never carry the Korean badges above —
+  // Zillow for the ZIP rent, OSM for the walk/bike graph, the
+  // Caltrain timetable feed for the train leg.
+  zori: "Zillow ZORI (ZIP typical rent, 2026-09)",
+  usGraph: "OSM walk/bike graph",
+  caltrain: "Caltrain GTFS (2026-06)",
 };
 
 // 26k: USD empty state. When no home matches but loaded US homes exist
@@ -316,6 +323,92 @@ export function commuteSummary(home, workplace, network, schedule = null, walkgr
   return { walk, ride, destStation, sameStation };
 }
 
+// 29N2a: the Caltrain-corridor commute of a station-box home. The
+// built block carries {walk_to_station_min, caltrain_min, headway_min,
+// last_mile{bike_min, walk_min, shuttle_min_assumed}, total_min} with
+// {value, source} leaves; the labelled total adds half the headway
+// (timed arrival) to walk + train + last-mile bike. Pure.
+export function corridorOf(home) {
+  const c = home && home.commute;
+  const num = (v) => (v && Number.isFinite(v.value) ? v.value : null);
+  const total = c ? num(c.total_min) : null;
+  if (total === null) return null;
+  const walk = c ? num(c.walk_to_station_min) : null;
+  const headway = c ? num(c.headway_min) : null;
+  const train = c ? num(c.caltrain_min) : null;
+  const last = (c && c.last_mile) || {};
+  const bike = num(last.bike_min);
+  const shuttle = num(last.shuttle_min_assumed);
+  if (walk === null || headway === null || train === null || bike === null) return null;
+  const r = (x) => Math.round(x);
+  return { total_min: r(total), walk_min: r(walk), wait_min: r(headway / 2),
+    train_min: r(train), bike_min: r(bike),
+    shuttle_min: shuttle === null ? null : r(shuttle), estimate: true };
+}
+
+// 29N2a: the corridor breakdown line in code (English + Korean) plus
+// the assumed-shuttle second line. Pure.
+export function caltrainBreakdownText(corridor, lang) {
+  const c = corridor || {};
+  const r = (x) => (Number.isFinite(x) ? Math.round(x) : "?");
+  if (lang === "en") {
+    return `Caltrain ${r(c.total_min)} min · walk ${r(c.walk_min)} + wait ${r(c.wait_min)} + train ${r(c.train_min)} + bike ${r(c.bike_min)}`;
+  }
+  return `칼트레인 ${r(c.total_min)}분 · 걷기 ${r(c.walk_min)} + 대기 ${r(c.wait_min)} + 열차 ${r(c.train_min)} + 자전거 ${r(c.bike_min)}`;
+}
+
+export const CALTRAIN_SHUTTLE_LINE = {
+  en: "or Meta shuttle from Menlo Park Stn (assumed)",
+  ko: "또는 멘로파크역에서 메타 셔틀(가정)",
+};
+
+// 29N2b: the fastest way to work for a US home — the direct
+// walk/bike estimate against the labelled Caltrain total. An
+// explicit home.commute.best ({mode, min}) wins; otherwise the
+// smaller of the two when both are known (a tie keeps the
+// labelled Caltrain total). Pure.
+export function usCommuteBest(home, corridor, work) {
+  const b = home && home.commute && home.commute.best;
+  if (b && typeof b.mode === "string"
+      && Number.isFinite(b.min)) {
+    return { mode: b.mode, min: b.min };
+  }
+  const cal = corridor && Number.isFinite(corridor.total_min)
+    ? corridor.total_min : null;
+  const direct = work && Number.isFinite(work.minutes)
+    ? { mode: work.mode || "bike", min: work.minutes } : null;
+  if (cal === null) return direct;
+  if (!direct) return { mode: "caltrain", min: cal };
+  return direct.min < cal ? direct : { mode: "caltrain", min: cal };
+}
+
+// 29N2a: a US result carries its area name in both languages. Pure.
+export function usResultArea(home) {
+  return { area_label: usAreaLabel(home && home.region, "en"),
+    area_label_ko: usAreaLabel(home && home.region, "ko") };
+}
+
+// 29N2a: the home's own ZIP rent source for results ("Zillow ZORI").
+export function usRentSource(home) {
+  const p = (home && home.price) || {};
+  return p.source === "zillow_zori_zip" ? "Zillow ZORI" : (p.source || "Zillow");
+}
+
+// 29N2a: first page (6) of a multi-area US search — at most 2 homes
+// per area in commute order, filling from the next-best area. Pure.
+export function spreadUsFirstPage(sorted, limit = 6, perArea = 2) {
+  const page = [];
+  const counts = new Map();
+  for (const r of sorted || []) {
+    if (page.length >= limit) break;
+    const n = counts.get(r && r.region) || 0;
+    if (n >= perArea) continue;
+    counts.set(r && r.region, n + 1);
+    page.push(r);
+  }
+  return page;
+}
+
 export function commuteLine(summary) {
   const bits = [];
   const walkText = !summary.walk.known ? "도보 미확인"
@@ -494,6 +587,11 @@ function sortResults(rows, sort, profile, boxes) {
     return commuteKey(r);
   };
   const commuteKey = (r) => {
+    // 29N2b: a US home sorts by its fastest mode (best first); without
+    // one the labelled Caltrain total still sorts (us-menlo keeps the
+    // walk/bike estimate below).
+    if (r && Number.isFinite(r.best_min)) return r.best_min;
+    if (r && Number.isFinite(r.corridor_min)) return r.corridor_min;
     // 26c: a work estimate sorts by its minutes (known before unknown).
     if (r.commute && r.commute.work) {
       const m = r.commute.work.minutes;
@@ -733,11 +831,20 @@ export function find_homes(profile, index, opts = {}) {
       if (mins !== null && mins > mh.minutes) mustFail = true;
     }
     if (mustFail) continue;
+    // 29N2a: station-box homes sort and print by their labelled
+    // Caltrain total; every US home carries its area + ZIP rent source.
+    const corridor = corridorOf(home);
+    const isUs = home && (home.currency === "USD" || home.country === "US"
+      || (typeof home.region === "string" && home.region.startsWith("us-")));
     const thinRow = shown.map((s) => s.thin_deal).find(Boolean) || null;
     const dealCount = shown.reduce((a, s) => a + (s.deals || 0), 0);
     const monthly = shown
       .filter((s) => s.tenure === "wolse" && s.median_won !== null)
       .map((s) => s.median_won);
+    // 29N2b: every US row carries its fastest mode (best_mode /
+    // best_min) so ranking, pins, cards and the agent text share one
+    // number.
+    const best = isUs ? usCommuteBest(home, corridor, commute.work) : null;
     rows.push({
       id: home.id,
       name: home.name,
@@ -756,6 +863,17 @@ export function find_homes(profile, index, opts = {}) {
       // 26c: a USD home carries its currency and ZIP price through.
       ...(home.currency ? { currency: home.currency } : {}),
       ...(home.price ? { price: home.price } : {}),
+      // 29N2a: corridor results for the agent text + cards.
+      ...(isUs ? { ...usResultArea(home),
+        zip: home.price && home.price.zip ? home.price.zip : null,
+        rent_source: usRentSource(home),
+        ...(best ? { best_mode: best.mode, best_min: best.min } : {}) } : {}),
+      ...(corridor ? { corridor_min: corridor.total_min, corridor,
+        commute_breakdown: { ...corridor,
+          en: caltrainBreakdownText(corridor, "en"),
+          ko: caltrainBreakdownText(corridor, "ko"),
+          shuttle_en: CALTRAIN_SHUTTLE_LINE.en,
+          shuttle_ko: CALTRAIN_SHUTTLE_LINE.ko } } : {}),
       thin_deal: thinRow,
       deals_in_bucket: dealCount,
       monthly_cost_won: monthly.length > 0 ? Math.min(...monthly) : null,
@@ -767,7 +885,16 @@ export function find_homes(profile, index, opts = {}) {
       scene: home.scene || null,
       photos: [],
       photos_note: PHOTOS_DISCLAIMER,
-      sources: [
+      // 29N2e: a US row cites the US feeds that priced and timed
+      // it — never the Korean registry/graph badges (nor the Seoul
+      // schedule/estimate badges): Zillow ZORI for the ZIP rent, the
+      // OSM graph for a measured walk, Caltrain GTFS for a train leg.
+      sources: isUs ? [
+        SOURCE_BADGES.zori,
+        ...(commute.walk.known ? [SOURCE_BADGES.usGraph] : []),
+        ...((corridor || (best && best.mode === "caltrain"))
+          ? [SOURCE_BADGES.caltrain] : []),
+      ] : [
         SOURCE_BADGES.rtms,
         ...(commute.walk.known ? [SOURCE_BADGES.graph] : []),
         ...(commute.ride.lines.length > 0 ? [SOURCE_BADGES.network] : []),
@@ -778,12 +905,22 @@ export function find_homes(profile, index, opts = {}) {
   const { rows: sorted, sort_note } = sortResults(rows, sort, profile, boxes);
   // 36a: the areas default spreads one home per neighbourhood instead
   // of lining up homes next to the workplace.
+  // 29N2a: a multi-area US commute search opens spread out (at most 2
+  // homes per area on the first page); a bigger limit ("show more")
+  // continues in pure commute order.
   let candidates;
   let commute_cap = null;
+  const usAreas = new Set(sorted.filter((r) => r && typeof r.region === "string"
+    && r.region.startsWith("us-")).map((r) => r.region));
+  const spread = sort === "commute" && limit <= 6 && usAreas.size > 1
+    && sorted.length > 0 && sorted.every((r) => r && (r.currency === "USD"
+      || (typeof r.region === "string" && r.region.startsWith("us-"))));
   if (sort === "areas") {
     const picked = pickByNeighbourhood(sorted, limit, commuteMax);
     candidates = picked;
     if (picked.commute_cap) commute_cap = picked.commute_cap;
+  } else if (spread) {
+    candidates = spreadUsFirstPage(sorted, limit, 2);
   } else {
     candidates = sorted.slice(0, limit);
   }

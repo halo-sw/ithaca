@@ -57,10 +57,10 @@ describe("29L3 workplace pill side-picking", () => {
     assert.ok(!hit(placed.box, { x: 212, y: 187, w: 80, h: 26 }));
   });
 
-  it("keeps the right side with a leader when every side collides", () => {
+  it("keeps the above side with a leader when every side collides", () => {
     const placed = placeWorkplacePill(200, 200, 80, 26, 640, 420,
       [{ x: 0, y: 0, w: 640, h: 420 }]);
-    assert.equal(placed.side, "right");
+    assert.equal(placed.side, "above");
     assert.ok(Array.isArray(placed.leader));
   });
 });

@@ -21,6 +21,7 @@ import osmium
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_RAW_PBF = REPO_ROOT / "data" / "raw" / "south-korea-latest.osm.pbf"
 US_RAW_PBF = REPO_ROOT / "data" / "raw" / "us" / "norcal-latest.osm.pbf"
+US_GTFS_ZIP = REPO_ROOT / "data" / "raw" / "us" / "caltrain" / "caltrain-ca-us.zip"
 DEFAULT_BUILD_DIR = REPO_ROOT / "data" / "build"
 
 AREA_IDS = ("pangyo", "seongsu", "songpa", "songpa-jamsil")
@@ -42,8 +43,33 @@ US_AREAS = {
 }
 
 
+def us_caltrain_boxes() -> tuple:
+    """Stage 29N1 box specs (ids ``us-st-<slug>``); local import, no cycle."""
+    from .regions import US_CALTRAIN_BOXES
+
+    return US_CALTRAIN_BOXES
+
+
+def us_caltrain_spec(area_id: str) -> dict | None:
+    for spec in us_caltrain_boxes():
+        if spec["id"] == area_id:
+            return spec
+    return None
+
+
 def is_us_area(area_id: str) -> bool:
-    return area_id in US_AREAS
+    if area_id in US_AREAS:
+        return True
+    return us_caltrain_spec(area_id) is not None
+
+
+def _is_caltrain_station(tags: dict) -> bool:
+    """True for Caltrain stations (operator/network tag or GTFS-fed name)."""
+    for key in ("operator", "network", "network:en", "operator:en"):
+        val = tags.get(key) or ""
+        if "caltrain" in str(val).lower():
+            return True
+    return False
 
 # Stage 12a station scene boxes: ids are "st-<station>" (e.g. "st-판교").
 # They are dynamic (see pipeline.boxes station-boxes.json), so they are
@@ -261,14 +287,17 @@ def resolve_area(area_id: str, raw_pbf: str | Path = DEFAULT_RAW_PBF,
                  osmium_bin: str = "osmium") -> AreaDef:
     """Resolve one area id, scanning the national PBF if hits not given."""
     if is_us_area(area_id):
-        # Fixed US scene box: no PBF scan, ever.
-        spec = US_AREAS[area_id]
-        return AreaDef(
-            id=area_id, label=spec["label"], kind="bbox",
-            bbox=tuple(spec["bbox"]), center=tuple(spec["center"]),
-            station=None, boundary=None, country=spec["country"],
-            currency=spec["currency"],
-            workplaces=[dict(w) for w in spec["workplaces"]])
+        if area_id in US_AREAS:
+            # Fixed US scene box: no PBF scan, ever.
+            spec = US_AREAS[area_id]
+            return AreaDef(
+                id=area_id, label=spec["label"], kind="bbox",
+                bbox=tuple(spec["bbox"]), center=tuple(spec["center"]),
+                station=None, boundary=None, country=spec["country"],
+                currency=spec["currency"],
+                workplaces=[dict(w) for w in spec["workplaces"]])
+        return _resolve_us_station_box(area_id,
+                                       osmium_bin=osmium_bin)
     if area_id not in AREA_IDS:
         raise KeyError(f"unknown area {area_id!r}; expected one of {list(AREA_IDS)}")
     if hits is None:
@@ -289,6 +318,104 @@ def resolve_area(area_id: str, raw_pbf: str | Path = DEFAULT_RAW_PBF,
     bbox = bbox_from_center(lon, lat)
     return AreaDef(id=area_id, label=label, kind="bbox", bbox=bbox,
                    center=(lon, lat), station=station, boundary=None)
+
+
+META_HQ_WORKPLACE = {"id": "meta-hq", "name": "Meta HQ (1 Hacker Way)",
+                        "lon": -122.14823, "lat": 37.48485}
+
+
+def _lookup_us_station(station: str, raw_pbf: str | Path,
+                       osmium_bin: str = "osmium") -> dict:
+    """OSM lookup of one Caltrain station name on the NorCal extract."""
+    import tempfile
+
+    names = (station,)
+    handler = _CandidateScan(set(names))
+    with tempfile.TemporaryDirectory(prefix="us-station-box-") as tmp:
+        dst = Path(tmp) / "candidates.osm.pbf"
+        expr = "nwr/name=" + ",".join(names)
+        import subprocess
+
+        proc = subprocess.run(
+            [osmium_bin, "tags-filter", str(raw_pbf), expr,
+             "-o", str(dst), "-O", "--no-progress"],
+            capture_output=True, text=True)
+        if proc.returncode != 0:
+            raise RuntimeError(
+                f"osmium tags-filter failed: {proc.stderr.strip()}")
+        handler.apply_file(str(dst), locations=True)
+    hits = handler.hits
+    # Prefer a Caltrain-tagged railway hit over a same-named stop position
+    # or non-Caltrain station; fall back to the full hit list.
+    railway = [h for h in hits
+               if h["tags"].get("railway") in ("station", "subway_station",
+                                               "halt")]
+    caltrain = [h for h in railway if _is_caltrain_station(h["tags"])]
+    pool = caltrain or railway
+    if pool:
+        sub = _CandidateScan(set(names))
+        sub.hits = [h for h in hits if h in pool]
+        hits = sub.hits
+    try:
+        return _pick_station(hits, names)
+    except LookupError:
+        pass
+    try:
+        return _gtfs_parent_station_coord(station)
+    except (LookupError, OSError, ValueError):
+        raise LookupError(
+            f"station {names[0]!r}: no railway station match")
+
+
+def _gtfs_parent_station_coord(station: str,
+                               gtfs_zip: str | Path | None = None) -> dict:
+    """GTFS fallback for a US box station: parent-station coordinate.
+
+    Used when no OSM ``railway=station`` name matches (e.g. the OSM
+    station is named ``San Francisco Caltrain`` / ``4th & King``).
+    Matches ``stops.txt`` parent stations (``location_type=1``) whose
+    ``stop_name`` starts with the box's station; ``San Francisco`` also
+    matches a ``4th & King`` stop. Northernmost match wins.
+    """
+    from .caltrain import clean_name, load_gtfs, parent_stations
+
+    data = load_gtfs(US_GTFS_ZIP if gtfs_zip is None else gtfs_zip)
+    cands = []
+    for s in parent_stations(data["stops"]).values():
+        raw = (s.get("stop_name") or "").strip()
+        if not raw:
+            continue
+        if raw.startswith(station) or clean_name(raw) == station:
+            cands.append(s)
+        elif (station == "San Francisco" and "4th" in raw
+                and "king" in raw.lower()):
+            cands.append(s)
+    if not cands:
+        raise LookupError(f"station {station!r}: no GTFS parent match")
+    best = max(cands, key=lambda s: float(s.get("stop_lat") or 0.0))
+    return {"name": station,
+            "lon": float(best.get("stop_lon") or 0.0),
+            "lat": float(best.get("stop_lat") or 0.0),
+            "osm_kind": "gtfs", "osm_id": (best.get("stop_id") or "")}
+
+
+def _resolve_us_station_box(area_id: str,
+                            osmium_bin: str = "osmium") -> AreaDef:
+    """Resolve a ``us-st-<slug>`` box: 1.2 km bbox around its Caltrain stop.
+
+    Always on the NorCal extract (Caltrain stations are not in the KR PBF).
+    """
+    spec = us_caltrain_spec(area_id)
+    if spec is None:
+        raise KeyError(f"unknown US station box {area_id!r}")
+    station = spec["station"]
+    info = _lookup_us_station(station, US_RAW_PBF, osmium_bin=osmium_bin)
+    lon, lat = info["lon"], info["lat"]
+    bbox = bbox_from_center(lon, lat)
+    return AreaDef(id=area_id, label=f"{station} · Caltrain", kind="bbox",
+                   bbox=bbox, center=(lon, lat), station=info, boundary=None,
+                   country="US", currency="USD",
+                   workplaces=[dict(META_HQ_WORKPLACE)])
 
 
 def is_station_box(area_id: str) -> bool:

@@ -21,7 +21,7 @@ import { isRunRequest } from "../chat/intent.js";
 // message before the final completion so it sits after the tool results
 // (Korean tool output otherwise drags the model back to Korean).
 export const ENGLISH_NOTE =
-  "The customer reads English. Answer in plain English. Korean place and station names: romanized, with the Korean once in parentheses, e.g. Gangnam Stn (강남역). US places, streets and Meta HQ are already English: write them as they are, never with Korean. Write money for Korean homes as won with full digits and commas, e.g. ₩260,000,000, or as ₩260M; US rents in dollars as given, e.g. $4,261/mo. Every rule above still applies. The default is buying a home: unless the customer says jeonse, wolse or public rental, search for buying and ask the price ceiling and the savings for the purchase. Split buying money into one-off purchase costs and monthly costs (loan repayment plus maintenance), and never judge loan eligibility. Compare candidates as one home per neighbourhood with the workplace fixed (find_homes default sort 'areas'): name each option as origin-to-workplace with minutes, e.g. 'Jamsil → Pangyo 41 min / Gangnam → Pangyo 25 min / Migeum → Pangyo 12 min'; never list only homes right next to the workplace. Without a customer commute cap, use 60 minutes and say so.";
+  "The customer reads English. Answer in plain English. Korean place and station names: romanized, with the Korean once in parentheses, e.g. Gangnam Stn (강남역). US places, streets and Meta HQ are already English: write them as they are, never with Korean. Write money for Korean homes as won with full digits and commas, e.g. ₩260,000,000, or as ₩260M; US rents in dollars as given, e.g. $4,261/mo. Every rule above still applies. The default is buying a home: unless the customer says jeonse, wolse or public rental, search for buying and ask the price ceiling and the savings for the purchase. Split buying money into one-off purchase costs and monthly costs (loan repayment plus maintenance), and never judge loan eligibility. Compare candidates as one home per neighbourhood with the workplace fixed (find_homes default sort 'areas'): name each option as origin-to-workplace with minutes, e.g. 'Jamsil → Pangyo 41 min / Gangnam → Pangyo 25 min / Migeum → Pangyo 12 min'; never list only homes right next to the workplace. Without a customer commute cap, use 60 minutes and say so. When a home has name_en, write exactly that name, with the Korean once in parentheses. US commute via Caltrain is a timetable-based estimate; the Meta shuttle is an assumption, never a fact.";
 const ENGLISH_RETRY_NOTE =
   "Your last answer was in Korean. Rewrite it in plain English with the same facts and numbers.";
 
@@ -66,7 +66,8 @@ export const SYSTEM_PROMPT = [
   "질문은 한 번에 하나만 짧게 한다. 설문처럼 여러 개를 묻지 않는다. 모르는 값은 기본값으로 두고 '가정'이라고 밝힌다. 출근지나 예산 중 하나라도 있으면 extract_profile 다음 바로 find_homes로 후보를 보여 준다. 우선순위는 고객이 말할 때만 set_priorities로 기록한다.",
   "화면은 보여 줄 것이 생겼거나 고객이 요청했을 때만 open_panel로 연다: 후보를 찾으면 map, 비교를 원하면 compare, 동네를 물으면 tour, 출근길은 commute, 돈은 money, 전세는 jeonse, 지원은 support. 동네를 물으면 neighborhood로 걸어서 몇 분인지 확인해 답하고 open_panel(panel=tour, candidate_id)로 3D 동네를 연다. 출근길(commute)과 결과(result) 장면은 살아 보기가 끝난 뒤에만 연다.",
   "고객이 후보를 고르면(예: '이 두 곳', '1번이랑 3번') pick_homes로 찜한다. start_life_run은 고객이 살아 보기를 요청했을 때만 부르고, 그 전에는 제안만 한다. start_life_run을 부른 턴에는 \"시작했어요. 다 살면 일기로 알려 드릴게요.\" 한 문장만 답한다(결과 숫자는 아직 없다). 그 문장은 start_life_run을 실제로 호출한 턴에만 쓴다. 호출하지 않았으면 시작했다고 말하지 않는다.",
-  "다루는 지역: 한국 수도권 역세권 지역들(list_areas)과 미국 1곳 — Menlo Park의 Meta HQ(1 Hacker Way) 주변 아파트. 미국은 월세만, Zillow ZIP 추정 월세(USD), 출근은 자전거·도보 분. 출근지가 Meta HQ·Menlo Park면 준비 중이라고 하지 말고 extract_profile 다음 바로 find_homes를 부른다.",
+  "다루는 지역: 한국 수도권 역세권 지역들(list_areas)과 미국 Caltrain 회랑 8곳 — Belle Haven(Menlo Park · Meta HQ 주변)과 7개 역세권(San Francisco·Belmont·San Carlos·Redwood City·Palo Alto·Mountain View·Sunnyvale). 미국은 월세만, Zillow ZIP 추정 월세(USD), 출근은 Caltrain 시각표+도보·자전거 분. 출근지가 Meta HQ·Menlo Park면 준비 중이라고 하지 말고 extract_profile 다음 바로 find_homes를 부른다.",
+  "미국 통근은 Caltrain 시각표 기반 추정치이고, Meta 셔틀은 가정이며 사실이 아니다.",
   "다루지 않는 지역이면 '아직 준비 중이에요'라고 말하고 가장 가까운 다루는 지역을 제안한다. 엉뚱한 질문에도 한 줄로 답하고 집 고민으로 돌아온다.",
   "답은 2~3문장, 본문은 짧게. 후보·숫자 목록은 카드와 지도에 이미 있으니 문장으로 늘어놓지 않고 1~2곳만 짚는다. 본문 다음 새 줄에 고객이 다음에 할 만한 요청 2~3개를 [[다음: 비교해 줘 | 출근길 보여 줘 | 살아 봐 줘]] 형식으로 쓴다(각 12자 이내, 고객 말투).",
   "수치는 반드시 이번 대화의 도구 결과에 나온 것만 그대로 인용한다. 도구 결과를 보지 않은 숫자를 만들지 않는다.",
@@ -188,6 +189,74 @@ function nameByIdFromResults(results) {
   };
   (results || []).forEach(visit);
   return map;
+}
+
+// 29M1: Muse names the homes up front (English only). The model writes
+// better English home names than rule-based romanisation (하이츠 Heights,
+// 허니 Honey, 유토빌 Utopil), so one extra call resolves the English name
+// for each Korean-named candidate before the model writes its reply.
+// The client registry, this per-process cache and the tool results all
+// start from the same name. Failure skips silently (fallbacks cover it).
+export const HOME_NAMES_SYSTEM =
+  "Give the English name an English-speaking resident would use for each Korean apartment/villa/building name. Translate English loanwords by meaning (빌딩 Building, 팰리스 Palace, 하이츠 Heights, 허니 Honey, 타워 Tower, 아파트 Apartments), romanize Korean words (Revised Romanization), keep brand coinages readable (유토빌 Utopil). Reply with JSON only: {\"names\": {\"<korean>\": \"<english>\"}}.";
+
+const HOME_NAMES_CACHE = new Map();
+
+export function resetHomeNamesEnCacheForTests() {
+  HOME_NAMES_CACHE.clear();
+}
+
+const HOME_HANGUL_RE = /[가-힣]/;
+
+function visitCandidates(value, fn) {
+  const visit = (v) => {
+    if (Array.isArray(v)) {
+      v.forEach(visit);
+      return;
+    }
+    if (v && typeof v === "object") {
+      if (Array.isArray(v.candidates)) {
+        for (const c of v.candidates) fn(c);
+      }
+      for (const k of Object.keys(v)) {
+        if (k !== "candidates") visit(v[k]);
+      }
+    }
+  };
+  visit(value);
+}
+
+function koreanCandidateNames(value) {
+  const names = [];
+  visitCandidates(value, (c) => {
+    const nm = c && (c.name || c.complex_name);
+    if (typeof nm === "string" && HOME_HANGUL_RE.test(nm)) names.push(nm.trim());
+  });
+  return [...new Set(names.filter(Boolean))];
+}
+
+function attachNameEn(value, namesEn) {
+  visitCandidates(value, (c) => {
+    if (!c || typeof c !== "object") return;
+    const nm = c.name || c.complex_name;
+    if (typeof nm !== "string") return;
+    const en = namesEn[String(nm).trim()];
+    if (en) c.name_en = en;
+  });
+}
+
+function parseHomeNamesJson(text) {
+  const s = String(text || "");
+  const tries = [s];
+  const m = s.match(/\{[\s\S]*\}/);
+  if (m) tries.push(m[0]);
+  for (const t of tries) {
+    try {
+      const o = JSON.parse(t);
+      if (o && typeof o.names === "object" && o.names !== null) return o.names;
+    } catch { /* try the next shape */ }
+  }
+  return {};
 }
 
 export function summarizeToolCall(name, args, result, ms) {
@@ -380,6 +449,77 @@ export async function runTurn(opts) {
   const requestMessages = (extra = []) => isEnglish
     ? [...history, ...extra, { role: "system", content: ENGLISH_NOTE }]
     : [...history, ...extra];
+  // 29M1: English home names known so far (client registry snapshot sent
+  // as context.names_en, plus the per-process cache). name_en goes on
+  // each candidate the model reads and out as names_en for the UI.
+  const namesEn = {};
+  const seedNames = context && context.names_en;
+  if (seedNames && typeof seedNames === "object") {
+    for (const [k, v] of Object.entries(seedNames)) {
+      const key = String(k).trim();
+      const val = typeof v === "string" ? v.trim().replace(/\s+/g, " ") : "";
+      if (key && val && !HOME_HANGUL_RE.test(val)) {
+        namesEn[key] = val;
+        HOME_NAMES_CACHE.set(key, val);
+      }
+    }
+  }
+  // 29M1 capability gate: only callers that send context.names_en get
+  // the extra naming call (the client always sends it in English, even
+  // empty). Callers without it keep the exact old call sequence.
+  const namesEnSupported = !!(context && context.names_en
+    && typeof context.names_en === "object");
+  async function ensureHomeNamesEn(result) {
+    const known = {};
+    for (const [k, v] of HOME_NAMES_CACHE) known[k] = v;
+    Object.assign(known, namesEn);
+    const fresh = koreanCandidateNames(result)
+      .filter((ko) => !known[ko]).slice(0, 30);
+    if (fresh.length === 0 || !namesEnSupported) {
+      attachNameEn(result, known);
+      return;
+    }
+    // One extra call with the same complete the agent already uses:
+    // short JSON-only naming request, 8 s cap, failure skips silently.
+    const t0 = Date.now();
+    let timer = null;
+    try {
+      const res = await Promise.race([
+        complete({
+          provider,
+          messages: [...history,
+            { role: "system", content: HOME_NAMES_SYSTEM },
+            { role: "user", content: JSON.stringify(fresh) }],
+          maxTokens: 500,
+          timeoutMs: 8000,
+        }),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error("home_names_en timeout")), 8000);
+        }),
+      ]);
+      if (timer) clearTimeout(timer);
+      const ms = Date.now() - t0;
+      usage.prompt_tokens += (res.usage && res.usage.prompt_tokens) || 0;
+      usage.completion_tokens += (res.usage && res.usage.completion_tokens) || 0;
+      usage.calls++;
+      const parsed = parseHomeNamesJson(res.message && res.message.content);
+      let n = 0;
+      for (const ko of fresh) {
+        const v = parsed[ko];
+        const clean = typeof v === "string" ? v.trim().replace(/\s+/g, " ") : "";
+        if (clean && !HOME_HANGUL_RE.test(clean)) {
+          namesEn[ko] = clean;
+          HOME_NAMES_CACHE.set(ko, clean);
+          known[ko] = clean;
+          n++;
+        }
+      }
+      toolCalls.push({ name: "home_names_en", ok: true,
+        summary: `영문 이름 ${n}곳`, ms, target: "{}" });
+    } catch { /* fallbacks cover it — the turn keeps working */ }
+    finally { if (timer) clearTimeout(timer); }
+    attachNameEn(result, { ...known, ...namesEn });
+  }
   const appended = []; // new messages for the browser to keep
   const toolCalls = []; // compact rows for the UI
   const toolResults = []; // parsed results, in order (guard scope)
@@ -547,6 +687,13 @@ export async function runTurn(opts) {
         ? { ok: false, error: "tool arguments are not valid JSON" }
         : await callTool(session, c.name, c.args || {});
       const ms = Date.now() - t0;
+      // 29M1: English sessions resolve home names before the model
+      // writes its reply, and stamp name_en on the candidates it reads.
+      if (isEnglish && result && result.ok) {
+        try {
+          await ensureHomeNamesEn(result);
+        } catch { /* skip silently — fallbacks cover it */ }
+      }
       toolResults.push(result);
       const { summary, ok } = summarizeToolCall(c.name, (c.args || {}), result, ms);
       toolCalls.push({ name: c.name, ok, summary, ms,
@@ -594,6 +741,7 @@ export async function runTurn(opts) {
     return {
       ok: true, ...extra,
       messages: appended, toolCalls, uiActions,
+      names_en: { ...namesEn },
       suggestions: (extra && extra.suggestions) || [],
       usage: { ...usage, est_usd: costUsd(provider, usage) },
       scenario: session.scenario,

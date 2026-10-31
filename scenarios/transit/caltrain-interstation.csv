@@ -1,0 +1,31 @@
+연번,호선,역명,소요시간,역간거리(km),호선별누계(km)
+1,Caltrain,22nd Street,06:00,2.171,2.171
+2,Caltrain,Bayshore,04:00,5.542,7.713
+3,Caltrain,South San Francisco,06:00,5.758,13.471
+4,Caltrain,San Bruno,03:00,2.895,16.366
+5,Caltrain,Millbrae,03:00,4.047,20.413
+6,Caltrain,Broadway,02:00,2.594,23.007
+7,Caltrain,Burlingame,02:00,1.773,24.78
+8,Caltrain,San Mateo,03:00,2.205,26.985
+9,Caltrain,Hayward Park,02:00,2.103,29.088
+10,Caltrain,Hillsdale,02:00,1.384,30.472
+11,Caltrain,Belmont,04:00,3.235,33.707
+12,Caltrain,San Carlos,02:00,2.05,35.757
+13,Caltrain,Redwood City,04:00,3.534,39.291
+14,Caltrain,Menlo Park,04:00,5.538,44.829
+15,Caltrain,Palo Alto,03:00,2.056,46.885
+16,Caltrain,Stanford,01:00,0.789,47.674
+17,Caltrain,California Avenue,02:00,1.807,49.481
+18,Caltrain,San Antonio,03:00,3.846,53.327
+19,Caltrain,Mountain View,03:00,2.967,56.294
+20,Caltrain,Sunnyvale,04:00,4.42,60.714
+21,Caltrain,Lawrence,03:00,3.192,63.906
+22,Caltrain,Santa Clara,05:00,5.678,69.584
+23,Caltrain,College Park,02:00,2.179,71.763
+24,Caltrain,San Jose Diridon,12:00,1.834,73.597
+25,Caltrain,Tamien,05:00,2.501,76.098
+26,Caltrain,Capitol,06:00,4.95,81.048
+27,Caltrain,Blossom Hill,06:00,5.23,86.278
+28,Caltrain,Morgan Hill,13:00,18.903,105.181
+29,Caltrain,San Martin,06:00,6.017,111.198
+30,Caltrain,Gilroy,12:00,9.861,121.059

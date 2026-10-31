@@ -105,16 +105,15 @@ def test_build_us_homes_grouping_and_fields(tmp_path: Path) -> None:
     points = [(LON0 + 0.001, LAT0, "94025")]
     homes = build_us_homes(area_dir, ZORI, points)
 
-    assert [h["id"] for h in homes] == ["us-home-0001", "us-home-0002",
-                                       "us-home-0003"]
-    live, bldg_a, unnamed = homes
+    assert [h["id"] for h in homes] == ["us-home-0001", "us-home-0003"]
+    live, unnamed = homes
     assert live["name"] == "Live Oak Apartments"
     assert live["match"] == "osm_name"
     assert live["osm_name"] == "Live Oak Apartments"
-    assert bldg_a["name"] == "Apartments on Oak Ave · 1"
-    assert bldg_a["match"] == "osm"
-    assert bldg_a["osm_name"] is None
-    assert unnamed["name"] == "Apartments on Oak Ave · 2"
+    assert unnamed["name"] == "Apartments on Oak Ave"
+    assert unnamed["match"] == "osm"
+    assert unnamed["osm_name"] is None
+    assert unnamed["buildings"] == 2
     assert not any(h["name"] == "Grad Housing" for h in homes)
 
     for h in homes:
@@ -184,10 +183,10 @@ def test_build_us_homes_address_and_duplicates(tmp_path: Path) -> None:
 
     assert homes[0]["name"] == "12 Bay Road"
     assert homes[0]["match"] == "osm_address"
-    rest = sorted(homes[1:], key=lambda h: -h["lat"])
-    assert rest[0]["name"] == "Apartments on Bay Road · 1"
-    assert rest[1]["name"] == "Apartments on Bay Road · 2"
-    assert len({h["name"] for h in homes}) == 3
+    assert len(homes) == 2
+    assert homes[1]["name"] == "Apartments on Bay Road"
+    assert homes[1]["buildings"] == 2
+    assert len({h["name"] for h in homes}) == 2
 
 
 def test_run_us_homes_summary_and_idempotent(tmp_path: Path) -> None:
@@ -206,20 +205,20 @@ def test_run_us_homes_summary_and_idempotent(tmp_path: Path) -> None:
                    ensure_ascii=False), encoding="utf-8")
 
     report = run_us_homes(build_dir=build_dir, raw_dir=raw_dir)
-    assert report["homes"] == 3
+    assert report["homes"] == 2
     assert report["dropped_no_zori"] == 0
 
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
     assert summary["regions"] == {"gangnam": gangnam}
     assert summary["total"] == 5
     assert summary["other_regions"]["us-menlo"] == {
-        "homes": 3, "country": "US", "currency": "USD"}
+        "homes": 2, "country": "US", "currency": "USD"}
     doc = json.loads(
         (build_dir / "homes" / "us-menlo.json").read_text(encoding="utf-8"))
     assert doc["region"] == "us-menlo"
     assert doc["country"] == "US"
     assert doc["currency"] == "USD"
-    assert len(doc["homes"]) == 3
+    assert len(doc["homes"]) == 2
 
     before = summary_path.read_text(encoding="utf-8")
     run_us_homes(build_dir=build_dir, raw_dir=raw_dir)

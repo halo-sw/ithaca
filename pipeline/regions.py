@@ -408,6 +408,30 @@ US_REGION_SPECS = (
 
 US_REGION_IDS = tuple(spec["id"] for spec in US_REGION_SPECS)
 
+# Stage 29N1 US Caltrain boxes: 1.2 km station boxes (same box path as the
+# Korean station boxes) centred on Caltrain stations along the SF→San Jose
+# corridor. Coordinates resolve from OSM/GTFS at build time; only the names
+# to look up and the fallback ZIP are fixed here.
+US_CALTRAIN_BOXES = (
+    {"id": "us-st-san-francisco", "station": "San Francisco",
+     "default_zip": "94107"},
+    {"id": "us-st-belmont", "station": "Belmont",
+     "default_zip": "94002"},
+    {"id": "us-st-san-carlos", "station": "San Carlos",
+     "default_zip": "94070"},
+    {"id": "us-st-redwood-city", "station": "Redwood City",
+     "default_zip": "94063"},
+    {"id": "us-st-palo-alto", "station": "Palo Alto",
+     "default_zip": "94301"},
+    {"id": "us-st-mountain-view", "station": "Mountain View",
+     "default_zip": "94041"},
+    {"id": "us-st-sunnyvale", "station": "Sunnyvale",
+     "default_zip": "94086"},
+)
+
+US_CALTRAIN_BOX_IDS = tuple(spec["id"] for spec in US_CALTRAIN_BOXES)
+US_MENLO_DEFAULT_ZIP = "94025"
+
 
 def _us_region_entry(spec: dict) -> dict:
     """One US region entry: every KR key present so readers don't crash."""

@@ -307,6 +307,17 @@ def cmd_network(args) -> int:
     return 0
 
 
+def cmd_caltrain(args) -> int:
+    from .caltrain import run
+
+    summary = run(gtfs_zip=Path(args.gtfs),
+                  build_dir=Path(args.build_dir),
+                  scenarios_dir=Path(args.scenarios_dir))
+    print(json.dumps(summary, indent=2, sort_keys=True,
+                     ensure_ascii=False))
+    return 0
+
+
 def cmd_corridor(args) -> int:
     from .corridor import run_build
 
@@ -523,6 +534,14 @@ def build_parser() -> argparse.ArgumentParser:
     n.add_argument("--refresh", action="store_true",
                    help="rebuild the cached prefilter even when fresh")
     n.set_defaults(func=cmd_network)
+
+    t = sub.add_parser("caltrain",
+                       help="build data/build/region-us/network.json from the Caltrain GTFS")
+    t.add_argument("--gtfs",
+                   default="data/raw/us/caltrain/caltrain-ca-us.zip")
+    t.add_argument("--build-dir", default="data/build/region-us")
+    t.add_argument("--scenarios-dir", default="scenarios/transit")
+    t.set_defaults(func=cmd_caltrain)
 
     n = sub.add_parser("corridor",
                        help="build a low-detail corridor along a station-ride path")
