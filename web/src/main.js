@@ -9,7 +9,7 @@ import { LineMaterial } from "three/addons/lines/LineMaterial.js";
 import "./style.css";
 import { bboxToXY, lonLatToWorld, lonLatToXY } from "./frame.js";
 import { buildBuildings } from "./buildings.js";
-import { buildingCard, destSuffixFor, labelItemsFor, labelPaintStyle, placeLabels } from "./labels3d.js";
+import { buildingCard, destSuffixFor, labelBoxW, labelItemsFor, labelPaintStyle, placeLabels } from "./labels3d.js";
 import { buildGround } from "./ground.js";
 import { ARCH_FOV_DEG, GLIDE_FRAME_M, STOP_FRAME_M, TOUR_AZIMUTH, applyFollowOffset, archLensPose, cameraStyle, distanceForWidth, followZoomAfterWheel, footprintsOf, frameWidthFor, hostTowerIds, journeyCruisePose, occludingIds, pickStopAzimuth, resolveStyle, tourFrameWidths, tourOffset, zoomClampDistances } from "./camera.js";
 import { loadArea, originOf } from "./load.js";
@@ -1826,8 +1826,10 @@ async function bootSim() {
         const sx = rect.left + ((label20bV.x + 1) / 2) * rect.width;
         const sy = rect.top + ((1 - label20bV.y) / 2) * rect.height;
         if (sx < rect.left || sy < rect.top || sx > rect.left + rect.width || sy > rect.top + rect.height) continue;
-        const glyphW = item.glyph ? 20 : 0;
-        const w = [...String(item.title || "")].length * 13 + 24 + glyphW;
+        // 29L6: the box matches the painted string — on English the
+        // romanised title (2-3x wider than the Korean), sub included.
+        const w = labelBoxW(item.title, currentLang(),
+          { sub: item.level === "complex" ? item.sub : "", glyph: item.glyph });
         const h = item.level === "complex" && item.sub ? 36 : 22;
         projected.push({ ...item, x: sx - rect.left - w / 2, y: sy - rect.top - h, w, h,
           _sx: sx - wrap.left, _sy: sy - wrap.top,

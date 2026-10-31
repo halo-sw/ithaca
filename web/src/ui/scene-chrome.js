@@ -18,6 +18,16 @@ export function toolsLabelFor(label, { phone = false, lang = "ko" } = {}) {
   return label;
 }
 
+// 29L6: the chat-panel 3D header (SceneFrame) stays on one line on a
+// 390 px phone: English actions shorten, with the full text kept in
+// the caller's aria-label/title. Korean labels stay as they are.
+export function sceneActionLabelFor(label, { phone = false, lang = "ko" } = {}) {
+  if (!phone || lang !== "en") return label;
+  if (label === "To the map") return "Map";
+  if (label === "Open in new window") return "New window";
+  return label;
+}
+
 // English member-chip / panel-headline words from the Korean member
 // label (memberLabelFor output). Explicit customer names pass through.
 const MEMBER_EN = {

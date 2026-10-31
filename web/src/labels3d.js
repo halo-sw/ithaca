@@ -7,6 +7,7 @@
 // same helper the station labels use and renders into the #tags layer.
 
 import { displayNameFor } from "./homes.js";
+import { placeNameEn } from "./ui/scene-chrome.js";
 
 export const OVERVIEW_MIN_M = 400;
 export const DONG_MAX_M = 250;
@@ -386,6 +387,27 @@ function estimateW(item) {
   const title = String(item.title || "");
   const glyph = item.glyph ? 20 : 0;
   return [...title].length * 13 + 24 + glyph;
+}
+
+const HANGUL_CH = /[가-힣]/;
+
+// 29L6: label box width from the string actually painted. On English
+// the title goes through placeNameEn (the same English the label
+// element shows), so the clamped box matches the painted box.
+// Hangul chars cost 13 px, other chars 7.5 px, plus 24 px chrome
+// (+ glyph); the sub line counts when it is wider. Rounded up.
+export function labelBoxW(title, lang = "ko", opts = {}) {
+  const shown = lang === "en" ? placeNameEn(title) : String(title ?? "");
+  const glyph = opts && opts.glyph ? 20 : 0;
+  const wOf = (s) => [...String(s ?? "")].reduce(
+    (a, ch) => a + (HANGUL_CH.test(ch) ? 13 : 7.5), 0) + 24 + glyph;
+  let w = wOf(shown);
+  if (opts && opts.sub) {
+    const sub = lang === "en" ? placeNameEn(opts.sub) : String(opts.sub);
+    const sw = wOf(sub);
+    if (sw > w) w = sw;
+  }
+  return Math.ceil(w);
 }
 
 // Hover card for one building. Never emits "undefined" / "null": missing

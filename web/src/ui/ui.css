@@ -865,9 +865,11 @@ body.printing-share #share-print { display: block !important; padding: var(--ui-
 .ui-chat-scene { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column;
   height: 100%; background: var(--ui-page); }
 .ui-chat-scene-head { display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px; border-bottom: 1px solid var(--ui-border); }
-.ui-chat-scene-title { font-weight: 600;
-  overflow-wrap: anywhere; word-break: keep-all; }
+  padding: 8px 12px; border-bottom: 1px solid var(--ui-border);
+  flex-wrap: nowrap; }
+/* 29L6: the scene title never wraps — the row fits 390 px on one line. */
+.ui-chat-scene-title { font-weight: 600; white-space: nowrap;
+  flex: 0 1 auto; min-width: 0; }
 .ui-chat-scene-frame { flex: 1 1 auto; width: 100%; border: 0; }
 /* ---------- 27a: chat-first empty screen + work panel on request ---------- */
 /* 26w: the first screen shows the product — the landing glide plays
