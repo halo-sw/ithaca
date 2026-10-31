@@ -59,13 +59,13 @@ const HOME = { monthly_won: 500000, maintenance_won_month: 100000,
 const PERSONA = "newlywed_couple";
 
 describe("34b English member labels", () => {
-  it("maps 나/배우자/아이/함께 사는 사람 3 to me/spouse/child/housemate 3", () => {
-    assert.equal(memberLabelEn("나"), "me");
-    assert.equal(memberLabelEn("배우자"), "spouse");
-    assert.equal(memberLabelEn("아이"), "child");
-    assert.equal(memberLabelEn("함께 사는 사람 3"), "housemate 3");
-    assert.equal(memberLabelForLang({ role: "adult" }, 2, "en"), "housemate 3");
-    assert.equal(memberLabelForLang({ role: "self" }, 0, "en"), "me");
+  it("maps 나/배우자/아이/함께 사는 사람 3 to You/Your partner/Your child/Housemate 3", () => {
+    assert.equal(memberLabelEn("나"), "You");
+    assert.equal(memberLabelEn("배우자"), "Your partner");
+    assert.equal(memberLabelEn("아이"), "Your child");
+    assert.equal(memberLabelEn("함께 사는 사람 3"), "Housemate 3");
+    assert.equal(memberLabelForLang({ role: "adult" }, 2, "en"), "Housemate 3");
+    assert.equal(memberLabelForLang({ role: "self" }, 0, "en"), "You");
   });
 
   it("a custom label passes through; Korean returns the old label", () => {
@@ -79,37 +79,39 @@ describe("34b English member labels", () => {
 });
 
 describe("34b report input carries English member labels", () => {
-  it("English digest N01 has no Hangul member label; Korean is unchanged", () => {
+  it("label_ko stays Korean and label_en carries You/Your partner", () => {
     const base = { runs: { A: enRun() }, labels: ["A"],
       homes: { A: HOME }, persona: PERSONA, groundTruth: GT };
-    const en = reportDigest({ ...base, lang: "en" });
-    const n01en = en.items.find((it) => it.id === "N01");
-    assert.equal(n01en.values.A.h1.label_ko, "me");
-    assert.equal(n01en.values.A.h2.label_ko, "spouse");
-    for (const v of Object.values(n01en.values.A)) {
-      assert.ok(!/[가-힣]/.test(v.label_ko || ""),
-        `no Hangul member label, got ${v.label_ko}`);
+    const digest = reportDigest(base);
+    const n01 = digest.items.find((it) => it.id === "N01");
+    assert.equal(n01.values.A.h1.label_ko, "나");
+    assert.equal(n01.values.A.h1.label_en, "You");
+    assert.equal(n01.values.A.h2.label_ko, "배우자");
+    assert.equal(n01.values.A.h2.label_en, "Your partner");
+    for (const v of Object.values(n01.values.A)) {
+      assert.ok(!/[가-힣]/.test(v.label_en || ""),
+        `no Hangul member label, got ${v.label_en}`);
     }
-    const ko = reportDigest(base);
-    const n01ko = ko.items.find((it) => it.id === "N01");
-    assert.equal(n01ko.values.A.h1.label_ko, "나");
-    assert.equal(n01ko.values.A.h2.label_ko, "배우자");
   });
 });
 
-describe("34b number check maps me back to 나", () => {
-  it("me resolves to h1 and checks against 나's trips", () => {
+describe("34b number check maps You back to 나", () => {
+  it("You resolves to h1 and checks against 나's trips", () => {
     const run = enRun();
+    assert.equal(memberKeyFor(run, "You"), "h1");
+    assert.equal(memberKeyFor(run, "you"), "h1");
     assert.equal(memberKeyFor(run, "me"), "h1");
-    assert.deepEqual(engineValue("N01", run, { member: "me" }),
+    assert.equal(memberKeyFor(run, "Your partner"), "h2");
+    assert.equal(memberKeyFor(run, "spouse"), "h2");
+    assert.deepEqual(engineValue("N01", run, { member: "You" }),
       engineValue("N01", run, { member: "나" }));
   });
 
   it("passes with 5, fails with 9", () => {
     const loaded = loadGroundTruth(GT, PERSONA);
     const sentence = (value) => ({ persona: PERSONA, home: HOME, sentences: [{
-      id: "s1", item_id: "N01", text_ko: "me averaged 5 min one-way",
-      claims: [{ field: "minutes", value, unit: "분", member: "me" }],
+      id: "s1", item_id: "N01", text_ko: "You averaged 5 min one-way",
+      claims: [{ field: "minutes", value, unit: "분", member: "You" }],
       evidence: [] }] });
     assert.equal(checkNumberClaims(sentence(5), enRun(), loaded).failures.length, 0);
     assert.equal(checkNumberClaims(sentence(9), enRun(), loaded).failures.length, 1);

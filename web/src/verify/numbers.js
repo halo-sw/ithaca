@@ -86,12 +86,13 @@ export function memberKeyFor(run, member) {
   if (member === null || member === undefined) return null;
   const wants = [String(member)];
   const ko = memberLabelKo(String(member));
-  if (ko !== String(member)) wants.push(ko);
-  for (const want of wants) {
+  if (ko.toLowerCase() !== String(member).toLowerCase()) wants.push(ko);
+  const lower = wants.map((w) => w.toLowerCase());
+  for (const want of lower) {
     for (const a of (run && run.agents) || []) {
       if (!a || typeof a !== "object") continue;
       for (const k of [a.key, a.id, a.label]) {
-        if (k !== undefined && k !== null && String(k) === want) {
+        if (k !== undefined && k !== null && String(k).toLowerCase() === want) {
           const key = a.key ?? a.id ?? a.agent;
           return key === undefined || key === null ? null : String(key);
         }
