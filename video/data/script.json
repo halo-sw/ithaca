@@ -1,148 +1,239 @@
 {
-  "_note": "Draft v1.2 (2026-10-30). The orchestrator writes and the user approves the words; Muse builds the scenes from this file and never rewrites the copy. Times in seconds at 30 fps. `asset` paths are under video/public/; a missing asset renders the placeholder card for that scene. {stat:key} reads data/stats.json; a null stat drops the whole line.",
+  "_note": "Draft v2.0 (2026-11-01). English UI on the Seoul scenario, per the user. The orchestrator writes and the user approves the words; Muse builds the scenes from this file and never rewrites the copy. Times in seconds at 30 fps. `asset` paths are under video/public/. {stat:key} reads data/stats.json; a null stat drops the whole line.",
   "fps": 30,
   "width": 1920,
   "height": 1080,
   "scenes": [
     {
       "id": "hook",
-      "start": 0,
-      "duration": 12,
-      "kind": "title",
-      "lines_en": [
-        "You sign a 2-year lease after a 20-minute visit.",
-        "{stat:jeonse_fraud_victims_2030_pct}% of Korea's jeonse-fraud victims are in their 20s and 30s."
-      ],
-      "lines_ko": [
-        "20분 둘러보고 2년 계약을 해요."
-      ],
-      "source": "{stat:jeonse_fraud_source}"
-    },
-    {
-      "id": "pitch",
-      "start": 12,
-      "duration": 8,
-      "kind": "title",
-      "lines_en": [
-        "Ithaca — the pre-living agent for your next home.",
-        "An AI household lives 30 days in the homes you pick,",
-        "before you sign."
-      ],
-      "lines_ko": [
-        "계약 전에, 30일 먼저 살아 보기"
-      ]
-    },
-    {
-      "id": "intake",
-      "start": 20,
-      "duration": 18,
-      "kind": "screen",
-      "asset": "clips/01-intake.mp4",
-      "caption_en": "Say it the way you would to a friend. The agent shows what it heard, what it assumed, and what it still needs to ask.",
-      "callouts": [
-        {
-          "at": 13,
-          "text_en": "Every value tagged: you said it, or it still needs asking"
-        }
-      ]
-    },
-    {
-      "id": "candidates",
-      "start": 38,
-      "duration": 22,
-      "kind": "screen",
-      "asset": "clips/02-candidates.mp4",
-      "caption_en": "Candidates come from real government transaction records on a real map. The agent sorts; you pick two or three.",
-      "callouts": [
-        {
-          "at": 9,
-          "text_en": "Price = median of recent real 전세 deals"
-        },
-        {
-          "at": 16,
-          "text_en": "You pick two. No ranking, no winner"
-        }
-      ]
-    },
-    {
-      "id": "simulate",
-      "start": 60,
-      "duration": 45,
-      "kind": "screen",
-      "asset": "clips/03-simulate.mp4",
-      "caption_en": "Thirty days, both homes, the same seed. Real walking routes, the operator's subway timetable, measured rush-hour crowding.",
-      "callouts": [
-        {
-          "at": 10,
-          "text_en": "Measured or assumed: every line says which"
-        },
-        {
-          "at": 24,
-          "text_en": "Same seed, same day: now in home B"
-        },
-        {
-          "at": 32,
-          "text_en": "Muse Spark decides, the engine counts"
-        }
-      ]
-    },
-    {
-      "id": "results",
-      "start": 105,
-      "duration": 30,
-      "kind": "screen",
-      "asset": "clips/04-results.mp4",
-      "caption_en": "What it costs each month, how long the commute really is, and what the household noticed — in plain words, with the evidence.",
-      "callouts": [
-        {
-          "at": 8,
-          "text_en": "My-criteria score: your own weights, never a verdict"
-        },
-        {
-          "at": 18,
-          "text_en": "살아 보니 — moments from the 30 days"
-        }
-      ]
-    },
-    {
-      "id": "verify",
-      "start": 135,
-      "duration": 22,
-      "kind": "verify",
-      "asset": "clips/05-verify.mp4",
-      "caption_en": "Nothing in the result is taken on trust. Each number opens the minute it came from, rebuilt from its parts.",
-      "steps_en": [
-        "Tap a moment in the result",
-        "The 3D jumps to that minute of the 30 days",
-        "13 min = walk 5 + subway 4 + wait 4",
-        "Measured and assumed values, labelled"
-      ]
-    },
-    {
-      "id": "meta",
-      "start": 157,
-      "duration": 16,
-      "kind": "stats",
-      "caption_en": "Built this week, entirely with Meta AI.",
-      "rows_en": [
-        "Every line of product code written by Muse Code — {stat:muse_stages} stage briefs, {stat:muse_commits} commits",
-        "{stat:tests_js} JS + {stat:tests_py} Python tests",
-        "In-app decisions: Muse Spark 1.3 + Spark Open on Baseten ({stat:spark_open_judgments} compared)",
-        "{stat:rtms_rows_placed_pct}% of {stat:rtms_rows} real transactions placed on the map"
-      ]
-    },
-    {
-      "id": "end",
-      "start": 173,
       "duration": 7,
       "kind": "title",
       "lines_en": [
+        "In Seoul, a two-year jeonse lease is often signed after one short viewing.",
+        "What if you could live there first?"
+      ],
+      "lines_ko": [],
+      "start": 0
+    },
+    {
+      "id": "korea",
+      "duration": 6,
+      "kind": "screen",
+      "asset": "clips/10-seoul-en.mp4",
+      "clip_from": 0,
+      "caption_en": "Ithaca started from Seoul's jeonse problem. What follows is a real run with Muse Spark 1.3, sped up in places.",
+      "start": 7
+    },
+    {
+      "id": "pitch",
+      "duration": 6,
+      "kind": "title",
+      "image": "brand/ithaca-banner.png",
+      "lines_en": [
+        "An AI household lives 30 days in the homes you pick, before you sign."
+      ],
+      "lines_ko": [],
+      "start": 13
+    },
+    {
+      "id": "ask",
+      "duration": 12,
+      "kind": "screen",
+      "asset": "clips/10-seoul-en.mp4",
+      "clip_from": 2,
+      "playback_rate": 1.6,
+      "caption_en": "Say your situation in plain words. Muse Spark 1.3 reads it and calls real tools.",
+      "zooms": [
+        {
+          "at": 4.5,
+          "until": 11.5,
+          "rect": [
+            0.2,
+            0.0,
+            0.6,
+            0.4
+          ]
+        }
+      ],
+      "callouts": [
+        {
+          "at": 5,
+          "text_en": "Each step Muse takes is shown"
+        }
+      ],
+      "start": 19
+    },
+    {
+      "id": "candidates",
+      "duration": 10,
+      "kind": "screen",
+      "asset": "clips/10-seoul-en.mp4",
+      "clip_from": 22,
+      "caption_en": "Candidates come from the government's real transaction records, on a real map.",
+      "zooms": [
+        {
+          "at": 1.5,
+          "until": 9.5,
+          "rect": [
+            0.49,
+            0.4,
+            0.22,
+            0.44
+          ]
+        }
+      ],
+      "callouts": [
+        {
+          "at": 2,
+          "text_en": "Price = median of recent real jeonse deals"
+        }
+      ],
+      "start": 31
+    },
+    {
+      "id": "live",
+      "duration": 12,
+      "kind": "screen",
+      "asset": "clips/10-seoul-en.mp4",
+      "clip_from": 25.5,
+      "playback_rate": 2,
+      "caption_en": "Pick two. Muse lives 30 days in each home: the same household, the same seed.",
+      "callouts": [
+        {
+          "at": 7,
+          "text_en": "No ranking, no winner"
+        }
+      ],
+      "start": 41
+    },
+    {
+      "id": "days",
+      "duration": 8,
+      "kind": "screen",
+      "asset": "clips/11-3d-commute-en.mp4",
+      "clip_from": 0.5,
+      "caption_en": "Every trip is simulated minute by minute: real walking routes, the subway timetable, measured crowding.",
+      "zooms": [
+        {
+          "at": 2.5,
+          "until": 8,
+          "rect": [
+            0.72,
+            0.1,
+            0.28,
+            0.36
+          ]
+        }
+      ],
+      "callouts": [
+        {
+          "at": 3,
+          "text_en": "Measured or assumed: every line says which"
+        }
+      ],
+      "start": 53
+    },
+    {
+      "id": "results",
+      "duration": 12,
+      "kind": "screen",
+      "asset": "clips/10-seoul-en.mp4",
+      "clip_from": 55,
+      "caption_en": "After 30 days: what it costs, how long the commute really is, and what living there showed.",
+      "zooms": [
+        {
+          "at": 1,
+          "until": 11.5,
+          "rect": [
+            0.0,
+            0.03,
+            0.37,
+            0.62
+          ]
+        }
+      ],
+      "callouts": [
+        {
+          "at": 4,
+          "text_en": "A score on your own criteria, never a verdict"
+        }
+      ],
+      "start": 61
+    },
+    {
+      "id": "verify",
+      "duration": 13,
+      "kind": "screen",
+      "asset": "clips/10-seoul-en.mp4",
+      "clip_from": 74,
+      "caption_en": "Muse writes the report, code re-checks every number, and each moment opens the minute it came from.",
+      "zooms": [
+        {
+          "at": 0.5,
+          "until": 4.5,
+          "rect": [
+            0.0,
+            0.45,
+            0.37,
+            0.5
+          ]
+        }
+      ],
+      "callouts": [
+        {
+          "at": 1,
+          "text_en": "Report check: passed on the first try"
+        },
+        {
+          "at": 7,
+          "text_en": "Day 1, 07:54, in 3D"
+        }
+      ],
+      "start": 73
+    },
+    {
+      "id": "meta",
+      "duration": 13,
+      "kind": "stats",
+      "caption_en": "Built with Meta AI.",
+      "table_en": [
+        [
+          "Muse Spark 1.3",
+          "Talks with you, calls the tools, and makes the household's everyday choices with reasons"
+        ],
+        [
+          "Spark 1.3 as judge",
+          "Checks every sentence of the report against the record"
+        ],
+        [
+          "Muse Spark Open",
+          "Same choice at {stat:spark_open_same} of {stat:spark_open_shared} shared decisions ({stat:spark_open_same_pct}%)"
+        ],
+        [
+          "Muse Code",
+          "Wrote every line of product code and every test from the stage briefs"
+        ],
+        [
+          "Muse Voice",
+          "Say it instead of typing it"
+        ]
+      ],
+      "start": 86
+    },
+    {
+      "id": "end",
+      "duration": 8,
+      "kind": "title",
+      "image": "brand/ithaca-banner.png",
+      "lines_en": [
         "We walk the odyssey. You just come home."
       ],
-      "lines_ko": [
-        "Ithaca"
+      "lines_ko": [],
+      "footers": [
+        "{stat:site_url}",
+        "{stat:repo_url}"
       ],
-      "footer": "{stat:repo_url}"
+      "start": 99
     }
   ]
 }
