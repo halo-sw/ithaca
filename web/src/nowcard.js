@@ -11,6 +11,7 @@
 import { chosenLabel, DECISION_KIND_KO, purposeLabel } from "./sim.js";
 import { journeyBanner, legAt, rideStateFor } from "./journey.js";
 import { hhmm } from "./timeline.js";
+import { homeStatusEn, memberEnFor, tripStatusEn } from "./ui/scene-chrome.js";
 import { standShare } from "./engine/journey.js";
 import { fmtWon } from "./money/format.js";
 
@@ -42,6 +43,17 @@ export function tickerDisplay(events, open, limit = TICKER_VISIBLE) {
 
 const PURPOSE_VERB = { commute: "출근", school: "등교", errand: "장보기", clinic: "병원", park: "산책" };
 const purposeVerb = (p) => PURPOSE_VERB[p] || purposeLabel(p);
+
+// 29L2: English trip activities, built in code ("Commuting", not a
+// glossaried verb).
+const PURPOSE_ACTIVITY_EN = {
+  commute: "Commuting",
+  school: "Heading to school",
+  errand: "Running errands",
+  clinic: "At the clinic",
+  park: "At the park",
+};
+const purposeActivityEn = (p) => PURPOSE_ACTIVITY_EN[p] || "Out";
 
 function homeNote(minute) {
   const h = Math.floor(minute / 60);
@@ -122,14 +134,17 @@ export function nextLabel(next) {
   return `${next.tomorrow ? "내일 " : ""}${hhmm(next.minute)} ${next.label}`;
 }
 
-// One member's Now card at (day, minute).
+// One member's Now card at (day, minute). `now` stays Korean (the
+// drawer's heroBig parses it); `nowEn` / `labelEn` carry the English
+// built in code (scene-chrome.js), rendered in data-no-i18n nodes.
 export function nowCardFor({ run, indexed, agentKey, day, minute }) {
   const agent = (run.agents || []).find((a) => a.key === agentKey) || {};
   const label = agent.label || agentKey;
+  const labelEn = memberEnFor(agent.label || "");
   const { kind, trip, away } = currentItem(indexed, agentKey, day, minute);
   const days = (run.meta && run.meta.days) || 30;
   const next = nextAfter(indexed, agentKey, day, days, minute);
-  const base = { agentKey, label, next: nextLabel(next), oldRun: false,
+  const base = { agentKey, label, labelEn, next: nextLabel(next), oldRun: false,
     decision: null, criterionIds: [], decisionId: null,
     fatigue: fatigueFor({ run, agentKey, day, minute }) };
 
@@ -140,30 +155,38 @@ export function nowCardFor({ run, indexed, agentKey, day, minute }) {
     const now = remain <= 0
       ? `${purposeVerb(trip.purpose)} 중 · ${trip.from.label} → ${trip.to.label} (곧 도착)`
       : `${purposeVerb(trip.purpose)} 중 · ${trip.from.label} → ${trip.to.label} (${moveWord} ${remain}분 남음)`;
+    const nowEn = tripStatusEn({ member: labelEn || "Me",
+      activity: purposeActivityEn(trip.purpose),
+      from: trip.from.label, to: trip.to.label,
+      remainMin: remain, bike: trip && trip.mode === "bike" });
     const progress = Math.min(1, Math.max(0, (minute - trip.depart_min) / dur));
     if (!trip.cause) {
-      return { ...base, state: "trip", now, why: OLD_RUN_WHY, whyKind: "none",
+      return { ...base, state: "trip", now, nowEn, why: OLD_RUN_WHY, whyKind: "none",
         progress, oldRun: true, tripId: trip.id };
     }
-    return { ...base, state: "trip", now, why: trip.cause.text, whyKind: trip.cause.type,
+    return { ...base, state: "trip", now, nowEn, why: trip.cause.text, whyKind: trip.cause.type,
       criterionIds: [...(trip.cause.criterion_ids || [])],
       decisionId: trip.cause.decision_id || null,
       decision: decisionSummary(run, trip.cause.decision_id),
       progress, tripId: trip.id, awayId: null };
   }
   if (kind === "away") {
-    if (away.kind === "ride") return rideCardFor(base, run, away, minute);
+    if (away.kind === "ride") return rideCardFor(base, run, away, minute, labelEn);
     const remain = Math.ceil(Math.max(0, away.end_min - Math.floor(minute)));
     const dur = Math.max(1, away.end_min - away.start_min);
     const now = away.kind === "work"
       ? `${away.label} 중 · ${hhmm(away.end_min)}까지`
       : `${away.label} (${remain}분 머묾)`;
+    const member = labelEn || "Me";
+    const nowEn = away.kind === "work"
+      ? `${member} · At work · until ${hhmm(away.end_min)}`
+      : `${member} · Out · ${away.label} · ${remain} min left`;
     const progress = Math.min(1, Math.max(0, (minute - away.start_min) / dur));
     if (!away.cause) {
-      return { ...base, state: away.kind === "work" ? "away" : "place", now,
+      return { ...base, state: away.kind === "work" ? "away" : "place", now, nowEn,
         why: OLD_RUN_WHY, whyKind: "none", progress, oldRun: true, awayId: awayKey(away) };
     }
-    return { ...base, state: away.kind === "work" ? "away" : "place", now,
+    return { ...base, state: away.kind === "work" ? "away" : "place", now, nowEn,
       why: away.cause.text, whyKind: away.cause.type,
       criterionIds: [...(away.cause.criterion_ids || [])],
       decisionId: away.cause.decision_id || null,
@@ -171,6 +194,7 @@ export function nowCardFor({ run, indexed, agentKey, day, minute }) {
       progress, tripId: null, awayId: awayKey(away) };
   }
   return { ...base, state: "home", now: `집 · ${homeNote(minute)}`,
+    nowEn: homeStatusEn(labelEn || "Me", homeNote(minute)),
     why: "이 시간은 집 (잡힌 일정 없음)", whyKind: "none", progress: null,
     tripId: null, awayId: null };
 }
@@ -184,9 +208,10 @@ function awayKey(a) {
 // 강남→판교 · 21분 남음") plus a per-leg payload the UI renders with
 // congestion % and source badges. Without a drawn path the card says so
 // and falls back to the minutes number.
-function rideCardFor(base, run, away, minute) {
+function rideCardFor(base, run, away, minute, labelEn) {
   const detail = away.detail || {};
   const dir = detail.direction === "back" ? "back" : "out";
+  const member = labelEn || base.labelEn || "Me";
   const m = Math.floor(minute);
   const dur = Math.max(1, away.end_min - away.start_min);
   const progress = Math.min(1, Math.max(0, (m - away.start_min) / dur));
@@ -213,11 +238,14 @@ function rideCardFor(base, run, away, minute) {
     transfers: ride ? ride.transfers.map((t) => ({ station: t.station, minutes: Math.round(t.minutes) })) : [],
     fallback: !ride && detail.ride_fallback ? { ...detail.ride_fallback } : null,
   };
+  // 29L2: English in code — per-leg line names stay Korean proper
+  // nouns, the frame reads as English.
+  const nowEn = `${member} · On the subway · ${payload.minutesLeft} min left`;
   if (!away.cause) {
-    return { ...base, state: "ride", now, why: OLD_RUN_WHY, whyKind: "none",
+    return { ...base, state: "ride", now, nowEn, why: OLD_RUN_WHY, whyKind: "none",
       progress, oldRun: true, tripId: null, awayId: awayKey(away), ride: payload };
   }
-  return { ...base, state: "ride", now,
+  return { ...base, state: "ride", now, nowEn,
     why: away.cause.text, whyKind: away.cause.type,
     criterionIds: [...(away.cause.criterion_ids || [])],
     decisionId: away.cause.decision_id || null,
@@ -307,7 +335,14 @@ export function fatigueFor({ run, agentKey, day, minute }) {
 // round (the "약" stays), fatigue reads "{n}/100". Any decimal minutes
 // already baked into `line` are rounded too, so the UI never shows
 // "8.6분" or a bare "피곤한 정도 4.8".
-export function familyRowText({ label, line, fatigue }) {
+export function familyRowText({ label, labelEn, line, lineEn, fatigue }, lang = "ko") {
+  if (lang === "en" && (labelEn || lineEn)) {
+    const who = labelEn || memberEnFor(label);
+    const what = lineEn || line;
+    const tail = fatigue === null || fatigue === undefined || fatigue === ""
+      ? "" : ` · tiredness ${Math.round(Number(fatigue))}/100`;
+    return `${who} · ${what}${tail}`;
+  }
   const fixed = String(line || "").replace(/(\d+(?:\.\d+)?)분/g, (m, n) => `${Math.round(Number(n))}분`);
   const tail = fatigue === null || fatigue === undefined || fatigue === ""
     ? "" : ` · 피곤한 정도 ${Math.round(Number(fatigue))}/100`;
@@ -320,7 +355,8 @@ export function householdNow({ run, indexed, day, minute }) {
     .filter((a) => a.household)
     .map((a, i) => {
       const card = nowCardFor({ run, indexed, agentKey: a.key, day, minute });
-      return { memberIndex: i + 1, agentKey: a.key, label: a.label, line: card.now,
+      return { memberIndex: i + 1, agentKey: a.key, label: a.label, labelEn: card.labelEn,
+        line: card.now, lineEn: card.nowEn,
         fatigue: card.fatigue ? card.fatigue.value : null };
     });
 }

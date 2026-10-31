@@ -28,6 +28,23 @@ export const ACTIVITIES = {
 
 export const ACTIVITY_ORDER = ["home", "walk", "subway", "work", "errand", "park", "other"];
 
+// 29L2: legend / strip words built in code per language — English is
+// capitalised words here, never glossaried ("home" before).
+export const ACTIVITY_EN = {
+  home: "Home",
+  walk: "Walking",
+  bike: "Bike",
+  subway: "Subway",
+  work: "Work",
+  errand: "Groceries",
+  park: "Park",
+  other: "Other",
+};
+
+export function activityLabelEn(activity) {
+  return ACTIVITY_EN[activity] || ACTIVITY_EN.other;
+}
+
 // 26i: a trip with engine bike mode (26d) reads 자전거 everywhere a
 // walk trip reads 걷기. Trips without a mode key stay walk.
 export function activityOfTrip(trip) {

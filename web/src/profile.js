@@ -20,6 +20,8 @@
 import { findPath } from "./engine/journey.js";
 import { rideMinutes as derivedRideMinutes } from "./transit/schedule.js";
 import { romanize, NAMES } from "./i18n/romanize.js";
+import { currentLang } from "./i18n/lang.js";
+import { workplaceLabel } from "./ui/scene-chrome.js";
 import { findUsWorkplace, US_REGION_ID } from "./places-us.js";
 import { REGION_NAME_ALIASES } from "./region-names.js";
 
@@ -910,7 +912,10 @@ export function scenarioFromProfile(profile, homes, opts = {}) {
       };
       if (dest) {
         work.destination_station = dest;
-        work.place = { name: `직장 (가정: ${dest}역 인근)`, station: dest };
+        // 29L2: the workplace row is built per language — Korean
+        // "직장 (가정: 판교역 인근)", English "Work (assumed: near
+        // Pangyo Stn)" — never glossaried word by word.
+        work.place = { name: workplaceLabel(dest, currentLang(), romanize(dest)), station: dest };
       }
       if (commuteKnown !== null && Number.isFinite(commuteKnown)) {
         // The customer's ceiling is not a ride time — keep the map

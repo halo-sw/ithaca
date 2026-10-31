@@ -27,6 +27,8 @@ import { dayKindFor } from "./engine/journey.js";
 import { pickMoments } from "./engine/moments.js";
 import { householdNow, nowCardFor, simMetaFor, tickerFor } from "./nowcard.js";
 import { sceneEvidence } from "./evidence.js";
+import { currentLang } from "./i18n/lang.js";
+import { memberEnFor } from "./ui/scene-chrome.js";
 import { destInLoadedAreas, pickStationArea } from "./station-areas.js";
 import { DECISION_KIND_KO, SIM_TICK_S, SPEEDS, agentLabelOf, chosenLabel, dayDecisions, decisionBadge, formatClock, homeOccupancy, indexRun, latestDecision, optionsLine, parseTParam, sampleAgent, shouldAutoplay, simInstant, tripFractions } from "./sim.js";
 import { memberLabelFor } from "./profile.js";
@@ -1832,14 +1834,37 @@ async function bootSim() {
       // 20e label safe zones: the top-left toolbar (A·B / 집만 밝게 보기 /
       // 범례) and the bottom timeline reserve screen space. Overlapping
       // labels are skipped; always-items (home, destination) nudge out.
+      // 29L2: the household chips (.hhtag 나/배우자), the followed
+      // person's ring and the credit line reserve space too — building
+      // labels never cover people.
       const reserved = [];
-      for (const sel of [".ui-tools", ".ui-simbar"]) {
+      for (const sel of [".ui-tools", ".ui-simbar", ".ui-simcredit"]) {
         const el = document.querySelector(sel);
         if (!el) continue;
         const r = el.getBoundingClientRect();
         if (r.width <= 0 || r.height <= 0) continue;
         reserved.push({ left: r.left - rect.left, top: r.top - rect.top,
           right: r.right - rect.left, bottom: r.bottom - rect.top });
+      }
+      for (const el of document.querySelectorAll(".hhtag")) {
+        if (el.style.display === "none") continue;
+        const r = el.getBoundingClientRect();
+        if (r.width <= 0 || r.height <= 0) continue;
+        reserved.push({ left: r.left - rect.left, top: r.top - rect.top,
+          right: r.right - rect.left, bottom: r.bottom - rect.top });
+      }
+      try {
+        const ring = follow > 0 ? ringMeshes[follow - 1] : null;
+        if (ring && ring.visible) {
+          label20bV.set(ring.position.x, ring.position.y, ring.position.z).project(camera);
+          if (label20bV.z <= 1) {
+            const sx = rect.left + ((label20bV.x + 1) / 2) * rect.width - rect.left;
+            const sy = rect.top + ((1 - label20bV.y) / 2) * rect.height - rect.top;
+            reserved.push({ left: sx - 28, top: sy - 14, right: sx + 28, bottom: sy + 14 });
+          }
+        }
+      } catch {
+        // The ring never blocks labels.
       }
       const placed = placeLabels(projected, rect.width, rect.height, reserved);
       const seen = new Set(placed.map((p) => p.id));
@@ -3132,8 +3157,13 @@ async function bootSim() {
       note: simLegendBase,
     },
     follow,
-    followOptions: [{ value: "0", label: "자유 시점" },
-      ...household.map((a, i) => ({ value: String(i + 1), label: a.label }))],
+    // 29L2: English follow options are built here (Me, Your
+    // partner, …) inside data-no-i18n nodes — never glossaried.
+    followOptions: currentLang() === "en"
+      ? [{ value: "0", label: "Free camera" },
+        ...household.map((a, i) => ({ value: String(i + 1), label: memberEnFor(a.label) }))]
+      : [{ value: "0", label: "자유 시점" },
+        ...household.map((a, i) => ({ value: String(i + 1), label: a.label }))],
     playing,
     speed,
     simMeta: simMetaFor({ household, scenario, run, homes }),
