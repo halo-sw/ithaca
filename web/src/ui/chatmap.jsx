@@ -8,7 +8,7 @@
 // highlights its card back; clicking a pin scrolls to its card;
 // clicking a region still filters. SSR renders the container only.
 import { useEffect, useRef, useState } from "react";
-import { fitMapView, fitInsetFromChrome, layoutMapPills, layoutStationLabels, pickDongLabels,
+import { fitMapView, fitInsetFromChrome, freeAreaOf, layoutMapPills, layoutStationLabels, pickDongLabels,
   stationNameWidthPx, stationLabelName, placeWorkplacePill, haversineKm,
   tagSizePx, tagLines, tagPriceLine, tagFontPx, clusterSizePx, mapTenuresMixed,
   layoutChatStage,
@@ -106,6 +106,14 @@ function legendFor(lang, shared, mixed, tenure, provider) {
   return vworld
     ? "번호·면적 / 가격 / 출근 시간 · Ⓐ Ⓑ 담은 집 · ■ 회사 · ━ 지하철"
     : "번호·면적 / 가격 / 출근 시간 · Ⓐ Ⓑ 담은 집 · ■ 회사";
+}
+
+// 29M2b: the legend as separate items — each renders in its own
+// nowrap element, so the legend wraps only between items (never
+// `■ 회사 · —` / `지하철` inside one item). Split on the spaced
+// separator; the items themselves never contain it.
+export function legendItems(lang, shared, mixed, tenure, provider) {
+  return legendFor(lang, shared, mixed, tenure, provider).split(" · ");
 }
 
 export function pinAriaLabel(p, short, lang) {
@@ -616,7 +624,8 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
     const dotBoxes = stationPts.map((s) => ({ x: s.x - 6, y: s.y - 6, w: 12, h: 12 }));
     const otherBoxes = laid.filter((l) => l.id !== "work" && l.box).map((l) => l.box);
     const wp = placeWorkplacePill(workLaid.x, workLaid.y, workLaid.w, workLaid.h,
-      W, H, [...chromeObstacles, ...otherBoxes, ...stationLabelBoxes, ...dotBoxes]);
+      W, H, [...chromeObstacles, ...otherBoxes, ...stationLabelBoxes, ...dotBoxes],
+      freeAreaOf(W, H, basePad));
     workLaid.box = wp.box;
     workLaid.leader = wp.leader;
     pinBoxes.length = 0;
@@ -1262,7 +1271,9 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
       {!hideLegend && (
       <div role="note" className={hasFilters
         ? "ui-float ui-chatmap-legend has-filters" : "ui-float ui-chatmap-legend"}>
-        {legendFor(lang, shared, mixedTenure, m.tenure, provider)}
+        {legendItems(lang, shared, mixedTenure, m.tenure, provider).flatMap((t, i) => (i > 0
+          ? [" · ", <span key={i} className="ui-chatmap-legend-item">{t}</span>]
+          : [<span key={i} className="ui-chatmap-legend-item">{t}</span>]))}
         {shared && (
           <span className="ui-chatmap-legend-note" data-no-i18n>{sharedLegendNote(shared, lang)}</span>
         )}

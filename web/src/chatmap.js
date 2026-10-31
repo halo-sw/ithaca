@@ -763,11 +763,17 @@ export function layoutPinLabels(points, W, H) {
 const PILL_GAP = 12;
 const PILL_PAD = 2;
 
-const clampPill = (box, W, H) => ({
-  ...box,
-  x: Math.min(Math.max(box.x, PILL_PAD), Math.max(PILL_PAD, W - box.w - PILL_PAD)),
-  y: Math.min(Math.max(box.y, PILL_PAD), Math.max(PILL_PAD, H - box.h - PILL_PAD)),
-});
+const clampPill = (box, W, H, free) => {
+  const lx = free ? free.x : PILL_PAD;
+  const ty = free ? free.y : PILL_PAD;
+  const rx = free ? free.x + free.w - box.w : W - box.w - PILL_PAD;
+  const by = free ? free.y + free.h - box.h : H - box.h - PILL_PAD;
+  return {
+    ...box,
+    x: Math.min(Math.max(box.x, lx), Math.max(lx, rx)),
+    y: Math.min(Math.max(box.y, ty), Math.max(ty, by)),
+  };
+};
 
 function pillSlots(x, y, w, h) {
   return [
@@ -971,7 +977,7 @@ const clampPill8 = (box, W, H) => ({
   y: Math.min(Math.max(box.y, 8), Math.max(8, H - box.h - 8)),
 });
 
-export function placeWorkplacePill(x, y, w, h, W, H, obstacles = []) {
+export function placeWorkplacePill(x, y, w, h, W, H, obstacles = [], freeArea = null) {
   const ww = Math.max(1, Number(W) || 1);
   const hh = Math.max(1, Number(H) || 1);
   const sides = [
@@ -983,9 +989,23 @@ export function placeWorkplacePill(x, y, w, h, W, H, obstacles = []) {
   ].map((c) => ({ side: c.side, box: clampPill8(c.box, ww, hh) }));
   const hit = (b) => (obstacles || []).some((q) => q && boxHit(b, q));
   const free = sides.find((c) => !hit(c.box));
-  if (free) return { box: free.box, leader: null, side: free.side };
-  const home = sides[0];
-  return { box: home.box, leader: nearestOnBox(home.box, x, y), side: home.side };
+  // 29M2c: like every tag, the pill keeps inside the free area — the
+  // 29M2b edge rule alone leaves it above the free top. Without a
+  // free area the result is exactly the old side pick.
+  const settle = (c, needLeader) => {
+    if (!freeArea) {
+      return { box: c.box,
+        leader: needLeader ? nearestOnBox(c.box, x, y) : null, side: c.side };
+    }
+    const inset = { x: freeArea.x + 4, y: freeArea.y + 4,
+      w: Math.max(1, freeArea.w - 8), h: Math.max(1, freeArea.h - 8) };
+    const box = clampPill(c.box, ww, hh, inset);
+    const moved = box.x !== c.box.x || box.y !== c.box.y;
+    return { box, leader: (needLeader || moved) ? nearestOnBox(box, x, y) : null,
+      side: c.side };
+  };
+  if (free) return settle(free, false);
+  return settle(sides[0], true);
 }
 
 // --- 29M2: the map frames what is drawn ------------------------------------------
@@ -1001,11 +1021,13 @@ export function mapTenuresMixed(pins) {
   return kinds.size > 1;
 }
 
-// Tight groups: connected components of pill anchors under the fan
-// radius (the same PIN_FAN_PX the dot fan uses). Groups of 3–8 pins
-// draw as one list card; larger groups keep the +N cluster path, so
-// only the length filter happens here.
-export function groupTightAnchors(items, radiusPx = PIN_FAN_PX) {
+// Tight groups: connected components of pill anchors under the card
+// radius (29M2b: 72 px at the fitted zoom — one neighbourhood reads
+// as one card). Groups of 3+ pins draw as one list card (the stage
+// pipeline caps at 8; larger groups keep the +N cluster path), so
+// only the length filter happens here. Pairs keep their fanned tags.
+export const GROUP_CARD_PX = 72;
+export function groupTightAnchors(items, radiusPx = GROUP_CARD_PX) {
   const list = items || [];
   const r = Math.max(0, Number(radiusPx) || 0);
   const comp = list.map((_, i) => i);
@@ -1088,6 +1110,12 @@ export function boxesLeaveFreeArea(boxes, free, margin = 4) {
 // Zoom out to the union of the laid-out boxes (corners back in
 // lon/lat through the current projection, plus the anchors) with the
 // usual margin. Returns a fresh fitMapView-style fit.
+// 29M2b: boxes may extend the union, but the centre follows pins +
+// workplace — the exact-fit span shifts so the anchor centroid lands
+// on the free-area centre, growing symmetrically only for corners
+// the shift pushes out. The zoom stays as close as before, so wide
+// tags can no longer drag the union off-centre without merging
+// distant pins into one card.
 export function refitViewForBoxes(fit, boxes, anchors, W, H, pad, margin = MAP_FIT_MARGIN) {
   const pts = [];
   const push = (lon, lat) => {
@@ -1101,13 +1129,79 @@ export function refitViewForBoxes(fit, boxes, anchors, W, H, pad, margin = MAP_F
   }
   for (const a of anchors || []) push(a.lon, a.lat);
   if (pts.length === 0) return fit;
-  return fitMapView(pts, W, H, margin, pad);
+  const list = (anchors || []).filter((a) => Number.isFinite(a.lon) && Number.isFinite(a.lat));
+  if (list.length === 0) return fitMapView(pts, W, H, margin, pad);
+  const w = Math.max(1, Number(W) || 1);
+  const h = Math.max(1, Number(H) || 1);
+  const p = pad || {};
+  const padL = Math.max(0, Number(p.left) || 0);
+  const padR = Math.max(0, Number(p.right) || 0);
+  const padT = Math.max(0, Number(p.top) || 0);
+  const padB = Math.max(0, Number(p.bottom) || 0);
+  const iw = Math.max(1, w - padL - padR);
+  const ih = Math.max(1, h - padT - padB);
+  const base = fitMapView(pts, w, h, margin, pad);
+  const cx = list.reduce((s, a) => s + a.lon, 0) / list.length;
+  const cy = list.reduce((s, a) => s + a.lat, 0) / list.length;
+  const k = Math.cos((base.midLat * Math.PI) / 180) || 1;
+  const cfx = cx * k;
+  // Shift the exact-fit span so the anchor centroid hits the
+  // free-area centre (px shift back through the base scale).
+  const [ax, ay] = base.toXY(cx, cy);
+  const dx = (padL + iw / 2) - ax;
+  const dy = (padT + ih / 2) - ay;
+  let fw = base.view[2];
+  let fh = base.view[3];
+  const shifted = [base.view[0] - (dx * fw) / iw, base.view[1] + (dy * fh) / ih, fw, fh];
+  const at = (v, lon, lat) => {
+    const fx = (lon || 0) * k;
+    return [padL + (((fx - v[0]) / v[2]) * iw),
+      padT + (((v[1] + v[3] - lat) / v[3]) * ih)];
+  };
+  let needW = fw / 2;
+  let needH = fh / 2;
+  for (const q of pts) {
+    const [px, py] = at(shifted, q.lon, q.lat);
+    needW = Math.max(needW, Math.abs(px - (padL + iw / 2)) * (fw / iw));
+    needH = Math.max(needH, Math.abs(py - (padT + ih / 2)) * (fh / ih));
+  }
+  // No corner left the shifted span: keep the exact-fit zoom as is
+  // (re-running the aspect / min-zoom rules here would only shrink
+  // it). Otherwise grow symmetrically about the anchor centroid.
+  let view;
+  if (needW <= fw / 2 && needH <= fh / 2) {
+    view = shifted;
+  } else {
+    fw = needW * 2;
+    fh = needH * 2;
+    const want = iw / ih;
+    if (fw / fh < want) fw = fh * want;
+    else fh = fw / want;
+    const minW = MAP_MIN_VIEW_KM / KM_PER_DEG;
+    if (fw < minW) {
+      fh *= minW / fw;
+      fw = minW;
+    }
+    view = [cfx - fw / 2, cy - fh / 2, fw, fh];
+  }
+  const toXY = (lon, lat) => {
+    const fx = (lon || 0) * k;
+    return [padL + (((fx - view[0]) / view[2]) * iw),
+      padT + (((view[1] + view[3] - lat) / view[3]) * ih)];
+  };
+  const toLonLat = (x, y) => [
+    (view[0] + (((x - padL) / iw) * view[2])) / k,
+    view[1] + view[3] - (((y - padT) / ih) * view[3]),
+  ];
+  const metersPerPx = (view[2] * 111320) / iw;
+  return { view, toXY, toLonLat, midLat: base.midLat, metersPerPx };
 }
 
 // One stage pipeline for the chat map and its tests: fit the focus,
-// lay out the tags (tight groups of 3–8 as one list card), and — when
-// a laid-out box leaves the free area — refit once on the union of
-// the drawn boxes and lay out again. At most two passes.
+// lay out the tags (tight groups of 3–8 as one list card), and — while
+// a laid-out box leaves the free area — refit on the union of the
+// drawn boxes and lay out again (at most two refits, three passes).
+// Every refit keeps the pins + workplace centroid centred.
 //
 // specs: [{ id, kind ("work"|"pill"), lon, lat, w, h, alt, rank, pin }]
 // (pin carries n/picked/letter/candidate/commuteMin for card rows).
@@ -1118,15 +1212,23 @@ export function layoutChatStage({ focus, specs, W, H, pad, obstacles,
   const w = Math.max(1, Number(W) || 1);
   const h = Math.max(1, Number(H) || 1);
   const free = freeAreaOf(w, h, pad);
+  const anchorHomes = (f) => (specs || [])
+    .filter((s) => s.kind !== "work")
+    .map((s) => {
+      const [x, y] = f.toXY(s.lon, s.lat);
+      return { ...s, x, y };
+    });
+  // 29M2c: neighbourhoods freeze at the pin-fit zoom — refit passes
+  // only pull constant-size boxes back inside, never regroup (a
+  // zoomed-out refit would otherwise merge far pins into the card).
+  const fixedGroups = groupTightAnchors(anchorHomes(fitMapView(focus, w, h, MAP_FIT_MARGIN, pad)),
+    GROUP_CARD_PX).filter((g) => g.length <= 8)
+    .map((g) => new Set(g.map((m) => m.id)));
   const pass = (fit) => {
     const cards = new Map();
-    const homes = (specs || [])
-      .filter((s) => s.kind !== "work")
-      .map((s) => {
-        const [x, y] = fit.toXY(s.lon, s.lat);
-        return { ...s, x, y };
-      });
-    const groups = groupTightAnchors(homes).filter((g) => g.length <= 8);
+    const homes = anchorHomes(fit);
+    const groups = fixedGroups.map((ids) => homes.filter((m) => ids.has(m.id)))
+      .filter((g) => g.length >= 3);
     const inGroup = new Set();
     for (const g of groups) for (const m of g) inGroup.add(m);
     const items = [];
@@ -1170,7 +1272,19 @@ export function layoutChatStage({ focus, specs, W, H, pad, obstacles,
       const { pin, ...rest } = m;
       items.push(rest);
     }
-    const laid = layoutMapPills(items, w, h, obstacles);
+    // 29M2b: every tag/card/workplace pill keeps ≥ 8 px from each
+    // stage edge (the pill clamp alone only keeps 2 px).
+    // 29M2c: the workplace pill also keeps inside the free area like
+    // every tag — the edge rule alone leaves it above the free top.
+    // The inset is the free-area margin the refit check uses.
+    const freeBox = { x: free.x + 4, y: free.y + 4,
+      w: Math.max(1, free.w - 8), h: Math.max(1, free.h - 8) };
+    const laid = layoutMapPills(items, w, h, obstacles).map((l) => {
+      if (!l.box) return l;
+      const edge = clampPill8(l.box, w, h);
+      if (l.id !== "work") return { ...l, box: edge };
+      return { ...l, box: clampPill(edge, w, h, freeBox) };
+    });
     for (const l of laid) {
       const c = cards.get(l.id);
       if (c && l.kind === "group") {
@@ -1185,8 +1299,14 @@ export function layoutChatStage({ focus, specs, W, H, pad, obstacles,
   };
   let fit = fitMapView(focus, w, h, MAP_FIT_MARGIN, pad);
   let out = pass(fit);
-  if (allowRefit && boxesLeaveFreeArea(
-    out.laid.map((l) => l.box).filter(Boolean), free)) {
+  // 29M2b: refit while a laid-out box leaves the free area (at most
+  // two refits — three passes). Every refit keeps the anchor
+  // centroid at the free-area centre; re-laying out after each zoom
+  // pulls constant-size tags back inside.
+  for (let n = 0; n < 2; n++) {
+    if (!allowRefit) break;
+    if (!boxesLeaveFreeArea(
+      out.laid.map((l) => l.box).filter(Boolean), free)) break;
     fit = refitViewForBoxes(fit,
       out.laid.map((l) => l.box).filter(Boolean), focus, w, h, pad);
     out = pass(fit);

@@ -321,3 +321,87 @@ describe("29M2 phone chip row clears the close button", () => {
     assert.ok(!/\.ui-chatmap-chip\s*\{[^}]*text-overflow/.test(css), "no ellipsis on chips");
   });
 });
+
+// Six homes around Sadang-dong spread over ~3 km, the workplace at
+// the west edge of the set (all jeonse, like the Seoul capture).
+function seoulWestMap() {
+  const cands = [
+    [126.95, 37.47, 270000000], [126.96, 37.48, 200000000],
+    [126.97, 37.46, 150000000], [126.98, 37.475, 260000000],
+    [126.965, 37.49, 310000000], [126.975, 37.465, 220000000],
+  ].map(([lon, lat, won], i) => ({
+    id: `w${i + 1}`, name: `집${i + 1}`, lon, lat, area_m2: 30 + i,
+    commute: { walk: { known: true, station: "사당", minutes: 3 },
+      ride: { known: true, minutes: 8 + i } },
+    tenures: [{ tenure: "jeonse", median_won: won, deals: 5 }],
+  }));
+  return M.buildChatMap({
+    regions: { regions: [] },
+    network: null, tiles: [], green: { water: [], parks: [] },
+    candidates: cands, picks: [],
+    workplaceStation: null,
+    workPlace: { name: "구로", lon: 126.945, lat: 37.475 }, tenure: "jeonse",
+  });
+}
+
+describe("29M2b one neighbourhood = one card at the real stage size", () => {
+  for (const [W, H] of [[889, 810], [390, 600]]) {
+    it(`${W}x${H}: six US homes within 250 m + workplace 2 km NE render as one card`, () => {
+      const { laid } = runStage(usMap(), "monthly", "en", W, H);
+      const groups = laid.filter((l) => l.kind === "group");
+      assert.equal(groups.length, 1, "exactly one card");
+      assert.equal(groups[0].rows.length, 6, "six rows");
+      assert.equal(laid.filter((l) => l.kind === "pill").length, 0,
+        "no single tags for grouped pins");
+    });
+  }
+
+  it("889x810 Seoul-like set: pins + workplace union within 12 % of the free-area centre", () => {
+    const W = 889;
+    const H = 810;
+    const map = seoulWestMap();
+    const { fit, pad } = runStage(map, "jeonse", "ko", W, H);
+    const free = M.freeAreaOf(W, H, pad);
+    const pts = [...map.pins, map.workPin].map((p) => fit.toXY(p.lon, p.lat));
+    const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length;
+    const cy = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+    assert.ok(Math.abs(cx - (free.x + free.w / 2)) <= free.w * 0.12,
+      `union centred horizontally: ${cx} vs ${free.x + free.w / 2}`);
+    assert.ok(Math.abs(cy - (free.y + free.h / 2)) <= free.h * 0.12,
+      `union centred vertically: ${cy} vs ${free.y + free.h / 2}`);
+  });
+
+  for (const [W, H] of [[889, 810], [390, 600]]) {
+    it(`${W}x${H}: every box keeps 8 px from each stage edge`, () => {
+      for (const [map, tenure, lang] of [
+        [usMap(), "monthly", "en"], [seoulMap(), "jeonse", "ko"],
+        [seoulWestMap(), "jeonse", "ko"]]) {
+        const { laid } = runStage(map, tenure, lang, W, H);
+        for (const l of laid) {
+          const b = l.box;
+          if (!b) continue;
+          assert.ok(b.x >= 8 && b.y >= 8
+            && b.x + b.w <= W - 8 && b.y + b.h <= H - 8,
+          `${l.id} keeps 8 px from every edge: ${JSON.stringify(b)}`);
+        }
+      }
+    });
+  }
+});
+
+describe("29M2b legend items never break inside", () => {
+  it("SSR Korean legend: each item is one nowrap element", () => withLang("ko", () => {
+    const html = renderToString(React.createElement(ChatMap, { map: seoulMap() }));
+    const legend = html.match(/<div[^>]*ui-chatmap-legend[^>]*>([\s\S]*?)<\/div>/);
+    assert.ok(legend, "legend present");
+    const items = [...legend[1].matchAll(
+      /<span[^>]*class="ui-chatmap-legend-item"[^>]*>([^<]*)<\/span>/g)]
+      .map((m) => m[1]);
+    assert.ok(items.length >= 3, `legend has one element per item: ${items.length}`);
+    assert.ok(items.some((t) => t.includes("■ 회사")), "work item present");
+    assert.ok(items.some((t) => t.includes("지하철")), "subway item present");
+    const rule = css.match(/\.ui-chatmap-legend-item\s*\{[^}]*\}/);
+    assert.ok(rule && rule[0].includes("white-space: nowrap"),
+      "legend items never break inside");
+  }));
+});
