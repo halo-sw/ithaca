@@ -4,7 +4,7 @@
 
 <p align="center"><b>계약하기 전에, 그 집에서 먼저 살아 보세요.</b><br>AI 가족이 후보 집 두 곳에서 30일씩 먼저 살아 보고, 매물 사진·지도·30분 집 구경으로는 안 보이는 출퇴근, 돈, 밤 귀갓길을 보여 줘요.</p>
 
-<p align="center"><a href="https://github.com/halo-sw/ithaca/releases/download/demo-video/ithaca-demo.mp4"><img src="briefs/img/demo-video-thumb.jpg" width="720" alt="데모 영상: 약 2분, 내레이션, 서울 시나리오 영어 화면"></a><br><sub>▶ <a href="https://github.com/halo-sw/ithaca/releases/download/demo-video/ithaca-demo.mp4"><b>데모 영상</b></a> (약 2분, 영어 내레이션, mp4) · 서울 시나리오를 영어 화면으로, Muse Spark 1.3 실제 실행 · <a href="https://github.com/halo-sw/ithaca/releases/tag/demo-video">릴리스 페이지</a></sub></p>
+<p align="center"><a href="https://github.com/halo-sw/ithaca/releases/download/demo-video/ithaca-demo.mp4"><img src="briefs/img/demo-video-thumb.jpg" width="720" alt="데모 영상: 약 2분, 내레이션, 판교 출근 부부의 집 사기, 영어 화면"></a><br><sub>▶ <a href="https://github.com/halo-sw/ithaca/releases/download/demo-video/ithaca-demo.mp4"><b>데모 영상</b></a> (약 2분, 영어 내레이션, mp4) · 판교로 출근하는 부부가 집을 사는 경우를 영어 화면으로, Muse Spark 1.3 실제 실행 · <a href="https://github.com/halo-sw/ithaca/releases/tag/demo-video">릴리스 페이지</a></sub></p>
 
 <p align="center"><b>Meta AI로 만들었어요:</b> Meta Model API (<code>api.meta.ai</code>) · Muse Spark 1.3 · Muse Spark Open · Muse Code · Muse Voice</p>
 
