@@ -23,7 +23,11 @@ describe("36i2 replayRunPlan", () => {
   it("reads the plan off the real recording", () => {
     const plan = replayRunPlan(doc);
     assert.ok(plan, "plan");
-    assert.equal(plan.customId, "cmvwxbyxq1806");
+    const doneSims = doc.messages.filter((m) => m.kind === "simulation" && m.data?.status === "done");
+    const expectedId = doneSims[doneSims.length - 1]?.data?.customId;
+    assert.equal(typeof expectedId, "string", "recording has a done simulation id");
+    assert.ok(expectedId.length > 0, "recording id is non-empty");
+    assert.equal(plan.customId, expectedId);
     assert.deepEqual(plan.labels, ["A", "B"]);
     assert.equal(typeof plan.scenario.seed, "number");
     assert.ok(plan.scenario && typeof plan.scenario === "object", "scenario");
