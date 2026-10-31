@@ -1343,17 +1343,143 @@ export function layoutChatStage({ focus, specs, W, H, pad, obstacles,
     }
     // 29M2b: every tag/card/workplace pill keeps ≥ 8 px from each
     // stage edge (the pill clamp alone only keeps 2 px).
-    // 29M2c: the workplace pill also keeps inside the free area like
-    // every tag — the edge rule alone leaves it above the free top.
-    // The inset is the free-area margin the refit check uses.
+    // 29N2c: the clamp used to run after collision checks, so it could
+    // move a tag onto a taken spot (two boxes sharing one spot, a
+    // leader pointing at the pre-clamp box). Every clamped box below
+    // is re-checked: a tag that still collides takes the next free
+    // spot within 120 px, else its compact form, else a same-town
+    // overflow card — never two boxes overlapping, never a leader to
+    // an empty spot. The inset is the free-area margin the refit
+    // check uses.
     const freeBox = { x: free.x + 4, y: free.y + 4,
       w: Math.max(1, free.w - 8), h: Math.max(1, free.h - 8) };
-    const laid = layoutMapPills(items, w, h, obstacles).map((l) => {
-      if (!l.box) return l;
-      const edge = clampPill8(l.box, w, h);
-      if (l.id !== "work") return { ...l, box: edge };
-      return { ...l, box: clampPill(edge, w, h, freeBox) };
-    });
+    const specById = new Map((specs || []).map((s) => [s.id, s]));
+    const wantBox = (b) => clampPill(clampPill8(b, w, h), w, h, freeBox);
+    const settled = [];
+    for (const o of obstacles || []) {
+      if (!o || !Number.isFinite(o.x) || !Number.isFinite(o.y)
+        || !(o.w > 0) || !(o.h > 0)) continue;
+      settled.push({ x: o.x, y: o.y, w: o.w, h: o.h });
+    }
+    const freeSpotNear = (x, y, tw, th) => {
+      const angs = [Math.PI / 4, -Math.PI / 4, (3 * Math.PI) / 4,
+        (-3 * Math.PI) / 4, 0, Math.PI / 2, -Math.PI / 2, Math.PI];
+      for (let r = 26; r <= 120; r += 16) {
+        for (const a of angs) {
+          const b = wantBox({ x: x + r * Math.cos(a) - tw / 2,
+            y: y + r * Math.sin(a) - th / 2, w: tw, h: th });
+          if (!settled.some((q) => boxHit(b, q))) return b;
+        }
+      }
+      return null;
+    };
+    const gridSpot = (tw, th) => {
+      for (let gy = freeBox.y;
+        gy + th <= freeBox.y + freeBox.h + 1; gy += 24) {
+        for (let gx = freeBox.x;
+          gx + tw <= freeBox.x + freeBox.w + 1; gx += 24) {
+          const b = { x: gx, y: gy, w: tw, h: th };
+          if (!settled.some((q) => boxHit(b, q))) return b;
+        }
+      }
+      return null;
+    };
+    const withLeader = (l, box) => {
+      if (box.x === l.box.x && box.y === l.box.y
+        && box.w === l.box.w && box.h === l.box.h) return { ...l, box };
+      return { ...l, w: box.w, h: box.h, box,
+        leader: nearestOnBox(box, l.x, l.y) };
+    };
+    const laid = [];
+    const spill = [];
+    for (const l of layoutMapPills(items, w, h, obstacles)) {
+      if (!l.box) { spill.push(l); continue; }
+      let box = wantBox(l.box);
+      let short = !!l.short;
+      if (settled.some((q) => boxHit(box, q))) {
+        box = freeSpotNear(l.x, l.y, l.w, l.h);
+        if (!box) {
+          const alt = specById.get(l.id) && specById.get(l.id).alt;
+          if (!short && alt && alt.w > 0 && alt.h > 0
+            && (alt.w !== l.w || alt.h !== l.h)) {
+            box = freeSpotNear(l.x, l.y, alt.w, alt.h);
+            if (box) short = true;
+          }
+        }
+      }
+      if (!box) { spill.push(l); continue; }
+      const done = withLeader(l, box);
+      if (short) done.short = true;
+      settled.push(done.box);
+      laid.push(done);
+    }
+    if (spill.length > 0) {
+      const pool = [];
+      for (const l of spill) {
+        if (l.kind === "group" && l.members) {
+          for (const mb of l.members) {
+            if (specById.get(mb.id)) {
+              pool.push({ id: mb.id, x: mb.x, y: mb.y,
+                spec: specById.get(mb.id) });
+            }
+          }
+        } else if (specById.get(l.id)) {
+          pool.push({ id: l.id, x: l.x, y: l.y,
+            spec: specById.get(l.id) });
+        }
+      }
+      const towns = new Map();
+      for (const p of pool) {
+        const c = p.spec && (p.spec.pin ? p.spec.pin.candidate
+          : p.spec.candidate);
+        const key = (c && c.region) || groupAreaKey(p.spec) || "";
+        if (!towns.has(key)) towns.set(key, []);
+        towns.get(key).push(p);
+      }
+      const moreHeader = lang === "en" ? "More here" : "여기 더 보기";
+      for (const members of towns.values()) {
+        const ordered = [...members].sort((a, b) => {
+          const pa = (a.spec && a.spec.pin) || {};
+          const pb = (b.spec && b.spec.pin) || {};
+          return ((pa.n ?? 0) - (pb.n ?? 0))
+            || (String(a.id) < String(b.id) ? -1 : 1);
+        });
+        const infos = ordered.map((m) => {
+          const pin = (m.spec && m.spec.pin) || {};
+          const lines = tagLines(pin,
+            { tenure, lang, sharedRent, mixedTenure });
+          const glyph = (pin.picked && pin.letter)
+            ? pin.letter : String(pin.n ?? "");
+          return { n: glyph, price: lines.price, commute: lines.commute };
+        });
+        const texts = groupCardRows(infos);
+        const size = groupCardSizePx(moreHeader, texts, { compact });
+        const cx = members.reduce((t, m) => t + m.x, 0) / members.length;
+        const cy = members.reduce((t, m) => t + m.y, 0) / members.length;
+        const home = wantBox({ x: cx - size.w / 2, y: cy - 6 - size.h,
+          w: size.w, h: size.h });
+        let box = settled.some((q) => boxHit(home, q))
+          ? freeSpotNear(cx, cy, size.w, size.h) : home;
+        if (!box) box = gridSpot(size.w, size.h);
+        // The stage is full: keep every home visible as a card row.
+        if (!box) box = home;
+        const id = `more:${ordered.map((m) => m.id).join("-")}`;
+        const rows = ordered.map((m, i) => ({ id: m.id,
+          text: texts[i],
+          picked: !!((m.spec && m.spec.pin && m.spec.pin.picked)) }));
+        const card = { header: moreHeader, rows,
+          members: ordered.map((m) => ({ id: m.id, x: m.x, y: m.y })),
+          rowH: size.rowH, headerH: size.headerH, cx, cy };
+        cards.set(id, card);
+        const moved = box.x !== home.x || box.y !== home.y;
+        laid.push({ id, kind: "group", x: cx, y: cy,
+          w: size.w, h: size.h, box,
+          leader: moved ? nearestOnBox(box, cx, cy) : null,
+          count: 0, members: card.members, rows: card.rows,
+          header: card.header, rowH: card.rowH, headerH: card.headerH });
+        settled.push(box);
+      }
+    }
     for (const l of laid) {
       const c = cards.get(l.id);
       if (c && l.kind === "group") {
