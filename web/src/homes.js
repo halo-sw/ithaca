@@ -354,6 +354,26 @@ export const CALTRAIN_SHUTTLE_LINE = {
   ko: "또는 멘로파크역에서 메타 셔틀(가정)",
 };
 
+// 29N2b: the fastest way to work for a US home — the direct
+// walk/bike estimate against the labelled Caltrain total. An
+// explicit home.commute.best ({mode, min}) wins; otherwise the
+// smaller of the two when both are known (a tie keeps the
+// labelled Caltrain total). Pure.
+export function usCommuteBest(home, corridor, work) {
+  const b = home && home.commute && home.commute.best;
+  if (b && typeof b.mode === "string"
+      && Number.isFinite(b.min)) {
+    return { mode: b.mode, min: b.min };
+  }
+  const cal = corridor && Number.isFinite(corridor.total_min)
+    ? corridor.total_min : null;
+  const direct = work && Number.isFinite(work.minutes)
+    ? { mode: work.mode || "bike", min: work.minutes } : null;
+  if (cal === null) return direct;
+  if (!direct) return { mode: "caltrain", min: cal };
+  return direct.min < cal ? direct : { mode: "caltrain", min: cal };
+}
+
 // 29N2a: a US result carries its area name in both languages. Pure.
 export function usResultArea(home) {
   return { area_label: usAreaLabel(home && home.region, "en"),
@@ -554,8 +574,10 @@ function sortResults(rows, sort, profile, boxes) {
     return commuteKey(r);
   };
   const commuteKey = (r) => {
-    // 29N2a: a station-box home sorts by its labelled Caltrain total
-    // (us-menlo keeps the walk/bike estimate below).
+    // 29N2b: a US home sorts by its fastest mode (best first); without
+    // one the labelled Caltrain total still sorts (us-menlo keeps the
+    // walk/bike estimate below).
+    if (r && Number.isFinite(r.best_min)) return r.best_min;
     if (r && Number.isFinite(r.corridor_min)) return r.corridor_min;
     // 26c: a work estimate sorts by its minutes (known before unknown).
     if (r.commute && r.commute.work) {
@@ -739,6 +761,10 @@ export function find_homes(profile, index, opts = {}) {
     const monthly = shown
       .filter((s) => s.tenure === "wolse" && s.median_won !== null)
       .map((s) => s.median_won);
+    // 29N2b: every US row carries its fastest mode (best_mode /
+    // best_min) so ranking, pins, cards and the agent text share one
+    // number.
+    const best = isUs ? usCommuteBest(home, corridor, commute.work) : null;
     rows.push({
       id: home.id,
       name: home.name,
@@ -760,7 +786,8 @@ export function find_homes(profile, index, opts = {}) {
       // 29N2a: corridor results for the agent text + cards.
       ...(isUs ? { ...usResultArea(home),
         zip: home.price && home.price.zip ? home.price.zip : null,
-        rent_source: usRentSource(home) } : {}),
+        rent_source: usRentSource(home),
+        ...(best ? { best_mode: best.mode, best_min: best.min } : {}) } : {}),
       ...(corridor ? { corridor_min: corridor.total_min, corridor,
         commute_breakdown: { ...corridor,
           en: caltrainBreakdownText(corridor, "en"),

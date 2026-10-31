@@ -113,12 +113,11 @@ export async function loadUsNetwork(fetchJson) {
   }
 }
 
-// 29N2a: one network for the map — the Seoul lines plus the Caltrain
-// line when a US search is showing. Pure.
+// 29N2b: one network for the map — the Caltrain doc alone when a US
+// search is showing (never the Seoul lines), else the Seoul doc. Pure.
 export function networkWithUs(network, usNetwork, wantUs) {
-  if (!wantUs || !usNetwork || !Array.isArray(usNetwork.lines)) return network;
-  const lines = [...((network && network.lines) || []), ...usNetwork.lines];
-  return { ...(network || {}), lines };
+  if (wantUs && usNetwork && Array.isArray(usNetwork.lines)) return usNetwork;
+  return network;
 }
 
 // Corridor ground tiles intersecting a lon/lat bbox (tiny files with

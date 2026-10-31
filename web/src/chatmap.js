@@ -10,6 +10,7 @@
 
 import { findPath, normalizeStation } from "./engine/journey.js";
 import { romanizeName } from "./i18n/romanize.js";
+import { usAreaLabel } from "./region-names.js";
 import { fmtMoney, fmtWonEn } from "./money/currency.js";
 
 export const MAP_COLORS = {
@@ -284,9 +285,11 @@ export function extractGreenRings(landuse) {
   return { water: [...water.values()], parks: [...parks.values()] };
 }
 
-// Door-to-work minutes: the labelled Caltrain total for corridor
-// homes, else (commute.work) when known, else the walk + ride sum.
+// Door-to-work minutes: the fastest mode (29N2b best) for US homes,
+// else the labelled Caltrain total, else (commute.work) when known,
+// else the walk + ride sum.
 export function commuteMinutesOf(candidate) {
+  if (candidate && Number.isFinite(candidate.best_min)) return candidate.best_min;
   if (candidate && Number.isFinite(candidate.corridor_min)) return candidate.corridor_min;
   const c = (candidate && candidate.commute) || {};
   const workMin = c.work && c.work.minutes;
@@ -717,8 +720,13 @@ export function layoutPinLabels(points, W, H) {
       { x: d.x - TAG_GAP - tw, y: d.y - th / 2, w: tw, h: th },
       { x: d.x - tw / 2, y: d.y + TAG_GAP, w: tw, h: th },
     ].map((b) => clampBox(b, w, h));
-    let box = cands.find((b) => !placed.some((q) => boxHit(b, q))) || null;
-    let tagLeader = null;
+    const distOf = (b) => Math.hypot(b.x + b.w / 2 - d.x, b.y + b.h / 2 - d.y);
+    // 29N2b: a tag never strands far from its dot — a first-fit box
+    // more than 120 px away is rejected (the spiral below stays
+    // within 120), and one moved more than 24 px keeps a leader.
+    let box = cands.find((b) => distOf(b) <= 120
+      && !placed.some((q) => boxHit(b, q))) || null;
+    let tagLeader = box && distOf(box) > 24 ? nearestOnBox(box, d.x, d.y) : null;
     if (!box) {
       // Spiral staircase away from the pin until a free box lands.
       const angs = [Math.PI / 4, -Math.PI / 4, (3 * Math.PI) / 4,
@@ -733,6 +741,15 @@ export function layoutPinLabels(points, W, H) {
       if (!box) {
         const bottom = placed.reduce((m, q) => Math.max(m, q.y + q.h), d.y + TAG_GAP);
         box = { x: d.x - tw / 2, y: bottom + 4, w: tw, h: th };
+        // The last resort still stays within 120 px of the dot
+        // (pulled back along its direction), never dropped silently.
+        const dd = distOf(box);
+        if (dd > 120 && dd > 0) {
+          const k = 120 / dd;
+          box = clampBox({ x: d.x + (box.x + box.w / 2 - d.x) * k - box.w / 2,
+            y: d.y + (box.y + box.h / 2 - d.y) * k - box.h / 2,
+            w: box.w, h: box.h }, w, h);
+        }
       }
       tagLeader = nearestOnBox(box, d.x, d.y);
     }
@@ -790,7 +807,9 @@ function pillSlots(x, y, w, h) {
 function spiralPill(x, y, w, h, taken, W, H) {
   const angs = [Math.PI / 4, -Math.PI / 4, (3 * Math.PI) / 4,
     (-3 * Math.PI) / 4, 0, Math.PI / 2, -Math.PI / 2, Math.PI];
-  for (let r = 26; r <= 170; r += 16) {
+  // 29N2b: a tag moves at most 120 px from its dot — past that the
+  // compact form, then a group card, takes it (never a far tag).
+  for (let r = 26; r <= 120; r += 16) {
     for (const a of angs) {
       const b = clampPill({ x: x + r * Math.cos(a) - w / 2,
         y: y + r * Math.sin(a) - h / 2, w, h }, W, H);
@@ -883,11 +902,14 @@ export function layoutMapPills(items, W, H, obstacles) {
     else spill.push(p);
   }
   // Fold the spill into "+N" clusters by proximity (48 px components).
+  // 29N2b: clusters never mix towns either — spill items join only
+  // within their own area (area-less items keep the old path).
   if (spill.length > 0) {
     const comp = spill.map((_, i) => i);
     const find = (i) => (comp[i] === i ? i : (comp[i] = find(comp[i])));
     for (let i = 0; i < spill.length; i++) {
       for (let j = i + 1; j < spill.length; j++) {
+        if (groupAreaKey(spill[i]) !== groupAreaKey(spill[j])) continue;
         if (Math.hypot(spill[i].x - spill[j].x, spill[i].y - spill[j].y) < 48) {
           const a = find(i);
           const b = find(j);
@@ -1024,11 +1046,25 @@ export function mapTenuresMixed(pins) {
   return kinds.size > 1;
 }
 
+// The town an anchor belongs to: the candidate's area id
+// (us-menlo, us-st-palo-alto …; Korean homes: their region), or null
+// when the item carries none. Group cards never mix towns.
+export function groupAreaKey(item) {
+  if (!item) return null;
+  if (typeof item.area === "string" && item.area !== "") return item.area;
+  const c = item.pin && item.pin.candidate;
+  if (c && typeof c.region === "string" && c.region !== "") return c.region;
+  if (typeof item.region === "string" && item.region !== "") return item.region;
+  return null;
+}
+
 // Tight groups: connected components of pill anchors under the card
 // radius (29M2b: 72 px at the fitted zoom — one neighbourhood reads
-// as one card). Groups of 3+ pins draw as one list card (the stage
-// pipeline caps at 8; larger groups keep the +N cluster path), so
-// only the length filter happens here. Pairs keep their fanned tags.
+// as one card), split by town first so Belle Haven and Palo Alto
+// never share a card. Groups of 3+ pins draw as one list card (the
+// stage pipeline caps at 8; larger groups keep the +N cluster path),
+// so only the length filter happens here. Pairs keep their fanned
+// tags, even same-town ones.
 export const GROUP_CARD_PX = 72;
 export function groupTightAnchors(items, radiusPx = GROUP_CARD_PX) {
   const list = items || [];
@@ -1037,6 +1073,7 @@ export function groupTightAnchors(items, radiusPx = GROUP_CARD_PX) {
   const find = (i) => (comp[i] === i ? i : (comp[i] = find(comp[i])));
   for (let i = 0; i < list.length; i++) {
     for (let j = i + 1; j < list.length; j++) {
+      if (groupAreaKey(list[i]) !== groupAreaKey(list[j])) continue;
       if (Math.hypot(list[i].x - list[j].x, list[i].y - list[j].y) < r) {
         const a = find(i);
         const b = find(j);
@@ -1053,11 +1090,38 @@ export function groupTightAnchors(items, radiusPx = GROUP_CARD_PX) {
   return [...groups.values()].filter((g) => g.length >= 3);
 }
 
-// One list card for a tight group: header `6 homes` / `집 6곳`, then
+// One list card for a tight group: header `6 homes` / `집 6곳`, or
+// with the town — `Belle Haven · 2 homes` / `벨헤이븐 · 2곳` — then
 // one row per home in list order — the tag's own lines (the price
 // line only when the group's prices differ, then the commute line).
-export function groupCardHeader(count, lang) {
+export function groupCardHeader(count, lang, areaLabel) {
+  if (areaLabel) {
+    return lang === "en" ? `${areaLabel} · ${count} homes` : `${areaLabel} · ${count}곳`;
+  }
   return lang === "en" ? `${count} homes` : `집 ${count}곳`;
+}
+
+// The town name for a group's header in the rendering language: the
+// result's own area label when the search carried one, else the US
+// area table for corridor regions. Korean groups keep the plain
+// count header.
+export function groupAreaLabel(members, lang) {
+  const en = lang === "en";
+  for (const m of members || []) {
+    const c = m && m.pin && m.pin.candidate;
+    if (!c) continue;
+    if (en && c.area_label) return c.area_label;
+    if (!en && c.area_label_ko) return c.area_label_ko;
+  }
+  for (const m of members || []) {
+    const c = m && m.pin && m.pin.candidate;
+    const r = c && c.region;
+    if (typeof r === "string" && r.startsWith("us-")) {
+      const lbl = usAreaLabel(r, en ? "en" : "ko");
+      if (lbl) return lbl;
+    }
+  }
+  return null;
 }
 
 export function groupCardRows(infos) {
@@ -1256,7 +1320,9 @@ export function layoutChatStage({ focus, specs, W, H, pad, obstacles,
         const glyph = (p.picked && p.letter) ? p.letter : String(p.n ?? "");
         return { n: glyph, price: lines.price, commute: lines.commute };
       });
-      const header = groupCardHeader(g.length, lang);
+      // 29N2b: the card header names the town — `Belle Haven ·
+      // 2 homes` / `벨헤이븐 · 2곳` — so towns never share a card.
+      const header = groupCardHeader(g.length, lang, groupAreaLabel(ordered, lang));
       const texts = groupCardRows(infos);
       const size = groupCardSizePx(header, texts, { compact });
       const id = `group:${ordered.map((m) => m.id).join("-")}`;
@@ -1267,7 +1333,7 @@ export function layoutChatStage({ focus, specs, W, H, pad, obstacles,
         rowH: size.rowH, headerH: size.headerH,
         cx, cy });
       items.push({ id, kind: "group", x: cx, y: cy,
-        w: size.w, h: size.h,
+        w: size.w, h: size.h, area: groupAreaKey(ordered[0]),
         rank: ordered.some((m) => m.pin && m.pin.picked) ? 1 : 2 });
     }
     for (const m of homes) {

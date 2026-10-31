@@ -129,10 +129,26 @@ export function pinCardModel(pin, { tenure, picks } = {}) {
 }
 
 export function commuteRowLine(candidate, destName) {
+  // 29N2b: when the direct bike/walk beats Caltrain, the headline is
+  // the fastest mode (`Bike 24 min (estimate)`) and the Caltrain
+  // breakdown moves to the second line. Caltrain-best homes keep the
+  // labelled breakdown headline below.
   // 29N2a: a station-box home prints its labelled Caltrain breakdown
   // (built in code, English + Korean) with the assumed-shuttle second
   // line; the bike leg is assumed-speed, so the Estimate badge shows.
   const bd = candidate && candidate.commute_breakdown;
+  const bestMode = candidate && candidate.best_mode;
+  const bestMin = candidate && candidate.best_min;
+  if (bd && bd.en && bd.ko && (bestMode === "bike" || bestMode === "walk")
+      && Number.isFinite(bestMin)) {
+    const en = currentLang() === "en";
+    const n = Math.round(bestMin);
+    return { text: en
+        ? (bestMode === "walk" ? `Walk ${n} min (estimate)` : `Bike ${n} min (estimate)`)
+        : (bestMode === "walk" ? `도보 ${n}분(추정)` : `자전거 ${n}분(추정)`),
+      shuttle: en ? `or ${bd.en}` : `또는 ${bd.ko}`,
+      estimate: true, source: "estimate" };
+  }
   const parts = (candidate && candidate.corridor) || (bd && {
     total_min: bd.total_min, walk_min: bd.walk_min, wait_min: bd.wait_min,
     train_min: bd.train_min, bike_min: bd.bike_min }) || null;

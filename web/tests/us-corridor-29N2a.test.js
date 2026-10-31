@@ -6,8 +6,9 @@ import assert from "node:assert/strict";
 import { register } from "node:module";
 import { usRegionsForProfile, isUsProfile } from "../src/consult/tools-search.js";
 import { createUsHomesLoader } from "../src/consult/server.js";
-import { find_homes, corridorOf, caltrainBreakdownText,
+import { find_homes, corridorOf, caltrainBreakdownText, usCommuteBest,
   CALTRAIN_SHUTTLE_LINE } from "../src/homes.js";
+import { networkWithUs } from "../src/chat/engine.js";
 import { US_REGION_IDS } from "../src/places-us.js";
 import { usAreaLabel, regionsForNames } from "../src/region-names.js";
 
@@ -17,12 +18,14 @@ let React;
 let renderToString;
 let ChatMap;
 let M;
+let commuteRowLine;
 
 before(async () => {
   React = (await import("react")).default;
   ({ renderToString } = await import("react-dom/server"));
   ({ ChatMap } = await import("../src/ui/chatmap.jsx"));
   M = await import("../src/chatmap.js");
+  ({ commuteRowLine } = await import("../src/ui/candidate-card.jsx"));
 });
 
 function withLang(lang, fn) {
@@ -241,5 +244,207 @@ describe("29N2a SSR ChatMap draws the Caltrain corridor", () => {
       assert.ok(html.includes("$3,950"), "Palo Alto pin shows its ZIP price");
       assert.ok(html.includes("$4,100"), "Redwood City pin shows its ZIP price");
       assert.ok(!html.includes("Same for every home"), "no shared-rent legend note");
+    }));
+});
+
+// 29N2b — a US search draws the Caltrain doc alone, never Seoul lines.
+const SEOUL_LIKE = { lines: [
+  { id: "line2", name: "Line 2",
+    stops: [{ id: "l2:a", name: "A", lon: 127.0, lat: 37.5 },
+      { id: "l2:b", name: "B", lon: 127.1, lat: 37.5 }] },
+  { id: "sbd", name: "Shinbundang Line",
+    stops: [{ id: "sbd:a", name: "C", lon: 127.0, lat: 37.4 },
+      { id: "sbd:b", name: "D", lon: 127.1, lat: 37.4 }] },
+] };
+
+const US_LIKE = { lines: [{ id: "caltrain", name: "Caltrain",
+  stops: [
+    { id: "caltrain:palo_alto", key: "Palo Alto", name: "Palo Alto",
+      lon: PA.lon, lat: PA.lat },
+    { id: "caltrain:redwood_city", key: "Redwood City", name: "Redwood City",
+      lon: RW.lon, lat: RW.lat },
+  ] }] };
+
+describe("29N2b the US map draws Caltrain, never Seoul lines", () => {
+  it("networkWithUs returns the Caltrain doc alone for a US search", () => {
+    const us = networkWithUs(SEOUL_LIKE, US_LIKE, true);
+    assert.deepEqual(us.lines.map((l) => l.id), ["caltrain"]);
+    assert.equal(networkWithUs(SEOUL_LIKE, US_LIKE, false), SEOUL_LIKE);
+    assert.equal(networkWithUs(SEOUL_LIKE, null, true), SEOUL_LIKE);
+  });
+
+  it("SSR with the US network: Caltrain red + Palo Alto Stn, no Line 2 / Shinbundang", () =>
+    withLang("en", () => {
+      const map = M.buildChatMap({
+        regions: { regions: [] },
+        network: networkWithUs(SEOUL_LIKE, US_LIKE, true),
+        tiles: [], green: { water: [], parks: [] },
+        candidates: [
+          { id: "pa-1", name: "Home pa-1", lon: PA.lon + 0.0006, lat: PA.lat + 0.0004,
+            currency: "USD", country: "US", region: "us-st-palo-alto",
+            corridor_min: 41,
+            commute: { walk: { known: true, station: "Town", minutes: 6 },
+              ride: { known: false } },
+            tenures: [{ tenure: "monthly", median_won: 3950, currency: "USD" }] },
+        ],
+        picks: [], workplaceStation: null,
+        workPlace: { name: "Meta HQ", lon: -122.1482, lat: 37.4849 },
+        tenure: "monthly",
+      });
+      const html = renderToString(React.createElement(ChatMap, { map }));
+      assert.ok(html.includes('stroke="#E31837"'), "Caltrain line path in Caltrain red");
+      assert.ok(html.includes("Palo Alto Stn"), "our Palo Alto Stn label");
+      assert.ok(!html.includes("Line 2"), "no Seoul Line 2 title");
+      assert.ok(!html.includes("Shinbundang"), "no Shinbundang title");
+    }));
+});
+
+describe("29N2b tags stay near their home", () => {
+  const anchor = (id, x, y, extra = {}) =>
+    ({ id, kind: "pill", x, y, w: 80, h: 64, rank: 2, ...extra });
+  const dist = (l) => Math.hypot(
+    l.box.x + l.box.w / 2 - l.x, l.box.y + l.box.h / 2 - l.y);
+
+  it("a tag pushed off its home slot keeps a leader and stays within 120 px", () => {
+    // The home slot centred above (320, 210) is blocked: the tag
+    // takes the next free slot with a leader back to its dot.
+    const laid = M.layoutMapPills(
+      [anchor("p1", 320, 210)], 640, 420,
+      [{ x: 280, y: 140, w: 80, h: 64 }]);
+    assert.ok(laid[0].box, "tag placed");
+    assert.ok(laid[0].leader, "a moved tag keeps its leader line");
+    assert.ok(dist(laid[0]) <= 120, `tag within 120 px: ${dist(laid[0])}`);
+  });
+
+  it("a pin with no free spot nearby folds into a card, never strands far", () => {
+    // Every slot within reach is chrome: the full tag cannot place —
+    // the compact form, then the +N card path, takes it instead of a
+    // far tag with no leader.
+    const items = [
+      anchor("a1", 50, 50, { area: "us-menlo" }),
+      anchor("a2", 60, 55, { area: "us-menlo" }),
+      anchor("b1", 55, 52, { area: "us-st-palo-alto" }),
+    ];
+    const laid = M.layoutMapPills(items, 200, 200,
+      [{ x: 0, y: 0, w: 200, h: 200 }]);
+    assert.ok(laid.length > 0, "nothing dropped silently");
+    for (const l of laid) {
+      const d = Math.hypot(l.box.x + l.box.w / 2 - l.x,
+        l.box.y + l.box.h / 2 - l.y);
+      if (l.kind === "pill") {
+        assert.ok(d <= 120, `tag ${l.id} within 120 px: ${d}`);
+        if (d > 24) assert.ok(l.leader, `tag ${l.id} moved > 24 px keeps a leader`);
+      }
+    }
+    assert.ok(laid.some((l) => l.kind === "cluster"), "spill folds into a card");
+  });
+});
+
+describe("29N2b group cards stay inside one town", () => {
+  it("tight anchors split by area, never one mixed group", () => {
+    const items = [
+      { id: "a1", x: 0, y: 0, area: "us-menlo" },
+      { id: "a2", x: 10, y: 5, area: "us-menlo" },
+      { id: "a3", x: 20, y: 2, area: "us-menlo" },
+      { id: "b1", x: 30, y: 10, area: "us-st-palo-alto" },
+      { id: "b2", x: 40, y: 14, area: "us-st-palo-alto" },
+      { id: "b3", x: 50, y: 8, area: "us-st-palo-alto" },
+    ];
+    const groups = M.groupTightAnchors(items, 72);
+    assert.equal(groups.length, 2, "one group per town, never one mixed card");
+    for (const g of groups) {
+      const keys = new Set(g.map((m) => m.area));
+      assert.equal(keys.size, 1, "every group is single-town");
+    }
+    assert.deepEqual(groups.map((g) => g.length).sort(), [3, 3]);
+  });
+
+  it("spilled tags cluster within their town, never mixed", () => {
+    const items = [
+      { id: "a1", kind: "pill", x: 50, y: 50, w: 40, h: 30, rank: 2, area: "us-menlo" },
+      { id: "b1", kind: "pill", x: 55, y: 52, w: 40, h: 30, rank: 2,
+        area: "us-st-palo-alto" },
+    ];
+    const laid = M.layoutMapPills(items, 200, 200,
+      [{ x: 0, y: 0, w: 200, h: 200 }]);
+    const clusters = laid.filter((l) => l.kind === "cluster");
+    assert.ok(clusters.length >= 1, "spill folds into cards");
+    assert.ok(clusters.length >= 2, "towns fold separately, never one mixed card");
+  });
+
+  it("card headers name the town", () => {
+    assert.equal(M.groupCardHeader(2, "en", "Belle Haven"), "Belle Haven · 2 homes");
+    assert.equal(M.groupCardHeader(2, "ko", "벨헤이븐"), "벨헤이븐 · 2곳");
+    assert.equal(M.groupCardHeader(2, "en", "Palo Alto"), "Palo Alto · 2 homes");
+    assert.equal(M.groupCardHeader(6, "en"), "6 homes");
+    assert.equal(M.groupCardHeader(6, "ko"), "집 6곳");
+  });
+});
+
+// A Palo Alto home whose direct bike (24) beats its Caltrain total
+// (37): ranking, pin line and card all read the fastest mode.
+function bestBikeHome(id, region, rent, zip, total) {
+  const h = corridorHome(id, region, rent, zip, total);
+  h.commute.best = { mode: "bike", min: 24 };
+  return h;
+}
+
+describe("29N2b commute = fastest mode", () => {
+  it("usCommuteBest prefers an explicit best, else the smaller leg", () => {
+    assert.deepEqual(
+      usCommuteBest({ commute: { best: { mode: "bike", min: 24 } } },
+        { total_min: 37 }, { mode: "bike", minutes: 22 }),
+      { mode: "bike", min: 24 });
+    assert.deepEqual(usCommuteBest({}, { total_min: 37 }, { mode: "bike", minutes: 24 }),
+      { mode: "bike", min: 24 });
+    assert.deepEqual(usCommuteBest({}, { total_min: 20 }, { mode: "bike", minutes: 24 }),
+      { mode: "caltrain", min: 20 });
+    assert.deepEqual(usCommuteBest({}, null, { mode: "walk", minutes: 12 }),
+      { mode: "walk", min: 12 });
+  });
+
+  it("a bike-24 home outranks a Caltrain-30 home and carries best_*", () => {
+    const r = find_homes(BERKELEY_PROFILE,
+      { homes: [bestBikeHome("pa", "us-st-palo-alto", 3950, "94301", 37),
+        corridorHome("rw", "us-st-redwood-city", 4100, "94063", 30)] },
+      { sort: "commute", limit: 6, regions: ["us-st-palo-alto", "us-st-redwood-city"] });
+    assert.deepEqual(r.candidates.map((c) => c.id), ["pa", "rw"]);
+    const pa = r.candidates[0];
+    assert.equal(pa.best_mode, "bike");
+    assert.equal(pa.best_min, 24);
+    assert.equal(pa.corridor_min, 37, "the labelled total stays for the breakdown");
+  });
+
+  it("pin line reads 24 min and the card leads Bike with the Caltrain option second", () =>
+    withLang("en", () => {
+      const r = find_homes(BERKELEY_PROFILE,
+        { homes: [bestBikeHome("pa", "us-st-palo-alto", 3950, "94301", 37)] },
+        { sort: "commute", limit: 6, regions: ["us-st-palo-alto"] });
+      const pa = r.candidates[0];
+      const map = M.buildChatMap({
+        regions: { regions: [] }, network: US_LIKE, tiles: [],
+        green: { water: [], parks: [] }, candidates: r.candidates,
+        picks: [], workplaceStation: null,
+        workPlace: { name: "Meta HQ", lon: -122.1482, lat: 37.4849 },
+        tenure: "monthly",
+      });
+      assert.equal(map.pins[0].commuteMin, 24, "pin line uses the fastest mode");
+      const html = renderToString(React.createElement(ChatMap, { map }));
+      assert.ok(html.includes("24 min"), "pin tag reads 24 min, not the Caltrain total");
+      const row = commuteRowLine(pa);
+      assert.equal(row.text, "Bike 24 min (estimate)");
+      assert.ok(row.shuttle.startsWith("or Caltrain 37 min"),
+        `second line keeps the Caltrain option: ${row.shuttle}`);
+    }));
+
+  it("Korean card reads 자전거 24분(추정) with the Caltrain option second", () =>
+    withLang("ko", () => {
+      const r = find_homes(BERKELEY_PROFILE,
+        { homes: [bestBikeHome("pa", "us-st-palo-alto", 3950, "94301", 37)] },
+        { sort: "commute", limit: 6, regions: ["us-st-palo-alto"] });
+      const row = commuteRowLine(r.candidates[0]);
+      assert.equal(row.text, "자전거 24분(추정)");
+      assert.ok(row.shuttle.startsWith("또는 칼트레인 37분"),
+        `second line keeps the Caltrain option: ${row.shuttle}`);
     }));
 });

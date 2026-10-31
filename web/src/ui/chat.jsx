@@ -1950,8 +1950,8 @@ export function ChatScreen() {
   async function ensureData(regions) {
     const key = (regions || []).join(",") || "all";
     if (dataRef.current && dataRef.current.regionsKey === key) return dataRef.current;
-    // 29N2a: a US search also loads the Caltrain line doc so the map
-    // draws it like a Seoul subway line.
+    // 29N2b: a US search also loads the Caltrain line doc so the map
+    // draws it instead of the Seoul lines.
     const wantUs = (regions || []).some((r) => r === "us-menlo" || r.startsWith("us-st-"));
     const [index, network, usNetwork, schedule, manifest, named, regionsDoc] = await Promise.all([
       loadHomesIndex(fetchJson, regions && regions.length > 0 ? regions : null),
