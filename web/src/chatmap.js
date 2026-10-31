@@ -9,6 +9,7 @@
 // lines along the subway for picked homes.
 
 import { findPath, normalizeStation } from "./engine/journey.js";
+import { romanizeName } from "./i18n/romanize.js";
 import { fmtMoney } from "./money/currency.js";
 
 export const MAP_COLORS = {
@@ -43,6 +44,9 @@ export const MAP_COLORS = {
   road: "#ffffff",
   roadCasing: "#e2ddd3",
   regionLabel: "#a39d92",
+  // 29L3: station-label backplate — the map ground colour, so our
+  // full name (with 역) covers the basemap's own label underneath.
+  stationPlate: "#f3f1ec",
   stationRing: "#55514a",
   muted: "#8f897f",
 };
@@ -926,6 +930,38 @@ export function layoutStationLabels(stations, W, H, boxes = []) {
     out.push({ name: s.name, x: box.x, y: box.y + 10 });
   }
   return out;
+}
+
+// 29L3: station labels print the full name — with 역 in Korean,
+// romanized with Stn in English — so our label sits exactly on the
+// basemap's own label instead of doubling it. Names that already
+// carry the suffix are left alone.
+export function stationLabelName(name, lang) {
+  const raw = String(name ?? "").trim();
+  const ko = raw.endsWith("역") ? raw : `${raw}역`;
+  if (lang === "en") return romanizeName(ko);
+  return ko;
+}
+
+// 29L3: the 회사 pill picks a side like the price tags — right,
+// left, above, below of its anchor — avoiding the given obstacle
+// boxes (station dots and label boxes, chrome). When every side
+// collides it keeps the right side with a short leader line back to
+// the anchor. Returns { box, leader, side }.
+export function placeWorkplacePill(x, y, w, h, W, H, obstacles = []) {
+  const ww = Math.max(1, Number(W) || 1);
+  const hh = Math.max(1, Number(H) || 1);
+  const sides = [
+    { side: "right", box: { x: x + PILL_GAP, y: y - h / 2, w, h } },
+    { side: "left", box: { x: x - PILL_GAP - w, y: y - h / 2, w, h } },
+    { side: "above", box: { x: x - w / 2, y: y - 6 - h, w, h } },
+    { side: "below", box: { x: x - w / 2, y: y + PILL_GAP, w, h } },
+  ].map((c) => ({ side: c.side, box: clampPill(c.box, ww, hh) }));
+  const hit = (b) => (obstacles || []).some((q) => q && boxHit(b, q));
+  const free = sides.find((c) => !hit(c.box));
+  if (free) return { box: free.box, leader: null, side: free.side };
+  const home = sides[0];
+  return { box: home.box, leader: nearestOnBox(home.box, x, y), side: home.side };
 }
 
 // 21b: at most 4 neighbourhood names for the candidates' 동 — one
