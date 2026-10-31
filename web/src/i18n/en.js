@@ -523,6 +523,14 @@ const seedPatterns = [
   { ko: "다 살아 봤어요. A {0}는 출근 편도 평균 {1}, B {2}는 {3}, C {4}는 {5}이었어요. 일기는 이번에 못 썼어요.", en: "Done. Average one-way commute: A {0} {1}, B {2} {3}, C {4} {5}. No diary this time." },
   { ko: "다 살아 봤어요. A {0}는 출근 편도 평균 {1}, B {2}는 {3}이었어요. 일기는 이번에 못 썼어요.", en: "Done. Average one-way commute: A {0} {1}, B {2} {3}. No diary this time." },
   { ko: "다 살아 봤어요. {0}", en: "Done living in them. {0}" },
+  // 34a: pick chips Muse writes ("1번이랑 2번 골라 줘")
+  { ko: "{0:\\d+}번이랑 {1:\\d+}번 함께 봐 줘", en: "Show {0} and {1} together" },
+  { ko: "{0:\\d+}번이랑 {1:\\d+}번 함께 줘", en: "Show {0} and {1} together" },
+  { ko: "{0:\\d+}번이랑 {1:\\d+}번 봐 줘", en: "Show {0} and {1}" },
+  { ko: "{0:\\d+}번이랑 {1:\\d+}번 골라 줘", en: "Pick {0} and {1}" },
+  { ko: "{0:\\d+}번이랑 {1:\\d+}번 담아 줘", en: "Save {0} and {1}" },
+  { ko: "{0:\\d+}번이랑 {1:\\d+}번 비교해 줘", en: "Compare {0} and {1}" },
+  { ko: "{0:\\d+}번이랑 {1:\\d+}번 살아 봐 줘", en: "Live in {0} and {1}" },
   // 34a: plain-words compare readings
   { ko: "{0}가 하루 평균 {1} 더 출퇴근길에 걸어요", en: "{0} walks {1} more per day on the commute" },
   { ko: "{0}가 하루 평균 {1} 더 차·지하철을 타요", en: "{0} rides {1} more per day by car or subway" },

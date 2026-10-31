@@ -742,7 +742,7 @@ function reportStepLabel(attempt, pass, coverage) {
   return `${attempt}차 ${pass ? "통과" : "반려"} (${Math.round(coverage * 100)}%)`;
 }
 
-export function ReportCheck({ report, names, onRetry }) {
+export function ReportCheck({ report, names, onRetry, lang = LANG }) {
   if (!report) return null;
   const status = report.status;
   if (!status || status === "off") return null;
@@ -778,7 +778,7 @@ export function ReportCheck({ report, names, onRetry }) {
         <VStack gap={1} key={h}>
           <HStack gap={1} vAlign="center">
             <span className="ui-pick-disc" data-home={h} aria-hidden="true">{h}</span>
-            <Text type="supporting">{((names || {})[h] || "").trim() || h}</Text>
+            <Text type="supporting">{trayDisplayName(((names || {})[h] || "").trim() || h, lang)}</Text>
           </HStack>
           {sentences.filter((s) => s && s.home === h).map((s) => (
             <p key={s.id}>{s.text_ko}<span className="ui-check-tags">{sentenceTags(s)}</span></p>
@@ -861,7 +861,7 @@ export function ReportCheck({ report, names, onRetry }) {
   return (<VStack gap={2}>{timeline}</VStack>);
 }
 
-export function ResultSummary({ data }) {
+export function ResultSummary({ data, lang = LANG }) {
   const state = useSyncExternalStore(store.subscribe, store.getState, store.getState);
   const labels = data.labels || [];
   const names = data.names || {};
@@ -880,7 +880,7 @@ export function ResultSummary({ data }) {
       {labels.map((l) => (
         <span key={l} className="ui-result-head">
           <span className="ui-pick-disc" aria-hidden="true"{...(/^[AB]$/.test(l) ? { "data-home": l } : null)}>{l}</span>
-          <span className="ui-result-name"><HomeName name={(names[l] || "").trim() || l} /></span>
+          <span className="ui-result-name"><HomeName name={trayDisplayName((names[l] || "").trim() || l, lang)} lang={lang} /></span>
         </span>
       ))}
       {scored.ok && [
@@ -1076,7 +1076,7 @@ export function SimulationCard({ data, example, onRetry, onScene, onReportRetry 
                 <VStack gap={1} key={label}>
                   <HStack gap={1} vAlign="center">
                     <span className="ui-pick-disc" aria-hidden="true"{...(/^[AB]$/.test(label) ? { "data-home": label } : null)}>{label}</span>
-                    <Text type="supporting">{(names[label] || "").trim() || label}</Text>
+                    <Text type="supporting">{trayDisplayName((names[label] || "").trim() || label)}</Text>
                   </HStack>
                   <HowCalculated tenure={mh.tenure} housing={mh.housingDoc}
                     maintenanceWon={mh.maintenanceWon} transitWon={mh.transitWon} />
@@ -3788,14 +3788,20 @@ export function resultReadyFor(messages, picks, candidates) {
 // head); a bare Korean name romanizes in English, anything else shows
 // as-is. The cards keep both forms.
 const TRAY_SPLIT_RE = /^(.*\S)\s*\(([^()]*)\)\s*$/;
-export function trayNameFor(candidate, lang = LANG) {
-  const full = String(displayNameFor(candidate) ?? "");
-  const m = full.match(TRAY_SPLIT_RE);
+// 34b: one name form from a display string ("한글 (English)" splits
+// like the tray; a bare Korean name romanizes in English). The
+// result header reuses this so English never shows both forms.
+export function trayDisplayName(full, lang = LANG) {
+  const s = String(full ?? "");
+  const m = s.match(TRAY_SPLIT_RE);
   if (m && /[A-Za-z]/.test(m[2]) && !/[가-힣]/.test(m[2])) {
     return lang === "en" ? m[2].trim() : m[1].trim();
   }
-  if (lang === "en" && /[가-힣]/.test(full)) return romanizeName(full);
-  return full;
+  if (lang === "en" && /[가-힣]/.test(s)) return romanizeName(s);
+  return s;
+}
+export function trayNameFor(candidate, lang = LANG) {
+  return trayDisplayName(displayNameFor(candidate), lang);
 }
 
 export function PicksTray({ picks, candidates, onRun, onRemove,

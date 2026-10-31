@@ -6,6 +6,7 @@ import { loadGroundTruth } from "./checklist.js";
 import { verifyReport, attemptSummary, UNSUPPORTED_PERSONA_KO } from "./loop.js";
 import { judgeCandidates, judgeEvidence } from "./evidence.js";
 import { engineValue, householdMembers } from "./numbers.js";
+import { memberLabelEn } from "../profile.js";
 import { householdKeys } from "../engine/moments.js";
 
 // Profile → persona key. members may be a plain array or a field
@@ -167,7 +168,7 @@ export function reportDigest({ runs, labels, homes, persona, groundTruth, names 
               && (String(x.key) === m || String(x.id) === m
                 || String(x.agent) === m));
             const lk = (a && a.label) || null;
-            const le = lk === "나" ? "You" : lk === "배우자" ? "Your partner" : lk;
+            const le = lk === null || lk === undefined ? lk : memberLabelEn(lk);
             per[m] = { ...v, label_ko: lk, label_en: le };
           }
           values[label] = per;
