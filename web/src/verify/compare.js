@@ -166,12 +166,22 @@ export function reportDigest({ runs, labels, homes, persona, groundTruth, names 
             const a = agents.find((x) => x && typeof x === "object"
               && (String(x.key) === m || String(x.id) === m
                 || String(x.agent) === m));
-            per[m] = { ...v, label_ko: (a && a.label) || null };
+            const lk = (a && a.label) || null;
+            const le = lk === "나" ? "You" : lk === "배우자" ? "Your partner" : lk;
+            per[m] = { ...v, label_ko: lk, label_en: le };
           }
           values[label] = per;
         } else {
-          values[label] = engineValue(it.id, runs[label],
+          const v = engineValue(it.id, runs[label],
             { home: homes[label] });
+          if (it.id === "C02" && v && typeof v === "object") {
+            const usd = homes[label] && homes[label].currency === "USD";
+            values[label] = { ...v,
+              meaning_ko: usd ? "ZIP 평균 월세(Zillow), 관리비 없음" : "월세·관리비를 더한 한 달 금액",
+              meaning_en: usd ? "typical monthly rent for the ZIP (Zillow), no fees" : "rent plus maintenance for one month" };
+          } else {
+            values[label] = v;
+          }
         }
       }
       return { ...base, values };
