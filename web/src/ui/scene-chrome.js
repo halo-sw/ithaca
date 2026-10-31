@@ -125,7 +125,10 @@ export function todayStepEn(step) {
     if (s.dest) return workplaceLabel(s.dest, "en", s.destEn || romanizeName(s.dest));
     return "Work";
   }
-  if (s.kind !== "place") return raw;
+  // 29L5: ride rows carry the source word in the engine text
+  // ("혼잡 91% 실측"); the badge beside the row already says it, so
+  // the row text drops it — the translator must not print it twice.
+  if (s.kind !== "place") return raw.replace(/ (실측|측정|가정값|가정)\)$/, ")");
   const bare = label.replace(/\s*\([^)]*\)\s*$/, "").replace(/\s*\d+(?:\.\d+)?분\s*$/, "").trim();
   return placeNameEn(bare || label);
 }
@@ -135,5 +138,8 @@ export function todayStepEn(step) {
 // translator.
 export function todayStepNoI18n(step) {
   const s = step || {};
+  // 29L5: non-place rows keep Korean for the translator (the source
+  // badge is its own node); only place rows built in code opt out.
+  if (s.kind !== "place") return false;
   return todayStepEn(s) !== String(s.label ?? "");
 }

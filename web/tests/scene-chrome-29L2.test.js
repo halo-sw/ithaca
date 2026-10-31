@@ -1,8 +1,9 @@
 // Stage 29L2: the 3D view's chrome fits — toolbar inset, labels
 // clamped inside the frame and off people, width-capped counts,
 // one-line phone credit, phone timeline, English built in code.
-import { describe, it } from "node:test";
+import { describe, it, before } from "node:test";
 import assert from "node:assert/strict";
+import { register } from "node:module";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,6 +15,8 @@ import {
 } from "../src/ui/scene-chrome.js";
 import { familyRowText } from "../src/nowcard.js";
 import { activityLabelEn } from "../src/timeline.js";
+
+register("./jsx-loader.mjs", import.meta.url);
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const css = fs.readFileSync(path.join(here, "..", "src", "ui", "ui.css"), "utf8");
@@ -197,10 +200,57 @@ describe("29L2c English strings romanise place names", () => {
     assert.equal(todayStepNoI18n({ kind: "place", label: "레이크팰리스" }), true);
   });
 
+  it("29L5 measured/assumed ride rows leave the source word to the badge", () => {
+    assert.equal(
+      todayStepEn({ kind: "ride", label: "2호선 잠실→강남 (9분, 혼잡 91% 실측)" }),
+      "2호선 잠실→강남 (9분, 혼잡 91%)");
+    assert.equal(
+      todayStepEn({ kind: "ride", label: "신분당선 강남→판교 (17분, 혼잡 70% 가정)" }),
+      "신분당선 강남→판교 (17분, 혼잡 70%)");
+    const measured = { kind: "ride", label: "2호선 잠실→강남 (9분, 혼잡 91% 실측)",
+      congestion: { valuePct: 91, source: "서울교통공사" } };
+    assert.equal(todayStepNoI18n(measured), false);
+  });
+
   it("English household row capitalises the activity word", () => {
     assert.equal(homeStatusEn("Your partner", "저녁 시간"), "Your partner · Home · Evening");
     const row = familyRowText({ label: "배우자", labelEn: "Your partner",
       line: "집 · 저녁 시간", lineEn: "Your partner · Home · Evening", fatigue: 23 }, "en");
     assert.equal(row, "Your partner · Home · Evening · Tiredness 23/100");
+  });
+});
+
+describe("29L5 Today measured ride: badge apart, row text clean", () => {
+  let React;
+  let renderToString;
+  let TodayList;
+
+  before(async () => {
+    React = (await import("react")).default;
+    ({ renderToString } = await import("react-dom/server"));
+    ({ TodayList } = await import("../src/ui/app.jsx"));
+  });
+
+  function state() {
+    return {
+      journey: null, journeyLoading: "", journeyView: "auto",
+      clock: { minute: 520 },
+      routeSteps: { outings: [{ start: 501, end: 600, steps: [
+        { kind: "place", label: "레이크팰리스", minute: 501 },
+        { kind: "ride", label: "2호선 잠실→강남 (9분, 혼잡 91% 실측)",
+          minute: 515, minutes: 9,
+          congestion: { valuePct: 91, source: "서울교통공사" } },
+      ] }] },
+    };
+  }
+
+  it("badge is its own element; the row text node carries no source word", () => {
+    const html = renderToString(React.createElement(TodayList, { state: state() }));
+    const labels = [...html.matchAll(/<span class="ui-today-label"[^>]*>(.*?)<\/span>/g)]
+      .map((m) => m[1]);
+    const ride = labels.find((t) => t.includes("잠실→강남"));
+    assert.ok(ride, "measured ride row renders");
+    assert.ok(!/실측|측정|가정값/.test(ride), `row text carries no source word: ${ride}`);
+    assert.ok(html.includes(">실측<"), "source badge renders as its own element");
   });
 });

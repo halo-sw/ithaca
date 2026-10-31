@@ -456,6 +456,10 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
     : [];
   const basemapOn = (provider === "usgs" || apiBase !== null)
     && failCount * 2 < tiles.length;
+  // 29L5: the VWorld white basemap already prints station names, so
+  // our own name plates would double them — dots only while it is
+  // on. USGS (and basemap-off) keep our labels as 29L3 left them.
+  const vworldNamesBasemap = basemapOn && provider === "vworld";
   // Constant screen sizes: one viewBox unit is one stage px at 1:1, so
   // literal px values stay readable however the map is zoomed.
   const fs = (n) => n;
@@ -854,7 +858,7 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
             </g>
           );
         })}
-        {stationLabels.map((l, i) => (
+        {!vworldNamesBasemap && stationLabels.map((l, i) => (
           <g key={`stn${i}`}>
             <rect x={l.x - 3} y={l.y - 12}
               width={stationNameWidthPx(l.name) + 6} height={17} rx={fs(3)}

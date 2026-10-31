@@ -130,7 +130,8 @@ describe("19g-3 workplace station keeps its dot, loses its label", () => {
     assert.ok(html.includes("<title>판교</title>"), "workplace dot kept");
     assert.ok(!html.includes(">판교역</text>"), "no station-name label for it");
     assert.ok(!html.includes(">판교</text>"), "no station-name label for it");
-    assert.ok(html.includes(">야탑역</text>"), "picked home stop still labelled");
+    assert.ok(html.includes("<title>야탑</title>"), "picked home stop keeps its dot");
+    assert.ok(!html.includes(">야탑역</text>"), "no own name text over the VWorld basemap");
   });
 });
 
