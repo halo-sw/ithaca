@@ -3756,6 +3756,11 @@ async function bootSim() {
     paintHighlightFrame();
     paintLabels20b();
     const jfTrain = journeyFrame();
+    trackSimViewOffset(camera); // 13e5: stage centre, not canvas centre
+    controls.update();
+    // 36h5: size and place the ride markers with the camera that renders
+    // the frame — after trackSimViewOffset/controls.update, right before
+    // renderCtl.renderFrame.
     if (jfTrain.ride && (jfTrain.phase === "rising" || jfTrain.phase === "cruise"
         || jfTrain.phase === "descending" || jfTrain.phase === "boarding")) {
       journeyLayer.setTrain(jfTrain.ride, minute - Math.floor(minute) + jfTrain.elapsed,
@@ -3767,13 +3772,13 @@ async function bootSim() {
     // show unscaled (36 m) dots.
     journeyLayer.updateMarkerScale(camera,
       (renderer.domElement && renderer.domElement.clientHeight) || 800);
-    // Station names ride along the line during the regional phases only.
+    // Station names ride along the line during every visible journey
+    // phase (rising/cruise/descending/boarding); the hidden layer hides
+    // the labels with the line and dots.
     if (jfTrain.ride && (jfTrain.phase === "rising" || jfTrain.phase === "cruise"
-        || jfTrain.phase === "descending")) {
+        || jfTrain.phase === "descending" || jfTrain.phase === "boarding")) {
       journeyLayer.updateStationLabels(camera);
     }
-    trackSimViewOffset(camera); // 13e5: stage centre, not canvas centre
-    controls.update();
     if (sceneMarkingsMesh) {
       sceneMarkingsMesh.visible = (simFramedWidth ?? 0) <= MARKINGS_HIDE_M;
     }
