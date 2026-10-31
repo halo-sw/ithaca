@@ -46,7 +46,8 @@ function romanizeWord(word) {
     const cur = syls[i];
     if (prev.tail == null || cur.lead == null) continue;
     if ((prev.tail === 4 && cur.lead === 5) || // ㄴ + ㄹ
-      (prev.tail === 8 && cur.lead === 2)) { // ㄹ + ㄴ
+      (prev.tail === 8 && cur.lead === 2) || // ㄹ + ㄴ
+      (prev.tail === 8 && cur.lead === 5)) { // ㄹ + ㄹ
       prev.fin = "l";
       cur.init = "l";
     } else if (K_FINALS.has(prev.tail) && isNasalLead(cur.lead)) {
@@ -102,6 +103,48 @@ export function romanize(text) {
   }).join(" ");
 }
 
+// 29L6: trailing building-type parts read as English words, longest
+// match first, so loanwords stop gluing into one romanised blob
+// (대하빌딩 → Daeha Building). Repeated once for 팰리스+빌라 style
+// doubles. NAMES and the 역/동/구/시 suffixes still win.
+const TYPE_EN = [
+  ["다세대주택", "Multi-family house"],
+  ["연립주택", "Row house"],
+  ["단독주택", "House"],
+  ["주상복합", "Mixed-use"],
+  ["오피스텔", "Officetel"],
+  ["아파트", "Apt"],
+  ["팰리스", "Palace"],
+  ["하우스", "House"],
+  ["빌딩", "Building"],
+  ["빌라", "Villa"],
+  ["맨션", "Mansion"],
+  ["타워", "Tower"],
+  ["캐슬", "Castle"],
+  ["파크", "Park"],
+  ["힐스", "Hills"],
+  ["빌", "Vill"],
+];
+
+function splitTypes(w) {
+  const parts = [];
+  for (let k = 0; k < 2; k++) {
+    let hit = null;
+    for (const [ko, en] of TYPE_EN) {
+      if (w === ko) { hit = [ko, en]; break; }
+      if (w.length > ko.length && w.endsWith(ko)) {
+        if (ko === "빌" && w.length - ko.length < 2) continue;
+        hit = [ko, en]; break;
+      }
+    }
+    if (!hit) break;
+    parts.unshift(hit[1]);
+    w = w.slice(0, w.length - hit[0].length);
+    if (!w) break;
+  }
+  return { stem: w, parts };
+}
+
 export function romanizeName(name) {
   return String(name).trim().split(/\s+/).filter(Boolean).map((w) => {
     if (Object.hasOwn(NAMES, w)) return NAMES[w];
@@ -121,6 +164,16 @@ export function romanizeName(name) {
       suffix = "-si";
     }
     if (Object.hasOwn(NAMES, w)) return NAMES[w] + suffix;
-    return romanize(w) + suffix;
+    const { stem, parts } = splitTypes(w);
+    let head = stem;
+    if (head) {
+      if (Object.hasOwn(NAMES, head)) head = NAMES[head];
+      else if (head.endsWith("동") && head.length > 1) {
+        const base = head.slice(0, -1);
+        head = (Object.hasOwn(NAMES, base) ? NAMES[base] : romanize(base)) + "-dong";
+      } else head = romanize(head);
+    }
+    if (!head) return parts.join(" ") + suffix;
+    return [head, ...parts].join(" ") + suffix;
   }).join(" ");
 }

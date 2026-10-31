@@ -411,7 +411,7 @@ const seedPatterns = [
   { ko: "{0}차 반려 ({1}%)", en: "Try {0}: sent back ({1}%)" },
   { ko: "{0}차 통과 ({1}%)", en: "Try {0}: passed ({1}%)" },
   { ko: "{0}차 확인 중…", en: "Checking try {0}…" },
-  { ko: "근거 {0}개", en: "{0} records cited" },
+  { ko: "근거 {0}개", en: (c) => `${c[0]} ${String(c[0]).replace(/,/g, "") === "1" ? "record" : "records"} cited` },
   { ko: "이 가족 유형({0})은 아직 시뮬레이션 시나리오가 없어 비교 리포트를 검증할 수 없어요.", en: "This family type ({0}) has no simulation scenario yet, so the comparison report can't be verified." },
   // 29j4: rejected-attempt reason lines under the report timeline.
   { ko: "{0}차 반려 · {1}", en: "Try {0} sent back · {1}" },

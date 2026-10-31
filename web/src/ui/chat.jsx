@@ -112,6 +112,7 @@ import { agentContext, stripToolLabel, toolActionKo, toolActionEn, viewSystemLin
 import { LANG, currentLang } from "../i18n/lang.js";
 import { romanizeName } from "../i18n/romanize.js";
 import { translateExact } from "../i18n/translate.js";
+import { sceneActionLabelFor } from "./scene-chrome.js";
 
 const ENV = (typeof import.meta !== "undefined" && import.meta.env) || {};
 const IS_DEV = ENV.DEV === true;
@@ -3612,15 +3613,27 @@ export function mergeGreenBoxes(cache) {
 // embed iframe, so the conversation never navigates away. 지도로
 // returns to the map, 새 창으로 opens the same scene in a new tab.
 export function SceneFrame({ scene, onBack, onClose }) {
+  // 29L6: hooks before the early return; on a ≤ 480 px phone the two
+  // actions shorten (Map / New window, Korean stays) so the header
+  // row fits 390 px on one line. The full text stays in
+  // aria-label/title, and the title itself never wraps.
+  const phone = usePhoneMedia();
+  const lang = currentLang();
   if (!scene) return null;
+  const backFull = lang === "en" ? "To the map" : "지도로";
+  const openFull = lang === "en" ? "Open in new window" : "새 창으로";
   return (
     <section className="ui-chat-scene" aria-label="3D 장면">
       <div className="ui-chat-scene-head">
         <span className="ui-chat-scene-title">{scene.title}</span>
         <span style={{ flex: "1 1 auto" }} />
-        <Button size="sm" variant="ghost" label="지도로"
+        <Button size="sm" variant="ghost"
+          label={sceneActionLabelFor(backFull, { phone, lang })}
+          aria-label={backFull} title={backFull}
           onClick={() => onBack && onBack()} />
-        <Button size="sm" variant="ghost" label="새 창으로"
+        <Button size="sm" variant="ghost"
+          label={sceneActionLabelFor(openFull, { phone, lang })}
+          aria-label={openFull} title={openFull}
           onClick={() => {
             if (typeof window !== "undefined" && scene.url) {
               window.open(withoutEmbed(scene.url), "_blank", "noopener");

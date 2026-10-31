@@ -6,6 +6,8 @@
 // as the result card (commuteOneWayMinutes), so the numbers match.
 // At home / work / lingering somewhere: [] (nothing to clutter).
 import { commuteOneWayMinutes } from "./verify/numbers.js";
+import { currentLang } from "./i18n/lang.js";
+import { commuteBreakdownEn } from "./ui/scene-chrome.js";
 
 // Same half-day cut as verify/numbers.js (AM_END_MINUTES = 12:00).
 const AM_END_MINUTES = 720;
@@ -105,7 +107,7 @@ function rideParts(away) {
 // the sum of the rounded parts, so the parts always add up.
 // 26i: a 26d bike trip reads 자전거 and the line is 가정값 (assumed
 // 15 km/h, C-bike-speed) — trips without a mode key stay 걷기/측정.
-export function commuteLines(run, agentKey, current, currentStart) {
+export function commuteLines(run, agentKey, current, currentStart, lang = currentLang()) {
   const day = current.day;
   const half = halfOf(currentStart);
   const trips = ((run && run.trips) || []).filter((t) => t && t.agent === agentKey
@@ -137,6 +139,23 @@ export function commuteLines(run, agentKey, current, currentStart) {
   if (ride > 0) parts.push(`지하철 ${ride}분`);
   if (wait > 0) parts.push(`기다림 ${wait}분`);
   const tag = bikeTrips.length === 0 ? "측정" : "가정값";
+  // 29L2: English built in code (Today's commute home: …), never glossaried.
+  if (lang === "en") {
+    const lines = [{ text: commuteBreakdownEn({ dir: half === "am" ? "work" : "home",
+      total, walk, bike, subway: ride, wait }), tag }];
+    const avg = commuteOneWayMinutes(run, agentKey);
+    if (Number.isFinite(avg)) {
+      const days = (run && run.meta && run.meta.days) || 30;
+      const runBike = ((run && run.trips) || []).some((t) => t && t.agent === agentKey
+        && t.purpose === "commute" && t.mode === "bike");
+      lines.push({ text: `One day of ${days} days averaging ${Math.round(avg)} min one-way`, tag: runBike ? "가정값" : "측정" });
+    }
+    if (assumed.length > 0) {
+      const pct = Math.round(Math.max(...assumed));
+      lines.push({ text: `Crowding ${pct}% is assumed (not measured)`, tag: "가정값" });
+    }
+    return lines;
+  }
   const lines = [{ text: `오늘 ${dir} ${total}분 = ${parts.join(" + ")}`, tag }];
   const avg = commuteOneWayMinutes(run, agentKey);
   if (Number.isFinite(avg)) {

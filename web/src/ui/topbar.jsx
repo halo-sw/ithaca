@@ -17,6 +17,8 @@ import { Selector } from "@astryxdesign/core/Selector";
 import { Text } from "@astryxdesign/core/Text";
 import { ToggleButton } from "@astryxdesign/core/ToggleButton";
 import { store } from "./store.js";
+import { currentLang } from "../i18n/lang.js";
+import { toolsLabelFor } from "./scene-chrome.js";
 import { LIVE_API, appUrl } from "../paths.js";
 import { getMuseLive, subscribeMuseLive, refreshMuseLive } from "./muse-status.js";
 import { ModelPanel } from "./model-panel.jsx";
@@ -224,8 +226,32 @@ export function TopBar({ mode, summary, extra, settings }) {
 }
 
 // Sim/tour view options, floating at the map's top-left.
+// 29L2: on phones the sim controls use short labels built here per
+// language (집만 / 전체 …) so A·B + four controls fit 390 px without
+// scrolling; the full text stays as aria-label/title. English is
+// built here too (data-no-i18n), never word-by-word.
+const TOOLS_EN = {
+  "집만 밝게 보기": "Highlight homes only",
+  "범례": "Legend",
+  "동네 전체": "Whole area",
+  "따라가기": "Follow",
+};
+
 export function MapTools({ state, legendOpen, onLegend }) {
   const isSim = state.mode === "sim";
+  const phone = usePhoneMedia();
+  const lang = currentLang();
+  const t = (ko) => {
+    const full = lang === "en" ? (TOOLS_EN[ko] || ko) : ko;
+    const short = toolsLabelFor(full, { phone, lang });
+    const extra = { title: full, "aria-label": full };
+    if (lang === "en") extra["data-no-i18n"] = true;
+    return { label: short, ...extra };
+  };
+  const resOnly = t("집만 밝게 보기");
+  const legend = t("범례");
+  const overview = t("동네 전체");
+  const follow = t("따라가기");
   return (
     <div className="ui-tools overlay">
       {isSim ? (
@@ -236,7 +262,7 @@ export function MapTools({ state, legendOpen, onLegend }) {
               <SegmentedControlItem key={h.label} value={h.label} label={h.label} />
             ))}
           </SegmentedControl>
-          <ToggleButton size="sm" label="집만 밝게 보기" isPressed={state.resOnly}
+          <ToggleButton size="sm" {...resOnly} isPressed={state.resOnly}
             onPressedChange={(next) => store.act("setResOnly", next)} />
         </>
       ) : (
@@ -252,13 +278,13 @@ export function MapTools({ state, legendOpen, onLegend }) {
         </>
       )}
       <Button size="sm" variant={legendOpen ? "secondary" : "ghost"}
-        label="범례" onClick={onLegend} />
+        {...legend} onClick={onLegend} />
       {isSim && (
         <>
           <Button size="sm" variant="ghost"
-            label="동네 전체" onClick={() => store.act("showOverview")} />
+            {...overview} onClick={() => store.act("showOverview")} />
           <Button size="sm" variant="ghost"
-            label="따라가기" onClick={() => store.act("resumeFollow")} />
+            {...follow} onClick={() => store.act("resumeFollow")} />
         </>
       )}
     </div>

@@ -7,7 +7,6 @@ import { verifyReport, attemptSummary, UNSUPPORTED_PERSONA_KO } from "./loop.js"
 import { judgeCandidates, judgeEvidence } from "./evidence.js";
 import { engineValue, householdMembers } from "./numbers.js";
 import { householdKeys } from "../engine/moments.js";
-import { memberLabelEn } from "../profile.js";
 
 // Profile → persona key. members may be a plain array or a field
 // object ({ value: [...] }); pets may be truthy plain or field .value.
@@ -137,10 +136,7 @@ export function slimRunForReport(run) {
 // What the writer needs per item, per home: deterministic items carry
 // computed values, engine-backed judge items carry candidate events
 // (id + text_ko only), engine:none items are flagged to skip.
-// 34b: lang "en" writes the N01 per-member labels in English
-// ("me", "spouse", …) so Muse never romanizes 나; Korean digests
-// are byte-identical.
-export function reportDigest({ runs, labels, homes, persona, groundTruth, names = {}, lang = "ko" }) {
+export function reportDigest({ runs, labels, homes, persona, groundTruth, names = {} }) {
   const personaMap = (groundTruth && groundTruth.persona_map) || {};
   if (personaMap[persona] === null) {
     return { persona, unsupported: true, items: [] };
@@ -170,14 +166,22 @@ export function reportDigest({ runs, labels, homes, persona, groundTruth, names 
             const a = agents.find((x) => x && typeof x === "object"
               && (String(x.key) === m || String(x.id) === m
                 || String(x.agent) === m));
-            const rawLabel = (a && a.label) || null;
-            per[m] = { ...v,
-              label_ko: lang === "en" ? memberLabelEn(rawLabel) : rawLabel };
+            const lk = (a && a.label) || null;
+            const le = lk === "나" ? "You" : lk === "배우자" ? "Your partner" : lk;
+            per[m] = { ...v, label_ko: lk, label_en: le };
           }
           values[label] = per;
         } else {
-          values[label] = engineValue(it.id, runs[label],
+          const v = engineValue(it.id, runs[label],
             { home: homes[label] });
+          if (it.id === "C02" && v && typeof v === "object") {
+            const usd = homes[label] && homes[label].currency === "USD";
+            values[label] = { ...v,
+              meaning_ko: usd ? "ZIP 평균 월세(Zillow), 관리비 없음" : "월세·관리비를 더한 한 달 금액",
+              meaning_en: usd ? "typical monthly rent for the ZIP (Zillow), no fees" : "rent plus maintenance for one month" };
+          } else {
+            values[label] = v;
+          }
         }
       }
       return { ...base, values };

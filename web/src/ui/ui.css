@@ -112,7 +112,7 @@
   border-radius: var(--ui-r-card); box-shadow: var(--ui-shadow);
   padding: var(--ui-s8) var(--ui-s12);
 }
-.ui-sim13-stage .ui-tools { top: 0; left: 0; }
+.ui-sim13-stage .ui-tools { top: var(--ui-s12); left: var(--ui-s12); }
 /* 31a: the ui-mark avatar is gone — cards take the full message width. */
 
 /* Stage 6 layout: the sim bar docks bottom-left so the frame centre
@@ -865,9 +865,11 @@ body.printing-share #share-print { display: block !important; padding: var(--ui-
 .ui-chat-scene { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column;
   height: 100%; background: var(--ui-page); }
 .ui-chat-scene-head { display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px; border-bottom: 1px solid var(--ui-border); }
-.ui-chat-scene-title { font-weight: 600;
-  overflow-wrap: anywhere; word-break: keep-all; }
+  padding: 8px 12px; border-bottom: 1px solid var(--ui-border);
+  flex-wrap: nowrap; }
+/* 29L6: the scene title never wraps — the row fits 390 px on one line. */
+.ui-chat-scene-title { font-weight: 600; white-space: nowrap;
+  flex: 0 1 auto; min-width: 0; }
 .ui-chat-scene-frame { flex: 1 1 auto; width: 100%; border: 0; }
 /* ---------- 27a: chat-first empty screen + work panel on request ---------- */
 /* 26w: the first screen shows the product — the landing glide plays
@@ -1253,6 +1255,19 @@ body.printing-share #share-print { display: block !important; padding: var(--ui-
   font-size: var(--ds-t-12); line-height: 1.5; color: var(--ui-ink2);
   background: rgba(255,255,255,.8); border-radius: var(--ds-r-chip);
   padding: var(--ds-s-4) 8px; margin-bottom: 4px; max-width: 100%;
+}
+/* 29L2: one-line credit on phones — the short form shows, the full
+   text stays in the title (same pattern as the 2D chat map). The
+   speed control lives in the ⋯ menu on phones (CSS swaps which
+   SegControl shows; both stay mounted). */
+.ui-simcredit-short { display: none; }
+.ui-speed-menu { display: none; }
+@media (max-width: 480px) {
+  .ui-simcredit { white-space: nowrap; }
+  .ui-simcredit-full { display: none; }
+  .ui-simcredit-short { display: inline; }
+  .ui-speed-inline { display: none; }
+  .ui-speed-menu { display: block; }
 }
 /* 20e: one-line meaning under the timeline colour bar. */
 .ui-strip-legend { margin-top: var(--ds-s-4); font-size: var(--ds-t-12); color: var(--ui-ink2); }

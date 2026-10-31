@@ -41,7 +41,9 @@ import { criterionTitle } from "../engine/criteria.js";
 import { chipDisplay, tickerDisplay, FATIGUE_MODEL_NOTE, familyRowText } from "../nowcard.js";
 import { hhmm, navFromOutings, outingIndexAt, stepIndexAt } from "../timeline.js";
 import { ActivityIcon, ActivityLegend } from "./timeline.jsx";
+import { todayStepEn, todayStepNoI18n } from "./scene-chrome.js";
 import { aerialCreditFor } from "../aerial/drape.js";
+import { currentLang } from "../i18n/lang.js";
 
 // 26e: the screens below carry no area bbox; a USD moneyDoc marks a US
 // run, so the aerial credit maps it to a country-only area (Korean
@@ -293,6 +295,7 @@ function stepLabelShown(label) {
 
 export function TodayList({ state }) {
   const journey = state.journey;
+  const lang = currentLang();
   const loading = state.journeyLoading;
   const outings = (state.routeSteps && state.routeSteps.outings) || [];
   const minute = Math.floor(state.clock.minute);
@@ -327,6 +330,8 @@ export function TodayList({ state }) {
             {(o.steps || []).map((s, i) => {
               const band = s.congestion ? congestionBand(s.congestion.valuePct).key : null;
               const isNow = oi === at && i === current;
+              const enLabel = lang === "en" ? todayStepEn(s) : null;
+              const noI18n = enLabel !== null && todayStepNoI18n(s);
               return (
                 <button key={i} type="button" data-current={isNow}
                   className={isNow ? "ui-today-row ui-today-now" : "ui-today-row"}
@@ -334,7 +339,7 @@ export function TodayList({ state }) {
                   aria-label={`${hhmm(s.minute)} ${s.label}${isNow ? " (지금)" : ""}`}>
                   <span className="ui-today-time">{hhmm(s.minute)}</span>
                   <ActivityIcon activity={STEP_ICON[s.kind] || "other"} />
-                  <span className="ui-today-label">{stepLabelShown(s.label)}</span>
+                  <span className="ui-today-label" {...(noI18n ? { "data-no-i18n": true } : {})}>{enLabel === null ? stepLabelShown(s.label) : enLabel}</span>
                   {band && (
                     <span className={`ui-dot ui-dot-${band}`} aria-hidden="true" />
                   )}
@@ -369,9 +374,12 @@ export function TodayList({ state }) {
 // open). Each fact appears once: the current leg in the hero, every
 // leg in 오늘, the reasons in 왜, records in 비교·기록.
 const STATUS_CHIP = { trip: "이동 중", ride: "이동 중", home: "집", away: "직장", place: "외출" };
+// 29L2: English hero chips, built in code.
+const STATUS_CHIP_EN = { trip: "On the move", ride: "On the move", home: "Home", away: "Work", place: "Out" };
 
-function heroSentence(state) {
+function heroSentence(state, lang) {
   const n = state.now;
+  if (lang === "en" && n.nowEn) return n.nowEn;
   if (state.journey && state.journey.where) return state.journey.where;
   if (n.ride && n.ride.where) return n.ride.where;
   return n.now;
@@ -410,15 +418,20 @@ function heroLeg(state) {
 function SimHero({ state }) {
   const n = state.now;
   if (!n) return null;
+  // 29L2: English hero strings are built in code (labelEn / nowEn)
+  // and render in data-no-i18n nodes; Korean is unchanged.
+  const lang = currentLang();
+  const noI18n = lang === "en" ? { "data-no-i18n": true } : {};
   if (n.free) {
     return (
       <div className="ui-hero" data-testid="sim-hero">
         <div className="ui-hero-top">
-          <span className="ui-hero-name">지금 식구들 모습</span>
+          <span className="ui-hero-name" {...noI18n}>
+            {lang === "en" ? "Household right now" : "지금 식구들 모습"}</span>
         </div>
         {n.rows.map((r) => (
-          <div key={r.agentKey} className="ui-hero-line">
-            {familyRowText(r)}
+          <div key={r.agentKey} className="ui-hero-line" {...(lang === "en" && r.lineEn ? noI18n : {})}>
+            {familyRowText(r, lang)}
           </div>
         ))}
       </div>
@@ -431,10 +444,12 @@ function SimHero({ state }) {
   return (
     <div className="ui-hero" data-testid="sim-hero">
       <div className="ui-hero-top">
-        <span className="ui-hero-name">{n.label}</span>
-        <span className="ui-tag">{STATUS_CHIP[n.state] || "지금"}</span>
+        <span className="ui-hero-name" {...noI18n}>
+          {lang === "en" && n.labelEn ? n.labelEn : n.label}</span>
+        <span className="ui-tag" {...noI18n}>
+          {lang === "en" ? (STATUS_CHIP_EN[n.state] || "Now") : (STATUS_CHIP[n.state] || "지금")}</span>
       </div>
-      <div className="ui-hero-line">{heroSentence(state)}</div>
+      <div className="ui-hero-line" {...(lang === "en" && n.nowEn ? noI18n : {})}>{heroSentence(state, lang)}</div>
       {big && <div className="ui-hero-big">{big}</div>}
       {n.evidence && n.evidence.length > 0 && (
         <div className="ui-hero-evidence">
@@ -598,11 +613,14 @@ function FamilySection({ state }) {
       <div className="ui-hero-top">
         <span className="ui-hero-name">지금 식구들 모습</span>
       </div>
-      {n.familyRows.map((r) => (
-        <div key={r.agentKey} className="ui-hero-line">
-          {familyRowText(r)}
-        </div>
-      ))}
+      {n.familyRows.map((r) => {
+        const lang = currentLang();
+        return (
+          <div key={r.agentKey} className="ui-hero-line" {...(lang === "en" && r.lineEn ? { "data-no-i18n": true } : {})}>
+            {familyRowText(r, lang)}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -982,12 +1000,17 @@ function LegendCard({ state, onClose }) {
 // 20e: the sim credit sits bottom-left just above the timeline (the full
 // AttrLine stays in the legend card). OSM always shows; the aerial part
 // only after the drape publishes state.aerial (20d dropped the key).
+// 29L2: on phones (≤ 480 px, CSS picks) the short form shows on one
+// line — Korean and English the same — with the full text in title.
 export function SimCredit({ state }) {
+  const full = state.aerial
+    ? `${aerialCreditFor(areaForCredit(state))} · © OpenStreetMap`
+    : "© OpenStreetMap";
+  const short = state.aerial ? "© VWorld · © OpenStreetMap" : "© OpenStreetMap";
   return (
-    <div className="ui-simcredit" data-testid="sim-credit">
-      {state.aerial
-        ? `${aerialCreditFor(areaForCredit(state))} · © OpenStreetMap`
-        : "© OpenStreetMap"}
+    <div className="ui-simcredit" data-testid="sim-credit" data-no-i18n title={full}>
+      <span className="ui-simcredit-full">{full}</span>
+      <span className="ui-simcredit-short">{short}</span>
     </div>
   );
 }

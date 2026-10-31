@@ -9,7 +9,7 @@ import { LineMaterial } from "three/addons/lines/LineMaterial.js";
 import "./style.css";
 import { bboxToXY, lonLatToWorld, lonLatToXY } from "./frame.js";
 import { buildBuildings } from "./buildings.js";
-import { buildingCard, destSuffixFor, labelItemsFor, placeLabels } from "./labels3d.js";
+import { buildingCard, destSuffixFor, labelBoxW, labelItemsFor, labelPaintStyle, placeLabels } from "./labels3d.js";
 import { buildGround } from "./ground.js";
 import { ARCH_FOV_DEG, GLIDE_FRAME_M, STOP_FRAME_M, TOUR_AZIMUTH, applyFollowOffset, archLensPose, cameraStyle, distanceForWidth, followZoomAfterWheel, footprintsOf, frameWidthFor, hostTowerIds, journeyCruisePose, occludingIds, pickStopAzimuth, resolveStyle, tourFrameWidths, tourOffset, zoomClampDistances } from "./camera.js";
 import { loadArea, originOf } from "./load.js";
@@ -27,6 +27,8 @@ import { dayKindFor } from "./engine/journey.js";
 import { pickMoments } from "./engine/moments.js";
 import { householdNow, nowCardFor, simMetaFor, tickerFor } from "./nowcard.js";
 import { sceneEvidence } from "./evidence.js";
+import { currentLang } from "./i18n/lang.js";
+import { memberEnFor } from "./ui/scene-chrome.js";
 import { destInLoadedAreas, pickStationArea } from "./station-areas.js";
 import { DECISION_KIND_KO, SIM_TICK_S, SPEEDS, agentLabelOf, chosenLabel, dayDecisions, decisionBadge, formatClock, homeOccupancy, indexRun, latestDecision, optionsLine, parseTParam, sampleAgent, shouldAutoplay, simInstant, tripFractions } from "./sim.js";
 import { memberLabelFor } from "./profile.js";
@@ -47,7 +49,8 @@ import { customRunId, loadCustomRun } from "./chat/idb.js";
 // the rig/material builders (night emissive via aLit, not glow quads).
 import { PAINTED_ROOF_HEX, PAINTED_WALL_HEX, aviationBlink, eveningHomeFraction, facadeTintFor, globalHomeFraction, litFractionWithFallback, needsAviationLight, tourOfficeFraction } from "./render/facades.js";
 import { hashString, hashUnit } from "./palette.js";
-import { PAINTED_NIGHT_GROUND, PAINTED_NIGHT_ROAD_LIT, PAINTED_NIGHT_ROAD_WARM, PAINTED_NIGHT_WALL, PAINTED_WATER, capLitFraction, lerpHex, nightEmissiveHex, nightTint, paintedFogRange, regionalFogRange, resolveLook, streetFogRange } from "./render/look.js";
+import { PAINTED_NIGHT_GROUND, PAINTED_NIGHT_ROAD_LIT, PAINTED_NIGHT_ROAD_WARM, PAINTED_NIGHT_ROOF, PAINTED_NIGHT_WALL, PAINTED_WATER, capLitFraction, lerpHex, nightEmissiveHex, nightTint, paintedFogRange, regionalFogRange, resolveLook, streetFogRange } from "./render/look.js";
+import { followPitchFor, routeMaterialsFor } from "./render/scene29L1.js";
 import { applyStopFade, makeFadeable } from "./render/fade.js";
 import { createRenderer } from "./render/renderer.js";
 import { createSkyRig } from "./render/rig.js";
@@ -671,8 +674,10 @@ function buildWorld(area, scene14, opts = {}) {
         night: PAINTED_NIGHT_WALL, base: facadeTintFor("podium", STYLE) });
     }
     if (roofMesh) {
+      // 29L1: roofs keep their own lighter night albedo (not the wall
+      // slate) so blocks separate after dusk.
       nightMats.push({ mat: roofMesh.material, day: PAINTED_ROOF_HEX, direct: false,
-        night: PAINTED_NIGHT_WALL, base: facadeTintFor("roof", STYLE) });
+        night: PAINTED_NIGHT_ROOF, base: facadeTintFor("roof", STYLE) });
     }
   }
   let lastNightT = -1;
@@ -892,6 +897,8 @@ async function bootTour(uiMode = "tour") {
   const { date: tourDate, minute: tourMinute } = tourSun();
   const fillTourLit = makeLitFiller(litMeshes, householdsById, { residentialById, tour: true });
   let tourEmissive = 0;
+  // 29L1: beacons only after dark — same sky phase the rig already uses.
+  let tourDark = false;
   let tourBloom = 0;
   let tourFramedWidth = null;
   let tourLitDone = false;
@@ -906,6 +913,7 @@ async function bootTour(uiMode = "tour") {
       style: STYLE, maxHeightM, look: LOOK });
     tourBloom = p.bloom;
     tourEmissive = p.emissive;
+    tourDark = p.phase === "blue" || p.phase === "night";
     setGlobalNight(p.emissive);
     applyPaintedNight(p.nightF);
     streetMeshes.setLampGlow(p.emissive);
@@ -1009,7 +1017,7 @@ async function bootTour(uiMode = "tour") {
     if (sceneMarkingsMesh) {
       sceneMarkingsMesh.visible = (tourFramedWidth ?? 0) <= MARKINGS_HIDE_M;
     }
-    if (aviationMat) aviationMat.opacity = aviationBlink(tourTMin * 60);
+    if (aviationMat) aviationMat.opacity = tourDark ? aviationBlink(tourTMin * 60) : 0;
     renderCtl.renderFrame({ bloom: tourBloom, framedWidthM: tourFramedWidth }, dt);
     frames++;
     if (frames === 30) {
@@ -1483,7 +1491,8 @@ async function bootSim() {
   // scale, including while they wait at home.
   const ringMeshes = household.map((a, i) => {
     const ring = new THREE.Mesh(
-      new THREE.RingGeometry(1.8, 2.6, 40),
+      // 29L1: the followed ring reads at 2× so it is never lost.
+      new THREE.RingGeometry(3.6, 5.2, 40),
       new THREE.MeshBasicMaterial({ color: hhColors[i % hhColors.length],
         transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false }));
     ring.rotation.x = -Math.PI / 2;
@@ -1495,7 +1504,7 @@ async function bootSim() {
   const tagEls = household.map((a) => {
     const el = document.createElement("div");
     el.className = "hhtag";
-    el.textContent = a.label;
+    el.textContent = currentLang() === "en" ? memberEnFor(a.label) : a.label;
     tagsLayer.appendChild(el);
     return el;
   });
@@ -1576,24 +1585,44 @@ async function bootSim() {
   // 85 %, above the road ribbons (renderOrder + no depth test). The
   // walked part is grey at 40 %. Fat lines (Line2): plain THREE.Line is
   // always 1 px, which the follow view could never show.
+  // 29L1: the route reads on the street — a depth-tested visible pass
+  // plus a faint dashed "occluded" pass (same geometry, opacity ≤ 0.25)
+  // where buildings cover it, instead of painting over every tower.
+  const routeSpec = routeMaterialsFor();
   const routeAheadMat = new LineMaterial({ color: 0x2f6fed, linewidth: 4,
-    transparent: true, opacity: 0.85, depthTest: false });
+    transparent: true, opacity: routeSpec.visible.opacity, depthTest: true });
   const routeDoneMat = new LineMaterial({ color: 0x8a8a8a, linewidth: 4,
-    transparent: true, opacity: 0.4, depthTest: false });
+    transparent: true, opacity: 0.4, depthTest: true });
+  const routeAheadGhostMat = new LineMaterial({ color: 0x2f6fed, linewidth: 4,
+    transparent: true, opacity: routeSpec.occluded.opacity, depthTest: false,
+    dashed: true, dashSize: routeSpec.occluded.dashSize, gapSize: routeSpec.occluded.gapSize });
+  const routeDoneGhostMat = new LineMaterial({ color: 0x8a8a8a, linewidth: 4,
+    transparent: true, opacity: routeSpec.occluded.opacity, depthTest: false,
+    dashed: true, dashSize: routeSpec.occluded.dashSize, gapSize: routeSpec.occluded.gapSize });
   const routeAhead = new Line2(new LineGeometry(), routeAheadMat);
   const routeDone = new Line2(new LineGeometry(), routeDoneMat);
+  const routeAheadGhost = new Line2(new LineGeometry(), routeAheadGhostMat);
+  const routeDoneGhost = new Line2(new LineGeometry(), routeDoneGhostMat);
   routeAhead.renderOrder = 998;
   routeDone.renderOrder = 998;
+  routeAheadGhost.renderOrder = 997;
+  routeDoneGhost.renderOrder = 997;
   routeAhead.frustumCulled = false;
   routeDone.frustumCulled = false;
+  routeAheadGhost.frustumCulled = false;
+  routeDoneGhost.frustumCulled = false;
   routeAhead.visible = false;
   routeDone.visible = false;
-  scene.add(routeAhead, routeDone);
+  routeAheadGhost.visible = false;
+  routeDoneGhost.visible = false;
+  scene.add(routeAhead, routeDone, routeAheadGhost, routeDoneGhost);
   function syncRouteResolution() {
     const w = (renderer.domElement && renderer.domElement.clientWidth) || innerWidth;
     const h = (renderer.domElement && renderer.domElement.clientHeight) || innerHeight;
     routeAheadMat.resolution.set(w, h);
     routeDoneMat.resolution.set(w, h);
+    routeAheadGhostMat.resolution.set(w, h);
+    routeDoneGhostMat.resolution.set(w, h);
   }
   syncRouteResolution();
   const destPin = document.createElement("div");
@@ -1758,11 +1787,12 @@ async function bootSim() {
         el.append(sub);
       }
     }
+    const st = labelPaintStyle(item, { x: (item._ox ?? 0), y: (item._oy ?? 0) });
     el.style.display = "block";
     el.style.position = "absolute";
-    el.style.transform = "translate(-50%,-100%)";
-    el.style.left = `${item._sx}px`;
-    el.style.top = `${item._sy}px`;
+    el.style.transform = st.transform;
+    el.style.left = `${st.left}px`;
+    el.style.top = `${st.top}px`;
     el.style.pointerEvents = "none";
   }
   function paintLabels20b() {
@@ -1796,23 +1826,49 @@ async function bootSim() {
         const sx = rect.left + ((label20bV.x + 1) / 2) * rect.width;
         const sy = rect.top + ((1 - label20bV.y) / 2) * rect.height;
         if (sx < rect.left || sy < rect.top || sx > rect.left + rect.width || sy > rect.top + rect.height) continue;
-        const glyphW = item.glyph ? 20 : 0;
-        const w = [...String(item.title || "")].length * 13 + 24 + glyphW;
+        // 29L6: the box matches the painted string — on English the
+        // romanised title (2-3x wider than the Korean), sub included.
+        const w = labelBoxW(item.title, currentLang(),
+          { sub: item.level === "complex" ? item.sub : "", glyph: item.glyph });
         const h = item.level === "complex" && item.sub ? 36 : 22;
-        projected.push({ ...item, x: sx - rect.left, y: sy - rect.top, w, h,
-          _sx: sx - wrap.left, _sy: sy - wrap.top });
+        projected.push({ ...item, x: sx - rect.left - w / 2, y: sy - rect.top - h, w, h,
+          _sx: sx - wrap.left, _sy: sy - wrap.top,
+          _ox: rect.left - wrap.left, _oy: rect.top - wrap.top });
       }
       // 20e label safe zones: the top-left toolbar (A·B / 집만 밝게 보기 /
       // 범례) and the bottom timeline reserve screen space. Overlapping
       // labels are skipped; always-items (home, destination) nudge out.
+      // 29L2: the household chips (.hhtag 나/배우자), the followed
+      // person's ring and the credit line reserve space too — building
+      // labels never cover people.
       const reserved = [];
-      for (const sel of [".ui-tools", ".ui-simbar"]) {
+      for (const sel of [".ui-tools", ".ui-simbar", ".ui-simcredit"]) {
         const el = document.querySelector(sel);
         if (!el) continue;
         const r = el.getBoundingClientRect();
         if (r.width <= 0 || r.height <= 0) continue;
         reserved.push({ left: r.left - rect.left, top: r.top - rect.top,
           right: r.right - rect.left, bottom: r.bottom - rect.top });
+      }
+      for (const el of document.querySelectorAll(".hhtag")) {
+        if (el.style.display === "none") continue;
+        const r = el.getBoundingClientRect();
+        if (r.width <= 0 || r.height <= 0) continue;
+        reserved.push({ left: r.left - rect.left, top: r.top - rect.top,
+          right: r.right - rect.left, bottom: r.bottom - rect.top });
+      }
+      try {
+        const ring = follow > 0 ? ringMeshes[follow - 1] : null;
+        if (ring && ring.visible) {
+          label20bV.set(ring.position.x, ring.position.y, ring.position.z).project(camera);
+          if (label20bV.z <= 1) {
+            const sx = rect.left + ((label20bV.x + 1) / 2) * rect.width - rect.left;
+            const sy = rect.top + ((1 - label20bV.y) / 2) * rect.height - rect.top;
+            reserved.push({ left: sx - 28, top: sy - 14, right: sx + 28, bottom: sy + 14 });
+          }
+        }
+      } catch {
+        // The ring never blocks labels.
       }
       const placed = placeLabels(projected, rect.width, rect.height, reserved);
       const seen = new Set(placed.map((p) => p.id));
@@ -1896,7 +1952,9 @@ async function bootSim() {
     renderer.domElement.addEventListener("pointermove", onHover20b);
   }
 
-  function nodeWorld(nodeId, lift = 1.5) {
+  // 29L1: the trip route rides a hair above the road (≤ 0.6 m) so it
+  // sits on the street instead of floating over the blocks.
+  function nodeWorld(nodeId, lift = 0.5) {
     const p = nodeLonLat.get(nodeId);
     if (!p) return null;
     const [x, y] = lonLatToXY(p[0], p[1], origin);
@@ -1927,6 +1985,8 @@ async function bootSim() {
         : pts.length === 1 ? [pts[0], pts[0].clone()]
         : [new THREE.Vector3(0, -100, 0), new THREE.Vector3(0, -100, 0)];
       line.geometry.setPositions(list.flatMap((p) => [p.x, p.y, p.z]));
+      // 29L1: dashed LineMaterial needs line distances (occluded pass).
+      if (line.material && line.material.dashed && line.computeLineDistances) line.computeLineDistances();
       return;
     }
     line.geometry.setFromPoints(pts.length > 0 ? pts : [new THREE.Vector3(0, -100, 0)]);
@@ -1956,6 +2016,8 @@ async function bootSim() {
       const marked = s.visible || s.state === "home";
       ringMeshes[i].position.set(x, heightAt(x, -y) + 0.3, -y);
       ringMeshes[i].visible = marked;
+      const wantTag = currentLang() === "en" ? memberEnFor(a.label) : a.label;
+      if (tagEls[i].textContent !== wantTag) tagEls[i].textContent = wantTag;
       paintTag(tagEls[i], x, tagY(x, -y, 6), -y, marked);
     });
   }
@@ -2105,9 +2167,13 @@ async function bootSim() {
         const { behind, ahead } = splitRoute(trip, frac);
         setLine(routeAhead, ahead);
         setLine(routeDone, behind);
+        setLine(routeAheadGhost, ahead);
+        setLine(routeDoneGhost, behind);
       }
       routeAhead.visible = true;
       routeDone.visible = true;
+      routeAheadGhost.visible = true;
+      routeDoneGhost.visible = true;
       const dp = h.destNodeId ? nodeWorld(h.destNodeId, 0) : null;
       if (dp && h.destLabel) {
         // 20f: the 20b destination label already carries this pill —
@@ -2124,6 +2190,8 @@ async function bootSim() {
     } else if (h && h.rideAway && follow > 0) {
       routeAhead.visible = false;
       routeDone.visible = false;
+      routeAheadGhost.visible = false;
+      routeDoneGhost.visible = false;
       lastRouteKey = "";
       destMark.visible = false;
       const sp = h.rideAway.stationNodeId ? nodeWorld(h.rideAway.stationNodeId, 1) : null;
@@ -2138,6 +2206,8 @@ async function bootSim() {
     } else {
       routeAhead.visible = false;
       routeDone.visible = false;
+      routeAheadGhost.visible = false;
+      routeDoneGhost.visible = false;
       rideStub.visible = false;
       destMark.visible = false;
       destPin.style.display = "none";
@@ -2161,6 +2231,8 @@ async function bootSim() {
   // 30-minute granularity. Daytime emissive is off (uNight = 0).
   let simBloom = 0;
   let simEmissive = 0;
+  // 29L1: beacons only after dark — same sky phase the rig already uses.
+  let simDark = false;
   let simFramedWidth = null;
   let lastLightKey = "";
   let lastLitKey = "";
@@ -2178,6 +2250,7 @@ async function bootSim() {
       camDistM: camDist, style: STYLE, maxHeightM, look: LOOK });
     simBloom = p.bloom;
     simEmissive = p.emissive;
+    simDark = p.phase === "blue" || p.phase === "night";
     const key = `${day}:${m}`;
     if (key === lastLightKey) return;
     lastLightKey = key;
@@ -2205,6 +2278,25 @@ async function bootSim() {
   // parks the camera on home + destination + route until 따라가기.
   let followZoom = 1;
   let followYaw = 0;
+  // 29L1: the followed person is never hidden — each frame raycasts
+  // camera→head against the blocks; while one covers them the camera
+  // eases up toward a top-down limit, then eases back when clear.
+  let followLift = 0;
+  const FOLLOW_LIFT_MAX = 60;
+  const followRay = new THREE.Raycaster();
+  const followHead = new THREE.Vector3();
+  const followToHead = new THREE.Vector3();
+  function followBlocked(head) {
+    const occluders = [...Object.values(wallMeshes || {}),
+      podiumMesh, roofMesh].filter(Boolean);
+    if (occluders.length === 0) return false;
+    followToHead.copy(head).sub(camera.position);
+    const dist = followToHead.length();
+    if (dist < 1e-6) return false;
+    followRay.set(camera.position, followToHead.normalize());
+    followRay.far = dist - 1;
+    return followRay.intersectObjects(occluders, false).length > 0;
+  }
   let followMode = "follow"; // "follow" | "overview"
   const clampFollowZoom = (z) => Math.min(6, Math.max(0.5, z));
   function setFollowPose(pos, look) {
@@ -2352,6 +2444,12 @@ async function bootSim() {
       camera.position.lerp(gpos, k);
       controls.target.lerp(glook, k);
     }
+    // 29L1: raise the pitch/height while a building blocks the view of
+    // the followed member, ease back once the sight line is clear.
+    followHead.set(x, heightAt(x, -y) + 2.5, -y);
+    followLift = followPitchFor({ blocked: followBlocked(followHead),
+      pitch: followLift, maxPitch: FOLLOW_LIFT_MAX, basePitch: 0 });
+    camera.position.y += followLift;
     controls.enabled = true;
     if (forceCaption) {
       paintNow();
@@ -3065,8 +3163,13 @@ async function bootSim() {
       note: simLegendBase,
     },
     follow,
-    followOptions: [{ value: "0", label: "자유 시점" },
-      ...household.map((a, i) => ({ value: String(i + 1), label: a.label }))],
+    // 29L2: English follow options are built here (Me, Your
+    // partner, …) inside data-no-i18n nodes — never glossaried.
+    followOptions: currentLang() === "en"
+      ? [{ value: "0", label: "Free camera" },
+        ...household.map((a, i) => ({ value: String(i + 1), label: memberEnFor(a.label) }))]
+      : [{ value: "0", label: "자유 시점" },
+        ...household.map((a, i) => ({ value: String(i + 1), label: a.label }))],
     playing,
     speed,
     simMeta: simMetaFor({ household, scenario, run, homes }),
@@ -3558,7 +3661,7 @@ async function bootSim() {
     if (sceneMarkingsMesh) {
       sceneMarkingsMesh.visible = (simFramedWidth ?? 0) <= MARKINGS_HIDE_M;
     }
-    if (aviationMat) aviationMat.opacity = aviationBlink(simTMin * 60);
+    if (aviationMat) aviationMat.opacity = simDark ? aviationBlink(simTMin * 60) : 0;
     renderCtl.renderFrame({ bloom: simBloom, framedWidthM: simFramedWidth }, dt);
     frames++;
     if (frames === 30) {

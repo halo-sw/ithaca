@@ -16,9 +16,11 @@ import { SegmentedControl, SegmentedControlItem } from "@astryxdesign/core/Segme
 import { Text } from "@astryxdesign/core/Text";
 import { ToggleButton } from "@astryxdesign/core/ToggleButton";
 import { store } from "./store.js";
+import { currentLang } from "../i18n/lang.js";
+import { stripCompareLabel } from "./scene-chrome.js";
 import {
   ACTIVITIES, ACTIVITY_ORDER, DAY_STRIP_START, DAY_STRIP_END,
-  activityLabel, segmentTitle, stripFrac, stripMinute, hhmm,
+  activityLabel, activityLabelEn, segmentTitle, stripFrac, stripMinute, hhmm,
   stepIndexAt, navFromOutings, outingIndexAt,
 } from "../timeline.js";
 
@@ -170,13 +172,18 @@ export function DayStrip({ segments, ticks, minute, label, onJump, bare }) {
 
 export function ActivityLegend({ hasBike = false }) {
   const order = hasBike ? [...ACTIVITY_ORDER, "bike"] : ACTIVITY_ORDER;
+  // 29L2: English legend words are built here (Home, Walking, …)
+  // inside data-no-i18n nodes; Korean is unchanged.
+  const lang = currentLang();
   return (
     <HStack gap={2} vAlign="center" wrap="wrap">
       {order.map((a) => (
         <HStack key={a} gap={1} vAlign="center">
           <span className="ui-swatch" style={{ background: ACTIVITIES[a].color }} aria-hidden="true" />
           <ActivityIcon activity={a} />
-          <Text type="supporting">{activityLabel(a)}</Text>
+          {lang === "en"
+            ? <span data-no-i18n><Text type="supporting">{activityLabelEn(a)}</Text></span>
+            : <Text type="supporting">{activityLabel(a)}</Text>}
         </HStack>
       ))}
     </HStack>
@@ -301,9 +308,11 @@ export function TimelineBar({ state, compact = true, defaultMenuOpen = false }) 
               <DayStrip bare segments={state.dayStrip && state.dayStrip.segments}
                 ticks={state.simTicks} minute={minute} onJump={jump} />
             </div>
-            <SegControl label="재생 속도" value={String(state.speed)}
-              onChange={(v) => act("setSpeed", Number(v))}
-              items={[{ value: "1", label: "1×" }, { value: "10", label: "10×" }, { value: "60", label: "60×" }]} />
+            <span className="ui-speed-inline">
+              <SegControl label="재생 속도" value={String(state.speed)}
+                onChange={(v) => act("setSpeed", Number(v))}
+                items={[{ value: "1", label: "1×" }, { value: "10", label: "10×" }, { value: "60", label: "60×" }]} />
+            </span>
             <IconButton label="더 보기" size="sm" variant={menuOpen ? "secondary" : "ghost"}
               icon={<Icon icon="moreHorizontal" />}
               onClick={() => setMenuOpen(!menuOpen)} />
@@ -322,11 +331,16 @@ export function TimelineBar({ state, compact = true, defaultMenuOpen = false }) 
               <SegControl label="따라가기" value={String(state.follow)}
                 onChange={(v) => act("setFollow", Number(v))}
                 items={state.followOptions} />
+              <div className="ui-speed-menu">
+                <SegControl label="재생 속도" value={String(state.speed)}
+                  onChange={(v) => act("setSpeed", Number(v))}
+                  items={[{ value: "1", label: "1×" }, { value: "10", label: "10×" }, { value: "60", label: "60×" }]} />
+              </div>
             </div>
           )}
           {state.stripCompare && state.dayStripB && (
             <DayStrip segments={state.dayStripB.segments} ticks={[]}
-              minute={minute} label={`${state.dayStripB.home} · 같은 시각`}
+              minute={minute} label={stripCompareLabel(state.dayStripB.home, currentLang())}
               onJump={jump} />
           )}
           <div hidden={!showMonth}>

@@ -9,7 +9,7 @@
 // clicking a region still filters. SSR renders the container only.
 import { useEffect, useRef, useState } from "react";
 import { fitMapView, fitInsetFromChrome, layoutMapPills, layoutStationLabels, pickDongLabels,
-  stationNameWidthPx, haversineKm,
+  stationNameWidthPx, stationLabelName, placeWorkplacePill, haversineKm,
   tagSizePx, tagLines, tagPriceLine, tagFontPx, clusterSizePx,
   MAP_COLORS, MAP_FIT_MARGIN, BASEMAP_MUTE } from "../chatmap.js";
 import { basemapApiBase, basemapTileUrl, basemapTiles, basemapUnderlayTiles, basemapProvider,
@@ -456,6 +456,10 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
     : [];
   const basemapOn = (provider === "usgs" || apiBase !== null)
     && failCount * 2 < tiles.length;
+  // 29L5: the VWorld white basemap already prints station names, so
+  // our own name plates would double them — dots only while it is
+  // on. USGS (and basemap-off) keep our labels as 29L3 left them.
+  const vworldNamesBasemap = basemapOn && provider === "vworld";
   // Constant screen sizes: one viewBox unit is one stage px at 1:1, so
   // literal px values stay readable however the map is zoomed.
   const fs = (n) => n;
@@ -542,11 +546,31 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
     if (seenStation.has(key)) continue;
     seenStation.add(key);
     const [x, y] = toXYz(s.lon, s.lat);
-    stationPts.push({ name: s.name, x, y });
+    stationPts.push({ name: stationLabelName(s.name, lang), x, y });
   }
-  const stationLabels = layoutStationLabels(stationPts, W, H, pinBoxes);
-  const stationLabelBoxes = stationLabels.map((l) => ({ x: l.x,
-    y: l.y - 10, w: stationNameWidthPx(l.name), h: 13 }));
+  // 29L3: station names also avoid the measured chrome (legend,
+  // filter/title, right controls) — a label that fits nowhere is
+  // dropped, never drawn under a box.
+  const stationLabels = layoutStationLabels(stationPts, W, H,
+    [...pinBoxes, ...chromeObstacles]);
+  // 29L3: label boxes with the backplate padding, so the 동 names
+  // and the 회사 pill avoid the plate, not just the text.
+  const stationLabelBoxes = stationLabels.map((l) => ({ x: l.x - 3,
+    y: l.y - 12, w: stationNameWidthPx(l.name) + 6, h: 17 }));
+  // 29L3: the 회사 pill re-picks its side (right, left, above,
+  // below) against the station dots and label plates, keeping the
+  // right side with a short leader when every side collides.
+  const workLaid = layById.get("work");
+  if (workLaid && workLaid.box) {
+    const dotBoxes = stationPts.map((s) => ({ x: s.x - 6, y: s.y - 6, w: 12, h: 12 }));
+    const otherBoxes = laid.filter((l) => l.id !== "work" && l.box).map((l) => l.box);
+    const wp = placeWorkplacePill(workLaid.x, workLaid.y, workLaid.w, workLaid.h,
+      W, H, [...chromeObstacles, ...otherBoxes, ...stationLabelBoxes, ...dotBoxes]);
+    workLaid.box = wp.box;
+    workLaid.leader = wp.leader;
+    pinBoxes.length = 0;
+    for (const l of laid) if (l.box) pinBoxes.push(l.box);
+  }
   // 21b: the candidates' 동 or neighbourhood names, at most 4 — quiet
   // bearings that yield to pills and station names.
   const dongPlaced = layoutStationLabels(
@@ -834,10 +858,14 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
             </g>
           );
         })}
-        {stationLabels.map((l, i) => (
-          <text key={`stn${i}`} x={l.x} y={l.y} fontSize={fs(11)}
-            fill={MAP_COLORS.regionLabel} stroke="#ffffff" strokeWidth={fs(3)}
-            paintOrder="stroke" strokeLinejoin="round">{l.name}</text>
+        {!vworldNamesBasemap && stationLabels.map((l, i) => (
+          <g key={`stn${i}`}>
+            <rect x={l.x - 3} y={l.y - 12}
+              width={stationNameWidthPx(l.name) + 6} height={17} rx={fs(3)}
+              fill={MAP_COLORS.stationPlate} opacity={0.92} />
+            <text x={l.x} y={l.y} fontSize={fs(11)}
+              fill={MAP_COLORS.regionLabel}>{l.name}</text>
+          </g>
         ))}
         {dongPlaced.map((l, i) => (
           <text key={`dong${i}`} data-layer="dong-label"

@@ -7,10 +7,26 @@
 // same helper the station labels use and renders into the #tags layer.
 
 import { displayNameFor } from "./homes.js";
+import { placeNameEn } from "./ui/scene-chrome.js";
 
 export const OVERVIEW_MIN_M = 400;
 export const DONG_MAX_M = 250;
 export const MAX_LABELS = 40;
+
+// 29L2: label budget by stage width — a 390 px phone stage fits a
+// handful of labels, a desktop stage keeps the full budget. Home and
+// destination (level "always") still rank first in placeLabels.
+export function labelCapForWidth(viewW) {
+  if (viewW <= 480) return 6;
+  if (viewW <= 900) return 12;
+  return MAX_LABELS;
+}
+
+// 29L2: frame chrome — labels are clamped inside the stage with this
+// margin, and a non-always label whose clamp shifts it further than
+// this from its anchor is dropped (it would point at the wrong place).
+export const STAGE_PAD = 4;
+export const MAX_SHIFT_PX = 48;
 
 const RANK = { always: 0, complex: 1, poi: 2, dong: 3 };
 
@@ -279,7 +295,8 @@ export function labelItemsFor(area, opts = {}) {
 // skip boxes intersecting an already placed one, at most 40 per frame.
 // Items carry screen px boxes { x, y, w, h }; items without a box get a
 // text-length estimate so labelItemsFor output can flow straight through.
-export function placeLabels(items, viewW, viewH, reserved = []) {
+export function placeLabels(items, viewW, viewH, reserved = [], opts = {}) {
+  const cap = Number.isFinite(opts.cap) ? opts.cap : labelCapForWidth(viewW);
   const zones = (reserved || []).map((r) => ({
     left: r.left ?? r.x ?? 0,
     top: r.top ?? r.y ?? 0,
@@ -298,13 +315,21 @@ export function placeLabels(items, viewW, viewH, reserved = []) {
   const placed = [];
   const boxes = [];
   for (const { item } of ranked) {
-    if (placed.length >= MAX_LABELS) break;
+    if (placed.length >= cap) break;
     const w = item.w ?? estimateW(item);
     const h = item.h ?? (item.sub ? 30 : 22);
-    let x = item.x ?? 0;
-    let y = item.y ?? 0;
-    if (x + w < 0 || y + h < 0 || x > viewW || y > viewH) continue;
+    const ax = item.x ?? 0;
+    const ay = item.y ?? 0;
+    if (ax + w < 0 || ay + h < 0 || ax > viewW || ay > viewH) continue;
     const always = item.level === "always";
+    // 29L2: a box wider/taller than the stage can never sit inside it.
+    if (w > viewW - STAGE_PAD * 2 || h > viewH - STAGE_PAD * 2) continue;
+    // 29L2: clamp inside the frame; a non-always label pushed further
+    // than MAX_SHIFT_PX from its anchor is dropped. Always-items keep
+    // the clamped spot (home / destination must stay visible).
+    let x = Math.min(Math.max(ax, STAGE_PAD), viewW - w - STAGE_PAD);
+    let y = Math.min(Math.max(ay, STAGE_PAD), viewH - h - STAGE_PAD);
+    if (!always && Math.max(Math.abs(x - ax), Math.abs(y - ay)) > MAX_SHIFT_PX) continue;
     let box = { left: x, top: y, right: x + w, bottom: y + h };
     if (hitsZone(box)) {
       if (!always) continue;
@@ -320,6 +345,8 @@ export function placeLabels(items, viewW, viewH, reserved = []) {
       } else {
         continue;
       }
+      // 29L2: the nudge must also stay inside the frame.
+      y = Math.min(Math.max(y, STAGE_PAD), viewH - h - STAGE_PAD);
       box = { left: x, top: y, right: x + w, bottom: y + h };
       if (hitsZone(box)) continue;
     }
@@ -336,16 +363,51 @@ export function placeLabels(items, viewW, viewH, reserved = []) {
       }
     }
     if (hit) continue;
-    placed.push(always && (box.top !== (item.y ?? 0)) ? { ...item, x, y } : item);
+    // 29L2: report the clamped spot so the caller paints the box that
+    // was actually reserved (never outside the stage).
+    placed.push((box.left !== (item.x ?? 0) || box.top !== (item.y ?? 0))
+      ? { ...item, x: box.left, y: box.top } : item);
     boxes.push(box);
   }
   return placed;
+}
+
+// 29L2c: the placed box IS the painted box. left/top land on the
+// placed (x, y) plus the stage→wrap offset, with no translate — the
+// old translate(-50%,-100%) painted the anchor box, which is not the
+// box placeLabels clamped.
+export function labelPaintStyle(item, wrapOffset = {}) {
+  const o = wrapOffset || {};
+  const ox = Number(o.x ?? o.left ?? 0) || 0;
+  const oy = Number(o.y ?? o.top ?? 0) || 0;
+  return { left: ox + (item.x ?? 0), top: oy + (item.y ?? 0), transform: "none" };
 }
 
 function estimateW(item) {
   const title = String(item.title || "");
   const glyph = item.glyph ? 20 : 0;
   return [...title].length * 13 + 24 + glyph;
+}
+
+const HANGUL_CH = /[가-힣]/;
+
+// 29L6: label box width from the string actually painted. On English
+// the title goes through placeNameEn (the same English the label
+// element shows), so the clamped box matches the painted box.
+// Hangul chars cost 13 px, other chars 7.5 px, plus 24 px chrome
+// (+ glyph); the sub line counts when it is wider. Rounded up.
+export function labelBoxW(title, lang = "ko", opts = {}) {
+  const shown = lang === "en" ? placeNameEn(title) : String(title ?? "");
+  const glyph = opts && opts.glyph ? 20 : 0;
+  const wOf = (s) => [...String(s ?? "")].reduce(
+    (a, ch) => a + (HANGUL_CH.test(ch) ? 13 : 7.5), 0) + 24 + glyph;
+  let w = wOf(shown);
+  if (opts && opts.sub) {
+    const sub = lang === "en" ? placeNameEn(opts.sub) : String(opts.sub);
+    const sw = wOf(sub);
+    if (sw > w) w = sw;
+  }
+  return Math.ceil(w);
 }
 
 // Hover card for one building. Never emits "undefined" / "null": missing

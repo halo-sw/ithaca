@@ -13,6 +13,9 @@ import { engineValue, checkNumberClaims,
 import { reportDigest } from "../src/verify/compare.js";
 import { citedEvents } from "../src/verify/evidence.js";
 import { REPORT_PROMPT, REPORT_PROMPT_EN } from "../src/consult/report.js";
+import { createTranslator } from "../src/i18n/translate.js";
+import { phrases, patterns } from "../src/i18n/en.js";
+import { WORDS } from "../src/i18n/en-words.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const GT = JSON.parse(readFileSync(
@@ -84,6 +87,9 @@ describe("29k1 digest N01 carries the agent key and label", () => {
     const n01 = digest.items.find((it) => it.id === "N01");
     assert.ok(n01.values.A.h1.value > 0);
     assert.equal(n01.values.A.h1.label_ko, "나");
+    assert.equal(n01.values.A.h1.label_en, "You");
+    assert.equal(n01.values.A.h2.label_ko, "배우자");
+    assert.equal(n01.values.A.h2.label_en, "Your partner");
   });
 });
 
@@ -102,6 +108,36 @@ describe("29k1 REPORT_PROMPT voice rules", () => {
     assert.match(REPORT_PROMPT, /남편·아내/);
     assert.match(REPORT_PROMPT, /"30일 동안…"으로 시작하지 않는다/);
     assert.ok(!REPORT_PROMPT.includes("member(m1, m2…)"));
+  });
+});
+
+describe("29L4 digest C02 carries the meaning by currency", () => {
+  it("USD homes read no-fee ZIP rent, KRW homes read rent plus maintenance", () => {
+    const usdHome = { monthly_won: 4000, currency: "USD" };
+    const usd = reportDigest({ runs: { A: tinyRun() }, labels: ["A"],
+      homes: { A: usdHome }, persona: "newlywed_couple", groundTruth: GT });
+    const c02usd = usd.items.find((it) => it.id === "C02");
+    assert.ok(c02usd.values.A.value > 0);
+    assert.match(c02usd.values.A.meaning_en, /no fees/);
+    const krw = reportDigest({ runs: { A: tinyRun() }, labels: ["A"],
+      homes: { A: HOME }, persona: "newlywed_couple", groundTruth: GT });
+    const c02krw = krw.items.find((it) => it.id === "C02");
+    assert.match(c02krw.values.A.meaning_en, /maintenance/);
+  });
+});
+
+describe("29L4 REPORT_PROMPT_EN member labels and headings", () => {
+  it("names label_en and bans the Home A/B opener", () => {
+    assert.match(REPORT_PROMPT_EN, /label_en/);
+    assert.match(REPORT_PROMPT_EN, /never start with/);
+  });
+});
+
+describe("29L4 evidence count singular", () => {
+  it("1 record cited vs 3 records cited", () => {
+    const { translate } = createTranslator({ phrases, patterns, words: WORDS });
+    assert.equal(translate("근거 1개"), "1 record cited");
+    assert.equal(translate("근거 3개"), "3 records cited");
   });
 });
 
