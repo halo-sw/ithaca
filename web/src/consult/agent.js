@@ -21,7 +21,7 @@ import { isRunRequest } from "../chat/intent.js";
 // message before the final completion so it sits after the tool results
 // (Korean tool output otherwise drags the model back to Korean).
 export const ENGLISH_NOTE =
-  "The customer reads English. Answer in plain English. Korean place and station names: romanized, with the Korean once in parentheses, e.g. Gangnam Stn (강남역). US places, streets and Meta HQ are already English: write them as they are, never with Korean. Write money for Korean homes as won with full digits and commas, e.g. ₩260,000,000, or as ₩260M; US rents in dollars as given, e.g. $4,261/mo. Every rule above still applies.";
+  "The customer reads English. Answer in plain English. Korean place and station names: romanized, with the Korean once in parentheses, e.g. Gangnam Stn (강남역). US places, streets and Meta HQ are already English: write them as they are, never with Korean. Write money for Korean homes as won with full digits and commas, e.g. ₩260,000,000, or as ₩260M; US rents in dollars as given, e.g. $4,261/mo. Every rule above still applies. When a home has name_en, write exactly that name, with the Korean once in parentheses.";
 const ENGLISH_RETRY_NOTE =
   "Your last answer was in Korean. Rewrite it in plain English with the same facts and numbers.";
 
@@ -186,6 +186,74 @@ function nameByIdFromResults(results) {
   };
   (results || []).forEach(visit);
   return map;
+}
+
+// 29M1: Muse names the homes up front (English only). The model writes
+// better English home names than rule-based romanisation (하이츠 Heights,
+// 허니 Honey, 유토빌 Utopil), so one extra call resolves the English name
+// for each Korean-named candidate before the model writes its reply.
+// The client registry, this per-process cache and the tool results all
+// start from the same name. Failure skips silently (fallbacks cover it).
+export const HOME_NAMES_SYSTEM =
+  "Give the English name an English-speaking resident would use for each Korean apartment/villa/building name. Translate English loanwords by meaning (빌딩 Building, 팰리스 Palace, 하이츠 Heights, 허니 Honey, 타워 Tower, 아파트 Apartments), romanize Korean words (Revised Romanization), keep brand coinages readable (유토빌 Utopil). Reply with JSON only: {\"names\": {\"<korean>\": \"<english>\"}}.";
+
+const HOME_NAMES_CACHE = new Map();
+
+export function resetHomeNamesEnCacheForTests() {
+  HOME_NAMES_CACHE.clear();
+}
+
+const HOME_HANGUL_RE = /[가-힣]/;
+
+function visitCandidates(value, fn) {
+  const visit = (v) => {
+    if (Array.isArray(v)) {
+      v.forEach(visit);
+      return;
+    }
+    if (v && typeof v === "object") {
+      if (Array.isArray(v.candidates)) {
+        for (const c of v.candidates) fn(c);
+      }
+      for (const k of Object.keys(v)) {
+        if (k !== "candidates") visit(v[k]);
+      }
+    }
+  };
+  visit(value);
+}
+
+function koreanCandidateNames(value) {
+  const names = [];
+  visitCandidates(value, (c) => {
+    const nm = c && (c.name || c.complex_name);
+    if (typeof nm === "string" && HOME_HANGUL_RE.test(nm)) names.push(nm.trim());
+  });
+  return [...new Set(names.filter(Boolean))];
+}
+
+function attachNameEn(value, namesEn) {
+  visitCandidates(value, (c) => {
+    if (!c || typeof c !== "object") return;
+    const nm = c.name || c.complex_name;
+    if (typeof nm !== "string") return;
+    const en = namesEn[String(nm).trim()];
+    if (en) c.name_en = en;
+  });
+}
+
+function parseHomeNamesJson(text) {
+  const s = String(text || "");
+  const tries = [s];
+  const m = s.match(/\{[\s\S]*\}/);
+  if (m) tries.push(m[0]);
+  for (const t of tries) {
+    try {
+      const o = JSON.parse(t);
+      if (o && typeof o.names === "object" && o.names !== null) return o.names;
+    } catch { /* try the next shape */ }
+  }
+  return {};
 }
 
 export function summarizeToolCall(name, args, result, ms) {
@@ -378,6 +446,77 @@ export async function runTurn(opts) {
   const requestMessages = (extra = []) => isEnglish
     ? [...history, ...extra, { role: "system", content: ENGLISH_NOTE }]
     : [...history, ...extra];
+  // 29M1: English home names known so far (client registry snapshot sent
+  // as context.names_en, plus the per-process cache). name_en goes on
+  // each candidate the model reads and out as names_en for the UI.
+  const namesEn = {};
+  const seedNames = context && context.names_en;
+  if (seedNames && typeof seedNames === "object") {
+    for (const [k, v] of Object.entries(seedNames)) {
+      const key = String(k).trim();
+      const val = typeof v === "string" ? v.trim().replace(/\s+/g, " ") : "";
+      if (key && val && !HOME_HANGUL_RE.test(val)) {
+        namesEn[key] = val;
+        HOME_NAMES_CACHE.set(key, val);
+      }
+    }
+  }
+  // 29M1 capability gate: only callers that send context.names_en get
+  // the extra naming call (the client always sends it in English, even
+  // empty). Callers without it keep the exact old call sequence.
+  const namesEnSupported = !!(context && context.names_en
+    && typeof context.names_en === "object");
+  async function ensureHomeNamesEn(result) {
+    const known = {};
+    for (const [k, v] of HOME_NAMES_CACHE) known[k] = v;
+    Object.assign(known, namesEn);
+    const fresh = koreanCandidateNames(result)
+      .filter((ko) => !known[ko]).slice(0, 30);
+    if (fresh.length === 0 || !namesEnSupported) {
+      attachNameEn(result, known);
+      return;
+    }
+    // One extra call with the same complete the agent already uses:
+    // short JSON-only naming request, 8 s cap, failure skips silently.
+    const t0 = Date.now();
+    let timer = null;
+    try {
+      const res = await Promise.race([
+        complete({
+          provider,
+          messages: [...history,
+            { role: "system", content: HOME_NAMES_SYSTEM },
+            { role: "user", content: JSON.stringify(fresh) }],
+          maxTokens: 500,
+          timeoutMs: 8000,
+        }),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error("home_names_en timeout")), 8000);
+        }),
+      ]);
+      if (timer) clearTimeout(timer);
+      const ms = Date.now() - t0;
+      usage.prompt_tokens += (res.usage && res.usage.prompt_tokens) || 0;
+      usage.completion_tokens += (res.usage && res.usage.completion_tokens) || 0;
+      usage.calls++;
+      const parsed = parseHomeNamesJson(res.message && res.message.content);
+      let n = 0;
+      for (const ko of fresh) {
+        const v = parsed[ko];
+        const clean = typeof v === "string" ? v.trim().replace(/\s+/g, " ") : "";
+        if (clean && !HOME_HANGUL_RE.test(clean)) {
+          namesEn[ko] = clean;
+          HOME_NAMES_CACHE.set(ko, clean);
+          known[ko] = clean;
+          n++;
+        }
+      }
+      toolCalls.push({ name: "home_names_en", ok: true,
+        summary: `영문 이름 ${n}곳`, ms, target: "{}" });
+    } catch { /* fallbacks cover it — the turn keeps working */ }
+    finally { if (timer) clearTimeout(timer); }
+    attachNameEn(result, { ...known, ...namesEn });
+  }
   const appended = []; // new messages for the browser to keep
   const toolCalls = []; // compact rows for the UI
   const toolResults = []; // parsed results, in order (guard scope)
@@ -545,6 +684,13 @@ export async function runTurn(opts) {
         ? { ok: false, error: "tool arguments are not valid JSON" }
         : await callTool(session, c.name, c.args || {});
       const ms = Date.now() - t0;
+      // 29M1: English sessions resolve home names before the model
+      // writes its reply, and stamp name_en on the candidates it reads.
+      if (isEnglish && result && result.ok) {
+        try {
+          await ensureHomeNamesEn(result);
+        } catch { /* skip silently — fallbacks cover it */ }
+      }
       toolResults.push(result);
       const { summary, ok } = summarizeToolCall(c.name, (c.args || {}), result, ms);
       toolCalls.push({ name: c.name, ok, summary, ms,
@@ -592,6 +738,7 @@ export async function runTurn(opts) {
     return {
       ok: true, ...extra,
       messages: appended, toolCalls, uiActions,
+      names_en: { ...namesEn },
       suggestions: (extra && extra.suggestions) || [],
       usage: { ...usage, est_usd: costUsd(provider, usage) },
       scenario: session.scenario,

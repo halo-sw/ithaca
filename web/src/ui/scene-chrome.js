@@ -5,6 +5,7 @@
 // nodes. Korean output is byte-identical to the old inline strings.
 
 import { romanizeName } from "../i18n/romanize.js";
+import { homeNameEn } from "../i18n/home-names.js";
 
 export function toolsLabelFor(label, { phone = false, lang = "ko" } = {}) {
   if (!phone) return label;
@@ -80,6 +81,10 @@ export function placeNameEn(name) {
   const s = String(name == null ? "" : name).trim();
   if (!s || !HAS_HANGUL.test(s)) return s;
   if (Object.hasOwn(PLACE_EN, s)) return PLACE_EN[s];
+  // 29M1: a registered home/complex name (from Muse) wins over the
+  // rule-based romanisation; stations and dongs keep romanizeName.
+  const home = homeNameEn(s);
+  if (home && home !== romanizeName(s)) return home;
   return s.split(/(\s+)/).map((w) => {
     if (!w || /^\s+$/.test(w) || !HAS_HANGUL.test(w)) return w;
     if (Object.hasOwn(PLACE_EN, w)) return PLACE_EN[w];

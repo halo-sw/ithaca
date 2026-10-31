@@ -110,7 +110,7 @@ import { recordedReplyFor } from "./demotour.js";
 import { REGION_NAME_ALIASES } from "../region-names.js";
 import { agentContext, stripToolLabel, toolActionKo, toolActionEn, viewSystemLine } from "./agent-float.js";
 import { LANG, currentLang } from "../i18n/lang.js";
-import { romanizeName } from "../i18n/romanize.js";
+import { homeNameEn, registerHomeNamesEn, harvestHomeNamesEn, homeNamesEnSnapshot } from "../i18n/home-names.js";
 import { translateExact } from "../i18n/translate.js";
 import { sceneActionLabelFor } from "./scene-chrome.js";
 
@@ -2474,7 +2474,9 @@ export function ChatScreen() {
           + `하루 평균 피곤한 정도 ${Math.round((hh.fatigue_avg_30d || 0) * 10) / 10} — 3D에서 보기로 하루를 보세요.`;
       }
       const payload = { status: "done", compare, moments, labels, customId,
-        names: Object.fromEntries(picked.map((p, i) => [labels[i], displayNameFor(p)])),
+        // 29M1: English reports and headers read Muse's registered home
+        // names; unregistered names stay on the Korean display.
+        names: Object.fromEntries(picked.map((p, i) => [labels[i], reportNameFor(p)])),
         moneyDoc, moneyMissing, anchors, momentTexts, extraLine, noCommute,
         lifeEvents: lifeRows };
       // The chat drawer tabs read the same custom docs as the sim.
@@ -2584,6 +2586,8 @@ export function ChatScreen() {
     // 29j3: Muse sees whether the comparison report is verified.
     const reportStatus = latestReportStatus(st.messages);
     const ctx = { ...agentContext(store.getState()), lang: LANG,
+      // 29M1: English turns tell Muse the names the screen already shows.
+      ...(LANG === "en" ? { names_en: homeNamesEnSnapshot() } : {}),
       candidates: liveCands,
       picks: st.picks.map((id, i) => ({ label: "ABC"[i], id })),
       work_open: workOpen, profile: st.profile || null, customer_text,
@@ -2630,6 +2634,18 @@ export function ChatScreen() {
         }
       }
       const bubble = turnBubble(out);
+      // 29M1: English turns register Muse's home names first — server
+      // names, tool-candidate name_en, then the reply harvest last (the
+      // app matches what the customer just read) — so cards and words
+      // below render the same English name.
+      if (LANG === "en" && out && !out.off) {
+        const seen = toolMessageHomeNames(out.messages);
+        registerHomeNamesEn(out.names_en);
+        registerHomeNamesEn(seen.en);
+        const liveKo = (liveCands || []).map((c) => c && c.name).filter(Boolean);
+        registerHomeNamesEn(harvestHomeNamesEn(
+          (bubble && bubble.content) || "", [...seen.ko, ...liveKo]));
+      }
       // 29h2: cards first, then Muse's words — the turn ends on the
       // next move, never on a wall of cards.
       appendToolCards(out.messages);
@@ -3797,8 +3813,52 @@ export function trayDisplayName(full, lang = LANG) {
   if (m && /[A-Za-z]/.test(m[2]) && !/[가-힣]/.test(m[2])) {
     return lang === "en" ? m[2].trim() : m[1].trim();
   }
-  if (lang === "en" && /[가-힣]/.test(s)) return romanizeName(s);
+  if (lang === "en" && /[가-힣]/.test(s)) return homeNameEn(s);
   return s;
+}
+
+// 29M1: report/compare header names — the registered English home name
+// in English mode, else the Korean display (so the English report says
+// Daeha Building, never a fresh romanisation).
+function reportNameFor(p) {
+  const ko = displayNameFor(p);
+  if (LANG !== "en") return ko;
+  const en = homeNamesEnSnapshot()[String(ko ?? "").trim()];
+  return en || ko;
+}
+
+// 29M1: English home names off a consult response — name_en stamped on
+// tool-result candidates, plus the reply harvest. Korean names off the
+// tool results and the live candidates feed the harvest.
+function toolMessageHomeNames(messages) {
+  const en = {};
+  const ko = [];
+  for (const m of messages || []) {
+    if (!m || m.role !== "tool" || typeof m.content !== "string") continue;
+    let r = null;
+    try { r = JSON.parse(m.content); } catch { continue; }
+    const visit = (v) => {
+      if (Array.isArray(v)) { v.forEach(visit); return; }
+      if (v && typeof v === "object") {
+        if (Array.isArray(v.candidates)) {
+          for (const c of v.candidates) {
+            if (!c || typeof c !== "object") continue;
+            const nm = typeof c.name === "string" ? c.name.trim() : "";
+            if (nm && /[가-힣]/.test(nm)) {
+              ko.push(nm);
+              const e = typeof c.name_en === "string" ? c.name_en.trim() : "";
+              if (e) en[nm] = e;
+            }
+          }
+        }
+        for (const k of Object.keys(v)) {
+          if (k !== "candidates") visit(v[k]);
+        }
+      }
+    };
+    visit(r);
+  }
+  return { en, ko };
 }
 export function trayNameFor(candidate, lang = LANG) {
   return trayDisplayName(displayNameFor(candidate), lang);
