@@ -841,8 +841,8 @@ export function layoutMapPills(items, W, H, obstacles) {
     // bridging the gap, so it needs no leader — only a pill moved by
     // collision avoidance (a later slot or the spiral fallback) does.
     const home = clampPill({ ...pillSlots(p.x, p.y, tw, th)[0] }, w, h);
-    const moved = box.x !== home.x || box.y !== home.y
-      || box.w !== home.w || box.h !== home.h;
+    const moved = Math.hypot((box.x + box.w / 2) - (home.x + home.w / 2),
+      (box.y + box.h / 2) - (home.y + home.h / 2)) > 24;
     const laid = { id: p.id, kind: p.kind || "pill", x: p.x, y: p.y,
       w: tw, h: th, box, leader: moved ? nearestOnBox(box, p.x, p.y) : null,
       count: 0, members: null };
@@ -1025,7 +1025,8 @@ export function placeWorkplacePill(x, y, w, h, W, H, obstacles = [], freeArea = 
     const inset = { x: freeArea.x + 4, y: freeArea.y + 4,
       w: Math.max(1, freeArea.w - 8), h: Math.max(1, freeArea.h - 8) };
     const box = clampPill(c.box, ww, hh, inset);
-    const moved = box.x !== c.box.x || box.y !== c.box.y;
+    const moved = Math.hypot((box.x + box.w / 2) - (c.box.x + c.box.w / 2),
+      (box.y + box.h / 2) - (c.box.y + c.box.h / 2)) > 24;
     return { box, leader: (needLeader || moved) ? nearestOnBox(box, x, y) : null,
       side: c.side };
   };
@@ -1384,11 +1385,17 @@ export function layoutChatStage({ focus, specs, W, H, pad, obstacles,
       }
       return null;
     };
-    const withLeader = (l, box) => {
+    // A tag re-clamped into the free area without colliding is still
+    // on its natural spot: no leader. Only a collision relocation past
+    // 24 px (or a pill that already carried a leader) draws one.
+    const withLeader = (l, box, relocated) => {
       if (box.x === l.box.x && box.y === l.box.y
         && box.w === l.box.w && box.h === l.box.h) return { ...l, box };
-      return { ...l, w: box.w, h: box.h, box,
-        leader: nearestOnBox(box, l.x, l.y) };
+      const shifted = Math.hypot((box.x + box.w / 2) - (l.box.x + l.box.w / 2),
+        (box.y + box.h / 2) - (l.box.y + l.box.h / 2)) > 24;
+      const leader = (l.leader || (relocated && shifted))
+        ? nearestOnBox(box, l.x, l.y) : null;
+      return { ...l, w: box.w, h: box.h, box, leader };
     };
     const laid = [];
     const spill = [];
@@ -1396,7 +1403,9 @@ export function layoutChatStage({ focus, specs, W, H, pad, obstacles,
       if (!l.box) { spill.push(l); continue; }
       let box = wantBox(l.box);
       let short = !!l.short;
+      let relocated = false;
       if (settled.some((q) => boxHit(box, q))) {
+        relocated = true;
         box = freeSpotNear(l.x, l.y, l.w, l.h);
         if (!box) {
           const alt = specById.get(l.id) && specById.get(l.id).alt;
@@ -1408,7 +1417,7 @@ export function layoutChatStage({ focus, specs, W, H, pad, obstacles,
         }
       }
       if (!box) { spill.push(l); continue; }
-      const done = withLeader(l, box);
+      const done = withLeader(l, box, relocated);
       if (short) done.short = true;
       settled.push(done.box);
       laid.push(done);
@@ -1471,7 +1480,8 @@ export function layoutChatStage({ focus, specs, W, H, pad, obstacles,
           members: ordered.map((m) => ({ id: m.id, x: m.x, y: m.y })),
           rowH: size.rowH, headerH: size.headerH, cx, cy };
         cards.set(id, card);
-        const moved = box.x !== home.x || box.y !== home.y;
+        const moved = Math.hypot((box.x + box.w / 2) - (home.x + home.w / 2),
+          (box.y + box.h / 2) - (home.y + home.h / 2)) > 24;
         laid.push({ id, kind: "group", x: cx, y: cy,
           w: size.w, h: size.h, box,
           leader: moved ? nearestOnBox(box, cx, cy) : null,
