@@ -20,7 +20,7 @@ export const tablePhrases = {
  "어린이·노인과 함께 이동할 때 쓰는 속도예요.": "Speed used when moving with a child or senior.",
  "환승 1회 시간": "Time per transfer",
  "분/회": "min/transfer",
- "가정값": "assumed",
+ "가정값": "Assumed",
  "갈아탈 때 걷기+기다리기에 쓰는 시간. 합계에서 먼저 빼고 나머지를 구간별로 나눠요.": "Time spent walking and waiting when transferring. It is subtracted from the total first; the rest is split across segments.",
  "출근 출발 시각": "Commute departure time",
  "시각": "Time",
