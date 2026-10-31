@@ -9,7 +9,8 @@
 // clicking a region still filters. SSR renders the container only.
 import { useEffect, useRef, useState } from "react";
 import { fitMapView, fitInsetFromChrome, freeAreaOf, layoutMapPills, layoutStationLabels, pickDongLabels,
-  stationNameWidthPx, stationLabelName, placeWorkplacePill, haversineKm,
+  stationNameWidthPx, stationLabelName, placeWorkplacePill,
+  shortWorkplaceLabel, haversineKm,
   tagSizePx, tagLines, tagPriceLine, tagFontPx, clusterSizePx, mapTenuresMixed,
   layoutChatStage,
   MAP_COLORS, MAP_FIT_MARGIN, BASEMAP_MUTE } from "../chatmap.js";
@@ -36,6 +37,13 @@ const CHATMAP_INSET = { top: 56, right: 24, bottom: 96, left: 24 };
 const PILL_H = 24;
 
 const noSpace = (s) => String(s || "").replace(/\s+/g, "");
+
+// 29N2h: pins without `key` (test helpers, restored/old map docs)
+// keep their own identity — the position index fills in for the key.
+export function pinKeyOf(pin, index) {
+  if (pin && pin.key !== undefined && pin.key !== null && pin.key !== "") return pin.key;
+  return `${pin?.id}::${(pin && pin.region) || ""}::${index}`;
+}
 
 // 29a5: workplace pill label per language. The station name keeps
 // data-no-i18n (never re-translated), so English is built here.
@@ -254,12 +262,18 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
       if (!(stage.width > 0) || !(stage.height > 0)) return;
       const sx = W / stage.width;
       const sy = H / stage.height;
-      const toBox = (r) => ({
-        x: (r.left - stage.left) * sx - 4,
-        y: (r.top - stage.top) * sy - 4,
-        w: r.width * sx + 8,
-        h: r.height * sy + 8,
+      // 29N2e: one client→stage conversion for every chrome box —
+      // the stage (svg) origin is subtracted once here, then the
+      // caller adds its pad. Obstacles, the tray cover and the
+      // inset measures below all share it, so the layout and the
+      // drawing never disagree about where the chrome sits.
+      const stageBoxOf = (left, top, w, h, pad = 4) => ({
+        x: (left - stage.left) * sx - pad,
+        y: (top - stage.top) * sy - pad,
+        w: w * sx + pad * 2,
+        h: h * sy + pad * 2,
       });
+      const toBox = (r) => stageBoxOf(r.left, r.top, r.width, r.height);
       const visible = (node) => {
         if (!node || !node.getBoundingClientRect) return null;
         if (node.hasAttribute && node.hasAttribute("hidden")) return null;
@@ -267,19 +281,16 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
         if (!r || !(r.width > 0) || !(r.height > 0)) return null;
         return r;
       };
-      const overlapRaw = (r) => {
+      const overlapBoxOf = (r, pad = 4) => {
         const ix0 = Math.max(r.left, stage.left);
         const ix1 = Math.min(r.right, stage.right);
         const iy0 = Math.max(r.top, stage.top);
         const iy1 = Math.min(r.bottom, stage.bottom);
         if (!(ix1 > ix0) || !(iy1 > iy0)) return null;
-        return {
-          x: (ix0 - stage.left) * sx,
-          y: (iy0 - stage.top) * sy,
-          w: (ix1 - ix0) * sx,
-          h: (iy1 - iy0) * sy,
-        };
+        return stageBoxOf(ix0, iy0, ix1 - ix0, iy1 - iy0, pad);
       };
+      // Inset measures use the unpadded overlap (a size, not a box).
+      const overlapRaw = (r) => overlapBoxOf(r, 0);
       const boxes = [];
       let stackBottom = 0;
       const pushTop = (node) => {
@@ -318,10 +329,9 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
       const tr = visible(trayNode);
       if (tr) {
         const to = overlapRaw(tr);
-        if (to) {
-          trayCover = to.h;
-          boxes.push({ x: to.x - 4, y: to.y - 4, w: to.w + 8, h: to.h + 8 });
-        }
+        if (to) trayCover = to.h;
+        const tb = overlapBoxOf(tr);
+        if (tb) boxes.push(tb);
       }
       let creditH = 0;
       for (const sel of [".ui-chatmap-credit.is-phone",
@@ -394,6 +404,10 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
   }, [W, H]);
   const m = map || {};
   const pins = m.pins || [];
+  // 29N2h: layout identity per pin position — key-less pins fall
+  // back to id::region::index so each keeps its own tag.
+  const pinKeys = new Map(pins.map((p, i) => [p, pinKeyOf(p, i)]));
+  const keyOf = (p) => pinKeys.get(p) ?? pinKeyOf(p, pins.indexOf(p));
   // 29k2: one ZIP rent for every home — tags lead with the commute
   // and the legend says the shared rent once.
   const shared = sharedZipRent(pins.map((p) => p.candidate), m.tenure);
@@ -454,7 +468,7 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
     specs.push({ id: "work", kind: "work", lon: m.workPin.lon, lat: m.workPin.lat,
       w: pillTextWidthPx(label, 12) + 38, h: 26, rank: 0 });
   }
-  for (const p of pins) {
+  pins.forEach((p, pi) => {
     // 31g: home pins lay out as two-part tags, so the collision
     // boxes are the measured tag sizes. 31j: measured on the
     // rendering-language lines, in the phone size when narrow.
@@ -463,10 +477,14 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
     const sz = tagSizePx(p, m.tenure, lang, { compact, sharedRent: !!shared, mixedTenure });
     const shortSz = tagSizePx(p, m.tenure, lang,
       { compact, short: true, sharedRent: !!shared, mixedTenure });
-    specs.push({ id: p.id, kind: "pill", lon: p.lon, lat: p.lat,
+    // 29N2f: layout identity is the pin key (id + region +
+    // candidate index), so old data with ids repeated across areas
+    // still lays out one tag per home. Card hover/click below keep
+    // addressing the candidate id.
+    specs.push({ id: keyOf(p), kind: "pill", lon: p.lon, lat: p.lat,
       w: sz.w, h: sz.h, alt: { w: shortSz.w, h: shortSz.h },
       rank: p.picked ? 1 : 2, pin: p });
-  }
+  });
   const stage = layoutChatStage({ focus, specs, W, H,
     pad: basePad, obstacles: chromeObstacles,
     tenure: m.tenure, lang, compact, sharedRent: !!shared,
@@ -616,18 +634,31 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
   // and the 회사 pill avoid the plate, not just the text.
   const stationLabelBoxes = stationLabels.map((l) => ({ x: l.x - 3,
     y: l.y - 12, w: stationNameWidthPx(l.name) + 6, h: 17 }));
-  // 29L3: the 회사 pill re-picks its side (right, left, above,
-  // below) against the station dots and label plates, keeping the
-  // right side with a short leader when every side collides.
+  // 29L3: the 회사 pill re-picks its side against the station
+  // dots and label plates. 29N2g: above, below, left, right, then
+  // diagonals at increasing leader length (120 px max) — every laid
+  // tag box and every candidate anchor dot (radius 6) is an obstacle
+  // with an 8 px gap, leaders prefer a line that crosses no tag, and
+  // with no free spot the label shortens ("Work · Meta HQ
+  // (1 Hacker Way)" → "Work · Meta HQ").
   const workLaid = layById.get("work");
   if (workLaid && workLaid.box) {
     const dotBoxes = stationPts.map((s) => ({ x: s.x - 6, y: s.y - 6, w: 12, h: 12 }));
     const otherBoxes = laid.filter((l) => l.id !== "work" && l.box).map((l) => l.box);
+    // 29N2g: candidate anchors are obstacles too, so the pill never
+    // covers a pin tag or an anchor dot.
+    const anchorDots = pins.map((p) => {
+      const [ax, ay] = toXYz(p.lon, p.lat);
+      return { x: ax - 6, y: ay - 6, w: 12, h: 12 };
+    });
+    const fullLabel = workPinLabel(m.workPin.name, lang);
+    const shortW = pillTextWidthPx(shortWorkplaceLabel(fullLabel), 12) + 38;
     const wp = placeWorkplacePill(workLaid.x, workLaid.y, workLaid.w, workLaid.h,
-      W, H, [...chromeObstacles, ...otherBoxes, ...stationLabelBoxes, ...dotBoxes],
-      freeAreaOf(W, H, basePad));
+      W, H, [...chromeObstacles, ...otherBoxes, ...stationLabelBoxes, ...dotBoxes, ...anchorDots],
+      freeAreaOf(W, H, basePad), shortW);
     workLaid.box = wp.box;
     workLaid.leader = wp.leader;
+    if (wp.short) workLaid.short = true;
     pinBoxes.length = 0;
     for (const l of laid) if (l.box) pinBoxes.push(l.box);
   }
@@ -984,7 +1015,10 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
           if (!m.workPin || !l) return null;
           const [px, py] = toXYz(m.workPin.lon, m.workPin.lat);
           const { box } = l;
-          const label = workPinLabel(m.workPin.name, lang);
+          // 29N2g: with no free spot the pill falls back to the short label.
+          const label = l.short
+            ? shortWorkplaceLabel(workPinLabel(m.workPin.name, lang))
+            : workPinLabel(m.workPin.name, lang);
           // 31f: the work marker is a label, not a button — an ink
           // rounded rect (chip radius, never a pill) with a 10 px
           // white square glyph before the text, matching "■ 회사" in
@@ -1019,7 +1053,9 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
           // dot and leader never paint over another pin's pill. Same
           // geometry as the old single pass; the highlighted pill last.
           const geom = (p) => {
-            const l = layById.get(p.id);
+            // 29N2f: geometry looks up the pin key — a repeated
+            // candidate id must not share one laid box.
+            const l = layById.get(keyOf(p));
             const [px, py] = toXYz(p.lon, p.lat);
             // 31g: the tag's three lines and its measured box.
             // 31m: a compact placement paints without the commute
@@ -1051,7 +1087,7 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
           // 31k: pills stay in the fixed order — never re-sorted by
           // hover. The highlighted pin's outline is re-drawn as a
           // separate non-interactive copy in the top layer below.
-          const visible = tagOrder.filter((p) => !clustered.has(p.id));
+          const visible = tagOrder.filter((p) => !clustered.has(keyOf(p)));
           const hiPin = visible.find((p) => cardHi === `home:${p.id}`)
             || visible.find((p) => p.id === selectedId) || null;
           return (
@@ -1063,7 +1099,7 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
                 // the 31f leader line and ground dot.
                 if (!g.needLeader) return null;
                 return (
-                  <g key={`pin-under-${p.id}`}>
+                  <g key={`pin-under-${keyOf(p)}`}>
                     {g.l.leader && (
                       <line x1={g.l.leader[0]} y1={g.l.leader[1]} x2={g.px} y2={g.py}
                         stroke={MAP_COLORS.muted} strokeWidth={fs(1)} />
@@ -1099,7 +1135,7 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
                 // 31g: the invisible hit rect covers the whole tag
                 // (44 px or taller, so always ≥ 32 px).
                 return (
-                  <g key={`pin-pill-${p.id}`} data-layer="home-pin"
+                  <g key={`pin-pill-${keyOf(p)}`} data-layer="home-pin"
                     {...pinButtonProps(p, tagPriceLine(p.candidate, m.tenure, lang, { mixedTenure }))}>
                     <rect x={g.box.x - fs(4)} y={g.box.y}
                       width={g.box.w + fs(8)} height={g.box.h}
@@ -1181,7 +1217,9 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
           const rowH = l.rowH || 20;
           const headerH = l.headerH || 18;
           const t = tagFontPx({ compact });
-          const pinById = new Map(pins.map((p) => [p.id, p]));
+          // 29N2f: group rows carry layout keys, so the pin
+          // lookup is keyed by key too (clicks still use pin.id).
+          const pinById = new Map(pins.map((p) => [keyOf(p), p]));
           const x = box.x, y = box.y, w = box.w, h = box.h;
           return (
             <g key={l.id} data-layer="group-card">
@@ -1200,7 +1238,7 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
                     ? (letterFillFor(pin.letter) || MAP_COLORS.pinPicked)
                     : MAP_COLORS.pinText;
                   return (
-                    <g key={r.id} data-layer="group-row" data-pin-id={r.id}
+                    <g key={r.id} data-layer="group-row" data-pin-id={pin.id}
                       {...pinButtonProps(pin, tagPriceLine(pin.candidate, m.tenure, lang, { mixedTenure }))}>
                       <rect x={x} y={ry} width={w} height={rowH} fill="transparent" />
                       {r.picked && (
@@ -1218,7 +1256,7 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
         })}
         {((laid.find((l) => l.kind === "cluster" && l.id === expanded) || {}).members || [])
           .map((mb, i, arr) => {
-            const pin = pins.find((p) => p.id === mb.id);
+            const pin = pins.find((p) => keyOf(p) === mb.id);
             if (!pin) return null;
             const cluster = laid.find((l) => l.id === expanded);
             // 31g: fanned-out members draw as the new tags.
@@ -1293,7 +1331,7 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
         const pin = pins.find((p) => p.id === selectedId);
         if (!pin) return null;
         const model = pinCardModel(pin, { tenure: m.tenure, picks: picks || [] });
-        const lay = layById.get(pin.id);
+        const lay = layById.get(keyOf(pin));
         const anchor = lay ? { x: lay.box.x + lay.box.w / 2, y: lay.box.y }
           : (() => { const [x, y] = toXYz(pin.lon, pin.lat); return { x, y }; })();
         const boxHit2 = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w

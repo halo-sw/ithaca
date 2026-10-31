@@ -92,6 +92,7 @@ import {
   profileSummary, missingChips, regionsForNames, simReadyFor,
   homeForScenario, complexNameForCandidate, stationNames,
   runGate, profileHomeKinds, regionsForCurrency, regionsForDoc,
+  usSearchActive,
 } from "../chat/engine.js";
 import { buildCustomMoneyDoc, buildUsRentMoneyDoc, verifyHomeFor } from "../chat/custom-money.js";
 import { personaFor, slimRunForReport } from "../verify/compare.js";
@@ -1963,10 +1964,52 @@ export function ChatScreen() {
       loadRegions(fetchJson),
     ]);
     setNamedPhotos(named);
-    dataRef.current = { index, network: networkWithUs(network, usNetwork, wantUs),
+    const picked = networkWithUs(network, usNetwork, wantUs);
+    dataRef.current = { index, network: picked,
+      // 29N2e: which doc the map reads now, so a later search can
+      // swap it when what is showing changes country.
+      usNetwork: !!usNetwork && picked === usNetwork,
       schedule, manifest, named, regionsDoc, regionsKey: key };
     return dataRef.current;
   }
+
+  // 29N2f: the map's network follows what is showing, on every path.
+  // runSearch, the consult-agent cards, replays and restores all land
+  // through candidatesData, so the swap lives here — not in runSearch.
+  // When the shown set's country differs from the loaded doc, load the
+  // other doc, store it on dataRef, then kick a re-render (dataTick is
+  // a dep too, so a restore whose data lands after the candidates
+  // still swaps). A stale load — the candidates changed again
+  // mid-flight — is dropped by the request token.
+  const usNetReq = useRef(0);
+  useEffect(() => {
+    if (!dataRef.current) return undefined;
+    const cands = (candidatesData && candidatesData.result
+      && candidatesData.result.candidates) || [];
+    const wantUs = usSearchActive(profile, cands);
+    const haveUs = !!dataRef.current.usNetwork;
+    if (wantUs === haveUs) return undefined;
+    usNetReq.current += 1;
+    const token = usNetReq.current;
+    (async () => {
+      if (wantUs) {
+        const usNet = await loadUsNetwork(fetchJson);
+        if (token !== usNetReq.current) return;
+        // Never Seoul lines for US candidates: a failed load draws
+        // no lines rather than the wrong country's.
+        dataRef.current = { ...dataRef.current,
+          network: usNet && Array.isArray(usNet.lines) ? usNet : { lines: [] },
+          usNetwork: true };
+      } else {
+        const krNet = await loadNetwork(fetchJson);
+        if (token !== usNetReq.current) return;
+        dataRef.current = { ...dataRef.current,
+          network: krNet || dataRef.current.network, usNetwork: false };
+      }
+      setDataTick((t) => t + 1);
+    })().catch(() => {});
+    return undefined;
+  }, [candidatesData, profile, dataTick]);
 
   // --- structured flow ---
   async function structuredFlow(text) {
@@ -2181,6 +2224,8 @@ export function ChatScreen() {
     const budget = profCur === "USD" && prof.monthlyMax
       ? Number(prof.monthlyMax.value) : null;
     const emptyHint = usEmptyHint((data.index && data.index.homes) || [], budget);
+    // 29N2f: the network swap lives in the candidatesData effect —
+    // setting the candidates is enough on every path.
     setCandidatesData({ result, tenure, sort });
     setWorkOpen(true);
     pushMsg({ role: "assistant", kind: "candidates", replace: true,

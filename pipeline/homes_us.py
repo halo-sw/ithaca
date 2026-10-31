@@ -897,7 +897,7 @@ def build_us_homes(area_dir: str | Path, zori: dict[str, dict],
     homes = []
     dropped = 0
     fallback_n = 0
-    seq = 0
+    seq = us_home_id_offset(area_id)
     for name, idxs in groups:
         key = tuple(idxs)
         info = extra.get(key)
@@ -1149,6 +1149,22 @@ def default_zip_for(area_id: str) -> str:
         if spec["id"] == area_id:
             return spec["default_zip"]
     return "94025"
+
+
+def us_home_id_offset(area_id: str) -> int:
+    """Per-area id block so home ids stay unique across US areas.
+
+    ``us-menlo`` keeps ``0001…`` (offset 0); each ``US_CALTRAIN_BOXES``
+    entry gets offset ``1000 * (its index + 1)``. Unknown areas raise.
+    """
+    if area_id == AREA_ID:
+        return 0
+    from .regions import US_CALTRAIN_BOXES
+
+    for i, spec in enumerate(US_CALTRAIN_BOXES):
+        if spec["id"] == area_id:
+            return 1000 * (i + 1)
+    raise ValueError(f"unknown US area id: {area_id!r}")
 
 
 def load_caltrain_am(build_dir: str | Path) -> dict[str, dict]:

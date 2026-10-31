@@ -50,6 +50,12 @@ export const SOURCE_BADGES = {
   estimate: "추정 · 1~8호선 평균 속도",
   photos: "주변 사진",
   public: "공공임대(LH·마이홈)",
+  // 29N2e: US rows never carry the Korean badges above —
+  // Zillow for the ZIP rent, OSM for the walk/bike graph, the
+  // Caltrain timetable feed for the train leg.
+  zori: "Zillow ZORI (ZIP typical rent, 2026-09)",
+  usGraph: "OSM walk/bike graph",
+  caltrain: "Caltrain GTFS (2026-06)",
 };
 
 // 26k: USD empty state. When no home matches but loaded US homes exist
@@ -805,7 +811,16 @@ export function find_homes(profile, index, opts = {}) {
       scene: home.scene || null,
       photos: [],
       photos_note: PHOTOS_DISCLAIMER,
-      sources: [
+      // 29N2e: a US row cites the US feeds that priced and timed
+      // it — never the Korean registry/graph badges (nor the Seoul
+      // schedule/estimate badges): Zillow ZORI for the ZIP rent, the
+      // OSM graph for a measured walk, Caltrain GTFS for a train leg.
+      sources: isUs ? [
+        SOURCE_BADGES.zori,
+        ...(commute.walk.known ? [SOURCE_BADGES.usGraph] : []),
+        ...((corridor || (best && best.mode === "caltrain"))
+          ? [SOURCE_BADGES.caltrain] : []),
+      ] : [
         SOURCE_BADGES.rtms,
         ...(commute.walk.known ? [SOURCE_BADGES.graph] : []),
         ...(commute.ride.lines.length > 0 ? [SOURCE_BADGES.network] : []),

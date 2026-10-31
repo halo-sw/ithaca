@@ -120,6 +120,23 @@ export function networkWithUs(network, usNetwork, wantUs) {
   return network;
 }
 
+// 29N2e: whether a US search is showing right now — any US region or
+// USD money on the profile or on the candidates just found (a Meta
+// HQ commute resolves to US homes after the pre-search region guess
+// already ran, so the candidate set decides). Pure.
+export function usSearchActive(profile, candidates) {
+  if (currencyOf(profile) === "USD") return true;
+  return (candidates || []).some((c) => c
+    && (US_REGION_IDS.includes(c.region) || currencyOf(c) === "USD"));
+}
+
+// 29N2e: the network doc URL the chat map should read for what is
+// showing — the region-us Caltrain doc for a US search, else the
+// Seoul region doc. Pure (the loader runs it down in chat.jsx).
+export function networkUrlFor(profile, candidates) {
+  return usSearchActive(profile, candidates) ? US_NETWORK_URL : NETWORK_URL;
+}
+
 // Corridor ground tiles intersecting a lon/lat bbox (tiny files with
 // real 시군구 boundaries + open water). Null-tolerant: the stage map
 // paints fine without them.

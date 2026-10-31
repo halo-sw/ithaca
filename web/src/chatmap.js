@@ -389,9 +389,13 @@ export function buildChatMap({ regions, network, tiles, green, candidates, picks
   const picked = new Set(picks || []);
   const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const letterOf = new Map((picks || []).map((id, i) => [id, LETTERS[i] || String(i + 1)]));
+  // 29N2f: the layout identity is id + region + candidate index —
+  // old US data repeats ids across areas (us-home-0021 in every
+  // file), and a repeated id must never merge two homes into one pin.
   const pins = list.map((c, i) => ({
     n: i + 1,
     id: c.id,
+    key: `${c.id}::${c.region || ""}::${i}`,
     lon: c.lon,
     lat: c.lat,
     picked: picked.has(c.id),
@@ -412,7 +416,9 @@ export function buildChatMap({ regions, network, tiles, green, candidates, picks
       && p.candidate.commute.walk.known ? p.candidate.commute.walk.station : null;
     const path = commutePathFor(network, board, workplaceStation);
     if (!path) continue;
-    commutes.push({ label: `후보 ${p.n}`, pinId: p.id, minutes: p.commuteMin, ...path });
+    // 29N2f: React keys below read pinId — the pin key, so two
+    // picked homes sharing an id still key uniquely.
+    commutes.push({ label: `후보 ${p.n}`, pinId: p.key, minutes: p.commuteMin, ...path });
   }
   const tileWater = [];
   const tileBounds = [];
@@ -933,10 +939,30 @@ export function layoutMapPills(items, W, H, obstacles) {
       const ch = cw;
       const cluster = { id: `cluster:${k}`, kind: "cluster",
         x: cx, y: cy, w: cw, h: ch, rank: 2 };
-      const laid = placeOne(cluster) || { id: cluster.id, kind: "cluster",
-        x: cx, y: cy, w: cw, h: ch,
-        box: clampPill({ x: cx - cw / 2, y: cy - 6 - ch, w: cw, h: ch }, w, h),
-        leader: null, count: 0, members: null };
+      // 29N2e: the raw clamped home is the last resort only — the
+      // spiral first takes any free slot (and joins taken, like
+      // finish), so two clusters never share one clamped spot
+      // while one is free. Same >24 px leader rule as finish.
+      let laid = placeOne(cluster);
+      if (!laid) {
+        const spiral = spiralPill(cx, cy, cw, ch, taken, w, h);
+        if (spiral) {
+          taken.push(spiral);
+          const home = clampPill({ x: cx - cw / 2, y: cy - 6 - ch, w: cw, h: ch }, w, h);
+          const moved = Math.hypot((spiral.x + spiral.w / 2) - (home.x + home.w / 2),
+            (spiral.y + spiral.h / 2) - (home.y + home.h / 2)) > 24;
+          laid = { id: cluster.id, kind: "cluster",
+            x: cx, y: cy, w: cw, h: ch, box: spiral,
+            leader: moved ? nearestOnBox(spiral, cx, cy) : null,
+            count: 0, members: null };
+        }
+      }
+      if (!laid) {
+        laid = { id: cluster.id, kind: "cluster",
+          x: cx, y: cy, w: cw, h: ch,
+          box: clampPill({ x: cx - cw / 2, y: cy - 6 - ch, w: cw, h: ch }, w, h),
+          leader: null, count: 0, members: null };
+      }
       laid.count = members.length;
       laid.members = members.map((p) => ({ id: p.id, x: p.x, y: p.y }));
       out.push(laid);
@@ -991,47 +1017,158 @@ export function stationLabelName(name, lang) {
   return ko;
 }
 
-// 29L3: the 회사 pill picks a side like the price tags — right,
-// left, above, below of its anchor — avoiding the given obstacle
-// boxes (station dots and label boxes, chrome). When every side
-// collides it keeps the right side with a short leader line back to
-// the anchor. Returns { box, leader, side }.
+// 29L3: the 회사 pill picks a side like the price tags — avoiding
+// the given obstacle boxes (station dots and label boxes, chrome).
+// 29N2g: above, below, left, right, then the four diagonals, at
+// increasing leader length (up to 120 px); every tag box and
+// candidate anchor dot counts with an 8 px gap, positions whose
+// leader crosses a tag lose to clear ones, and with no free spot
+// the least-overlap one wins with the short label. Returns
+// { box, leader, side, short? }.
+const WORK_PILL_GAP = 8;
+const grownBox = (b, g) => ({ x: b.x - g, y: b.y - g,
+  w: b.w + g * 2, h: b.h + g * 2 });
+
+// True when the segment (x1,y1)-(x2,y2) touches box b.
+function segHitsBox(x1, y1, x2, y2, b) {
+  const inside = (x, y) => x >= b.x && x <= b.x + b.w
+    && y >= b.y && y <= b.y + b.h;
+  if (inside(x1, y1) || inside(x2, y2)) return true;
+  const cross = (ax, ay, bx, by, cx, cy) => (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+  const xseg = (ax, ay, bx, by, cx, cy, dx, dy) => {
+    const d1 = cross(cx, cy, dx, dy, ax, ay);
+    const d2 = cross(cx, cy, dx, dy, bx, by);
+    const d3 = cross(ax, ay, bx, by, cx, cy);
+    const d4 = cross(ax, ay, bx, by, dx, dy);
+    return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0))
+      && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
+  };
+  const ex = b.x + b.w;
+  const ey = b.y + b.h;
+  return xseg(x1, y1, x2, y2, b.x, b.y, ex, b.y)
+    || xseg(x1, y1, x2, y2, ex, b.y, ex, ey)
+    || xseg(x1, y1, x2, y2, ex, ey, b.x, ey)
+    || xseg(x1, y1, x2, y2, b.x, ey, b.x, b.y);
+}
+
+// 29N2g: the fallback workplace label when no clear spot fits the
+// full pill — the parenthetical address is dropped ("Work · Meta HQ
+// (1 Hacker Way)" → "Work · Meta HQ"). Names without one (Seoul
+// "Work · Gangnam") keep as is.
+export function shortWorkplaceLabel(label) {
+  const s = String(label || "");
+  const i = s.indexOf(" (");
+  return i > 0 ? s.slice(0, i) : s;
+}
 const clampPill8 = (box, W, H) => ({
   ...box,
   x: Math.min(Math.max(box.x, 8), Math.max(8, W - box.w - 8)),
   y: Math.min(Math.max(box.y, 8), Math.max(8, H - box.h - 8)),
 });
 
-export function placeWorkplacePill(x, y, w, h, W, H, obstacles = [], freeArea = null) {
+export function placeWorkplacePill(x, y, w, h, W, H, obstacles = [], freeArea = null, altW = null) {
   const ww = Math.max(1, Number(W) || 1);
   const hh = Math.max(1, Number(H) || 1);
-  const sides = [
-    { side: "right", box: { x: x + PILL_GAP, y: y - h / 2, w, h } },
-    { side: "left", box: { x: x - PILL_GAP - w, y: y - h / 2, w, h } },
-    { side: "above", box: { x: x - w / 2, y: y - 6 - h, w, h } },
-    { side: "below", box: { x: x - w / 2, y: y + PILL_GAP, w, h } },
-  // 29M2: the workplace pill keeps ≥ 8 px from every stage edge.
-  ].map((c) => ({ side: c.side, box: clampPill8(c.box, ww, hh) }));
-  const hit = (b) => (obstacles || []).some((q) => q && boxHit(b, q));
-  const free = sides.find((c) => !hit(c.box));
+  const list = (obstacles || []).filter((q) => q && Number.isFinite(q.x)
+    && Number.isFinite(q.y) && q.w > 0 && q.h > 0);
+  // 29N2g: every tag box and candidate anchor dot is an obstacle
+  // with an 8 px gap.
+  const grown = list.map((q) => grownBox(q, WORK_PILL_GAP));
   // 29M2c: like every tag, the pill keeps inside the free area — the
   // 29M2b edge rule alone leaves it above the free top. Without a
   // free area the result is exactly the old side pick.
-  const settle = (c, needLeader) => {
-    if (!freeArea) {
-      return { box: c.box,
-        leader: needLeader ? nearestOnBox(c.box, x, y) : null, side: c.side };
-    }
-    const inset = { x: freeArea.x + 4, y: freeArea.y + 4,
-      w: Math.max(1, freeArea.w - 8), h: Math.max(1, freeArea.h - 8) };
-    const box = clampPill(c.box, ww, hh, inset);
-    const moved = Math.hypot((box.x + box.w / 2) - (c.box.x + c.box.w / 2),
-      (box.y + box.h / 2) - (c.box.y + c.box.h / 2)) > 24;
-    return { box, leader: (needLeader || moved) ? nearestOnBox(box, x, y) : null,
-      side: c.side };
+  const inset = freeArea ? { x: freeArea.x + 4, y: freeArea.y + 4,
+    w: Math.max(1, freeArea.w - 8), h: Math.max(1, freeArea.h - 8) } : null;
+  const clampTo = (box) => {
+    // 29M2: the workplace pill keeps ≥ 8 px from every stage edge.
+    const c8 = clampPill8(box, ww, hh);
+    return inset ? clampPill(c8, ww, hh, inset) : c8;
   };
-  if (free) return settle(free, false);
-  return settle(sides[0], true);
+  const hits = (b) => grown.some((q) => boxHit(b, q));
+  const overlap = (b) => {
+    let t = 0;
+    for (const q of grown) {
+      const ox = Math.min(b.x + b.w, q.x + q.w) - Math.max(b.x, q.x);
+      const oy = Math.min(b.y + b.h, q.y + q.h) - Math.max(b.y, q.y);
+      if (ox > 0 && oy > 0) t += ox * oy;
+    }
+    return t;
+  };
+  // 29N2g: the would-be leader must not cross a tag box where an
+  // alternative exists — unexpanded boxes (brushing within the gap
+  // is fine).
+  const leaderClear = (box) => {
+    const [lx, ly] = nearestOnBox(box, x, y);
+    return !list.some((q) => segHitsBox(lx, ly, x, y, q));
+  };
+  // 29N2g: above, below, left, right, then the four diagonals, at
+  // increasing leader length (up to 120 px) — the first ring is the
+  // legacy side slots, so a free above slot keeps today's position.
+  const spots = (pw) => {
+    const raw = [
+      { side: "above", home: true, box: { x: x - pw / 2, y: y - 6 - h, w: pw, h } },
+      { side: "below", home: true, box: { x: x - pw / 2, y: y + PILL_GAP, w: pw, h } },
+      { side: "left", home: true, box: { x: x - PILL_GAP - pw, y: y - h / 2, w: pw, h } },
+      { side: "right", home: true, box: { x: x + PILL_GAP, y: y - h / 2, w: pw, h } },
+    ];
+    const dirs = [
+      { side: "above", dx: 0, dy: -1 },
+      { side: "below", dx: 0, dy: 1 },
+      { side: "left", dx: -1, dy: 0 },
+      { side: "right", dx: 1, dy: 0 },
+      { side: "above-left", dx: -Math.SQRT1_2, dy: -Math.SQRT1_2 },
+      { side: "above-right", dx: Math.SQRT1_2, dy: -Math.SQRT1_2 },
+      { side: "below-left", dx: -Math.SQRT1_2, dy: Math.SQRT1_2 },
+      { side: "below-right", dx: Math.SQRT1_2, dy: Math.SQRT1_2 },
+    ];
+    for (let r = 26; r <= 120; r += 16) {
+      for (const d of dirs) {
+        raw.push({ side: d.side, home: false,
+          box: { x: x + d.dx * r - pw / 2, y: y + d.dy * r - h / 2, w: pw, h } });
+      }
+    }
+    return raw.map((c) => ({ side: c.side, home: c.home, raw: c.box, box: clampTo(c.box) }));
+  };
+  const finish = (c, short) => {
+    // Legacy slots draw no leader unless the free-area clamp moved
+    // them; far slots always carry one back to HQ.
+    const moved = Math.hypot((c.box.x + c.box.w / 2) - (c.raw.x + c.raw.w / 2),
+      (c.box.y + c.box.h / 2) - (c.raw.y + c.raw.h / 2)) > 24;
+    const out = { box: c.box, side: c.side,
+      leader: (!c.home || moved) ? nearestOnBox(c.box, x, y) : null };
+    if (short) out.short = true;
+    return out;
+  };
+  const place = (pw, short) => {
+    const cands = spots(pw);
+    const free = cands.filter((c) => !hits(c.box));
+    if (free.length === 0) return null;
+    return finish(free.find((c) => leaderClear(c.box)) || free[0], short);
+  };
+  const least = (pw, short) => {
+    // 29N2g: no clear spot — the least-overlap one, with the short label.
+    let best = null;
+    let bestOver = Infinity;
+    for (const c of spots(pw)) {
+      const o = overlap(c.box);
+      // Float dust makes "equal" overlaps differ in the last bit —
+      // only a clearly smaller overlap wins, so ties keep the
+      // trial order (above first).
+      if (o < bestOver - 1e-6) { best = c; bestOver = o; }
+    }
+    const out = { box: best.box, side: best.side, leader: nearestOnBox(best.box, x, y) };
+    if (short) out.short = true;
+    return out;
+  };
+  const got = place(w, false);
+  if (got) return got;
+  const sw = (Number.isFinite(altW) && altW > 0 && altW < w) ? altW : null;
+  if (sw) {
+    const shortGot = place(sw, true);
+    if (shortGot) return shortGot;
+    return least(sw, true);
+  }
+  return least(w, false);
 }
 
 // --- 29M2: the map frames what is drawn ------------------------------------------
@@ -1385,6 +1522,19 @@ export function layoutChatStage({ focus, specs, W, H, pad, obstacles,
       }
       return null;
     };
+    // 29N2e: the fine sweep before the cascade — same free-area
+    // scan on an 8 px grid, still every cell checked.
+    const fineSpot = (tw, th) => {
+      for (let gy = freeBox.y;
+        gy + th <= freeBox.y + freeBox.h + 1; gy += 8) {
+        for (let gx = freeBox.x;
+          gx + tw <= freeBox.x + freeBox.w + 1; gx += 8) {
+          const b = { x: gx, y: gy, w: tw, h: th };
+          if (!settled.some((q) => boxHit(b, q))) return b;
+        }
+      }
+      return null;
+    };
     // A tag re-clamped into the free area without colliding is still
     // on its natural spot: no leader. Only a collision relocation past
     // 24 px (or a pill that already carried a leader) draws one.
@@ -1470,7 +1620,22 @@ export function layoutChatStage({ focus, specs, W, H, pad, obstacles,
         let box = settled.some((q) => boxHit(home, q))
           ? freeSpotNear(cx, cy, size.w, size.h) : home;
         if (!box) box = gridSpot(size.w, size.h);
-        // The stage is full: keep every home visible as a card row.
+        // 29N2e: the stage is full — never clamp two cards onto the
+        // same free-area corner. Sweep the free area on a fine grid,
+        // then cascade down-right, every candidate checked against
+        // all settled boxes, so each home stays visible as a row
+        // with zero overlaps. Only a stage with literally no free
+        // pixel keeps the clamped home box.
+        if (!box) box = fineSpot(size.w, size.h);
+        if (!box) {
+          for (let k = 1; k <= 24 && !box; k++) {
+            const c = wantBox({ x: home.x + k * 10, y: home.y + k * 10,
+              w: size.w, h: size.h });
+            if (!settled.some((q) => boxHit(c, q))) box = c;
+          }
+        }
+        // The stage truly holds no free pixel: keep every home
+        // visible as a card row.
         if (!box) box = home;
         const id = `more:${ordered.map((m) => m.id).join("-")}`;
         const rows = ordered.map((m, i) => ({ id: m.id,
