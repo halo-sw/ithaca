@@ -594,6 +594,11 @@ export function pickByNeighbourhood(rows, limit, commuteMax) {
     const st = r && r.commute && r.commute.walk && r.commute.walk.known
       ? r.commute.walk.station : null;
     if (!st) continue;
+    const rideOk = r.commute.ride && r.commute.ride.known
+      && Number.isFinite(r.commute.ride.minutes);
+    const sameOk = r.commute.sameStation
+      || (r.commute.ride && r.commute.ride.sameStation);
+    if (!rideOk && !sameOk) continue;
     if (!byOrigin.has(st)) byOrigin.set(st, []);
     byOrigin.get(st).push(r);
   }

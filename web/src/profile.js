@@ -542,7 +542,10 @@ export function extract_profile(text, current = null, opts = {}) {
   const usMonthlyHit = nearMoney(src,
     /a month|per month|monthly|\/month|\/\s*mo\b|rent|월세|한\s*달|월/,
     dollarMonies, 24);
+  const buyVerbHit = nearMoney(src,
+    /사고 싶어|사고 싶|사려고|살 생각|집을 사|집 사|구매|구입|내 집 마련/, krwMonies);
   const priceHit = nearMoney(src, /매매|매매가|집값/, krwMonies)
+    || buyVerbHit
     || nearMoney(src, /buy|purchase|price/i, krwMonies, 24);
   const sizeHit = (() => {
     const m = /(\d+(?:\.\d+)?)\s*(?:㎡|평|제곱)/.exec(src);
@@ -587,6 +590,9 @@ export function extract_profile(text, current = null, opts = {}) {
   }
   if (tenure && (profile.tenure.value === null || profile.tenure.source === "default")) {
     set("tenure", tenure.key, tenure.evidence, TENURE_KO[tenure.key]);
+  }
+  if (!isUsd && profile.tenure.value === null && !tenure && buyVerbHit) {
+    set("tenure", "trade", buyVerbHit.anchor, TENURE_KO.trade);
   }
   if (!isUsd && profile.tenure.value === null && !tenure) {
     profile.tenure = {

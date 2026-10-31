@@ -160,7 +160,15 @@ describe("find_homes sorting and no-score contract", () => {
   it("defaults to 동네별 spread and shows the sort", () => {
     assert.equal(DEFAULT_HOME_SORT, "areas");
     assert.equal(HOME_SORTS[0], "areas");
-    const r = find_homes(profile(), INDEX, { network: NETWORK });
+    // 36b: the spread keeps ridable origins only, so the fixture needs
+    // a schedule (like production) for the 정자→판교 ride estimate.
+    const SCHED = parseInterstationCsv([
+      "연번,호선,역명,소요시간,역간거리(km),호선별누계(km)",
+      "1,2,A,00:00,0,0",
+      "2,2,B,02:00,1.0,1.0",
+      "3,2,C,01:30,0.8,1.8",
+    ].join("\n"));
+    const r = find_homes(profile(), INDEX, { network: NETWORK, schedule: SCHED });
     assert.equal(r.sort, "areas");
     assert.match(r.sort_note, /동네별로 한 곳씩/);
     // Both homes share the 정자 origin, so the spread keeps one.
