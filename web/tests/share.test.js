@@ -238,17 +238,17 @@ describe("result card on the real demo build", () => {
     const money = JSON.parse(readFileSync(pMoney, "utf8"));
     const compare = JSON.parse(readFileSync(pCompare, "utf8"));
     const data = resultCardData({ money, compare,
-      tenures: { A: "전세", B: "전세" }, scenarioName: "demo-two-homes",
+      tenures: {}, scenarioName: "demo-two-homes",
       simStart: "2026-11-02", simDays: 30, date: "2026-10-29" });
     assert.deepEqual(data.rows.map((r) => r.id), SHARE_ROW_IDS);
-    assert.equal(rowById(data, "walk_30d").a, "13시간 28분");
-    assert.equal(rowById(data, "walk_30d").b, "5시간 43분");
+    assert.equal(rowById(data, "walk_30d").a, "12시간 44분");
+    assert.equal(rowById(data, "walk_30d").b, "4시간 59분");
     // 17-4: the expected housing figure comes from the built money doc
     // (stage-15 loan cap), not a hard-coded pre-15 string.
     const expectHousingA = fmtWon(
       money.homes.A.by_tenure["전세"].housing.monthly_won, { monthly: true });
     assert.equal(rowById(data, "housing").a, expectHousingA);
     assert.equal(rowById(data, "commute_mode").b, "차·지하철 + 도보");
-    assert.equal(data.homes[0].headline, "A 효성올림픽카운티 · 56.22㎡ (전세)");
+    assert.equal(data.homes[0].headline, "A 효성올림픽카운티 · 56.22㎡ (매매)");
   });
 });

@@ -415,7 +415,7 @@ describe("consult tools", () => {
       return;
     }
     const s = createSession({ scenario: await demoScenario(), loadArea: realLoadArea });
-    const cx = await callTool(s, "list_complexes", { area: "st-송파나루" });
+    const cx = await callTool(s, "list_complexes", { area: "st-송파나루", query: "올림픽" });
     assert.equal(cx.ok, true);
     assert.ok(cx.complexes.some((c) => c.name === "효성올림픽카운티"));
     const st = await callTool(s, "list_stations", { area: "st-송파나루" });
@@ -428,7 +428,7 @@ describe("consult tools", () => {
     const ok = await callTool(s, "update_scenario", {
       homes: [
         { label: "A", area: "st-송파나루", complex_name: "효성올림픽카운티" },
-        { label: "B", area: "st-미금", complex_name: "분당 엠코 헤리츠" },
+        { label: "B", area: "st-미금", complex_name: "청솔마을한라아파트" },
       ],
     });
     assert.equal(ok.ok, true);
