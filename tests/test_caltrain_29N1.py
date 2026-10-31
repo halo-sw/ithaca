@@ -552,3 +552,127 @@ def test_shared_address_and_stem_merge_into_one_home(
     assert home["match"] == "osm"
     assert home["buildings"] == 2
     assert home["address"] == "800 Laurel Street"
+
+
+def test_same_name_buildings_nearby_merge_into_one_home(
+        tmp_path: Path) -> None:
+    lon, lat = -122.14823, 37.48485
+    area_dir = tmp_path / "us-menlo"
+    _write_custom_box(area_dir, "us-menlo", [
+        {"id": "b1", "building": "apartments", "name": "1221 Willow Road",
+         "levels": 2, "geometry": _poly(lon, lat)},
+        {"id": "b2", "building": "apartments", "name": "1221 Willow Road",
+         "levels": 5, "geometry": _poly(lon + 0.00045, lat)},
+    ], "Menlo Park", (lon, lat))
+    homes = build_us_homes(area_dir, ZORI_94025, [], addresses=[],
+                           default_zip="94025", named_nodes=[])
+    assert len(homes) == 1
+    assert homes[0]["name"] == "1221 Willow Road"
+    assert homes[0]["buildings"] == 2
+    assert homes[0]["levels_max"] == 5
+    assert "· " not in homes[0]["name"]
+
+
+def test_same_name_homes_far_apart_carry_address(
+        tmp_path: Path) -> None:
+    lon, lat = -122.15000, 37.48000
+    area_dir = tmp_path / "us-menlo"
+    _write_custom_box(area_dir, "us-menlo", [
+        {"id": "b1", "building": "apartments",
+         "name": "Ironworks Apartments",
+         "geometry": _poly(lon, lat)},
+        {"id": "b2", "building": "apartments",
+         "name": "Ironworks Apartments",
+         "geometry": _poly(lon + 0.007, lat)},
+    ], "Menlo Park", (lon, lat))
+    addresses = [(lon, lat, "1000", "Alma St"),
+                 (lon + 0.007, lat, "2000", "Alma St")]
+    homes = build_us_homes(area_dir, ZORI_94025, [], addresses=addresses,
+                           default_zip="94025", named_nodes=[])
+    assert len(homes) == 2
+    names = sorted(h["name"] for h in homes)
+    assert names == ["Ironworks Apartments, 1000 Alma St",
+                     "Ironworks Apartments, 2000 Alma St"]
+    assert all("· " not in h["name"] for h in homes)
+
+
+def test_street_template_buildings_nearby_merge_into_one_home(
+        tmp_path: Path) -> None:
+    lon, lat = -122.1068, 37.4848
+    area_dir = tmp_path / "us-st-san-carlos"
+    roads = [{"id": "r1", "highway": "residential", "name": "Laurel Street",
+              "geometry": {"type": "LineString",
+                           "coordinates": [[lon - 0.0002, lat],
+                                           [lon + 0.0012, lat]]}}]
+    _write_custom_box(area_dir, "us-st-san-carlos", [
+        {"id": "b1", "building": "apartments",
+         "geometry": _poly(lon, lat)},
+        {"id": "b2", "building": "apartments",
+         "geometry": _poly(lon + 0.0005, lat)},
+        {"id": "b3", "building": "apartments",
+         "geometry": _poly(lon + 0.0009, lat)},
+    ], "San Carlos", (-122.14823, 37.48485), roads=roads)
+    homes = build_us_homes(area_dir, ZORI_94025, [], addresses=[],
+                           default_zip="94025", named_nodes=[])
+    assert len(homes) == 1
+    assert homes[0]["name"] == "Apartments on Laurel Street"
+    assert homes[0]["buildings"] == 3
+
+
+def test_unnamed_building_with_nearby_address_is_named_by_it(
+        tmp_path: Path) -> None:
+    lon, lat = -122.1068, 37.4848
+    area_dir = tmp_path / "us-st-san-carlos"
+    roads = [{"id": "r1", "highway": "residential", "name": "Laurel Street",
+              "geometry": {"type": "LineString",
+                           "coordinates": [[lon, lat],
+                                           [lon + 0.0002, lat]]}}]
+    _write_custom_box(area_dir, "us-st-san-carlos", [
+        {"id": "b1", "building": "apartments",
+         "geometry": _poly(lon, lat)},
+    ], "San Carlos", (-122.14823, 37.48485), roads=roads)
+    addresses = [(lon + 0.00023, lat, "158", "Laurel Street")]
+    homes = build_us_homes(area_dir, ZORI_94025, [], addresses=addresses,
+                           default_zip="94025", named_nodes=[])
+    assert len(homes) == 1
+    assert homes[0]["name"] == "158 Laurel Street"
+    assert homes[0]["match"] == "osm_address"
+
+
+def test_far_apart_street_clusters_use_cross_street_names(
+        tmp_path: Path) -> None:
+    lon, lat = -122.1068, 37.4848
+    area_dir = tmp_path / "us-st-san-carlos"
+    roads = [
+        {"id": "r1", "highway": "residential", "name": "Laurel Street",
+         "geometry": {"type": "LineString",
+                      "coordinates": [[lon - 0.0003, lat],
+                                      [lon + 0.0002, lat],
+                                      [lon + 0.007, lat],
+                                      [lon + 0.0075, lat]]}},
+        {"id": "r2", "highway": "residential", "name": "Arroyo Avenue",
+         "geometry": {"type": "LineString",
+                      "coordinates": [[lon - 0.0002, lat + 0.00035],
+                                      [lon + 0.0006, lat + 0.00035]]}},
+        {"id": "r3", "highway": "residential", "name": "Beech Street",
+         "geometry": {"type": "LineString",
+                      "coordinates": [[lon + 0.0064, lat + 0.00035],
+                                      [lon + 0.0076, lat + 0.00035]]}},
+    ]
+    _write_custom_box(area_dir, "us-st-san-carlos", [
+        {"id": "b1", "building": "apartments",
+         "geometry": _poly(lon, lat)},
+        {"id": "b2", "building": "apartments",
+         "geometry": _poly(lon + 0.0004, lat)},
+        {"id": "b3", "building": "apartments",
+         "geometry": _poly(lon + 0.0068, lat)},
+        {"id": "b4", "building": "apartments",
+         "geometry": _poly(lon + 0.0072, lat)},
+    ], "San Carlos", (-122.14823, 37.48485), roads=roads)
+    homes = build_us_homes(area_dir, ZORI_94025, [], addresses=[],
+                           default_zip="94025", named_nodes=[])
+    assert len(homes) == 2
+    names = sorted(h["name"] for h in homes)
+    assert names == ["Apartments on Laurel Street near Arroyo Avenue",
+                     "Apartments on Laurel Street near Beech Street"]
+    assert all("· " not in h["name"] for h in homes)

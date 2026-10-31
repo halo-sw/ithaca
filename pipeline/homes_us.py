@@ -30,6 +30,9 @@ NO_NAME_RE = re.compile(r"^Building\s+\S+$", re.IGNORECASE)
 DIGIT_NAME_RE = re.compile(r"^\d+\s*[A-Za-z]?$")
 SINGLE_LETTER_RE = re.compile(r"^[A-Za-z]$")
 NODE_ATTACH_M = 60.0
+STREET_ADDRESS_M = 30.0
+STREET_MERGE_M = 150.0
+STREET_STEM = "Apartments on "
 NODE_BUILDINGS = {"apartments", "residential"}
 ZIP_RE = re.compile(r"^(\d{5})")
 MONTH_COL_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -414,13 +417,31 @@ def _resolve(area_dir: Path, area: dict, key: str) -> object:
     return val
 
 
-def _nearest_road_name(lon: float, lat: float, roads: list) -> str | None:
+def _own_address(building: dict) -> str | None:
+    """``"<housenumber> <street>"`` from the building's own tags, if any."""
+    tags = building.get("tags")
+    if not isinstance(tags, dict):
+        tags = building
+    try:
+        house = str(tags.get("addr:housenumber") or "").strip()
+        street = str(tags.get("addr:street") or "").strip()
+    except (AttributeError, LookupError):
+        return None
+    if not house or not street:
+        return None
+    return f"{house} {street}"
+
+
+def _nearest_road_name(lon: float, lat: float, roads: list,
+                       exclude: str | None = None) -> str | None:
     best, best_d = None, float("inf")
     for road in roads:
         if road.get("highway") not in ROAD_HIGHWAYS:
             continue
         name = road.get("name")
         if not name:
+            continue
+        if exclude is not None and name == exclude:
             continue
         geom = road.get("geometry") or {}
         coords = geom.get("coordinates") or []
@@ -829,7 +850,7 @@ def build_us_homes(area_dir: str | Path, zori: dict[str, dict],
             for c in range(a + 1, len(idxs)):
                 ia, ib = idxs[a], idxs[c]
                 if haversine_m(cands[ia][1], cands[ia][2],
-                               cands[ib][1], cands[ib][2]) <= 300:
+                               cands[ib][1], cands[ib][2]) <= 200:
                     parent[_find(ia)] = _find(ib)
         clusters: dict[int, list[int]] = defaultdict(list)
         for i in idxs:
@@ -901,14 +922,14 @@ def build_us_homes(area_dir: str | Path, zori: dict[str, dict],
             home_name = name
             match = "osm_node_name" if name in node_names else "osm_name"
         else:
-            addr = None
-            if addresses:
-                big = max(idxs, key=lambda i: (
-                    _building_area(cands[i][0].get("geometry")), i))
+            big = max(idxs, key=lambda i: (
+                _building_area(cands[i][0].get("geometry")), i))
+            addr = _own_address(cands[big][0])
+            if addr is None and addresses:
                 bloc, blat = cands[big][1], cands[big][2]
                 bring = _building_ring(cands[big][0].get("geometry"))
-                addr = nearest_address(bloc, blat, addresses, 40,
-                                       ring=bring)
+                addr = nearest_address(bloc, blat, addresses,
+                                       STREET_ADDRESS_M, ring=bring)
             if addr:
                 home_name, match = addr, "osm_address"
                 shared_addr = addr
@@ -994,11 +1015,114 @@ def build_us_homes(area_dir: str | Path, zori: dict[str, dict],
             station, commute or {}, lon=lon, lat=lat, meta_hq=meta_hq,
             area_id=area_id, graph_walk=gw, graph_bike=gb)
         homes.append(home)
+    # Same base display name within 200 m is one home (largest
+    # member's centroid, summed buildings, max levels). Farther apart,
+    # homes are told apart by street address, never by "· n"; the
+    # numbered suffix stays only when nothing distinguishes them.
     by_name: dict[str, list[int]] = defaultdict(list)
     for k, h in enumerate(homes):
         by_name[h["name"]].append(k)
+    drop: set[int] = set()
+    named_matches = {"osm_name", "osm_node_name", "osm_area_name",
+                     "osm_address"}
+    for base_name, keys in by_name.items():
+        if len(keys) < 2:
+            continue
+        parent = {k: k for k in keys}
+
+        def _find(x):
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+
+        for a in range(len(keys)):
+            for c in range(a + 1, len(keys)):
+                ka, kb = keys[a], keys[c]
+                aa, bb = homes[ka].get("address"), homes[kb].get("address")
+                same_address = bool(aa) and aa == bb
+                same_name = (homes[ka].get("match") in named_matches
+                             and homes[kb].get("match") in named_matches)
+                if (base_name.startswith(STREET_STEM)
+                        and homes[ka].get("match") == "osm"
+                        and homes[kb].get("match") == "osm"
+                        and not aa and not bb):
+                    if haversine_m(
+                            homes[ka]["lon"], homes[ka]["lat"],
+                            homes[kb]["lon"], homes[kb]["lat"],
+                            ) <= STREET_MERGE_M:
+                        parent[_find(ka)] = _find(kb)
+                    continue
+                if not (same_address or same_name):
+                    continue
+                if haversine_m(homes[ka]["lon"], homes[ka]["lat"],
+                               homes[kb]["lon"], homes[kb]["lat"]) <= 200:
+                    parent[_find(ka)] = _find(kb)
+        clusters: dict[int, list[int]] = defaultdict(list)
+        for k in keys:
+            clusters[_find(k)].append(k)
+        for members in clusters.values():
+            if len(members) < 2:
+                continue
+            big = max(members,
+                      key=lambda k: (homes[k]["buildings"], k))
+            homes[big]["buildings"] = sum(
+                homes[k]["buildings"] for k in members)
+            maxima = [homes[k]["levels_max"] for k in members
+                      if isinstance(homes[k]["levels_max"], int)
+                      and not isinstance(homes[k]["levels_max"], bool)]
+            homes[big]["levels_max"] = max(maxima) if maxima else None
+            drop.update(k for k in members if k != big)
+    if drop:
+        homes = [h for k, h in enumerate(homes) if k not in drop]
+    by_name = defaultdict(list)
+    for k, h in enumerate(homes):
+        by_name[h["name"]].append(k)
     for dup_name, keys in by_name.items():
-        if len(keys) > 1:
+        if len(keys) < 2:
+            continue
+        if (dup_name.startswith(STREET_STEM)
+                and all(homes[k].get("match") == "osm" for k in keys)):
+            main = dup_name[len(STREET_STEM):]
+            for k in keys:
+                addr = homes[k].get("address")
+                if not addr and addresses:
+                    addr = nearest_address(homes[k]["lon"], homes[k]["lat"],
+                                           addresses, STREET_ADDRESS_M)
+                if addr:
+                    homes[k]["name"] = addr
+                    homes[k]["match"] = "osm_address"
+                    homes[k]["address"] = addr
+            rest = [k for k in keys if homes[k]["name"] == dup_name]
+            if rest:
+                cross_of = {
+                    k: _nearest_road_name(homes[k]["lon"], homes[k]["lat"],
+                                          roads, exclude=main)
+                    for k in rest}
+                if (all(cross_of.values())
+                        and len(set(cross_of.values())) == len(rest)):
+                    for k in rest:
+                        homes[k]["name"] = f"{dup_name} near {cross_of[k]}"
+                else:
+                    ordered = sorted(rest, key=lambda k: (
+                        -homes[k]["lat"], homes[k]["lon"]))
+                    for n, k in enumerate(ordered, start=1):
+                        homes[k]["name"] = f"{dup_name} · {n}"
+            continue
+        addr_of: dict[int, str | None] = {}
+        for k in keys:
+            addr = homes[k].get("address") or (
+                nearest_address(homes[k]["lon"], homes[k]["lat"],
+                                addresses, 200)
+                if addresses else None)
+            addr_of[k] = addr
+        distinct = {a for a in addr_of.values() if a}
+        if (len(distinct) == len(keys)
+                and all(addr_of[k] for k in keys)):
+            for k in keys:
+                homes[k]["name"] = f"{dup_name}, {addr_of[k]}"
+                homes[k]["address"] = homes[k]["address"] or addr_of[k]
+        else:
             ordered = sorted(keys, key=lambda k: (-homes[k]["lat"],
                                                   homes[k]["lon"]))
             for n, k in enumerate(ordered, start=1):
