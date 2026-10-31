@@ -10,6 +10,7 @@ import { placeLabels, labelCapForWidth, labelPaintStyle } from "../src/labels3d.
 import {
   toolsLabelFor, memberEnFor, commuteBreakdownEn, tripStatusEn,
   workplaceLabel, stripCompareLabel, placeNameEn, todayStepEn,
+  todayStepNoI18n, homeStatusEn,
 } from "../src/ui/scene-chrome.js";
 import { familyRowText } from "../src/nowcard.js";
 import { activityLabelEn } from "../src/timeline.js";
@@ -182,8 +183,24 @@ describe("29L2c English strings romanise place names", () => {
 
   it("English Today rows read Home and the assumed workplace", () => {
     assert.equal(todayStepEn({ kind: "place", label: "집", home: true }), "Home");
+    assert.equal(todayStepEn({ kind: "place", label: "레이크팰리스" }), "Lake Palace");
     assert.equal(todayStepEn({ kind: "place", label: "직장 근무", dest: "판교", destEn: "Pangyo" }),
       "Work (assumed: near Pangyo Stn)");
-    assert.equal(todayStepEn({ kind: "walk", label: "잠실역 (걸어서 14분)" }), "Jamsil Stn");
+    assert.equal(todayStepEn({ kind: "walk", label: "잠실역 (걸어서 14분)" }), "잠실역 (걸어서 14분)");
+  });
+
+  it("English Today ride rows keep Korean for the translator, outside data-no-i18n", () => {
+    const ride = { kind: "ride", label: "2호선 잠실→강남 (9분, 혼잡 91%)" };
+    assert.equal(todayStepEn(ride), "2호선 잠실→강남 (9분, 혼잡 91%)");
+    assert.equal(todayStepNoI18n(ride), false);
+    assert.equal(todayStepNoI18n({ kind: "place", label: "집" }), true);
+    assert.equal(todayStepNoI18n({ kind: "place", label: "레이크팰리스" }), true);
+  });
+
+  it("English household row capitalises the activity word", () => {
+    assert.equal(homeStatusEn("Your partner", "저녁 시간"), "Your partner · Home · Evening");
+    const row = familyRowText({ label: "배우자", labelEn: "Your partner",
+      line: "집 · 저녁 시간", lineEn: "Your partner · Home · Evening", fatigue: 23 }, "en");
+    assert.equal(row, "Your partner · Home · Evening · Tiredness 23/100");
   });
 });

@@ -41,7 +41,7 @@ import { criterionTitle } from "../engine/criteria.js";
 import { chipDisplay, tickerDisplay, FATIGUE_MODEL_NOTE, familyRowText } from "../nowcard.js";
 import { hhmm, navFromOutings, outingIndexAt, stepIndexAt } from "../timeline.js";
 import { ActivityIcon, ActivityLegend } from "./timeline.jsx";
-import { todayStepEn } from "./scene-chrome.js";
+import { todayStepEn, todayStepNoI18n } from "./scene-chrome.js";
 import { aerialCreditFor } from "../aerial/drape.js";
 import { currentLang } from "../i18n/lang.js";
 
@@ -330,6 +330,8 @@ export function TodayList({ state }) {
             {(o.steps || []).map((s, i) => {
               const band = s.congestion ? congestionBand(s.congestion.valuePct).key : null;
               const isNow = oi === at && i === current;
+              const enLabel = lang === "en" ? todayStepEn(s) : null;
+              const noI18n = enLabel !== null && todayStepNoI18n(s);
               return (
                 <button key={i} type="button" data-current={isNow}
                   className={isNow ? "ui-today-row ui-today-now" : "ui-today-row"}
@@ -337,7 +339,7 @@ export function TodayList({ state }) {
                   aria-label={`${hhmm(s.minute)} ${s.label}${isNow ? " (지금)" : ""}`}>
                   <span className="ui-today-time">{hhmm(s.minute)}</span>
                   <ActivityIcon activity={STEP_ICON[s.kind] || "other"} />
-                  <span className="ui-today-label" {...(lang === "en" ? { "data-no-i18n": true } : {})}>{lang === "en" ? todayStepEn(s) : stepLabelShown(s.label)}</span>
+                  <span className="ui-today-label" {...(noI18n ? { "data-no-i18n": true } : {})}>{enLabel === null ? stepLabelShown(s.label) : enLabel}</span>
                   {band && (
                     <span className={`ui-dot ui-dot-${band}`} aria-hidden="true" />
                   )}

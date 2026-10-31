@@ -83,11 +83,11 @@ export function tripStatusEn({ member, activity = "Commuting", from, to, remainM
 }
 
 const HOME_NOTE_EN = {
-  "새벽 시간": "early morning",
-  "아침 시간": "morning",
-  "낮 시간": "midday",
-  "저녁 시간": "evening",
-  "밤 시간": "night",
+  "새벽 시간": "Early morning",
+  "아침 시간": "Morning",
+  "낮 시간": "Midday",
+  "저녁 시간": "Evening",
+  "밤 시간": "Night",
 };
 
 export function homeStatusEn(member = "Me", noteKo = "아침 시간") {
@@ -108,18 +108,32 @@ export function stripCompareLabel(home, lang = "ko") {
   return `${home} · 같은 시각`;
 }
 
-// Today-list rows in English, built in code per language (Korean
-// keeps the engine text): home is "Home", a work stay reads
-// workplaceLabel, every other stop romanises its bare name (the
-// trailing "(…)" / "N분" leg notes are not stops).
+// Today-list rows in English. Only the home row (exactly "집"),
+// the workplace row and place rows with a known English name are
+// built in code (romanizeName sees bare place names only); every
+// other row (rides, transfers, walks with minutes, crowding,
+// shops) keeps its Korean text for the DOM translator / en-table
+// patterns, exactly as before 29L2. Rows built in code render
+// inside data-no-i18n nodes (see todayStepNoI18n); Korean output
+// keeps the engine text.
 export function todayStepEn(step) {
   const s = step || {};
-  const label = String(s.label || "").trim();
-  if (s.home || (s.kind === "place" && (label === "집" || label === "Home"))) return "Home";
+  const raw = String(s.label ?? "");
+  const label = raw.trim();
+  if (label === "집") return "Home";
   if (s.kind === "place" && /근무\s*$/.test(label)) {
     if (s.dest) return workplaceLabel(s.dest, "en", s.destEn || romanizeName(s.dest));
     return "Work";
   }
+  if (s.kind !== "place") return raw;
   const bare = label.replace(/\s*\([^)]*\)\s*$/, "").replace(/\s*\d+(?:\.\d+)?분\s*$/, "").trim();
   return placeNameEn(bare || label);
+}
+
+// True only when todayStepEn built English in code (the row's node
+// takes data-no-i18n); false leaves the Korean text for the DOM
+// translator.
+export function todayStepNoI18n(step) {
+  const s = step || {};
+  return todayStepEn(s) !== String(s.label ?? "");
 }
