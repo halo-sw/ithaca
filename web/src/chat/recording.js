@@ -32,6 +32,29 @@ export function validateRecording(doc) {
   return { ok: errors.length === 0, errors };
 }
 
+// 36i2: the plan to rebuild a replay's 3D run in the browser. The last
+// done simulation card carries the run's id, labels, names and money
+// doc; doc.scenario (with its seed) re-runs the deterministic worker.
+export function replayRunPlan(doc) {
+  if (!doc || typeof doc !== "object") return null;
+  if (!doc.scenario || typeof doc.scenario !== "object") return null;
+  const messages = Array.isArray(doc.messages) ? doc.messages : null;
+  if (!messages) return null;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    const data = m && m.kind === "simulation" ? m.data : null;
+    if (!data || data.status !== "done" || !data.customId) continue;
+    const { customId, labels, names, moneyDoc, moneyMissing } = data;
+    if (typeof customId !== "string" || !customId) return null;
+    if (!Array.isArray(labels) || labels.length === 0) return null;
+    if (!names || typeof names !== "object") return null;
+    if (!moneyDoc || typeof moneyDoc !== "object") return null;
+    if (typeof moneyMissing !== "string") return null;
+    return { customId, scenario: doc.scenario, labels, names, moneyDoc, moneyMissing };
+  }
+  return null;
+}
+
 export function replaySchedule(messages) {
   const list = Array.isArray(messages) ? messages : [];
   return list.map((m, index) => {

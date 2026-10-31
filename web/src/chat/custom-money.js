@@ -409,11 +409,12 @@ export function verifyHomeFor(moneyDoc, label) {
     if (!Number.isFinite(entry.rent_usd_month)) return {};
     return { monthly_won: entry.rent_usd_month, currency: "USD" };
   }
-  const tenure = moneyDoc.default_tenure ? moneyDoc.default_tenure[label] : null;
-  if (!tenure) return {};
-  const monthly = entry.by_tenure?.[tenure]?.housing?.monthly_won;
+  const tenureWord = moneyDoc.default_tenure ? moneyDoc.default_tenure[label] : null;
+  if (!tenureWord) return {};
+  const monthly = entry.by_tenure?.[tenureWord]?.housing?.monthly_won;
   if (!Number.isFinite(monthly)) return {};
-  const out = { monthly_won: monthly };
+  const tenureKey = { 매매: "trade", 전세: "jeonse", 월세: "wolse", 공공임대: "public" }[tenureWord] || tenureWord;
+  const out = { monthly_won: monthly, tenure: tenureKey };
   const maint = moneyDoc.assumptions?.maintenance_won_month;
   if (Number.isFinite(maint)) out.maintenance_won_month = maint;
   return out;

@@ -222,7 +222,7 @@ describe("no-score guard", () => {
     assert.equal(out.ok, true);
     assert.equal(out.fallback, true);
     assert.equal(out.guardCause, "score_verdict");
-    assert.match(out.reply, /도구 결과의 수치만/);
+    assert.match(out.reply, /도구가 낸 수치만/);
     assert.match(out.reply, /발생 30건/);
     assert.equal(scoreVerdict(out.reply), null); // the fallback itself passes
   });

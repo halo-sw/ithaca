@@ -176,10 +176,52 @@ export function reportDigest({ runs, labels, homes, persona, groundTruth, names 
           const v = engineValue(it.id, runs[label],
             { home: homes[label] });
           if (it.id === "C02" && v && typeof v === "object") {
-            const usd = homes[label] && homes[label].currency === "USD";
-            values[label] = { ...v,
-              meaning_ko: usd ? "ZIP 평균 월세(Zillow), 관리비 없음" : "월세·관리비를 더한 한 달 금액",
-              meaning_en: usd ? "typical monthly rent for the ZIP (Zillow), no fees" : "rent plus maintenance for one month" };
+            const home = homes[label] || {};
+            const usd = home.currency === "USD";
+            const tenure = home.tenure;
+            let meaning_ko;
+            let meaning_en;
+            if (usd) {
+              meaning_ko = "ZIP 평균 월세(Zillow), 관리비 없음";
+              meaning_en = "typical monthly rent for the ZIP (Zillow), no fees";
+            } else if (tenure === "trade") {
+              const parts_ko = [];
+              const parts_en = [];
+              if (Number.isFinite(home.monthly_won)) { parts_ko.push("대출 상환"); parts_en.push("loan payment"); }
+              if (Number.isFinite(home.maintenance_won_month)) { parts_ko.push("관리비"); parts_en.push("maintenance"); }
+              if (Number.isFinite(home.utilities_won_month)) { parts_ko.push("공과금"); parts_en.push("utilities"); }
+              const last = parts_ko[parts_ko.length - 1];
+              const particle = (last === "공과금" || last === "대출 상환") ? "을" : "를";
+              meaning_ko = parts_ko.length ? `${parts_ko.join("·")}${particle} 더한 한 달 금액` : "집에 드는 한 달 금액";
+              meaning_en = parts_en.length ? `${parts_en.join(" plus ")} for one month` : "monthly housing cost";
+            } else if (tenure === "jeonse") {
+              const parts_ko = [];
+              const parts_en = [];
+              if (Number.isFinite(home.maintenance_won_month)) { parts_ko.push("관리비"); parts_en.push("maintenance"); }
+              if (Number.isFinite(home.utilities_won_month)) { parts_ko.push("공과금"); parts_en.push("utilities"); }
+              const last = parts_ko[parts_ko.length - 1];
+              const particle = (last === "공과금" || last === "대출 상환") ? "을" : "를";
+              meaning_ko = parts_ko.length ? `${parts_ko.join("·")}${particle} 더한 한 달 금액 (전세는 월세 없음)` : "집에 드는 한 달 금액 (전세는 월세 없음)";
+              meaning_en = parts_en.length ? `${parts_en.join(" plus ")} for one month (jeonse has no rent)` : "monthly housing cost (jeonse has no rent)";
+            } else if (tenure === "wolse" || tenure === "public") {
+              const parts_ko = [];
+              const parts_en = [];
+              if (Number.isFinite(home.monthly_won)) { parts_ko.push("월세"); parts_en.push("rent"); }
+              if (Number.isFinite(home.maintenance_won_month)) { parts_ko.push("관리비"); parts_en.push("maintenance"); }
+              if (Number.isFinite(home.utilities_won_month)) { parts_ko.push("공과금"); parts_en.push("utilities"); }
+              const last = parts_ko[parts_ko.length - 1];
+              const particle = (last === "공과금" || last === "대출 상환") ? "을" : "를";
+              meaning_ko = parts_ko.length ? `${parts_ko.join("·")}${particle} 더한 한 달 금액` : "집에 드는 한 달 금액";
+              meaning_en = parts_en.length ? `${parts_en.join(" plus ")} for one month` : "monthly housing cost";
+            } else {
+              const parts_ko = [];
+              const parts_en = [];
+              if (Number.isFinite(home.maintenance_won_month)) { parts_ko.push("관리비"); parts_en.push("maintenance"); }
+              if (Number.isFinite(home.utilities_won_month)) { parts_ko.push("공과금"); parts_en.push("utilities"); }
+              meaning_ko = parts_ko.length ? `집에 드는 한 달 금액 (${parts_ko.join("·")} 포함)` : "집에 드는 한 달 금액";
+              meaning_en = parts_en.length ? `monthly housing cost incl. ${parts_en.join(" plus ")}` : "monthly housing cost";
+            }
+            values[label] = { ...v, meaning_ko, meaning_en };
           } else {
             values[label] = v;
           }

@@ -37,7 +37,7 @@
       "id": "C02",
       "priority": "must",
       "verify": "deterministic",
-      "label_ko": "월 주거비 총액 (월세·관리비·공과금)",
+      "label_ko": "월 주거비 총액 (월세 또는 대출 상환·관리비·공과금)",
       "label_en": "Total monthly housing cost",
       "data_field": "listing.monthly_total",
       "rule": "report value equals rent + maintenance + estimated utilities",

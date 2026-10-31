@@ -654,6 +654,20 @@ export async function runTurn(opts) {
       // numbers-only text (which would read "수치가 없어요").
       const fallback = actionConfirmation(toolResults, { names: session.lastCandidateNames })
         ?? numbersOnlyAnswer(toolResults, { userText: lastUserText(messages) });
+      if (isEnglish) {
+        // 36i: English mode never shows the Korean fallback.
+        const enFallback = await englishFallback(fallback);
+        if (enFallback) {
+          appended.push({ role: "assistant", content: enFallback.text });
+          return finish({ reply: enFallback.text, suggestions: enFallback.suggestions,
+            guardRetries: 1, fallback: false });
+        }
+        const fixedEn = numbersOnlyAnswer(
+          toolResults, { userText: lastUserText(messages), lang: "en" });
+        appended.push({ role: "assistant", content: fixedEn });
+        return finish({ reply: fixedEn, suggestions: [],
+          guardRetries: 1, fallback: true, guardCause: checked2.cause });
+      }
       const enFallback = await englishFallback(fallback);
       if (enFallback) {
         appended.push({ role: "assistant", content: enFallback.text });
@@ -667,7 +681,21 @@ export async function runTurn(opts) {
     if (rounds > MAX_TOOL_ROUNDS) {
       const actionFallback = actionConfirmation(toolResults, { names: session.lastCandidateNames });
       const fallback = actionFallback
-        ?? `도구 호출이 ${MAX_TOOL_ROUNDS}라운드를 넘었다.\n${numbersOnlyAnswer(toolResults, { userText: lastUserText(messages) })}`;
+        ?? `확인할 게 많아서 여기서 멈췄어요.\n${numbersOnlyAnswer(toolResults, { userText: lastUserText(messages) })}`;
+      if (isEnglish) {
+        // 36i: English mode never shows the Korean fallback.
+        const enFallback = await englishFallback(fallback);
+        if (enFallback) {
+          appended.push({ role: "assistant", content: enFallback.text });
+          return finish({ reply: enFallback.text, suggestions: enFallback.suggestions,
+            guardRetries: 0, fallback: false });
+        }
+        const fixedEn = numbersOnlyAnswer(
+          toolResults, { userText: lastUserText(messages), lang: "en" });
+        appended.push({ role: "assistant", content: fixedEn });
+        return finish({ reply: fixedEn, suggestions: [],
+          guardRetries: 0, fallback: true, guardCause: "too_many_rounds" });
+      }
       // 29a7: a final answer in English mode gets the English retry too.
       const enFallback = await englishFallback(fallback);
       if (enFallback) {

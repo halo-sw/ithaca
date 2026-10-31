@@ -147,7 +147,7 @@ describe("26t deterministic text stays translatable", () => {
     const msg = numbersOnlyAnswer([
       { places: [{ name: "슈퍼", minutes: 5, distance_m: 300 }] },
     ]);
-    assert.ok(msg.includes("도구 결과의 수치만"), msg);
+    assert.ok(msg.includes("도구가 낸 수치만"), msg);
     const html = renderToString(React.createElement(AssistantMsg,
       { msg: { role: "assistant", content: msg }, toolRows: {}, lang: "en" }));
     assert.ok(!html.includes("data-no-i18n"), html);

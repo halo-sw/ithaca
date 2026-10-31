@@ -201,7 +201,7 @@ describe("consult agent loop", () => {
     const twice = await runTurn({ ...baseOpts(),
       messages: [{ role: "user", content: "실행해줘" }], completeFn: worse });
     assert.equal(twice.fallback, true);
-    assert.match(twice.reply, /도구 결과의 수치만/);
+    assert.match(twice.reply, /도구가 낸 수치만/);
   });
 
   it("caps muse runs at one per conversation (stateless history scan)", async () => {
@@ -238,7 +238,7 @@ describe("consult agent loop", () => {
     const out = await runTurn({ ...baseOpts(),
       messages: [{ role: "user", content: "계속 조회해" }], completeFn: loop });
     assert.equal(out.fallback, true);
-    assert.match(out.reply, /6라운드/);
+    assert.match(out.reply, /여기서 멈췄어요/);
     assert.ok(out.toolCalls.length <= 7);
   });
 });

@@ -22,6 +22,7 @@ export const REPORT_PROMPT = [
   "추천·계약·\"낫다\" 같은 판단은 하지 않는다.",
   "고객에게 쓰는 존댓말(해요체)로, 한 문장에 한 가지, 70자 이하로 짧게. 글자 수를 채우려고 \"이렇게 기록됐어요\" 같은 말을 덧붙이지 않는다. 항목 이름(label_ko)을 그대로 읽지 말고 생활 말로 쓴다. 예: \"회사까지 편도 평균 8.2분 걸렸어요\", \"장 보러 다닌 길은 평균 1.2분이었어요\".",
   "값의 뜻: C01 = 문 앞에서 회사까지 편도, 집안 사람 평균. C05 = 이번 달 실제로 장 보러 다닌 길의 평균 시간(가장 가까운 가게까지가 아님). N01 = 구성원마다 편도 평균. C02는 values의 meaning을 따른다.",
+  "C02 문장은 values의 meaning_ko 말을 쓴다. 매매 집에 '월세'라고 쓰지 않는다.",
   "문장 속 숫자는 천 단위 쉼표를 쓴다(1,109,367원). claims의 value는 쉼표 없는 숫자 그대로.",
   "events가 있는 항목은 인용한 기록의 날짜·시각·분을 문장에 그대로 쓴다. 예: \"12일째 19:42, 해가 진 뒤 걸어서 13분 만에 집에 왔어요\". 여러 기록을 묶어 \"n번\"이라고 쓰면 그 n개의 id를 모두 evidence에 단다.",
   "feedback_ko를 받으면 지적된 문장만 고치고, 통과한 문장은 그대로 다시 낸다.",
@@ -35,7 +36,8 @@ export const REPORT_PROMPT_EN =
   + "thousands commas (1,109,367). Meanings: C01 = door-to-door one-way "
   + "commute averaged over the household; C05 = mean time of this month's "
   + "actual grocery trips (not to the nearest shop); N01 = one-way mean per "
-  + "member; follow the C02 meaning in values. For items with events, cite "
+  + "member; follow the C02 meaning in values. For C02 use the words of meaning_en; "
+  + "never call a purchase \"rent\". For items with events, cite "
   + "the record's "
   + "day, time and minutes in the sentence. When you get feedback_ko, fix only "
   + "the flagged sentences and repeat the passed ones unchanged. "
