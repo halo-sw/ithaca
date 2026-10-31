@@ -17,7 +17,7 @@
 // live agent (dev key) answers free questions; its recognised tool
 // results render as the same cards. No-key recorded replies
 // (?ask=…) carry over with the 기록된 답변 badge.
-import { Component, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Component, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { AppShell } from "@astryxdesign/core/AppShell";
 import { Banner } from "@astryxdesign/core/Banner";
 import { Button } from "@astryxdesign/core/Button";
@@ -487,6 +487,9 @@ export function CandidatesCard({ data, tenure, sort, onSort, onOpenWork, picks, 
   const shared = sharedZipRent(candidates, tenure);
   // 13: one photo per card at most — dedup across the whole list.
   const withPhotos = selectPhotosForList(candidates, photoDeps || {});
+  // 36d: street photos resolve per row — one shared per-list set of
+  // shown photo keys so two cards never show the same Mapillary photo.
+  const usedStreetKeys = useMemo(() => new Set(), [data]);
   return (
     <Card padding={4}>
       <VStack gap={3}>
@@ -542,6 +545,7 @@ export function CandidatesCard({ data, tenure, sort, onSort, onOpenWork, picks, 
                 onMouseLeave={() => onHover && onHover(null)}>
                 <CandidateCard candidate={c} tenure={tenure} destName={destName}
                   variant="row" photos={photos} index={i} picked={pickIdx >= 0}
+                  usedPhotoKeys={usedStreetKeys}
                   sharedRent={!!shared}
                   pickLetter={pickIdx >= 0 ? (PICK_LETTERS[pickIdx] || null) : null}
                   highlighted={highlightId === `home:${c.id}`}

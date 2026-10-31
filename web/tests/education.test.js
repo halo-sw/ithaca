@@ -168,7 +168,7 @@ describe("education access", () => {
     };
     const cases = [
       ["songpa-jamsil", "레이크팰리스", "송전초등학교", 88.26],
-      ["pangyo", "백현마을", "화랑초등학교", 446.01],
+      ["pangyo", "백현마을", "화랑초등학교", 1048.66],
     ];
     for (const [areaId, complex, nearestSchool, distM] of cases) {
       const area = load(areaId);

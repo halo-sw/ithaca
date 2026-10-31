@@ -435,10 +435,13 @@ export function guardProfileValues(fields, text) {
   return errors;
 }
 
-function nearMoney(text, anchorRe, monies, window = 14) {
+function nearMoney(text, anchorRe, monies, window = 14, boundedBefore = false) {
   // Money mention closest AFTER the anchor word (Korean word order:
   // "연봉 4천", "모은 돈 5천"); a mention just before the anchor
-  // ("2억 이하 전세") counts only when nothing follows it.
+  // ("2억 이하 전세") counts only when nothing follows it — unless
+  // boundedBefore: money just before the anchor with 이하|까지|안쪽|미만
+  // between (gap of 6 characters or less, e.g. "10억 이하 매매") beats
+  // money after the anchor (36d: the cap reads in either order).
   const m = anchorRe.exec(text);
   if (!m) return null;
   const at = m.index;
@@ -465,8 +468,12 @@ function nearMoney(text, anchorRe, monies, window = 14) {
     }
     if (idx < 0 || dist > window) continue;
     // After-anchor beats before-anchor at any distance.
-    const after = idx >= end ? 0 : 1;
-    const key = after * 10000 + dist;
+    let tier = idx >= end ? 0 : 1;
+    if (boundedBefore && idx < at) {
+      const between = text.slice(idx + money.evidence.length, at);
+      if (between.length <= 6 && /(이하|까지|안쪽|미만)/.test(between)) tier = -1;
+    }
+    const key = tier * 10000 + dist;
     if (key < bestDist) {
       bestDist = key;
       best = money;
@@ -510,7 +517,9 @@ export function extract_profile(text, current = null, opts = {}) {
 
   const tenure = findTenure(src);
   const salaryHit = nearMoney(src, /연봉|세전|급여/, krwMonies)
-    || nearMoney(src, /salary|earn|make|income/i, krwMonies, 24)
+    // 36d2: "dual-income" names the household, not a salary — the
+    // English anchor never matches inside a hyphenated compound.
+    || nearMoney(src, /(?<!-)(?:salary|earn|make|income)(?!-)/i, krwMonies, 24)
     || (/(신입|초봉).*?(4천|3천|5천)/.test(src) ? null : null);
   const cashHit = nearMoney(src, /모은\s*돈|모은돈|보유|현금|수중|마련|종잣돈/, krwMonies, 20)
     || nearMoney(src, /savings|saved|cash|in the bank/i, krwMonies, 24);
@@ -518,16 +527,19 @@ export function extract_profile(text, current = null, opts = {}) {
   // never an amount already read as the salary or the savings.
   const claimedWon = new Set(
     [salaryHit, cashHit].filter(Boolean).map((h) => h.won));
+  // 36d: money already read as the salary or the savings never doubles
+  // as a price / deposit / monthly cap — those hits read the rest.
+  const freeMonies = krwMonies.filter((h) => !claimedWon.has(h.won));
   const depositCueHit = nearMoney(src,
     /under|up to|at most|no more than|max(?:imum)?|budget(?: of| is)?/i,
-    krwMonies.filter((h) => !claimedWon.has(h.won)), 12);
-  const depositHit = nearMoney(src, /전세/, krwMonies)
-    || nearMoney(src, /보증금/, krwMonies)
-    || nearMoney(src, /jeonse|deposit/i, krwMonies, 40)
+    freeMonies, 12);
+  const depositHit = nearMoney(src, /전세/, freeMonies)
+    || nearMoney(src, /보증금/, freeMonies)
+    || nearMoney(src, /jeonse|deposit/i, freeMonies, 40)
     || depositCueHit;
-  const monthlyHit = nearMoney(src, /월\s*\d|월세/, krwMonies)
-    || nearMoney(src, /per month|a month|\/month/i, krwMonies, 24)
-    || nearMoney(src, /monthly(?: rent)?|wolse/i, krwMonies, 24)
+  const monthlyHit = nearMoney(src, /월\s*\d|월세/, freeMonies)
+    || nearMoney(src, /per month|a month|\/month/i, freeMonies, 24)
+    || nearMoney(src, /monthly(?: rent)?|wolse/i, freeMonies, 24)
     || (() => {
       // "월 80" (만원) is a won convention — never from dollar text.
       if (dollarMonies.length > 0) return null;
@@ -543,10 +555,10 @@ export function extract_profile(text, current = null, opts = {}) {
     /a month|per month|monthly|\/month|\/\s*mo\b|rent|월세|한\s*달|월/,
     dollarMonies, 24);
   const buyVerbHit = nearMoney(src,
-    /사고 싶어|사고 싶|사려고|살 생각|집을 사|집 사|구매|구입|내 집 마련/, krwMonies);
-  const priceHit = nearMoney(src, /매매|매매가|집값/, krwMonies)
+    /사고 싶어|사고 싶|사려고|살 생각|집을 사|집 사|구매|구입|내 집 마련/, freeMonies, 14, true);
+  const priceHit = nearMoney(src, /매매|매매가|집값/, freeMonies, 14, true)
     || buyVerbHit
-    || nearMoney(src, /buy|purchase|price/i, krwMonies, 24);
+    || nearMoney(src, /buy|purchase|price/i, freeMonies, 24);
   const sizeHit = (() => {
     const m = /(\d+(?:\.\d+)?)\s*(?:㎡|평|제곱)/.exec(src);
     if (m) return { value: Number(m[1]), evidence: m[0] };
@@ -620,7 +632,7 @@ export function extract_profile(text, current = null, opts = {}) {
     // "매매 5억" without the price anchor nearby is still the price
     // when no other money reading consumed it — but only with the
     // 매매 anchor present (guarded by evidence below).
-    const fallback = nearMoney(src, /매매/, krwMonies, 20);
+    const fallback = nearMoney(src, /매매/, freeMonies, 20, true);
     if (fallback) set("priceMax", fallback.won, fallback.evidence, "매매가 상한");
   }
   if (sizeHit && profile.sizeMin.value === null) {

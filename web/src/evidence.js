@@ -63,8 +63,12 @@ function findRide(run, agentKey, day, minute) {
 // split (legs carry the train time, transfers carry walk/wait). Without
 // leg detail the away window itself is the ride time.
 function rideParts(away) {
-  const out = { ride: 0, wait: 0, assumed: [] };
+  // 36d: whether this away's ride minutes come from the schedule
+  // (timetable / interstation derived) rather than an assumption.
+  const out = { ride: 0, wait: 0, assumed: [],
+    schedule: false };
   const d = (away && away.detail) || {};
+  out.schedule = d.ride_minutes_source === "derived";
   const details = [];
   if (d.ride && typeof d.ride === "object") details.push(d.ride);
   else if (d.rides && typeof d.rides === "object") {
@@ -105,6 +109,13 @@ function rideParts(away) {
 // One direction's door-to-door commute for this agent, day and am|pm
 // half: the walk trips plus the ride away(s). The total is defined as
 // the sum of the rounded parts, so the parts always add up.
+// 36d: per-part English labels (the transfer/wait part reads
+// "transfer & wait", matching the Korean 환승·기다림).
+const EN_PART_LABEL = { "걷기": "walking", "자전거": "biking",
+  "지하철": "subway", "환승·기다림": "transfer & wait" };
+function enPartText(label, minutes) {
+  return `${minutes} min ${EN_PART_LABEL[label] || label}`;
+}
 // 26i: a 26d bike trip reads 자전거 and the line is 가정값 (assumed
 // 15 km/h, C-bike-speed) — trips without a mode key stay 걷기/측정.
 export function commuteLines(run, agentKey, current, currentStart, lang = currentLang()) {
@@ -122,27 +133,49 @@ export function commuteLines(run, agentKey, current, currentStart, lang = curren
   let ride = 0;
   let wait = 0;
   const assumed = [];
+  // 36d: one tag per part. Walk is graph-measured; bike and
+  // transfer/wait are assumed; the subway is measured only when every
+  // ride's minutes come from the schedule (ride_minutes_source derived).
+  // The one-line text keeps its wording for one-line screens; parts
+  // carry the per-part tag (and the 환승·기다림 name) for the panel.
+  let allSchedule = rides.length > 0;
   for (const a of rides) {
     const p = rideParts(a);
     ride += p.ride;
     wait += p.wait;
     assumed.push(...p.assumed);
+    if (!p.schedule) allSchedule = false;
   }
   ride = Math.round(ride);
   wait = Math.round(wait);
   const total = walk + bike + ride + wait;
   const dir = half === "am" ? "출근" : "퇴근";
+  const subwayMeasured = ride > 0 && allSchedule;
+  const baseParts = bikeTrips.length === 0 ? [{ label: "걷기", minutes: walk, tag: "측정" }] : [
+    ...(walk > 0 ? [{ label: "걷기", minutes: walk, tag: "측정" }] : []),
+    { label: "자전거", minutes: bike, tag: "가정값" },
+  ];
+  if (ride > 0) {
+    baseParts.push({ label: "지하철", minutes: ride,
+      tag: subwayMeasured ? "측정" : "가정값" });
+  }
+  if (wait > 0) baseParts.push({ label: "환승·기다림", minutes: wait, tag: "가정값" });
+  const withText = (rows) => rows.map((p) => ({ ...p, text: `${p.label} ${p.minutes}분` }));
+  const partRows = withText(baseParts);
   const parts = bikeTrips.length === 0 ? [`걷기 ${walk}분`] : [
     ...(walk > 0 ? [`걷기 ${walk}분`] : []),
     `자전거 ${bike}분`,
   ];
   if (ride > 0) parts.push(`지하철 ${ride}분`);
   if (wait > 0) parts.push(`기다림 ${wait}분`);
-  const tag = bikeTrips.length === 0 ? "측정" : "가정값";
+  const tag = partRows.every((p) => p.tag === "측정") ? "측정" : "가정값";
   // 29L2: English built in code (Today's commute home: …), never glossaried.
   if (lang === "en") {
+    const enParts = partRows.map((p) => ({ ...p,
+      label: EN_PART_LABEL[p.label] || p.label,
+      text: enPartText(p.label, p.minutes) }));
     const lines = [{ text: commuteBreakdownEn({ dir: half === "am" ? "work" : "home",
-      total, walk, bike, subway: ride, wait }), tag }];
+      total, walk, bike, subway: ride, wait }), tag, parts: enParts }];
     const avg = commuteOneWayMinutes(run, agentKey);
     if (Number.isFinite(avg)) {
       const days = (run && run.meta && run.meta.days) || 30;
@@ -156,7 +189,7 @@ export function commuteLines(run, agentKey, current, currentStart, lang = curren
     }
     return lines;
   }
-  const lines = [{ text: `오늘 ${dir} ${total}분 = ${parts.join(" + ")}`, tag }];
+  const lines = [{ text: `오늘 ${dir} ${total}분 = ${parts.join(" + ")}`, tag, parts: partRows }];
   const avg = commuteOneWayMinutes(run, agentKey);
   if (Number.isFinite(avg)) {
     const days = (run && run.meta && run.meta.days) || 30;

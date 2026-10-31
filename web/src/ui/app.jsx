@@ -457,7 +457,13 @@ function SimHero({ state }) {
           <ul className="ui-hero-evidence-list">
             {n.evidence.map((e, i) => (
               <li key={i} className="ui-hero-evidence-line">
-                <span>{e.text}</span>
+                {e.parts ? (
+                  <span>{e.parts.map((p, j) => (
+                    <span key={j}>{j > 0 ? " + " : ""}{p.text}{p.tag && <span className="ui-tag">{p.tag}</span>}</span>
+                  ))}</span>
+                ) : (
+                  <span>{e.text}</span>
+                )}
                 {e.tag && <span className="ui-tag">{e.tag}</span>}
               </li>
             ))}

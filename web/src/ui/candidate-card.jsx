@@ -339,6 +339,40 @@ export function reportListThumbKind(id, kind) {
   }
 }
 
+// 36d: one photo per card. The list key of a street photo (its id, else
+// its url) — photos without either carry no key and never collide.
+export function streetPhotoKey(photo) {
+  if (!photo) return null;
+  const k = photo.id ?? photo.page_url ?? photo.thumb_url ?? photo.url;
+  return k === undefined || k === null || k === "" ? null : String(k);
+}
+
+// 36d: batch photo assignment over one candidate list. Each row offers
+// its photos in preference order (row.photos, else row.streetPhotos);
+// the row takes its first photo no earlier row took, else null — null
+// rows fall through to the silhouette/model thumbnail as when a row has
+// no photo at all. Pure; returns Map(id → photo|null).
+export function assignListPhotos(candidates) {
+  const used = new Set();
+  const out = new Map();
+  for (const row of candidates || []) {
+    const id = row && (row.id ?? (row.candidate && row.candidate.id));
+    const opts = Array.isArray(row && row.photos) ? row.photos
+      : Array.isArray(row && row.streetPhotos) ? row.streetPhotos : [];
+    let pick = null;
+    for (const p of opts) {
+      if (!p) continue;
+      const k = streetPhotoKey(p);
+      if (k !== null && used.has(k)) continue;
+      pick = p;
+      if (k !== null) used.add(k);
+      break;
+    }
+    out.set(id, pick);
+  }
+  return out;
+}
+
 // 32c: the thumbnail kinds actually shown across the list, in row
 // order (hero → street → 3D → silhouette → minimap). Street comes
 // from the store above; the rest is known synchronously.
@@ -690,7 +724,7 @@ function RowEstimateTag({ row }) {
 export function CandidateCard({ candidate, tenure, destName, photos, index,
   onLive, onJeonse, onDetail, picked = false, variant = "row",
   pickLetter = null, highlighted = false, note = "", budgetWon = null,
-  sharedRent = false }) {
+  sharedRent = false, usedPhotoKeys = null }) {
   const [slide, setSlide] = useState(0);
   const [street, setStreet] = useState(null);
   const thumbRef = useRef(null);
@@ -702,6 +736,14 @@ export function CandidateCard({ candidate, tenure, destName, photos, index,
     const load = () => {
       streetPhotoFor(candidate).then((s) => {
         if (!live || !s) return;
+        // 36d: one photo per card — a photo an earlier row of this list
+        // already shows falls through to the silhouette/model thumbnail
+        // as when the row has no street photo at all.
+        const key = streetPhotoKey(s);
+        if (usedPhotoKeys && key !== null) {
+          if (usedPhotoKeys.has(key)) return;
+          usedPhotoKeys.add(key);
+        }
         setStreet(s);
         reportListThumbKind(candidate && candidate.id, "street");
       });

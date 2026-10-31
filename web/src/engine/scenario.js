@@ -494,6 +494,20 @@ function buildingAnchorLonLat(building) {
 // graph node nearest to that point, with the nearest building as the
 // home building. Same determinism rules; the returned anchor says
 // which path was taken (recorded in run.meta.home_anchor).
+// 36d: names that mark a non-dwelling annex (guard booth, management
+// office, shops, parking, machine/electric rooms, senior/child care,
+// community rooms). A real home resolves to a dwelling first.
+const ANNEX_NAME = /경비|관리|상가|주차|기계|전기|경로당|어린이집|노인정|커뮤니티|부속/;
+function dwellingNameOf(b) {
+  const reg = b && b.register;
+  return (reg && reg.sub_name) || (b && b.name) || "";
+}
+function isDwellingBuilding(b) {
+  if (!b) return false;
+  if (ANNEX_NAME.test(dwellingNameOf(b))) return false;
+  if (Number.isFinite(b.levels) && b.levels < 3) return false;
+  return true;
+}
 export function resolveHome(area, home, router) {
   const matches = (area.complexes || [])
     .filter((c) => c.name === home.complex_name)
@@ -501,22 +515,59 @@ export function resolveHome(area, home, router) {
   const byId = new Map((area.buildings || []).map((b) => [b.id, b]));
   if (matches.length > 0) {
     const complex = matches[0];
+    const pool = [...complex.building_ids].sort()
+      .map((bid) => byId.get(bid))
+      .filter((b) => b && b.geometry);
+    const dwellings = pool.filter(isDwellingBuilding);
+    const dwellingFilter = dwellings.length > 0;
+    // 36d2: a dwelling anchored to a stub footpath that serves only
+    // its own island (e.g. 백현마을 702동: 6 nodes, 3 buildings, no
+    // station route) breaks every station commute. Prefer dwellings
+    // whose node walks to at least two distinct other buildings'
+    // nodes — the shared street network, not a private stub. When
+    // none do (or the graph has no walk edges, as in fixtures),
+    // keep today's distance choice.
+    const nodeOf = new Map();
+    for (const b of pool) {
+      const [lon, lat] = buildingAnchorLonLat(b);
+      nodeOf.set(b.id, router.nearestNode(lon, lat).id);
+    }
+    const reachesStreet = (b) => {
+      const from = nodeOf.get(b.id);
+      if (from === null) return false;
+      const seenNodes = new Set();
+      for (const o of pool) {
+        if (o.id === b.id) continue;
+        const to = nodeOf.get(o.id);
+        if (to === null || to === from || seenNodes.has(to)) continue;
+        if (router.route(from, to)) {
+          seenNodes.add(to);
+          if (seenNodes.size >= 2) return true;
+        }
+      }
+      return false;
+    };
+    const connected = dwellings.filter(reachesStreet);
+    const choices = connected.length > 0 ? connected
+      : dwellingFilter ? dwellings : pool;
     let best = null;
-    for (const bid of [...complex.building_ids].sort()) {
-      const b = byId.get(bid);
-      if (!b || !b.geometry) continue;
+    for (const b of choices) {
+      const bid = b.id;
       const [lon, lat] = buildingAnchorLonLat(b);
       const n = router.nearestNode(lon, lat);
       if (n.id === null) continue;
+      const areaM2 = Number.isFinite(b.area_m2) ? b.area_m2 : -1;
       if (best === null || n.distM < best.distM
-          || (n.distM === best.distM && (bid < best.buildingId
-            || (bid === best.buildingId && n.id < best.nodeId)))) {
-        best = { buildingId: bid, nodeId: n.id, distM: n.distM };
+          || (n.distM === best.distM && (areaM2 > best.areaM2
+            || (areaM2 === best.areaM2 && (bid < best.buildingId
+              || (bid === best.buildingId && n.id < best.nodeId)))))) {
+        best = { buildingId: bid, nodeId: n.id, distM: n.distM, areaM2 };
       }
     }
     if (best === null) fail(`home ${home.label}: complex ${JSON.stringify(home.complex_name)} has no graph-anchored building`);
     return { complex, buildingId: best.buildingId, nodeId: best.nodeId,
-      anchor: { method: "complex", complex_name: complex.name } };
+      anchor: { method: "complex", complex_name: complex.name,
+        dwelling_filter: dwellingFilter } };
   }
   if (Number.isFinite(home.lon) && Number.isFinite(home.lat)) {
     const n = router.nearestNode(home.lon, home.lat);
