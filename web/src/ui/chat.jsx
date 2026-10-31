@@ -110,6 +110,7 @@ import { recordedReplyFor } from "./demotour.js";
 import { REGION_NAME_ALIASES } from "../region-names.js";
 import { agentContext, stripToolLabel, toolActionKo, toolActionEn, viewSystemLine } from "./agent-float.js";
 import { LANG, currentLang } from "../i18n/lang.js";
+import { romanizeName } from "../i18n/romanize.js";
 import { translateExact } from "../i18n/translate.js";
 import { sceneActionLabelFor } from "./scene-chrome.js";
 
@@ -3782,9 +3783,24 @@ export function resultReadyFor(messages, picks, candidates) {
   return a.length === b.length && a.every((v, i) => v === b[i]);
 }
 
+// 34a: tray names show one form only. A "Korean (English)" display
+// name splits at the parens (English keeps the paren part, Korean the
+// head); a bare Korean name romanizes in English, anything else shows
+// as-is. The cards keep both forms.
+const TRAY_SPLIT_RE = /^(.*\S)\s*\(([^()]*)\)\s*$/;
+export function trayNameFor(candidate, lang = LANG) {
+  const full = String(displayNameFor(candidate) ?? "");
+  const m = full.match(TRAY_SPLIT_RE);
+  if (m && /[A-Za-z]/.test(m[2]) && !/[가-힣]/.test(m[2])) {
+    return lang === "en" ? m[2].trim() : m[1].trim();
+  }
+  if (lang === "en" && /[가-힣]/.test(full)) return romanizeName(full);
+  return full;
+}
+
 export function PicksTray({ picks, candidates, onRun, onRemove,
   gate, stations, onWorkplaceText, onNoCommute, compact,
-  resultReady, onViewResult }) {
+  resultReady, onViewResult, lang = LANG }) {
   const { picked, canRun, hint } = runReadiness(picks, candidates);
   const [workText, setWorkText] = useState("");
   const [workError, setWorkError] = useState("");
@@ -3838,7 +3854,7 @@ export function PicksTray({ picks, candidates, onRun, onRemove,
     return (
       <div className="ui-picks-compact" role="group" aria-label="고른 집">
         <span className="ui-picks-compact-names">
-          {picked.map((c, i) => `${PICK_LETTERS[i] || "·"} ${displayNameFor(c)}`).join(" · ")}
+          {picked.map((c, i) => `${PICK_LETTERS[i] || "·"} ${trayNameFor(c, lang)}`).join(" · ")}
         </span>
         <span className="ui-picks-compact-sep" aria-hidden="true">—</span>
         <Button label={label} variant={variant} className="ui-picks-run"
@@ -3869,9 +3885,9 @@ export function PicksTray({ picks, candidates, onRun, onRemove,
                 data-home={/^[AB]$/.test(PICK_LETTERS[i] || "") ? PICK_LETTERS[i] : undefined}>
                 {PICK_LETTERS[i] || "·"}
               </span>
-              <span className="ui-pick-name"><HomeName name={displayNameFor(c)} /></span>
+              <span className="ui-pick-name"><HomeName name={trayNameFor(c, lang)} lang={lang} /></span>
               <button type="button" className="ui-pick-x"
-                aria-label={`${displayNameFor(c)} 빼기`}
+                aria-label={`${trayNameFor(c, lang)} 빼기`}
                 onClick={() => onRemove && onRemove(c)}>×</button>
             </span>
           ))}
@@ -3915,7 +3931,7 @@ export function SidePanel({ picks, candidatesData, detail, onCloseDetail,
   return (
     <aside className="ui-side-panel" aria-label="상세 패널">
       <HStack gap={1} vAlign="center">
-        <Heading level={4}>{detail ? "자세히" : "비교"}</Heading>
+        <Heading level={4}>{detail ? "자세히" : "30일 생활 비교"}</Heading>
         <span className="ui-panel-spacer" />
         <Button size="sm" variant="ghost" label="닫기"
           onClick={() => {
@@ -3930,7 +3946,7 @@ export function SidePanel({ picks, candidatesData, detail, onCloseDetail,
           onJeonse={() => onJeonse && onJeonse(detail)} onDetail={null} />
       )}
       {state.compareOpen && (
-        <CompareCard state={state} />
+        <CompareCard state={state} bare />
       )}
     </aside>
   );

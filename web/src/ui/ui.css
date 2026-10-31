@@ -1063,8 +1063,9 @@ body.printing-share #share-print { display: block !important; padding: var(--ui-
   box-shadow: var(--ui-shadow); padding: 12px 16px; }
 .ui-picks-tray-row { display: flex; align-items: center; gap: var(--ui-s12); }
 .ui-picks-tray-chips { display: flex; gap: var(--ui-s8); flex: 1 1 0;
-  min-width: 0; overflow-x: auto; }
-.ui-pick-chip { display: flex; align-items: center; gap: var(--ds-s-8); min-width: 0; flex: none; }
+  min-width: 0; overflow-x: visible; flex-wrap: wrap; }
+.ui-pick-chip { display: flex; align-items: center; gap: var(--ds-s-8);
+  min-width: 0; max-width: 100%; flex: 0 1 auto; }
 .ui-pick-disc { width: 22px; height: 22px; border-radius: 50%; flex: none;
   background: var(--ui-ink); color: #fff;
   display: inline-flex; align-items: center; justify-content: center;
@@ -1182,6 +1183,16 @@ body.printing-share #share-print { display: block !important; padding: var(--ui-
   display: flex; flex-direction: column; gap: var(--ui-s12);
   background: var(--ui-card); border-radius: var(--ui-r-sheet);
   box-shadow: var(--ui-shadow); padding: var(--ui-s12); overflow-y: auto; }
+/* 34a: compare in the side panel is the in-flow (bare) card — it fills
+   the panel width, never paints outside it, and its rows stack the
+   label above the A/B values so the value column never squeezes to
+   one letter. Words wrap whole (keep-all); nothing sets break-all. */
+.ui-side-panel > * { min-width: 0; }
+.ui-compare-bare { min-width: 0; max-width: 100%; }
+.ui-compare-bare > * { min-width: 0; max-width: 100%; }
+.ui-cmp-ab { display: flex; flex-wrap: wrap; gap: var(--ui-s8); min-width: 0; }
+.ui-cmp-ab > * { flex: 1 1 120px; min-width: 0;
+  overflow-wrap: break-word; word-break: keep-all; }
 .ui-token { font-size: var(--ui-t12); white-space: nowrap; color: var(--ui-ink2); }
 @media (max-width: 900px) {
   .ui-chat-stage { display: none; }
