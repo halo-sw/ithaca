@@ -1,6 +1,7 @@
 import { SEATED_PCT } from "./journey.js";
 import { householdKeys, awayEvidence } from "./moments.js";
 import { hhmm } from "../timeline.js";
+import { usStationDisplay } from "../region-names.js";
 
 const ASSUMED_SOURCE = "가정값";
 const LATE_MIN = 1320;
@@ -305,7 +306,9 @@ function fmtDist(m) {
 
 function stationName(from) {
   if (!from) return "역";
-  return from.endsWith("역") ? from : `${from}역`;
+  // 29N3j: a raw US station name reads like the map (팔로알토역).
+  const disp = usStationDisplay(from, "ko");
+  return disp.endsWith("역") ? disp : `${disp}역`;
 }
 
 function darkPart(side, label) {

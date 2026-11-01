@@ -91,6 +91,17 @@ const seedPhrases = {
   "Meta HQ까지 가까운 순": "Closest to Meta HQ",
   "월세 낮은 순": "Lowest rent",
   "미국 1곳: Menlo Park · Meta HQ (자전거·도보, Zillow 월세 추정)": "US, 1 area: Menlo Park · Meta HQ (bike/walk, Zillow rent estimate)",
+  // 29N3j: US Caltrain station labels — the after-dark line names the
+  // normalized Korean station, so the capture translates back to English
+  // ("레드우드시티역에서" -> "from Redwood City Station").
+  "벨헤이븐": "Belle Haven",
+  "샌프란시스코": "San Francisco",
+  "벨몬트": "Belmont",
+  "샌카를로스": "San Carlos",
+  "레드우드시티": "Redwood City",
+  "팔로알토": "Palo Alto",
+  "마운틴뷰": "Mountain View",
+  "서니베일": "Sunnyvale",
   "자전거 속도": "Bike speed",
   "자전거 통근 상한": "Bike commute limit",
   // 26n-26p: aerial thumbnails, phone pane toggle, US source name.

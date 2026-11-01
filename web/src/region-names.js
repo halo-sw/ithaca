@@ -59,6 +59,40 @@ export function usStationKoName(name) {
   return null;
 }
 
+// 29N3j: normalise a raw US station name to its Caltrain station label
+// ("Redwood City Transit Center" -> "레드우드시티" / "Redwood City").
+// Korean names pass through untouched; unknown names pass through unchanged.
+export function usStationDisplay(name, lang) {
+  const raw = String(name ?? "");
+  const s = raw.trim();
+  if (!s) return s;
+  if (/[가-힣]/.test(s)) return s;
+  let n = s.replace(/^Downtown\s+/i, "");
+  let prev;
+  do {
+    prev = n;
+    n = n
+      .replace(/\s+Caltrain\s+Station\s*$/i, "")
+      .replace(/\s+Transit\s+Center\s*$/i, "")
+      .replace(/\s+Caltrain\s*$/i, "")
+      .replace(/\s+Station\s*$/i, "")
+      .replace(/\s+(Platform|Track|Stop|Lane)\s*\d*\s*$/i, "");
+  } while (n !== prev);
+  n = n.trim();
+  if (!n) return s;
+  const low = n.toLowerCase();
+  if (
+    low === "caltrain" || low === "4th & king" || low === "4th and king"
+    || low === "2nd & king" || low === "2nd and king"
+  ) {
+    return lang === "en" ? "San Francisco" : "샌프란시스코";
+  }
+  for (const e of Object.values(US_AREA_LABELS)) {
+    if (e.en.toLowerCase() === low) return lang === "en" ? e.en : e.ko;
+  }
+  return s;
+}
+
 const PLACE_TO_REGION = { pangyo: "bundang", jeongja: "bundang", migeum: "bundang" };
 
 export function regionsForNames(names) {

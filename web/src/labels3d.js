@@ -9,7 +9,7 @@
 import { displayNameFor } from "./homes.js";
 import { haversineM } from "./frame.js";
 import { placeNameEn } from "./ui/scene-chrome.js";
-import { usStationKoName } from "./region-names.js";
+import { usStationDisplay } from "./region-names.js";
 
 export const OVERVIEW_MIN_M = 400;
 export const DONG_MAX_M = 250;
@@ -537,12 +537,13 @@ export function isCaltrainStation(trip, aways, run) {
 export function stationRideLabel(base, lang = "ko", opts = {}) {
   const b = String(base || "");
   if (opts.caltrain) {
+    // 29N3j: raw US station names read like the Caltrain station.
     if (lang === "en") {
       const stem = b.endsWith("역") ? b.slice(0, -1) : b;
-      return `${placeNameEn(stem)} Stn · Caltrain`;
+      return `${placeNameEn(usStationDisplay(stem, "en"))} Stn · Caltrain`;
     }
     // 29N3i: US stations take their Korean name on the Korean screen.
-    return `${stationNameFor(usStationKoName(b) || b)} · 칼트레인`;
+    return `${stationNameFor(usStationDisplay(b, "ko"))} · 칼트레인`;
   }
   if (lang === "en") {
     const stem = b.endsWith("역") ? b.slice(0, -1) : b;

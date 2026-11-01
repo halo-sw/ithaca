@@ -10,7 +10,7 @@
 
 import { findPath, normalizeStation } from "./engine/journey.js";
 import { romanizeName } from "./i18n/romanize.js";
-import { usStationKoName } from "./region-names.js";
+import { usStationDisplay } from "./region-names.js";
 import { usAreaLabel } from "./region-names.js";
 import { fmtMoney, fmtWonEn } from "./money/currency.js";
 
@@ -1012,12 +1012,11 @@ export function layoutStationLabels(stations, W, H, boxes = []) {
 // basemap's own label instead of doubling it. Names that already
 // carry the suffix are left alone.
 export function stationLabelName(name, lang) {
-  const raw = String(name ?? "").trim();
+  // 29N3j: raw US station names read like the Caltrain station everywhere.
+  const raw = usStationDisplay(String(name ?? "").trim(), lang === "en" ? "en" : "ko");
   const ko = raw.endsWith("역") ? raw : `${raw}역`;
   if (lang === "en") return romanizeName(ko);
   // 29N3i: US stations print their Korean name on the Korean screen.
-  const usKo = usStationKoName(raw);
-  if (usKo) return usKo.endsWith("역") ? usKo : `${usKo}역`;
   return ko;
 }
 
