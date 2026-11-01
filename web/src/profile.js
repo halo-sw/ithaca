@@ -1268,6 +1268,10 @@ export function scenarioFromProfile(profile, homes, opts = {}) {
       complexName = complexNameForHome(home, areas.get(home.scene)) || home.name;
     }
     const out = { label, area: home.scene, complex_name: complexName };
+    if (home.address && typeof home.address === "object"
+      && typeof home.address.road === "string" && home.address.road) {
+      out.address = { road: home.address.road, sigungu: home.address.sigungu || "" };
+    }
     // 12b: footprint centroid for the coordinate anchor (officetels
     // and villas often form no named complex in the scene).
     if (Number.isFinite(home.lon) && Number.isFinite(home.lat)) {

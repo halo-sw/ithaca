@@ -1771,15 +1771,18 @@ async function bootSim() {
         `border-radius:999px;box-shadow:0 1px 2px rgba(0,0,0,.2);padding:3px 10px;` +
         `font-size:${item.level === "complex" ? "12px" : "12px"};font-weight:600;` +
         `white-space:nowrap;` +
-        (item.level === "complex" && item.sub
+        ((item.level === "complex" || (item.accent
+          && typeof item.id === "string" && item.id.startsWith("home:"))) && item.sub
           ? "text-align:center;line-height:1.25;"
           : ""));
       const main = document.createElement("div");
       main.textContent = item.title;
       el.append(main);
-      if (item.level === "complex" && item.sub) {
+      if ((item.level === "complex" || (item.accent
+          && typeof item.id === "string" && item.id.startsWith("home:"))) && item.sub) {
         const sub = document.createElement("div");
-        sub.textContent = item.sub;
+        sub.textContent = currentLang() === "en" ? (item.subEn || item.sub) : item.sub;
+        if (currentLang() === "en") sub.setAttribute("data-no-i18n", "");
         sub.setAttribute("style", `font-size:10px;font-weight:400;color:${accent ? "#dbe6ff" : "#8a93a3"};`);
         el.append(sub);
       }
@@ -1802,6 +1805,7 @@ async function bootSim() {
       const items = labelItemsFor(area, {
         homeBuildingId: hiState.homeBuildingId || null,
         homeName: (homeEntry && homeEntry.complex_name) || (run.meta && run.meta.complex) || null,
+        homeCandidate: homeEntry && homeEntry.address ? { address: homeEntry.address } : null,
         destination: hiState.destLabel
           ? { label: hiState.destLabel, lonlat: destLonLat || undefined }
           : null,
@@ -1825,9 +1829,13 @@ async function bootSim() {
         if (sx < rect.left || sy < rect.top || sx > rect.left + rect.width || sy > rect.top + rect.height) continue;
         // 29L6: the box matches the painted string — on English the
         // romanised title (2-3x wider than the Korean), sub included.
+        const homeSub = item.accent && typeof item.id === "string"
+          && item.id.startsWith("home:") && item.sub;
+        const sub = item.level === "complex" ? item.sub : (homeSub ? item.sub : "");
+        const subEn = item.level === "complex" ? item.subEn : (homeSub ? item.subEn : "");
         const w = labelBoxW(item.title, currentLang(),
-          { sub: item.level === "complex" ? item.sub : "", glyph: item.glyph });
-        const h = item.level === "complex" && item.sub ? 36 : 22;
+          { sub, subEn, glyph: item.glyph });
+        const h = (item.level === "complex" || homeSub) && item.sub ? 36 : 22;
         projected.push({ ...item, x: sx - rect.left - w / 2, y: sy - rect.top - h, w, h,
           _sx: sx - wrap.left, _sy: sy - wrap.top,
           _ox: rect.left - wrap.left, _oy: rect.top - wrap.top });
