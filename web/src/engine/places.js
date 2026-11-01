@@ -15,6 +15,8 @@ export const STATION_CATS = new Set(["railway:station", "railway:subway_station"
 export const SCHOOL_CAT = "amenity:school";
 export const SHOP_CATS = { supermarket: "shop:supermarket", convenience: "shop:convenience" };
 export const CLINIC_CATS = new Set(["amenity:clinic", "amenity:pharmacy", "amenity:doctors", "amenity:dentist"]);
+export const CAFE_CATS = new Set(["amenity:cafe", "amenity:library", "office:coworking", "amenity:coworking_space"]);
+export const VET_CATS = new Set(["amenity:veterinary"]);
 export const PARK_CAT = "leisure:park";
 export const EATERY_CATS = new Set(["amenity:restaurant", "amenity:cafe", "amenity:fast_food"]);
 export const MAX_ANCHOR_M = 500; // same reach rule as the tour planner
@@ -48,6 +50,8 @@ export function buildPlaces(area, router) {
   const clinics = [];
   const parks = [];
   const eateries = [];
+  const cafes = [];
+  const vets = [];
   const education = [];
   const byName = new Map(); // name -> [{place}]
   const pushName = (place) => {
@@ -67,6 +71,8 @@ export function buildPlaces(area, router) {
     if (CLINIC_CATS.has(poi.category)) clinics.push(place);
     if (poi.category === PARK_CAT) parks.push(place);
     if (EATERY_CATS.has(poi.category)) eateries.push(place);
+    if (CAFE_CATS.has(poi.category)) cafes.push(place);
+    if (VET_CATS.has(poi.category)) vets.push(place);
     const edu = classifyEducation(place);
     if (edu) education.push({ place, bucket: edu.bucket, level: edu.level });
   }
@@ -90,6 +96,8 @@ export function buildPlaces(area, router) {
     clinics: sortPlaces(clinics),
     parks: sortPlaces(parks),
     eateries: sortPlaces(eateries),
+    cafes: sortPlaces(cafes),
+    vets: sortPlaces(vets),
     education: education.sort((a, b) => (a.place.id < b.place.id ? -1 : 1)),
     byName,
   };

@@ -94,6 +94,10 @@ function backgroundRoutine(rng, flat) {
     },
     park_walks_per_week: intBelow(rng, flat.bg_park_max + 1),
     clinic_visits_per_month: intBelow(rng, flat.bg_clinic_max + 1),
+    cafe_visits_per_week: 0,
+    vet_visits_per_month: 0,
+    home_office: false,
+    dog_walk_morning: false,
   };
 }
 
@@ -116,6 +120,10 @@ export function buildAgents(area, scenario, home, homeNode, router, flat = null)
       errands_per_week: m.errands_per_week,
       park_walks_per_week: m.park_walks_per_week,
       clinic_visits_per_month: m.clinic_visits_per_month,
+      cafe_visits_per_week: m.cafe_visits_per_week,
+      vet_visits_per_month: m.vet_visits_per_month,
+      home_office: m.home_office,
+      dog_walk_morning: m.dog_walk_morning,
       speed: speedOf(m.role, F),
     });
   });
@@ -148,6 +156,10 @@ export function buildAgents(area, scenario, home, homeNode, router, flat = null)
         errands_per_week: routine.errands_per_week,
         park_walks_per_week: routine.park_walks_per_week,
         clinic_visits_per_month: routine.clinic_visits_per_month,
+        cafe_visits_per_week: routine.cafe_visits_per_week,
+        vet_visits_per_month: routine.vet_visits_per_month,
+        home_office: routine.home_office,
+        dog_walk_morning: routine.dog_walk_morning,
         speed: speedOf(routine.role, F),
       });
     }
@@ -168,8 +180,9 @@ export const WEEKEND_WISH_KEYS = ["park", "supermarket", "convenience", "clinic"
 // Home-independent draws therefore cannot drift between homes A and B:
 // the same (seed, agent) always sees the same errand days, park days,
 // jitter and wishes, whatever the routes look like. Returns {errands:
-// {cat: Set(days)}, parkDays: Set, clinicDays: Set, departJitter:
-// [mins], weekendWishes: Map(day -> wish key)}.
+// {cat: Set(days)}, parkDays: Set, clinicDays: Set, vetDays: Set,
+// cafeDays: Set, departJitter: [mins], weekendWishes: Map(day ->
+// wish key)}.
 export function planSchedule(agent, scenario, flat = null) {
   const F = flat || resolveCriteria(scenario).flat;
   const seed = scenario.seed;
@@ -199,6 +212,30 @@ export function planSchedule(agent, scenario, flat = null) {
   const allDays = Array.from({ length: days }, (_, d) => d);
   const rngClinic = streamFor(seed, `${key}:clinic`);
   for (const d of shuffled(rngClinic, allDays).slice(0, kc)) clinicDays.add(d);
+  const vetDays = new Set();
+  const kv = Math.min(days, agent.vet_visits_per_month || 0);
+  const rngVet = streamFor(seed, `${key}:vet`);
+  for (const d of shuffled(rngVet, allDays).slice(0, kv)) vetDays.add(d);
+  // Café days: per week, the first cafe_visits_per_week Mon–Fri days
+  // the member does not commute (a home_office workday is a home day),
+  // in Mon→Fri order.
+  const cafeDays = new Set();
+  const kk = Math.min(5, agent.cafe_visits_per_week || 0);
+  if (kk > 0) {
+    for (let w = 0; w < weeks; w++) {
+      const eligible = [];
+      for (let wd = 0; wd < 7; wd++) {
+        const d = w * 7 + wd;
+        if (d >= days) break;
+        const wday = WEEKDAYS[weekdayOf(scenario.start_date, d)];
+        if (wday === "Sat" || wday === "Sun") continue;
+        const commuting = (agent.workdays || []).includes(wday)
+          && agent.work && agent.work.type !== "none" && !agent.home_office;
+        if (!commuting) eligible.push(d);
+      }
+      for (const d of eligible.slice(0, kk)) cafeDays.add(d);
+    }
+  }
   // Morning departure jitter per day (0..59 min past the 07:30/08:00
   // anchors), each day from its own stream.
   const span = F.jitter_max - F.jitter_min + 1;
@@ -214,7 +251,7 @@ export function planSchedule(agent, scenario, flat = null) {
     const rng = streamFor(seed, `${key}:${d}:weekend`);
     weekendWishes.set(d, WEEKEND_WISH_KEYS[intBelow(rng, WEEKEND_WISH_KEYS.length)]);
   }
-  return { errands, parkDays, clinicDays, departJitter, weekendWishes };
+  return { errands, parkDays, clinicDays, vetDays, cafeDays, departJitter, weekendWishes };
 }
 
 export { shuffled };
