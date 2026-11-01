@@ -376,3 +376,60 @@ def test_repair_broken_names_donor_and_fallback():
     assert homes[2]["name_note"] == BROKEN_NAME_NOTE
     assert homes[3]["name"] == "정상단지"
     assert "name_note" not in homes[3]
+
+
+def test_parse_rtms_file_road_column(tmp_path):
+    header = ("시군구,본번,부번,단지명,도로명,전용면적(㎡),계약년월,계약일,"
+              "거래금액(만원),보증금(만원),월세금(만원),전월세구분,"
+              "건축년도,해제사유발생일\n")
+    body = ("서울특별시 강동구 천호동,450,0,천호한양,천호대로157길 45,"
+            "59.97,202601,15,120000,,,전세,2006,\n"
+            "서울특별시 강동구 천호동,451,0,빈길단지,,"
+            "59.97,202601,15,110000,,,전세,2006,\n")
+    text = '"disclaimer line"\n' + header + body
+    trade = tmp_path / "trade.csv"
+    trade.write_text(text, encoding="cp949")
+    rows = parse_rtms_file(trade, "apt", "trade")
+    assert [r["road"] for r in rows] == ["천호대로157길 45", ""]
+    rent = tmp_path / "rent.csv"
+    rent.write_text(text, encoding="cp949")
+    rows = parse_rtms_file(rent, "apt", "rent")
+    assert [r["road"] for r in rows] == ["천호대로157길 45", ""]
+
+
+def test_build_homes_index_road_address():
+    from pipeline.homes import slim_home
+
+    recs = [_reg("r1", "1171010700109130000", "서울특별시 강동구 천호동",
+                 "913", cx=127.10, cy=37.50),
+            _reg("r2", "1171010700109140000", "서울특별시 강동구 천호동",
+                 "914", cx=127.20, cy=37.51)]
+    rows = [
+        {"sigungu": "서울특별시 강동구 천호동", "bonbun": "0913",
+         "bubun": "0000", "complex": "천호한양", "road": "천호대로157길 45",
+         "area_m2": 59.0, "deal": "trade", "housing_type": "apt",
+         "trade_won": 900_000_000, "build_year": 2018},
+        {"sigungu": "서울특별시 강동구 천호동", "bonbun": "0913",
+         "bubun": "0000", "complex": "천호한양", "road": "천호대로157길 45",
+         "area_m2": 84.0, "deal": "rent", "rent_kind": "jeonse",
+         "housing_type": "apt", "deposit_won": 500_000_000,
+         "monthly_won": 0, "build_year": 2018},
+        {"sigungu": "서울특별시 강동구 천호동", "bonbun": "0914",
+         "bubun": "0000", "complex": "빈길단지", "road": "",
+         "area_m2": 59.0, "deal": "trade", "housing_type": "apt",
+         "trade_won": 700_000_000, "build_year": 2010},
+    ]
+    homes, _ = build_homes_index({"gangdong-gu": rows}, recs, [], [])
+    assert len(homes) == 2
+    by_name = {h["name"]: h for h in homes}
+    assert by_name["천호한양"]["address"] == {
+        "road": "천호대로157길 45", "sigungu": "서울특별시 강동구 천호동"}
+    assert slim_home(by_name["천호한양"])["address"] == {
+        "road": "천호대로157길 45", "sigungu": "서울특별시 강동구 천호동"}
+    assert by_name["빈길단지"]["address"]["road"] is None
+    assert by_name["빈길단지"]["address"]["sigungu"] == "서울특별시 강동구 천호동"
+    # Ids, order and the other fields are unaffected.
+    assert [h["id"] for h in homes] == ["home-000001", "home-000002"]
+    assert by_name["천호한양"]["kind"] == "아파트"
+    assert by_name["천호한양"]["region"] == "gangdong-gu"
+    assert by_name["천호한양"]["build_year"] == 2018

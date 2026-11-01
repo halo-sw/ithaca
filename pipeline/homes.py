@@ -109,6 +109,7 @@ def parse_rtms_file(path: str | Path, housing_type: str,
                 "bubun": (rec.get("부번") or "").strip(),
                 "complex": (rec.get("단지명") or rec.get("건물명")
                              or "").strip(),
+                "road": (rec.get("도로명") or "").strip(),
                 "area_m2": _num_plain(rec.get("전용면적(㎡)")),
                 "contract_ym": (rec.get("계약년월") or "").strip(),
                 "deal": "trade", "housing_type": housing_type,
@@ -123,6 +124,7 @@ def parse_rtms_file(path: str | Path, housing_type: str,
                 "bubun": (rec.get("부번") or "").strip(),
                 "complex": (rec.get("단지명") or rec.get("건물명")
                              or "").strip(),
+                "road": (rec.get("도로명") or "").strip(),
                 "area_m2": _num_plain(rec.get("전용면적(㎡)")),
                 "contract_ym": (rec.get("계약년월") or "").strip(),
                 "deal": "rent", "housing_type": housing_type,
@@ -590,9 +592,28 @@ def build_homes_index(region_rows: dict[str, list[dict]],
             station = (nearest_station_walk(lon, lat, box)
                        if box is not None else None)
             seq += 1
+            _addr_road_counts: dict = {}
+            for _addr_r in group["rows"]:
+                _addr_rv = (_addr_r.get("road") or "").strip()
+                if _addr_rv:
+                    _addr_road_counts[_addr_rv] = _addr_road_counts.get(_addr_rv, 0) + 1
+            _addr_road = None
+            if _addr_road_counts:
+                _addr_rmax = max(_addr_road_counts.values())
+                _addr_road = sorted(k for k, v in _addr_road_counts.items() if v == _addr_rmax)[0]
+            _addr_sg_counts: dict = {}
+            for _addr_r in group["rows"]:
+                _addr_sv = (_addr_r.get("sigungu") or "").strip()
+                if _addr_sv:
+                    _addr_sg_counts[_addr_sv] = _addr_sg_counts.get(_addr_sv, 0) + 1
+            _addr_sg = None
+            if _addr_sg_counts:
+                _addr_smax = max(_addr_sg_counts.values())
+                _addr_sg = sorted(k for k, v in _addr_sg_counts.items() if v == _addr_smax)[0]
             homes.append({
                 "id": f"home-{seq:06d}",
                 "name": name,
+                "address": {"road": _addr_road, "sigungu": _addr_sg},
                 "pnu": None if is_osm else pnu,
                 "kind": KIND_KO.get(housing_type, housing_type),
                 "housing_type": housing_type,
@@ -729,6 +750,7 @@ def slim_home(home: dict) -> dict:
     return {
         "id": home.get("id"),
         "name": home.get("name"),
+        "address": home.get("address"),
         "kind": home.get("kind"),
         "region": home.get("region"),
         "lon": home.get("lon"),
