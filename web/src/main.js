@@ -1781,8 +1781,14 @@ async function bootSim() {
       if ((item.level === "complex" || (item.accent
           && typeof item.id === "string" && item.id.startsWith("home:"))) && item.sub) {
         const sub = document.createElement("div");
-        sub.textContent = currentLang() === "en" ? (item.subEn || item.sub) : item.sub;
-        if (currentLang() === "en") sub.setAttribute("data-no-i18n", "");
+        const isHome = item.accent
+          && typeof item.id === "string" && item.id.startsWith("home:");
+        if (isHome) {
+          sub.textContent = currentLang() === "en" ? (item.subEn || item.sub) : item.sub;
+          if (currentLang() === "en") sub.setAttribute("data-no-i18n", "");
+        } else {
+          sub.textContent = item.sub;
+        }
         sub.setAttribute("style", `font-size:10px;font-weight:400;color:${accent ? "#dbe6ff" : "#8a93a3"};`);
         el.append(sub);
       }

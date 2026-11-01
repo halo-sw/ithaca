@@ -400,6 +400,13 @@ export function homeForScenario(candidate, resolvedName) {
     lat: candidate.lat,
   };
   if (built) home.commute = built;
+  if (candidate.address && typeof candidate.address === "object"
+    && typeof candidate.address.road === "string" && candidate.address.road) {
+    home.address = {
+      road: candidate.address.road,
+      sigungu: typeof candidate.address.sigungu === "string" ? candidate.address.sigungu : "",
+    };
+  }
   return home;
 }
 
