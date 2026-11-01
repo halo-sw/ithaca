@@ -158,7 +158,7 @@ def test_expand_area_patterns(tmp_path):
                     reason="operator runs `pipeline boxes` first")
 def test_real_station_boxes_shape():
     doc = json.loads(BOXES_JSON.read_text(encoding="utf-8"))
-    assert len(doc["boxes"]) == MAX_BOXES
+    assert len(doc["boxes"]) <= MAX_BOXES
     names = [b["station"] for b in doc["boxes"]]
     for name in REQUIRED_STATIONS:
         assert name in names

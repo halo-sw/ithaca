@@ -786,6 +786,13 @@ OSM_SPOTCHECK_SEED = 20261029
 OSM_SPOTCHECK_N = 10
 
 
+def korean_regions(regions: list[dict]) -> list[dict]:
+    """KR regions only: drop US rows (the US build runs on its own path)."""
+    return [r for r in regions
+            if r.get("country") != "US"
+            and not str(r.get("id", "")).startswith("us-")]
+
+
 def run_build(raw_dir: str | Path = DEFAULT_RAW_DIR,
               build_dir: str | Path = DEFAULT_BUILD_DIR,
               regions_path: str | Path | None = None,
@@ -801,7 +808,7 @@ def run_build(raw_dir: str | Path = DEFAULT_RAW_DIR,
     raw_dir, build_dir = Path(raw_dir), Path(build_dir)
     regions_path = (Path(regions_path) if regions_path
                     else build_dir / "regions.json")
-    regions = json.loads(regions_path.read_text(encoding="utf-8"))["regions"]
+    regions = korean_regions(json.loads(regions_path.read_text(encoding="utf-8"))["regions"])
     region_rows, missing = read_region_rows(raw_dir, regions, limit=limit)
     bbox = combined_bbox([r.get("bbox") for r in regions])
     register = stream_register_for_bbox(

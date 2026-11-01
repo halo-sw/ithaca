@@ -49,12 +49,12 @@ def build_area(area_id: str, raw_pbf: Path, build_dir: Path,
                osmium_bin: str | None, overwrite: bool) -> dict:
     from . import extract as extract_mod
     from . import osm_parse
-    from .areas import US_RAW_PBF, is_station_box, is_us_area
+    from .areas import US_RAW_PBF, is_home_box, is_station_box, is_us_area
 
     started = time.time()
     if (area_id not in AREA_IDS and not is_station_box(area_id)
-            and not is_us_area(area_id)):
-        raise KeyError(f"unknown area {area_id!r}; choose from {list(AREA_IDS)}, st-<station>, or station:*")
+            and not is_home_box(area_id) and not is_us_area(area_id)):
+        raise KeyError(f"unknown area {area_id!r}; choose from {list(AREA_IDS)}, st-<station>, hm-<region>-<NN>, or station:*")
     if is_us_area(area_id) and Path(raw_pbf) == DEFAULT_RAW_PBF:
         raw_pbf = US_RAW_PBF
         print(f"using US extract for {area_id}: {raw_pbf}")
@@ -88,25 +88,29 @@ def build_area(area_id: str, raw_pbf: Path, build_dir: Path,
     summary = {"area": area_id, "area_dir": str(area_dir),
                "osm_json": str(osm_path),
                "seconds": round(time.time() - started, 1), "stages": stages}
-    if is_station_box(area_id):
+    if is_station_box(area_id) or is_home_box(area_id):
         _record_box_build(area_id, build_dir, raw_pbf, summary)
     return summary
 
 
 def _box_signature(area_id: str, build_dir: Path,
                    raw_pbf: Path) -> dict | None:
-    """Input signature for a station box, or None for legacy areas."""
-    from .areas import is_station_box
+    """Input signature for a station/home box, or None for legacy areas."""
+    from .areas import is_home_box, is_station_box
     from .boxes import REGION_EXTRACT_DIR, load_boxes, manifest_signature
 
-    if not is_station_box(area_id):
+    if not is_station_box(area_id) and not is_home_box(area_id):
         return None
     boxes = load_boxes(build_dir)
     if not boxes:
         return None
-    station = area_id[len("st-"):]
-    hit = next((b for b in boxes.get("boxes", [])
-                if b.get("station") == station), None)
+    if is_home_box(area_id):
+        hit = next((b for b in boxes.get("home_boxes", [])
+                    if b.get("id") == area_id), None)
+    else:
+        station = area_id[len("st-"):]
+        hit = next((b for b in boxes.get("boxes", [])
+                    if b.get("station") == station), None)
     if hit is None or hit.get("lon") is None:
         return None
     region = hit.get("region")
@@ -153,7 +157,7 @@ def expand_area_patterns(patterns: list[str], build_dir: Path) -> list[str]:
     ``region:<id>`` selects that region's boxes. Unknown ids raise
     KeyError; duplicates collapse (order kept).
     """
-    from .areas import is_station_box, is_us_area
+    from .areas import is_home_box, is_station_box, is_us_area
     from .boxes import box_id_of, load_boxes
 
     out: list[str] = []
@@ -172,6 +176,14 @@ def expand_area_patterns(patterns: list[str], build_dir: Path) -> list[str]:
                 else:
                     print(f"skip {box.get('station')}: no OSM coordinates",
                           file=sys.stderr)
+        elif pat == "home:*":
+            boxes = load_boxes(build_dir)
+            if not boxes:
+                raise KeyError(f"{pat} needs data/build/station-boxes.json "
+                               "(run `pipeline boxes` first)")
+            for box in boxes.get("home_boxes", []):
+                if box.get("lon") is not None:
+                    out.append(box["id"])
         elif pat.startswith("region:"):
             region = pat[len("region:"):]
             boxes = load_boxes(build_dir)
@@ -181,11 +193,14 @@ def expand_area_patterns(patterns: list[str], build_dir: Path) -> list[str]:
             for box in boxes.get("boxes", []):
                 if box.get("region") == region and box.get("lon") is not None:
                     out.append(box_id_of(box["station"]))
-        elif pat in AREA_IDS or is_station_box(pat) or is_us_area(pat):
+            for box in boxes.get("home_boxes", []):
+                if box.get("region") == region and box.get("lon") is not None:
+                    out.append(box["id"])
+        elif pat in AREA_IDS or is_station_box(pat) or is_home_box(pat) or is_us_area(pat):
             out.append(pat)
         else:
             raise KeyError(f"unknown area {pat!r}; choose from "
-                           f"{list(AREA_IDS)}, st-<station>, station:*, "
+                           f"{list(AREA_IDS)}, st-<station>, hm-<region>-<NN>, station:*, home:*, "
                            "or region:<id>")
     seen: set[str] = set()
     ordered = []
@@ -585,7 +600,7 @@ def build_parser() -> argparse.ArgumentParser:
     x.add_argument("--osmium", default="osmium")
     x.add_argument("--overwrite", action="store_true",
                    help="re-clip region extracts even when cached")
-    x.add_argument("--max-boxes", type=int, default=60)
+    x.add_argument("--max-boxes", type=int, default=200)
     x.add_argument("--index-only", action="store_true",
                    help="only rewrite data/build/areas-index.json from built dirs")
     x.set_defaults(func=cmd_boxes)
