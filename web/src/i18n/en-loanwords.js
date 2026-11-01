@@ -52,6 +52,9 @@ export const LOANWORDS = {
   "코아": "Core", "프라자": "Plaza", "플라자": "Plaza", "센터": "Center",
   "스퀘어": "Square", "타워팰리스": "Tower Palace", "트윈": "Twin",
   "원룸": "One-room", "투룸": "Two-room", "하우스텔": "Houstel",
+  // Korean type word inside a name (청운주택 → Cheongun House); the
+  // longer 다세대주택 / 연립주택 / 단독주택 match first as type words.
+  "주택": "House",
 };
 
 export const PLACE_TERMS = [
@@ -90,3 +93,14 @@ export const PLACE_TERMS = [
   { ko: "공원", en: "Park" },
   { ko: "마트", en: "Mart" },
 ];
+
+// Home kinds as the generated lot-number names use them (homes.js
+// displayNameFor): "산성역 근처 연립·다세대 (84-0)" → "Row house near
+// Sanseong Stn (84-0)", "대치동 연립·다세대 (242-4)" → "Daechi-dong row
+// house (242-4)". Capitalized form; lower-case it after a place name.
+export const HOME_KINDS = {
+  "아파트": "Apartment",
+  "연립·다세대": "Row house",
+  "오피스텔": "Officetel",
+  "단독·다가구": "House",
+};

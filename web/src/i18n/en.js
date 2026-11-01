@@ -609,6 +609,14 @@ const seedPatterns = [
   { ko: "총 {0}분 · {1}역 걸어서 {2}분 + 지하철 {3}분", en: "Total {0} min · {1} Stn walk {2} min + subway {3} min" },
   { ko: "총 {0}분 · {1}역 걸어서", en: "Total {0} min · {1} Stn, walk only" },
   // 39a: no workplace yet — the station walk is never called the total.
+  // 39d: office days in the profile chip, and the generated lot-number
+  // home names (homes.js displayNameFor) when they reach the DOM.
+  { ko: "주 {0}일 출근", en: "office {0} days a week" },
+  { ko: "{0}역 근처 연립·다세대 ({1})", en: "Row house near {0} Stn ({1})" },
+  { ko: "{0}역 근처 오피스텔 ({1})", en: "Officetel near {0} Stn ({1})" },
+  { ko: "{0}역 근처 아파트 ({1})", en: "Apartment near {0} Stn ({1})" },
+  { ko: "{0}역 근처 단독·다가구 ({1})", en: "House near {0} Stn ({1})" },
+  { ko: "{0}역 근처 ({1})", en: "Near {0} Stn ({1})" },
   { ko: "{0}역까지 걸어서 {1} · 지하철 시간은 출근지를 알면 계산해요", en: "{1} walk to {0} Stn · subway time is added once we know your workplace" },
   { ko: "예산보다 {0} 적어요", en: "{0} under budget" },
   { ko: "예산보다 {0} 많아요", en: "{0} over budget" },
