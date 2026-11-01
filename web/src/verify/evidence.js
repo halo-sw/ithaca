@@ -34,6 +34,7 @@ export function evidenceIndex(run) {
 
 import { lifeEventTrips, sunsetMinFor } from "../engine/life-events.js";
 import { hhmm } from "../timeline.js";
+import { activityEn } from "../i18n/en-activity.js";
 
 // 29k1: the record says how (walk/bike/transit) and when —
 // dark_walk trips append the after-sunset scene (with that run's
@@ -64,10 +65,29 @@ function tripScenes(run, id) {
   return scene;
 }
 
+// 29N3g: English trip line for the report digest sent to Muse. Generic
+// place labels go through the one activity table (exact match only, so
+// proper names pass through); the shape mirrors tripTextKo.
+function tripTextEn(t, scene = [], sunset = null) {
+  const day = (t.day ?? 0) + 1;
+  const arr = hhmm(t.arrive_min ?? t.depart_min ?? 0);
+  const move = t.mode === "bike" ? "by bike" : "on foot";
+  const mins = typeof t.minutes === "number" ? ` ${t.minutes} min` : "";
+  const from = t.from_label ? ` (from ${activityEn(t.from_label)})` : "";
+  let tail = "";
+  if (scene.includes("dark_walk")) {
+    tail += sunset ? ` · after sunset (sunset ${sunset})` : " · after sunset";
+  }
+  if (scene.includes("late_home")) tail += " · after 10pm";
+  return `day ${day} ${arr} arrive home · ${move}${mins}${from}${tail}`;
+}
+
 // 29j1: candidate engine events backing one judge item of one run.
 // C06 → dark_walk ∪ late_home (deduped by id); N03 → late_home;
 // anything else → []. Each entry gains text_ko.
-export function judgeCandidates(run, itemId) {
+// 29N3g: { lang: "en" } writes the English trip line instead, so Muse
+// never romanises a generic word; Korean (or unset) is byte-identical.
+export function judgeCandidates(run, itemId, lang = "ko") {
   const kinds = itemId === "C06" ? ["dark_walk", "late_home"]
     : itemId === "N03" ? ["late_home"] : [];
   if (kinds.length === 0) return [];
@@ -79,7 +99,8 @@ export function judgeCandidates(run, itemId) {
       if (!t || seen.has(t.id)) continue;
       seen.add(t.id);
       const scene = tripScenes(run, t.id);
-      out.push({ ...t, scene, text_ko: tripTextKo(t, scene, sunset) });
+      out.push({ ...t, scene,
+        text_ko: lang === "en" ? tripTextEn(t, scene, sunset) : tripTextKo(t, scene, sunset) });
     }
   }
   return out;

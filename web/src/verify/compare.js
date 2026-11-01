@@ -8,6 +8,7 @@ import { judgeCandidates, judgeEvidence } from "./evidence.js";
 import { engineValue, householdMembers } from "./numbers.js";
 import { memberLabelEn } from "../profile.js";
 import { householdKeys } from "../engine/moments.js";
+import { activityEn } from "../i18n/en-activity.js";
 
 // Profile → persona key. members may be a plain array or a field
 // object ({ value: [...] }); pets may be truthy plain or field .value.
@@ -50,8 +51,12 @@ export function inapplicableItems(loaded, run, home = null) {
 
 // Minimal run the report step sends to the server: household members
 // only (householdKeys), and only the fields the verifier reads.
-export function slimRunForReport(run) {
+// 29N3g: { lang: "en" } reads English generic words (one table in
+// i18n/en-activity.js) in the kept labels; proper names never match a
+// key and pass through. Korean (or unset) output is byte-identical.
+export function slimRunForReport(run, opts = {}) {
   const r = run || {};
+  const en = opts && opts.lang === "en";
   const hh = householdKeys(r);
   const isHh = (a) => hh.has(a);
   const slimTrip = (t) => {
@@ -66,7 +71,7 @@ export function slimRunForReport(run) {
       if (p && typeof p === "object") {
         const kept = {};
         for (const f of ["id", "label", "kind"]) {
-          if (p[f] !== undefined) kept[f] = p[f];
+          if (p[f] !== undefined) kept[f] = (en && f === "label") ? activityEn(p[f]) : p[f];
         }
         out[end] = kept;
       }
@@ -77,7 +82,7 @@ export function slimRunForReport(run) {
     if (!a || typeof a !== "object") return null;
     const out = {};
     for (const f of ["agent", "day", "kind", "start_min", "end_min", "label"]) {
-      if (a[f] !== undefined) out[f] = a[f];
+      if (a[f] !== undefined) out[f] = (en && f === "label") ? activityEn(a[f]) : a[f];
     }
     const d = a.detail;
     if (d && typeof d === "object") {
@@ -137,7 +142,7 @@ export function slimRunForReport(run) {
 // What the writer needs per item, per home: deterministic items carry
 // computed values, engine-backed judge items carry candidate events
 // (id + text_ko only), engine:none items are flagged to skip.
-export function reportDigest({ runs, labels, homes, persona, groundTruth, names = {} }) {
+export function reportDigest({ runs, labels, homes, persona, groundTruth, names = {}, lang = "ko" }) {
   const personaMap = (groundTruth && groundTruth.persona_map) || {};
   if (personaMap[persona] === null) {
     return { persona, unsupported: true, items: [] };
@@ -231,7 +236,7 @@ export function reportDigest({ runs, labels, homes, persona, groundTruth, names 
     }
     const events = {};
     for (const label of labels) {
-      events[label] = judgeCandidates(runs[label], it.id).slice(0, 8)
+      events[label] = judgeCandidates(runs[label], it.id, lang).slice(0, 8)
         .map((e) => ({ id: e.id, text_ko: e.text_ko }));
     }
     return { ...base, events };

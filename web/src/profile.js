@@ -1012,6 +1012,9 @@ export function scenarioFromProfile(profile, homes, opts = {}) {
     return d ? d.minutes : null;
   };
   const commuteKnown = v("commuteMax");
+  // 29N3: set when a member rides Caltrain — the run's destination
+  // area is the Meta HQ box (us-menlo).
+  let usDestArea = null;
   const membersOut = members.map((m, i) => {
     const wp = workplaces[i] || workplaces[0] || null;
     const dest = wp && wp.resolved && wp.resolved.station ? wp.resolved.station : null;
@@ -1035,6 +1038,50 @@ export function scenarioFromProfile(profile, homes, opts = {}) {
     // are unchanged.
     const place = wp && wp.resolved && wp.resolved.place;
     if (place && Number.isFinite(place.lon) && Number.isFinite(place.lat)) {
+      // 29N3: a US Caltrain station-box home (us-st-*, carrying a
+      // commute block) walks to its Caltrain station, waits half the
+      // headway, rides to Menlo Park, then bikes (or takes the assumed
+      // shuttle) to Meta HQ. us-menlo homes keep the walk/bike place
+      // commute — a mixed pair rides per home via the maps below.
+      const usStationLabels = [];
+      const usStationName = {};
+      const usRideMap = {};
+      const usWaitMap = {};
+      let usShuttleMin = 15;
+      for (const h of scenarioHomes) {
+        const home = list[scenarioHomes.indexOf(h)];
+        if (!home || typeof home.scene !== "string" || !home.scene.startsWith("us-st-")) continue;
+        if (!home.station || !home.station.station || !home.commute) continue;
+        usStationLabels.push(h.label);
+        usStationName[h.label] = home.station.station;
+        const c = home.commute;
+        const train = c.caltrain_min && Number.isFinite(c.caltrain_min.value)
+          ? c.caltrain_min.value : null;
+        const headway = c.headway_min && Number.isFinite(c.headway_min.value)
+          ? c.headway_min.value : null;
+        if (train !== null) usRideMap[h.label] = train;
+        if (headway !== null) usWaitMap[h.label] = headway / 2;
+        const last = c.last_mile || {};
+        const shut = last.shuttle_min_assumed && Number.isFinite(last.shuttle_min_assumed.value)
+          ? last.shuttle_min_assumed.value : null;
+        if (shut !== null) usShuttleMin = shut;
+      }
+      if (usStationLabels.length > 0) {
+        usDestArea = US_REGION_ID;
+        out.work = {
+          type: "station_ride",
+          station_name: usStationName,
+          destination_station: "Menlo Park",
+          ride_minutes: usRideMap,
+          ride_minutes_source: "caltrain_gtfs",
+          wait_minutes: usWaitMap,
+          wait_minutes_source: "caltrain_gtfs_half_headway",
+          last_mile: { mode: "bike", shuttle_min_assumed: usShuttleMin },
+          place: { name: place.name, lon: place.lon, lat: place.lat },
+          needs_user_input: Object.keys(usRideMap).length < usStationLabels.length,
+        };
+        return out;
+      }
       out.work = {
         type: "place",
         place: { name: place.name, lon: place.lon, lat: place.lat },
@@ -1089,6 +1136,7 @@ export function scenarioFromProfile(profile, homes, opts = {}) {
   return {
     name: "from-profile",
     _note: "고객 프로필 + 고른 집에서 만든 시나리오. 승차 시간은 고객님이 말한 값, 없으면 운행시간표·추정(derived)으로 채우고 출처를 기록합니다.",
+    ...(usDestArea !== null ? { dest_area: usDestArea } : {}),
     start_date: "2026-11-02",
     days: 30,
     seed,

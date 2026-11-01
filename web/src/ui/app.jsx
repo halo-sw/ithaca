@@ -1002,7 +1002,8 @@ function LegendCard({ state, onClose }) {
           {state.mode === "sim" && (
             <VStack gap={1}>
               <Text type="supporting">하루 색깔</Text>
-              <ActivityLegend hasBike={!!(state.dayStrip && state.dayStrip.hasBike)} />
+              <ActivityLegend hasBike={!!(state.dayStrip && state.dayStrip.hasBike)}
+                train={!!(state.dayStrip && state.dayStrip.train)} />
             </VStack>
           )}
           <Text type="supporting">{legend.note}</Text>

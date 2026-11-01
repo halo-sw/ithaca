@@ -29,11 +29,20 @@ async function loadArea(areaId) {
   return area;
 }
 
-async function loadRegion() {
+// 29N3: a run whose home areas are us-* reads the Caltrain region
+// doc (region-us has no congestion file — congestion stays null).
+function regionDirFor(homes) {
+  const areas = (homes || []).map((h) => h && h.area).filter(Boolean);
+  if (areas.length > 0 && areas.every((a) => String(a).startsWith("us-"))) return "region-us";
+  return "region";
+}
+
+async function loadRegion(homes) {
+  const dir = regionDirFor(homes);
   const region = {};
   for (const [key, file] of [["network", "network.json"], ["congestion", "congestion.json"]]) {
     try {
-      region[key] = await fetchJson(assetUrl(`/data/region/${file}`));
+      region[key] = await fetchJson(assetUrl(`/data/${dir}/${file}`));
     } catch {
       region[key] = null;
     }
@@ -47,7 +56,7 @@ self.onmessage = async (e) => {
   const post = (msg) => self.postMessage(msg);
   try {
     const scen = scenarioInline || await fetchJson(assetUrl(`/scenarios/${name}.json`));
-    const region = await loadRegion();
+    const region = await loadRegion(scen.homes);
     const runs = {};
     const list = Array.isArray(labels) ? labels : [];
     for (let i = 0; i < list.length; i++) {
@@ -56,8 +65,19 @@ self.onmessage = async (e) => {
       const home = scen.homes.find((h) => h.label === label);
       if (!home) throw new Error(`unknown home ${label}`);
       const area = await loadArea(home.area);
+      // 29N3: a US station-box home walks its last mile on the
+      // destination box (us-menlo for Meta HQ) — same resolution as
+      // the consult server, fetched here so worker runs agree.
+      let destArea = null;
+      if (String(home.area).startsWith("us-st-")) {
+        try {
+          destArea = await loadArea("us-menlo");
+        } catch {
+          destArea = null;
+        }
+      }
       runs[label] = simulate(area, structuredClone(scen), label,
-        region ? { region } : {});
+        { ...(region ? { region } : {}), ...(destArea ? { destArea } : {}) });
       post({ ok: true, progress: { done: i + 1, total: list.length, label } });
     }
     post({ ok: true, runs });

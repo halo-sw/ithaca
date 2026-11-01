@@ -507,6 +507,48 @@ export function stationNameFor(base) {
   return /역$/.test(b) ? b : `${b}역`;
 }
 
+// 29N3d: a station-bound commute on Caltrain is not a subway ride.
+// The ride's line (caltrain) decides; without ride detail the US
+// region decides. Korean runs never take this branch.
+export function isCaltrainStation(trip, aways, run) {
+  const area = run && run.meta && run.meta.area;
+  if (typeof area === "string" && area.startsWith("us-")) return true;
+  const agent = trip && trip.agent;
+  const day = trip && trip.day;
+  for (const a of aways || []) {
+    if (!a || a.kind !== "ride") continue;
+    if (agent !== undefined && a.agent !== agent) continue;
+    if (day !== undefined && a.day !== day) continue;
+    if (a.label === "Caltrain") return true;
+    const d = a.detail || {};
+    const rides = d.ride ? [d.ride] : [];
+    for (const r of rides) {
+      for (const l of (r && r.legs) || []) {
+        if (l && (l.line === "caltrain" || l.lineName === "Caltrain")) return true;
+      }
+    }
+  }
+  return false;
+}
+
+// Station-bound commute pill per language: "<Name> Stn · Caltrain" /
+// "<이름>역 · 칼트레인" for Caltrain, the subway wording otherwise.
+export function stationRideLabel(base, lang = "ko", opts = {}) {
+  const b = String(base || "");
+  if (opts.caltrain) {
+    if (lang === "en") {
+      const stem = b.endsWith("역") ? b.slice(0, -1) : b;
+      return `${placeNameEn(stem)} Stn · Caltrain`;
+    }
+    return `${stationNameFor(b)} · 칼트레인`;
+  }
+  if (lang === "en") {
+    const stem = b.endsWith("역") ? b.slice(0, -1) : b;
+    return `${placeNameEn(stem)} · subway entrance`;
+  }
+  return `${stationNameFor(b)} · 지하철 타는 곳`;
+}
+
 function tripToOf(trip) {
   return (trip && trip.to) || {};
 }
@@ -534,20 +576,23 @@ export function isStationBoundCommute(trip, aways) {
 }
 
 // "{to} · {출근|장보기|병원|산책} 가는 곳" — the station-bound commute
-// walk reads "지하철 타는 곳" instead.
-export function destPillText(destLabel, trip, aways) {
+// walk reads "지하철 타는 곳" instead ("칼트레인" on Caltrain, 29N3d).
+export function destPillText(destLabel, trip, aways, run) {
   const base = destLabel || "";
   if (!base) return "";
   if (isStationBoundCommute(trip, aways)) {
-    return `${stationNameFor(base)} · 지하철 타는 곳`;
+    return stationRideLabel(base, "ko",
+      { caltrain: isCaltrainStation(trip, aways, run) });
   }
   const verb = trip ? TRIP_VERB_20F[trip.purpose] : "";
   return verb ? `${base} · ${verb} 가는 곳` : `${base} · 가는 곳`;
 }
 
-export function destSuffixFor(trip, aways) {
+export function destSuffixFor(trip, aways, run) {
   if (!trip) return "";
-  if (isStationBoundCommute(trip, aways)) return "지하철 타는 곳";
+  if (isStationBoundCommute(trip, aways)) {
+    return isCaltrainStation(trip, aways, run) ? "칼트레인 타는 곳" : "지하철 타는 곳";
+  }
   if (trip.purpose === "commute") return "출근 가는 곳";
   const verb = TRIP_VERB_20F[trip.purpose];
   return verb ? `${verb} 가는 곳` : "";

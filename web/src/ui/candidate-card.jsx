@@ -128,16 +128,38 @@ export function pinCardModel(pin, { tenure, picks } = {}) {
 }
 
 export function commuteRowLine(candidate, destName) {
-  // 29N2b: when the direct bike/walk beats Caltrain, the headline is
-  // the fastest mode (`Bike 24 min (estimate)`) and the Caltrain
-  // breakdown moves to the second line. Caltrain-best homes keep the
-  // labelled breakdown headline below.
+  // 29N3b: a station-box (us-st-*) home always headlines its labelled
+  // Caltrain breakdown (what the 30-day run lives); the direct
+  // bike/walk estimate — when smaller — is a side-note `alt` line,
+  // never the headline. Non-station homes keep the 29N2b fastest-mode
+  // headline below.
   // 29N2a: a station-box home prints its labelled Caltrain breakdown
   // (built in code, English + Korean) with the assumed-shuttle second
   // line; the bike leg is assumed-speed, so the Estimate badge shows.
   const bd = candidate && candidate.commute_breakdown;
   const bestMode = candidate && candidate.best_mode;
   const bestMin = candidate && candidate.best_min;
+  const region = candidate && candidate.region;
+  const stationBox = typeof region === "string" && region.indexOf("us-st-") === 0;
+  const altMin = candidate && candidate.bike_direct_estimate_min;
+  if (bd && bd.en && bd.ko && stationBox) {
+    const en = currentLang() === "en";
+    const work = candidate && candidate.commute && candidate.commute.work;
+    const altMode = (work && work.mode) || "bike";
+    if (Number.isFinite(altMin)) {
+      const n = Math.round(altMin);
+      const alt = en
+        ? `or ${altMode} direct about ${n} min (estimate, not in the 30-day run)`
+        : `또는 ${altMode === "walk" ? "도보" : "자전거"} 직행 약 ${n}분(추정, 30일 살아 보기에는 없음)`;
+      return { text: en ? bd.en : bd.ko,
+        shuttle: en ? bd.shuttle_en : bd.shuttle_ko, alt,
+        estimate: true, source: "estimate" };
+    }
+    const en2 = currentLang() === "en";
+    return { text: en2 ? bd.en : bd.ko,
+      shuttle: en2 ? bd.shuttle_en : bd.shuttle_ko,
+      estimate: true, source: "estimate" };
+  }
   if (bd && bd.en && bd.ko && (bestMode === "bike" || bestMode === "walk")
       && Number.isFinite(bestMin)) {
     const en = currentLang() === "en";
@@ -878,6 +900,7 @@ export function CandidateCard({ candidate, tenure, destName, photos, index,
         <div className="ui-cand-row-commute ui-num" title={row.title}>
           {row.text}{row.estimate || (row.source && row.source !== "unknown") ? " " : null}<RowEstimateTag row={row} />
           {row.shuttle && (<><br />{row.shuttle}</>)}
+          {row.alt && (<><br />{row.alt}</>)}
         </div>
         )}
         {candidate.kind_mismatch && <Text type="supporting">{KIND_MISMATCH_KO}</Text>}
@@ -1044,6 +1067,7 @@ function FullCard({ candidate, price, facts, row, hero, rest,
           <div className="ui-commute ui-num">
             {row.text}{row.source && row.source !== "unknown" ? " " : null}<RowSourceTag row={row} />
             {row.shuttle && (<><br />{row.shuttle}</>)}
+            {row.alt && (<><br />{row.alt}</>)}
           </div>
           {detail && <Text type="supporting">{detail}</Text>}
         </div>

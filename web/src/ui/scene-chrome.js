@@ -80,9 +80,22 @@ const PLACE_EN = {
 
 const HAS_HANGUL = /[㐀-䶿가-힣]/;
 
+// 29N3d: an unnamed POI recorded under its Korean category reads as the
+// English generic in code-built English ("a park"), never romanised
+// ("gongwon"). Whole-string only, so "올림픽 공원" keeps its name.
+const GENERIC_PLACE_EN = {
+  "공원": "a park",
+  "편의점": "a convenience store",
+  "마트": "a supermarket",
+  "대형마트": "a supermarket",
+  "병원": "a clinic",
+  "약국": "a pharmacy",
+};
+
 export function placeNameEn(name) {
   const s = String(name == null ? "" : name).trim();
   if (!s || !HAS_HANGUL.test(s)) return s;
+  if (Object.hasOwn(GENERIC_PLACE_EN, s)) return GENERIC_PLACE_EN[s];
   if (Object.hasOwn(PLACE_EN, s)) return PLACE_EN[s];
   // 29M1: a registered home/complex name (from Muse) wins over the
   // rule-based romanisation; stations and dongs keep romanizeName.

@@ -106,7 +106,7 @@ function assistantEntry(message) {
 
 export async function writeReport({ call, provider, runs, labels, homes,
   names = {}, persona, groundTruth, lang = "ko", onAttempt = null }) {
-  const digest = reportDigest({ runs, labels, homes, persona, groundTruth, names });
+  const digest = reportDigest({ runs, labels, homes, persona, groundTruth, names, lang });
   if (digest && digest.unsupported) {
     return { ok: true, status: "unsupported", reason_ko: UNSUPPORTED_PERSONA_KO,
       attempts: [], report: null, handoff: null };

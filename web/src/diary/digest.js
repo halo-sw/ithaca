@@ -4,6 +4,7 @@
 import { awayId, evidenceIndex } from "../verify/evidence.js";
 import { oneWayCommuteOfRun } from "../verify/numbers.js";
 import { hhmm } from "../timeline.js";
+import { activityEn } from "../i18n/en-activity.js";
 
 const ASSUMED_SOURCE = "가정값";
 const LATE_MIN = 22 * 60;
@@ -101,7 +102,8 @@ function crowdedFacts(run, hh) {
 
 const EVENING_KO = { park: "공원", errand: "장보기" };
 
-function eveningFacts(run, hh) {
+function eveningFacts(run, hh, lang = "ko") {
+  const en = lang === "en";
   const facts = [];
   for (const away of run.aways || []) {
     if (!hh.has(away.agent)) continue;
@@ -109,7 +111,11 @@ function eveningFacts(run, hh) {
     const mins = Math.round((away.end_min || 0) - (away.start_min || 0));
     if (!(mins > 0)) continue;
     const kindKo = EVENING_KO[away.kind] || away.kind;
-    const text = `${away.day + 1}일째 저녁 ${kindKo} ${mins}분 (${hhmm(away.start_min)} 출발)`;
+    // 29N3g: English generic words from the one activity table so Muse
+    // never romanises them; Korean output keeps the exact current text.
+    const text = en
+      ? `day ${away.day + 1} evening ${activityEn(kindKo)} ${mins} min (${hhmm(away.start_min)} start)`
+      : `${away.day + 1}일째 저녁 ${kindKo} ${mins}분 (${hhmm(away.start_min)} 출발)`;
     facts.push(makeFact({ id: awayId(away), day: away.day, minute: away.start_min, kind: "evening", text_ko: text }));
   }
   return facts;
@@ -195,13 +201,13 @@ export function spreadPick(list, k, mustInclude = null) {
   return [...idx].sort((a, b) => a - b).map((j) => list[j]);
 }
 
-export function runDigest(run, label, { name = "", maxFacts = 40 } = {}) {
+export function runDigest(run, label, { name = "", maxFacts = 40, lang = "ko" } = {}) {
   const r = run || {};
   const hh = householdKeys(r);
   const byKind = {
     commute: commuteFacts(r, hh),
     crowded: crowdedFacts(r, hh),
-    evening: eveningFacts(r, hh),
+    evening: eveningFacts(r, hh, lang),
     late: lateEvents(r, hh).map((e) => makeFact({ ...e, kind: "late" })),
     decision: decisionFacts(r),
   };

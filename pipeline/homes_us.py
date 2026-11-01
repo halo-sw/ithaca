@@ -896,6 +896,7 @@ def build_us_homes(area_dir: str | Path, zori: dict[str, dict],
 
     homes = []
     dropped = 0
+    dropped_no_station_walk = 0
     fallback_n = 0
     seq = us_home_id_offset(area_id)
     for name, idxs in groups:
@@ -947,6 +948,12 @@ def build_us_homes(area_dir: str | Path, zori: dict[str, dict],
         if st and st["walk_minutes"] <= 40:
             station = {"station": st["station"],
                        "walk_minutes": st["walk_minutes"]}
+        # 29N3d: a station-box home with no station walk on the graph
+        # (commute.walk_to_station_min.value null) is dropped, never a
+        # "Walking not confirmed" card. us-menlo homes are unaffected.
+        if area_id != AREA_ID and st is None:
+            dropped_no_station_walk += 1
+            continue
         work_targets: dict = {}
         if meta_hq is not None and nodes:
             home_node = _nearest_node(lon, lat, nodes)
@@ -1129,6 +1136,7 @@ def build_us_homes(area_dir: str | Path, zori: dict[str, dict],
                 homes[k]["name"] = f"{dup_name} · {n}"
     if stats is not None:
         stats["dropped_no_zori"] = dropped
+        stats["dropped_no_station_walk"] = dropped_no_station_walk
     return homes
 
 
@@ -1313,6 +1321,8 @@ def run_us_homes(build_dir: str | Path = DEFAULT_BUILD_DIR,
             "named_by_address": named_by_address,
             "duplicate_names_after": duplicate_names_after,
             "dropped_no_zori": stats.get("dropped_no_zori", 0),
+            "dropped_no_station_walk": stats.get(
+                "dropped_no_station_walk", 0),
             "zips": zips,
             "station_walk_share": (round(with_station / len(homes), 3)
                                    if homes else 0.0),

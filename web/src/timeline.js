@@ -30,6 +30,8 @@ export const ACTIVITY_ORDER = ["home", "walk", "subway", "work", "errand", "park
 
 // 29L2: legend / strip words built in code per language — English is
 // capitalised words here, never glossaried ("home" before).
+// 29N3d: a Caltrain run's ride reads Train / 열차, never Subway /
+// 지하철 — pass { train: isCaltrainRun(run) }.
 export const ACTIVITY_EN = {
   home: "Home",
   walk: "Walking",
@@ -41,7 +43,25 @@ export const ACTIVITY_EN = {
   other: "Other",
 };
 
-export function activityLabelEn(activity) {
+export function isCaltrainRun(run) {
+  const area = run && run.meta && run.meta.area;
+  if (typeof area === "string" && area.startsWith("us-")) return true;
+  for (const a of (run && run.aways) || []) {
+    if (!a || a.kind !== "ride") continue;
+    if (a.label === "Caltrain") return true;
+    const d = a.detail || {};
+    const rides = d.ride ? [d.ride] : [];
+    for (const r of rides) {
+      for (const l of (r && r.legs) || []) {
+        if (l && (l.line === "caltrain" || l.lineName === "Caltrain")) return true;
+      }
+    }
+  }
+  return false;
+}
+
+export function activityLabelEn(activity, opts = {}) {
+  if (activity === "subway" && opts.train) return "Train";
   return ACTIVITY_EN[activity] || ACTIVITY_EN.other;
 }
 
@@ -149,16 +169,17 @@ export function daySegments({ run, agentKey, day }) {
   return out.filter((s) => s.end > s.start);
 }
 
-export function activityLabel(activity) {
+export function activityLabel(activity, opts = {}) {
+  if (activity === "subway" && opts.train) return "열차";
   return (ACTIVITIES[activity] || ACTIVITIES.other).label;
 }
 
 // "08:21–08:35 걷기 · 올림픽카운티 → 송파나루역 6분" (hover/title text).
 // The strip end (1440) reads 24:00; clock values stay 00:00–23:59.
-export function segmentTitle(seg) {
+export function segmentTitle(seg, opts = {}) {
   const end = seg.end >= DAY_STRIP_END ? "24:00" : hhmm(seg.end);
   const span = `${hhmm(seg.start)}–${end}`;
-  const what = activityLabel(seg.activity);
+  const what = activityLabel(seg.activity, opts);
   const where = seg.label && seg.activity !== "home" ? ` · ${seg.label}` : "";
   const mins = seg.activity === "home" ? "" : ` ${Math.round(seg.minutes)}분`;
   return `${span} ${what}${where}${mins}`;

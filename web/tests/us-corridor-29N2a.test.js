@@ -381,8 +381,10 @@ describe("29N2b group cards stay inside one town", () => {
   });
 });
 
-// A Palo Alto home whose direct bike (24) beats its Caltrain total
-// (37): ranking, pin line and card all read the fastest mode.
+// A Palo Alto home whose stale direct-bike best (24) beats its
+// Caltrain total (37): 29N3b headlines the measured Caltrain route —
+// ranking, pin line and card all read 37, with no estimate aside
+// (no direct leg known without a workplace).
 function bestBikeHome(id, region, rent, zip, total) {
   const h = corridorHome(id, region, rent, zip, total);
   h.commute.best = { mode: "bike", min: 24 };
@@ -403,19 +405,19 @@ describe("29N2b commute = fastest mode", () => {
       { mode: "walk", min: 12 });
   });
 
-  it("a bike-24 home outranks a Caltrain-30 home and carries best_*", () => {
+  it("the measured Caltrain total outranks: 30 before 37, both carry best_*", () => {
     const r = find_homes(BERKELEY_PROFILE,
       { homes: [bestBikeHome("pa", "us-st-palo-alto", 3950, "94301", 37),
         corridorHome("rw", "us-st-redwood-city", 4100, "94063", 30)] },
       { sort: "commute", limit: 6, regions: ["us-st-palo-alto", "us-st-redwood-city"] });
-    assert.deepEqual(r.candidates.map((c) => c.id), ["pa", "rw"]);
-    const pa = r.candidates[0];
-    assert.equal(pa.best_mode, "bike");
-    assert.equal(pa.best_min, 24);
+    assert.deepEqual(r.candidates.map((c) => c.id), ["rw", "pa"]);
+    const pa = r.candidates[1];
+    assert.equal(pa.best_mode, "caltrain");
+    assert.equal(pa.best_min, 37);
     assert.equal(pa.corridor_min, 37, "the labelled total stays for the breakdown");
   });
 
-  it("pin line reads 24 min and the card leads Bike with the Caltrain option second", () =>
+  it("pin line reads 37 min and the card headlines the Caltrain breakdown", () =>
     withLang("en", () => {
       const r = find_homes(BERKELEY_PROFILE,
         { homes: [bestBikeHome("pa", "us-st-palo-alto", 3950, "94301", 37)] },
@@ -428,23 +430,23 @@ describe("29N2b commute = fastest mode", () => {
         workPlace: { name: "Meta HQ", lon: -122.1482, lat: 37.4849 },
         tenure: "monthly",
       });
-      assert.equal(map.pins[0].commuteMin, 24, "pin line uses the fastest mode");
+      assert.equal(map.pins[0].commuteMin, 37, "pin line uses the measured total");
       const html = renderToString(React.createElement(ChatMap, { map }));
-      assert.ok(html.includes("24 min"), "pin tag reads 24 min, not the Caltrain total");
+      assert.ok(html.includes("37 min"), "pin tag reads 37 min, not the bike estimate");
       const row = commuteRowLine(pa);
-      assert.equal(row.text, "Bike 24 min (estimate)");
-      assert.ok(row.shuttle.startsWith("or Caltrain 37 min"),
-        `second line keeps the Caltrain option: ${row.shuttle}`);
+      assert.equal(row.text, "Caltrain 37 min · walk 6 + wait 10 + train 12 + bike 13");
+      assert.ok(row.shuttle.startsWith("or Meta shuttle"),
+        `second line keeps the assumed shuttle: ${row.shuttle}`);
     }));
 
-  it("Korean card reads 자전거 24분(추정) with the Caltrain option second", () =>
+  it("Korean card headlines 칼트레인 37분 with the shuttle second", () =>
     withLang("ko", () => {
       const r = find_homes(BERKELEY_PROFILE,
         { homes: [bestBikeHome("pa", "us-st-palo-alto", 3950, "94301", 37)] },
         { sort: "commute", limit: 6, regions: ["us-st-palo-alto"] });
       const row = commuteRowLine(r.candidates[0]);
-      assert.equal(row.text, "자전거 24분(추정)");
-      assert.ok(row.shuttle.startsWith("또는 칼트레인 37분"),
-        `second line keeps the Caltrain option: ${row.shuttle}`);
+      assert.equal(row.text, "칼트레인 37분 · 걷기 6 + 대기 10 + 열차 12 + 자전거 13");
+      assert.ok(row.shuttle.startsWith("또는 멘로파크역에서 메타 셔틀(가정)"),
+        `second line keeps the assumed shuttle: ${row.shuttle}`);
     }));
 });

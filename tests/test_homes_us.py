@@ -265,3 +265,29 @@ def test_graph_run_build_uses_us_raw_pbf(tmp_path: Path,
 def test_scene_run_scene_us_menlo_known(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         run_scene("us-menlo", tmp_path)
+
+
+def test_station_box_home_without_station_walk_dropped(
+        tmp_path: Path) -> None:
+    area_dir = tmp_path / "us-st-palo-alto"
+    _write(area_dir, "buildings.json", {"buildings": [
+        _building("b1", "apartments", "Alma Lofts", LON0, LAT0),
+    ]})
+    _write(area_dir, "area.json", {
+        "area": "us-st-palo-alto",
+        "roads": [],
+        "pois": [{"id": "s1", "name": "Palo Alto",
+                  "category": "railway:station",
+                  "geometry": {"type": "Point",
+                               "coordinates": [LON0, LAT0]}}],
+        "workplaces": [],
+    })
+    # No walk graph: no station walk is measurable (st is None).
+    _write(area_dir, "graph.json",
+           {"nodes": {}, "edges": {"walk": [], "bike": [], "drive": []}})
+    stats: dict = {}
+    homes = build_us_homes(area_dir, ZORI, [(LON0, LAT0, "94025")],
+                           stats=stats)
+    assert homes == []
+    assert stats["dropped_no_station_walk"] == 1
+    assert stats["dropped_no_zori"] == 0

@@ -104,6 +104,13 @@ function parseWork(raw, where) {
       ride_minutes: rideMinutes, // number or {homeLabel: minutes} per path
       ride_minutes_source: raw.ride_minutes_source || "user_assumption",
       needs_user_input: raw.needs_user_input === true,
+      // 29N3: optional pre-boarding wait (Caltrain headway half, GTFS),
+      // a number or a {homeLabel: minutes} map. Absent → no wait away.
+      ...(raw.wait_minutes !== undefined ? { wait_minutes: parseWaitMinutes(raw.wait_minutes, `${where}.work`) } : {}),
+      ...(raw.wait_minutes_source !== undefined ? { wait_minutes_source: raw.wait_minutes_source } : {}),
+      // 29N3: optional last-mile form on the destination graph
+      // ({mode: "bike", shuttle_min_assumed}). Absent → walk, unchanged.
+      ...(raw.last_mile !== undefined ? { last_mile: parseLastMile(raw.last_mile, `${where}.work`) } : {}),
       // 36e: free-form basis note for the ride minutes (e.g. 노선 거리 × 평균 속도 근거).
       ...(raw.ride_minutes_note !== undefined ? { ride_minutes_note: raw.ride_minutes_note } : {}),
       // Optional workplace (stage 9c): the engine derives the commute per
@@ -172,6 +179,56 @@ export function rideMinutesForHome(work, homeLabel) {
     return Number.isFinite(hit) ? hit : null;
   }
   return null;
+}
+
+// 29N3: the pre-boarding wait for one home: number, or null when absent
+// (no wait away) or when the map has no entry for the home.
+export function waitMinutesForHome(work, homeLabel) {
+  const wm = work && work.wait_minutes;
+  if (wm === undefined || wm === null) return null;
+  if (typeof wm === "number") return wm;
+  if (wm && typeof wm === "object") {
+    const hit = wm[homeLabel];
+    return Number.isFinite(hit) ? hit : null;
+  }
+  return null;
+}
+
+// Optional wait minutes: like ride minutes, but the whole field may be
+// absent (then no wait is recorded).
+function parseWaitMinutes(raw, where) {
+  if (typeof raw === "number") {
+    if (!Number.isFinite(raw) || raw < 0) fail(`${where} needs wait_minutes >= 0`);
+    return raw;
+  }
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    const out = {};
+    for (const [label, v] of Object.entries(raw)) {
+      if (!Number.isFinite(v) || v < 0) {
+        fail(`${where}.wait_minutes[${label}] wants a number >= 0`);
+      }
+      out[label] = v;
+    }
+    return out;
+  }
+  fail(`${where} needs wait_minutes >= 0 (a number or a {homeLabel: minutes} map)`);
+}
+
+// Optional last-mile form: {mode, shuttle_min_assumed}. Unknown modes
+// fail fast; the shuttle fallback needs its assumed minutes.
+function parseLastMile(raw, where) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    fail(`${where}.last_mile wants an object {mode, shuttle_min_assumed}`);
+  }
+  if (raw.mode !== "bike") fail(`${where}.last_mile.mode allows only bike, not ${JSON.stringify(raw.mode)}`);
+  const out = { mode: "bike" };
+  if (raw.shuttle_min_assumed !== undefined) {
+    if (!Number.isFinite(raw.shuttle_min_assumed) || raw.shuttle_min_assumed < 0) {
+      fail(`${where}.last_mile.shuttle_min_assumed wants a number >= 0`);
+    }
+    out.shuttle_min_assumed = raw.shuttle_min_assumed;
+  }
+  return out;
 }
 
 // Workplace: a display name plus one locating form — lon/lat, a home-area
@@ -342,8 +399,18 @@ export function parseScenario(raw) {
       priorities = { weights: defaultWeights(), explicit: true };
     }
   }
+  // 29N3: optional destination area id (e.g. "us-menlo" for a US
+  // Caltrain run). Validated as a non-empty string, never invented.
+  let destArea = null;
+  if (raw.dest_area !== undefined && raw.dest_area !== null) {
+    if (typeof raw.dest_area !== "string" || raw.dest_area.length === 0) {
+      fail("dest_area wants a non-empty area id string");
+    }
+    destArea = raw.dest_area;
+  }
   return {
     name: typeof raw.name === "string" ? raw.name : "scenario",
+    ...(destArea !== null ? { dest_area: destArea } : {}),
     priorities,
     start_date: raw.start_date === undefined ? DEFAULT_START_DATE : raw.start_date,
     days,

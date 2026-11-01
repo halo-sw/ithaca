@@ -16,6 +16,7 @@
 import { findInventedNumbers } from "../judge/guards.js";
 import { fmtWon, fmtPct, fmtDistance, fmtMinutes } from "../money/format.js";
 import { displayNameFor } from "../homes.js";
+import { activityEn } from "../i18n/en-activity.js";
 
 // Investment advice on top of the judge's price/safety/school/health list.
 // Tight on purpose: generic words like 전망 (view) stay allowed.
@@ -643,7 +644,9 @@ export function numbersOnlyAnswer(toolResults, opts = {}) {
       }
     } else if (r.summary && r.summary.totals) {
       const t = r.summary.totals;
-      lines.push(`- ${r.home || L.home} ${L.total}: 걸어서 ${fmtMinutes(t.walk_minutes)}/${fmtDistance(t.walk_distance_m)}, 장보기 ${t.errands_done}번, 산책 ${t.park_visits}번`);
+      lines.push(en
+        ? `- ${r.home || L.home} ${L.total}: on foot ${fmtMinutes(t.walk_minutes)}/${fmtDistance(t.walk_distance_m)}, ${activityEn("장보기")} ${t.errands_done} times, ${activityEn("산책")} ${t.park_visits} times`
+        : `- ${r.home || L.home} ${L.total}: 걸어서 ${fmtMinutes(t.walk_minutes)}/${fmtDistance(t.walk_distance_m)}, 장보기 ${t.errands_done}번, 산책 ${t.park_visits}번`);
     } else if (Array.isArray(r.trips)) {
       for (const t of r.trips.slice(0, 12)) {
         lines.push(`- ${t.depart}→${t.arrive} ${t.from}→${t.to} ${fmtMinutes(t.minutes)}(${fmtDistance(t.distance_m)})`);

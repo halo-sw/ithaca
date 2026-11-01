@@ -25,6 +25,7 @@ export const FALLBACK_SOURCE = "가정값";
 
 export function normalizeStation(name) {
   return String(name || "").trim().replace(/\s*\([^()]*\)\s*$/, "").trim()
+    .replace(/\s+(caltrain|station)$/i, "").trim()
     .replace(/역$/, "").trim();
 }
 
