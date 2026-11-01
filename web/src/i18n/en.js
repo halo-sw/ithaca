@@ -505,6 +505,9 @@ const seedPhrases = {
   "(단어에 마우스를 올리면 뜻이 보여요)": "(hover over a word to see what it means)",
   "시뮬레이션은 지역 생성 후": "simulation once the area is built",
   "땅+단지 이름": "parcel + complex name",
+  // 41e: the server key is one chat session per visitor.
+  "무료 체험 대화는 한 번만 쓸 수 있어요. 계속하려면 내 모델 키를 넣어 주세요.": "The free trial chat can be used once. To keep going, add your own model key.",
+  "내 모델 키 넣기": "Add my model key",
   "단지 이름": "complex name",
 };
 
