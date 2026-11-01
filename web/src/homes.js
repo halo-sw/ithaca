@@ -881,6 +881,7 @@ export function find_homes(profile, index, opts = {}) {
       match: home.match || "register",
       pnu: home.pnu || null,
       osm_name: home.osm_name || (home.osm && home.osm.name) || null,
+      ...(home.address ? { address: home.address } : {}),
       tenures: shown,
       // 26c: a USD home carries its currency and ZIP price through.
       ...(home.currency ? { currency: home.currency } : {}),
