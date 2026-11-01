@@ -746,6 +746,8 @@ export const tablePhrases = {
  "예산 일부": "Partly within budget",
  "예산 밖": "Over budget",
  "단지 사진": "Complex photo",
+ "카카오맵 로드뷰로 보기": "View on Kakao Map Roadview",
+ "Google 스트리트 뷰로 보기": "View on Google Street View",
  "담음 ✓": "Picked ✓",
  "담기": "Pick",
  "계산 근거를 불러오는 중이에요": "Loading calculation evidence",

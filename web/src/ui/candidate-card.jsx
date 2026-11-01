@@ -543,12 +543,49 @@ export function thumbKindFor(candidate, { hasHero = false, hasStreet = false, ha
   return "minimap";
 }
 
+// 36j: outbound street-view link for cards without a street photo.
+// Plain link only (no Kakao/Google imagery fetched or embedded).
+// Returns { href, label } or null when lon/lat is missing.
+export function streetViewLinkFor(candidate, lang = currentLang()) {
+  const lon = candidate && Number(candidate.lon);
+  const lat = candidate && Number(candidate.lat);
+  if (!Number.isFinite(lon) || !Number.isFinite(lat)) return null;
+  const en = lang === "en";
+  const flat = `${lat.toFixed(6)},${lon.toFixed(6)}`;
+  if (isUsLonLat(lon, lat)) {
+    return {
+      href: `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${flat}`,
+      label: en ? "View on Google Street View" : "Google 스트리트 뷰로 보기",
+    };
+  }
+  return {
+    href: `https://map.kakao.com/link/roadview/${flat}`,
+    label: en ? "View on Kakao Map Roadview" : "카카오맵 로드뷰로 보기",
+  };
+}
+
 // 32b: the credit for our own model views (3D miniature, silhouette).
 export function modelCreditFor(candidate) {
   const us = (candidate && candidate.country === "US")
     || (candidate && Number.isFinite(candidate.lon) && Number.isFinite(candidate.lat)
       && isUsLonLat(candidate.lon, candidate.lat));
   return us ? "우리 자료로 만든 모형 (OSM)" : "우리 자료로 만든 모형 (GIS건물통합정보·OSM)";
+}
+
+// 36j: muted outbound street-view line for cards whose thumb is not a
+// street or complex photo (3D / silhouette / minimap). Plain link only —
+// no Kakao/Google imagery is fetched or embedded. The click never picks
+// the row (stopPropagation, like the 담기 button).
+function StreetViewLink({ candidate, kind }) {
+  if (kind === "street" || kind === "hero") return null;
+  const link = streetViewLinkFor(candidate);
+  if (!link) return null;
+  return (
+    <div className="ui-cand-streetview">
+      <a href={link.href} target="_blank" rel="noopener noreferrer"
+        onClick={(e) => { if (e && e.stopPropagation) e.stopPropagation(); }}>{link.label} <span className="ui-cand-streetview-arrow" aria-hidden="true">↗</span></a>
+    </div>
+  );
 }
 
 // 32b: the nearest building footprint ring (lon/lat pairs) for the home —
@@ -806,9 +843,10 @@ function RowEstimateTag({ row }) {
 export function CandidateCard({ candidate, tenure, destName, photos, index,
   onLive, onJeonse, onDetail, picked = false, variant = "row",
   pickLetter = null, highlighted = false, note = "", budgetWon = null,
-  sharedRent = false, usedPhotoKeys = null }) {
+  sharedRent = false, usedPhotoKeys = null, street: initialStreet = null }) {
   const [slide, setSlide] = useState(0);
-  const [street, setStreet] = useState(null);
+  // 36j: an explicit street photo (tests, previews) skips the async fetch.
+  const [street, setStreet] = useState(initialStreet);
   const thumbRef = useRef(null);
   // 32c: the street request starts only when the row thumbnail is near
   // the viewport (SSR-safe: no IntersectionObserver on the server).
@@ -909,6 +947,7 @@ export function CandidateCard({ candidate, tenure, destName, photos, index,
           {row.alt && (<><br />{row.alt}</>)}
         </div>
         )}
+        <StreetViewLink candidate={candidate} kind={thumbKind} />
         {candidate.kind_mismatch && <Text type="supporting">{KIND_MISMATCH_KO}</Text>}
         {note && <Text type="supporting">{`살아 보기 불가 · ${note}`}</Text>}
       </div>
@@ -1076,6 +1115,7 @@ function FullCard({ candidate, price, facts, row, hero, rest,
             {row.alt && (<><br />{row.alt}</>)}
           </div>
           {detail && <Text type="supporting">{detail}</Text>}
+          <StreetViewLink candidate={candidate} kind={hero ? "hero" : active} />
         </div>
         {shot && (
           <div className="ui-cand-strip">
