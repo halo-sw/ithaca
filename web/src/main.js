@@ -780,11 +780,7 @@ function trackSimViewOffset(camera) {
 }
 
 async function fetchScene(wantId) {
-  return loadScene(wantId, async (url) => {
-    const r = await fetch(url);
-    if (!r.ok) throw new Error(`${url}: ${r.status}`);
-    return r.json();
-  });
+  return loadScene(wantId, fetchDataJson);
 }
 
 // 27c1: the chat boots without the 3D world — no fetchArea, no

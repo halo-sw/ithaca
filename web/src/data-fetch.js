@@ -1,8 +1,7 @@
 // Box data fetch (38d): box files (/data/st-*/.., /data/hm-*/..) ship
 // gzipped on the static site (<file>.json.gz, no Content-Encoding), so the
 // app decompresses them itself. Non-box files stay plain everywhere.
-const IM = import.meta;
-export const DATA_GZ = Boolean(IM && IM.env && IM.env.PROD);
+export const DATA_GZ = Boolean(import.meta.env && import.meta.env.PROD);
 
 export function isBoxDataUrl(url) {
   let s = String(url);

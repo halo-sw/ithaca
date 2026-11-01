@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import {
-  existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync,
+  existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, symlinkSync, writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -138,5 +138,39 @@ describe("38d sources route box fetches", () => {
     for (const f of ["sim-worker.js", "ui/chat.jsx", "ui/preview.jsx", "main.js"]) {
       assert.match(readFileSync(join(SRC, f), "utf8"), /fetchDataJson|fetchDataText/, f);
     }
+  });
+});
+
+describe("38d3 fetchScene uses gzip helper", () => {
+  it("fetchScene body goes through fetchDataJson", () => {
+    const text = readFileSync(join(SRC, "main.js"), "utf8");
+    const start = text.indexOf("async function fetchScene");
+    assert.ok(start >= 0, "fetchScene found");
+    const end = text.indexOf("\n}\n", start);
+    assert.ok(end > start, "fetchScene end found");
+    const body = text.slice(start, end);
+    assert.match(body, /fetchDataJson/);
+    assert.doesNotMatch(body, /fetch\(url\)/);
+  });
+});
+
+describe("38d DATA_GZ vite-safe", () => {
+  it("uses literal import.meta.env.PROD with no alias", () => {
+    const text = readFileSync(join(SRC, "data-fetch.js"), "utf8");
+    assert.match(text, /import\.meta\.env\.PROD/);
+    assert.doesNotMatch(text, /=\s*import\.meta\s*;/);
+  });
+  it("no import.meta alias anywhere under web/src", () => {
+    const files = [];
+    const walk = (dir) => {
+      for (const e of readdirSync(dir)) {
+        const p = join(dir, e);
+        if (statSync(p).isDirectory()) walk(p);
+        else if (/\.jsx?$/.test(e)) files.push(p);
+      }
+    };
+    walk(SRC);
+    const bad = files.filter((f) => /=\s*import\.meta\s*;/.test(readFileSync(f, "utf8")));
+    assert.deepEqual(bad, []);
   });
 });
