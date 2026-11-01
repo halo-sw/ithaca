@@ -1,4 +1,7 @@
 // Revised Romanization of Hangul, syllable by syllable (pure, no DOM).
+import { STATION_EN } from "./en-stations.js";
+import { LOANWORDS, PLACE_TERMS } from "./en-loanwords.js";
+
 const LEADS = ["g", "kk", "n", "d", "tt", "r", "m", "b", "pp",
   "s", "ss", "", "j", "jj", "ch", "k", "t", "p", "h"];
 const MEDIALS = ["a", "ae", "ya", "yae", "eo", "e", "yeo", "ye",
@@ -14,6 +17,8 @@ const HANGUL_END = 0xd7a3;
 // Final jamo (jongseong index) that romanize to "k" / "p".
 const K_FINALS = new Set([1, 2, 24]); // ㄱ ㄲ ㅋ
 const P_FINALS = new Set([17, 26]); // ㅂ ㅍ
+// Final jamo of the ㄷ group, read "n" before a nasal (ㄴ/ㅁ).
+const D_NASAL_FINALS = new Set([7, 19, 20, 22, 23, 25, 27]); // ㄷ ㅅ ㅆ ㅈ ㅊ ㅌ ㅎ
 
 function isNasalLead(lead) {
   return lead === 2 || lead === 6; // ㄴ ㅁ
@@ -54,6 +59,16 @@ function romanizeWord(word) {
       prev.fin = "ng"; // final ㄱ before ㄴ/ㅁ → ng
     } else if (P_FINALS.has(prev.tail) && isNasalLead(cur.lead)) {
       prev.fin = "m"; // final ㅂ before ㄴ/ㅁ → m
+    } else if (D_NASAL_FINALS.has(prev.tail) && isNasalLead(cur.lead)) {
+      prev.fin = "n"; // final ㄷ-group before ㄴ/ㅁ → n
+    } else if (cur.lead === 5 && (prev.tail === 21 || prev.tail === 16)) {
+      cur.init = "n"; // final ㅇ/ㅁ before ㄹ → ㄹ reads n (종로 → jongno)
+    } else if (cur.lead === 5 && K_FINALS.has(prev.tail)) {
+      prev.fin = "ng"; // final ㄱ before ㄹ → ng + n (독립 → dongnip)
+      cur.init = "n";
+    } else if (cur.lead === 5 && P_FINALS.has(prev.tail)) {
+      prev.fin = "m"; // final ㅂ before ㄹ → m + n (협력 → hyeomnyeok)
+      cur.init = "n";
     }
   }
   return syls.map((s) => (s.ch != null
@@ -134,54 +149,75 @@ const TYPE_EN = [
   ["빌", "Vill"],
 ];
 
-function splitTypes(w) {
-  const parts = [];
-  for (let k = 0; k < 2; k++) {
-    let hit = null;
-    for (const [ko, en] of TYPE_EN) {
-      if (w === ko) { hit = [ko, en]; break; }
-      if (w.length > ko.length && w.endsWith(ko)) {
-        if (ko === "빌" && w.length - ko.length < 2) continue;
-        hit = [ko, en]; break;
-      }
-    }
-    if (!hit) break;
-    parts.unshift(hit[1]);
-    w = w.slice(0, w.length - hit[0].length);
-    if (!w) break;
+// 39c: left-to-right longest match over LOANWORDS, then TYPE_EN as a
+// fallback list. A run between matches is romanized as one word.
+// A one-syllable loanword (빌/뷰/힐) matches only at the end of the
+// word, after at least 2 other syllables.
+const LOAN_KEYS = Object.keys(LOANWORDS).sort((a, b) => b.length - a.length);
+const TYPE_KEYS = TYPE_EN.map(([ko]) => ko).sort((a, b) => b.length - a.length);
+const TYPE_MAP = Object.fromEntries(TYPE_EN);
+
+function keyAt(keys, w, i) {
+  for (const k of keys) {
+    if (k.length === 1 && (i + 1 !== w.length || i < 2)) continue;
+    if (w.startsWith(k, i)) return k;
   }
-  return { stem: w, parts };
+  return null;
+}
+
+function romanizeRun(buf) {
+  if (Object.hasOwn(NAMES, buf)) return NAMES[buf];
+  if (buf.length > 1 && buf.endsWith("동")) {
+    const base = buf.slice(0, -1);
+    return (Object.hasOwn(NAMES, base) ? NAMES[base] : romanize(base)) + "-dong";
+  }
+  return romanize(buf);
+}
+
+function namePieces(w) {
+  const out = [];
+  let buf = "";
+  const flush = () => {
+    if (!buf) return;
+    out.push(romanizeRun(buf));
+    buf = "";
+  };
+  for (let i = 0; i < w.length;) {
+    const lk = keyAt(LOAN_KEYS, w, i);
+    if (lk) { flush(); out.push(LOANWORDS[lk]); i += lk.length; continue; }
+    const tk = keyAt(TYPE_KEYS, w, i);
+    if (tk) { flush(); out.push(TYPE_MAP[tk]); i += tk.length; continue; }
+    buf += w[i];
+    i++;
+  }
+  flush();
+  return out;
 }
 
 export function romanizeName(name) {
   return String(name).trim().split(/\s+/).filter(Boolean).map((w) => {
     if (Object.hasOwn(NAMES, w)) return NAMES[w];
-    let suffix = "";
+    // Station: the word minus a trailing 역 is an official English name.
+    const bare = (w.endsWith("역") && w.length > 1) ? w.slice(0, -1) : w;
+    const isStn = bare !== w;
+    if (Object.hasOwn(STATION_EN, bare)) return STATION_EN[bare] + (isStn ? " Stn" : "");
+    // Place term: the stem goes through the name pieces below.
+    for (const t of PLACE_TERMS) {
+      if (w.length > t.ko.length && w.endsWith(t.ko)) {
+        const stemEn = namePieces(w.slice(0, w.length - t.ko.length)).join(" ");
+        return t.join === "hyphen" ? `${stemEn}-${t.en}` : `${stemEn} ${t.en}`;
+      }
+    }
+    // 역/동/구/시 suffixes read plainly — never as loanwords, so
+    // 삼성동 stays Samseong-dong, never Samsung-dong.
     const last = w.charAt(w.length - 1);
-    if (last === "역") {
-      w = w.slice(0, -1);
-      suffix = " Stn";
-    } else if (last === "동") {
-      w = w.slice(0, -1);
-      suffix = "-dong";
-    } else if (last === "구") {
-      w = w.slice(0, -1);
-      suffix = "-gu";
-    } else if (last === "시") {
-      w = w.slice(0, -1);
-      suffix = "-si";
+    if ((last === "역" || last === "동" || last === "구" || last === "시") && w.length > 1) {
+      const base = w.slice(0, -1);
+      const head = Object.hasOwn(NAMES, base) ? NAMES[base] : romanize(base);
+      const suffix = last === "역" ? " Stn" : last === "동" ? "-dong" : last === "구" ? "-gu" : "-si";
+      return head + suffix;
     }
-    if (Object.hasOwn(NAMES, w)) return NAMES[w] + suffix;
-    const { stem, parts } = splitTypes(w);
-    let head = stem;
-    if (head) {
-      if (Object.hasOwn(NAMES, head)) head = NAMES[head];
-      else if (head.endsWith("동") && head.length > 1) {
-        const base = head.slice(0, -1);
-        head = (Object.hasOwn(NAMES, base) ? NAMES[base] : romanize(base)) + "-dong";
-      } else head = romanize(head);
-    }
-    if (!head) return parts.join(" ") + suffix;
-    return [head, ...parts].join(" ") + suffix;
+    // Name pieces: loanwords and type words read as English.
+    return namePieces(w).join(" ");
   }).join(" ");
 }
