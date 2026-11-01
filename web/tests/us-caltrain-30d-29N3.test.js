@@ -48,7 +48,9 @@ async function loadArea(areaId) {
   return area;
 }
 
-describe("29N3 scenarioFromProfile for Caltrain homes", () => {
+describe("29N3 scenarioFromProfile for Caltrain homes", { skip: !existsSync(join(ROOT, "data", "build", "homes", "us-st-palo-alto.json"))
+  || !existsSync(join(ROOT, "data", "build", "homes", "us-menlo.json"))
+  ? "missing data/build/homes/us-st-palo-alto.json or us-menlo.json — build the boxes first" : false }, () => {
   it("a Palo Alto home rides station_ride; a Belle Haven home keeps place", async () => {
     const palo = await loadBuiltHome("us-st-palo-alto.json");
     const menlo = await loadBuiltHome("us-menlo.json");
