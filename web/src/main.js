@@ -13,6 +13,7 @@ import { buildingCard, destSuffixFor, labelBoxW, labelItemsFor, labelPaintStyle,
 import { buildGround } from "./ground.js";
 import { ARCH_FOV_DEG, GLIDE_FRAME_M, STOP_FRAME_M, TOUR_AZIMUTH, applyFollowOffset, archLensPose, cameraStyle, distanceForWidth, followZoomAfterWheel, footprintsOf, frameWidthFor, hostTowerIds, journeyCruisePose, occludingIds, pickStopAzimuth, resolveStyle, tourFrameWidths, tourOffset, zoomClampDistances } from "./camera.js";
 import { loadArea, originOf } from "./load.js";
+import { fetchDataJson } from "./data-fetch.js";
 import { assetUrl, STATIC_SITE, LIVE_API } from "./paths.js";
 import { drapeAerial, drapeCorridorAerial, isUsArea } from "./aerial/drape.js";
 import { drapeAreaOnce } from "./area-ground.js";
@@ -218,11 +219,7 @@ function makeLitFiller(litMeshes, householdsById, { residentialById = null, tour
 async function fetchArea(wantId) {
   const loading = document.getElementById("loading");
   try {
-    return await loadArea(wantId, async (url) => {
-      const r = await fetch(url);
-      if (!r.ok) throw new Error(`${url}: ${r.status}`);
-      return r.json();
-    });
+    return await loadArea(wantId, fetchDataJson);
   } catch (err) {
     loading.textContent = `지역을 불러오지 못했습니다 (${wantId}): ${err.message}`;
     throw err;
@@ -2622,9 +2619,7 @@ async function bootSim() {
   }
 
   async function fetchJson(url) {
-    const r = await fetch(url);
-    if (!r.ok) throw new Error(`${url}: ${r.status}`);
-    return r.json();
+    return fetchDataJson(url);
   }
 
   async function ensureRegion() {
