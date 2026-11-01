@@ -42,11 +42,22 @@ def _write_area(area_dir: Path, area_id: str) -> None:
     _write(area_dir, "area.json", {
         "area": area_id,
         "roads": [],
-        "pois": [],
+        "pois": [{"id": "s1", "name": "San Francisco",
+                  "category": "railway:station",
+                  "geometry": {"type": "Point",
+                               "coordinates": [LON0 + 0.002, LAT0]}}],
         "workplaces": [],
     })
+    nodes = {f"n{i}": [LON0 + i * 0.001, LAT0] for i in range(5)}
+    walk = []
+    for i in range(4):
+        walk.append({"from": f"n{i}", "to": f"n{i + 1}",
+                     "length_m": 88.0})
+        walk.append({"from": f"n{i + 1}", "to": f"n{i}",
+                     "length_m": 88.0})
     _write(area_dir, "graph.json",
-           {"nodes": {}, "edges": {"walk": [], "bike": [], "drive": []}})
+           {"nodes": nodes,
+            "edges": {"walk": walk, "bike": [], "drive": []}})
 
 
 def test_us_home_id_offset_blocks() -> None:

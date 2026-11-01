@@ -25,6 +25,7 @@ import { photosNear, PHOTOS_DISCLAIMER } from "./places/photos.js";
 import { nearestStationByWalk } from "./walkgraph.js";
 import { fmtMoney } from "./money/currency.js";
 import { usAreaLabel } from "./region-names.js";
+import { currentLang } from "./i18n/lang.js";
 
 export const HOME_SORTS = ["areas", "commute", "monthly", "deals", "priority"];
 export const DEFAULT_HOME_SORT = "areas";
@@ -362,21 +363,42 @@ export const CALTRAIN_SHUTTLE_LINE = {
   ko: "또는 멘로파크역에서 메타 셔틀(가정)",
 };
 
-// 29N2b: the fastest way to work for a US home — the direct
-// walk/bike estimate against the labelled Caltrain total. An
-// explicit home.commute.best ({mode, min}) wins; otherwise the
-// smaller of the two when both are known (a tie keeps the
-// labelled Caltrain total). Pure.
+// 29N3b: station-box (us-st-*) homes always lead with the measured
+// Caltrain total (what the 30-day run lives); the direct walk/bike
+// estimate survives only as `alt` when it is smaller. us-menlo
+// homes keep the 29N2b fastest-wins behaviour. Pure.
 export function usCommuteBest(home, corridor, work) {
+  const cal = corridor && Number.isFinite(corridor.total_min)
+    ? corridor.total_min : null;
+  const direct = work && Number.isFinite(work.minutes)
+    ? { mode: work.mode || "bike", min: work.minutes } : null;
+  const region = home && home.region;
+  const stationBox = typeof region === "string" && region.indexOf("us-st-") === 0;
+  if (stationBox && cal !== null) {
+    // 29N3i: the side-note estimate comes only from the built
+    // commute block's direct leaves — never from work_targets (old
+    // box data may still carry a bogus meta-hq walk snapped to the
+    // box graph while HQ sits outside it).
+    const c = home && home.commute;
+    const leaf = (v) => (v && Number.isFinite(v.value) ? v.value : null);
+    const bikeLeaf = c ? leaf(c.bike_direct_min) : null;
+    const walkLeaf = c ? leaf(c.walk_direct_min) : null;
+    let leafDirect = null;
+    if (bikeLeaf !== null && (walkLeaf === null || bikeLeaf <= walkLeaf)) {
+      leafDirect = { mode: "bike", min: bikeLeaf };
+    } else if (walkLeaf !== null) {
+      leafDirect = { mode: "walk", min: walkLeaf };
+    }
+    if (leafDirect && leafDirect.min < cal) {
+      return { mode: "caltrain", min: cal, alt: leafDirect };
+    }
+    return { mode: "caltrain", min: cal };
+  }
   const b = home && home.commute && home.commute.best;
   if (b && typeof b.mode === "string"
       && Number.isFinite(b.min)) {
     return { mode: b.mode, min: b.min };
   }
-  const cal = corridor && Number.isFinite(corridor.total_min)
-    ? corridor.total_min : null;
-  const direct = work && Number.isFinite(work.minutes)
-    ? { mode: work.mode || "bike", min: work.minutes } : null;
   if (cal === null) return direct;
   if (!direct) return { mode: "caltrain", min: cal };
   return direct.min < cal ? direct : { mode: "caltrain", min: cal };
@@ -867,13 +889,21 @@ export function find_homes(profile, index, opts = {}) {
       ...(isUs ? { ...usResultArea(home),
         zip: home.price && home.price.zip ? home.price.zip : null,
         rent_source: usRentSource(home),
-        ...(best ? { best_mode: best.mode, best_min: best.min } : {}) } : {}),
+        ...(best ? { best_mode: best.mode, best_min: best.min,
+          ...(best.alt && Number.isFinite(best.alt.min)
+            ? { bike_direct_estimate_min: best.alt.min,
+              direct_estimate_mode: best.alt.mode } : {}) } : {}) } : {}),
       ...(corridor ? { corridor_min: corridor.total_min, corridor,
         commute_breakdown: { ...corridor,
           en: caltrainBreakdownText(corridor, "en"),
           ko: caltrainBreakdownText(corridor, "ko"),
           shuttle_en: CALTRAIN_SHUTTLE_LINE.en,
           shuttle_ko: CALTRAIN_SHUTTLE_LINE.ko } } : {}),
+      // 29N3: station-box rows keep the built commute block so the
+      // scenario step can build the Caltrain ride (train + half
+      // headway + last mile) without re-reading the homes file.
+      ...(home.commute && home.commute.caltrain_min !== undefined
+        ? { commute_block: home.commute } : {}),
       thin_deal: thinRow,
       deals_in_bucket: dealCount,
       monthly_cost_won: monthly.length > 0 ? Math.min(...monthly) : null,
@@ -902,7 +932,7 @@ export function find_homes(profile, index, opts = {}) {
       ],
     });
   }
-  const { rows: sorted, sort_note } = sortResults(rows, sort, profile, boxes);
+  const { rows: sorted, sort_note: baseNote } = sortResults(rows, sort, profile, boxes);
   // 36a: the areas default spreads one home per neighbourhood instead
   // of lining up homes next to the workplace.
   // 29N2a: a multi-area US commute search opens spread out (at most 2
@@ -910,12 +940,25 @@ export function find_homes(profile, index, opts = {}) {
   // continues in pure commute order.
   let candidates;
   let commute_cap = null;
+  let sort_note = baseNote;
   const usAreas = new Set(sorted.filter((r) => r && typeof r.region === "string"
     && r.region.startsWith("us-")).map((r) => r.region));
-  const spread = sort === "commute" && limit <= 6 && usAreas.size > 1
+  const usMulti = usAreas.size > 1
     && sorted.length > 0 && sorted.every((r) => r && (r.currency === "USD"
       || (typeof r.region === "string" && r.region.startsWith("us-"))));
-  if (sort === "areas") {
+  const spread = sort === "commute" && limit <= 6 && usMulti;
+  if (sort === "areas" && usMulti) {
+    // 29N3c: US rows carry no station origin, so the neighbourhood
+    // pick cannot group them — spread one home per US area in
+    // headline-commute order, filling leftover slots in commute order.
+    // 29N3i: one language per screen — never both at once.
+    sort_note = currentLang() === "en"
+      ? "one home per area (closest area first)"
+      : "정렬: 동네마다 한 곳씩(가까운 동네부터)";
+    const first = spreadUsFirstPage(sorted, limit, 1);
+    candidates = first.concat(
+      sorted.filter((r) => !first.includes(r)).slice(0, limit - first.length));
+  } else if (sort === "areas") {
     const picked = pickByNeighbourhood(sorted, limit, commuteMax);
     candidates = picked;
     if (picked.commute_cap) commute_cap = picked.commute_cap;

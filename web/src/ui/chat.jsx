@@ -597,15 +597,17 @@ export function commuteOneWayOf(compare) {
   for (const m of (compare && compare.members) || []) {
     const w = m.commute_walk_minutes || {};
     const r = m.commute_ride_minutes || {};
+    const wt = m.commute_wait_minutes || {};
     // 21a: a present-but-unmeasurable side (NaN) is missing, never 0.
-    const raw = [w.a, w.b, r.a, r.b].map((x) => (
+    // 29N3d: the pre-boarding wait is door to door, like the walk+ride.
+    const raw = [w.a, w.b, r.a, r.b, wt.a, wt.b].map((x) => (
       x === null || x === undefined || x === "" ? 0 : Number(x)));
     if (!raw.every(Number.isFinite)) continue;
-    const total = raw[0] + raw[1] + raw[2] + raw[3];
+    const total = raw[0] + raw[1] + raw[2] + raw[3] + raw[4] + raw[5];
     if (!(total > 0)) continue;
     const one = (x) => Math.round((((Number(x) || 0) / days / 2)) * 10) / 10;
-    const a = one((Number(w.a) || 0) + (Number(r.a) || 0));
-    const b = one((Number(w.b) || 0) + (Number(r.b) || 0));
+    const a = one((Number(w.a) || 0) + (Number(r.a) || 0) + (Number(wt.a) || 0));
+    const b = one((Number(w.b) || 0) + (Number(r.b) || 0) + (Number(wt.b) || 0));
     const d = Math.round((b - a) * 10) / 10;
     out.push({ member: m.member, label: m.label, a, b, delta_b_minus_a: d,
       plain: d === 0 ? `${m.label}는 A와 B가 같아요`
@@ -2601,7 +2603,7 @@ export function ChatScreen() {
       // 27d: the diary follows without blocking the result card.
       if (LIVE_API) {
         try {
-          const digests = labels.map((l) => runDigest(runs[l], l, { name: (payload.names || {})[l] || "" }));
+          const digests = labels.map((l) => runDigest(runs[l], l, { name: (payload.names || {})[l] || "", lang: currentLang() }));
           setMessages((prev) => prev.map((m) => (m.id === simId
             ? { ...m, data: { ...m.data, diary: { status: "writing" } } } : m)));
           postDiary({ provider, digests, lang: LANG }).then((result) => {

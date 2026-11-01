@@ -22,7 +22,7 @@ export const WORDS = {
   "준공": "built", "년": "year", "층": "floor", "평": "pyeong", "면적": "area",
   // commute and places
   "출근": "commute", "퇴근": "return home", "출퇴근": "commute", "편도": "one-way",
-  "왕복": "round trip", "지하철": "subway", "버스": "bus", "걷기": "walk", "걸어서": "on foot",
+  "왕복": "round trip", "지하철": "subway", "열차": "train", "칼트레인": "Caltrain", "버스": "bus", "걷기": "walk", "걸어서": "on foot",
   "도보": "on foot", "환승": "transfer", "기다림": "wait", "혼잡": "crowding",
   "역": "station", "역까지": "to the station", "회사": "work", "직장": "workplace",
   "집까지": "to home", "동네": "neighborhood", "근처": "nearby", "가까운": "nearby",

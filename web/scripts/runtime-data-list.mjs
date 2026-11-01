@@ -10,7 +10,7 @@
 // - for every area/box directory (a dir holding area.json): area.json and
 //   scene.json, plus every $ref target inside them, recursively;
 // - all .json and .csv under homes/, region/ (including
-//   congestion.json), sim/ and walkgraph/;
+//   congestion.json), region-us/, sim/ and walkgraph/;
 // - top-level *.json.
 // - never _cache/, personas/, *.pbf, osm.json, graph.json or report.json
 //   — unless something already in the list references them.
@@ -18,7 +18,7 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
 
 const EXCLUDED_BASENAMES = new Set(["osm.json", "graph.json", "report.json"]);
-const DATA_SUBTREES = new Set(["homes", "region", "sim", "walkgraph"]);
+const DATA_SUBTREES = new Set(["homes", "region", "region-us", "sim", "walkgraph"]);
 
 function posix(rel) {
   return String(rel).split(sep).join("/");

@@ -45,7 +45,7 @@ import { VALID_COMPARE_TABS, resolveTabId } from "./ui/compare-tabs.js";
 // 12b: landing/chat routing, timeline builders + activity colours,
 // custom-run store (?custom=<id>).
 import { routeForSearch, bootKindFor, chatUrl, chatReopenUrl } from "./chat/urls.js";
-import { ACTIVITIES, daySegments, hhmm, monthStrip, outingStepsFor, runHasBikeTrip } from "./timeline.js";
+import { ACTIVITIES, daySegments, hhmm, isCaltrainRun, monthStrip, outingStepsFor, runHasBikeTrip } from "./timeline.js";
 import { customRunId, loadCustomRun } from "./chat/idb.js";
 // Stage 5b realistic rendering seam: createRenderer / renderFrame plus
 // the rig/material builders (night emissive via aLit, not glow quads).
@@ -1809,7 +1809,7 @@ async function bootSim() {
         destination: hiState.destLabel
           ? { label: hiState.destLabel, lonlat: destLonLat || undefined }
           : null,
-        destinationSuffix: destSuffixFor(tripNow, run.aways),
+        destinationSuffix: destSuffixFor(tripNow, run.aways, run),
         cameraDistM: camDist,
       });
       const canvasEl = document.getElementById("scene");
@@ -2622,10 +2622,16 @@ async function bootSim() {
     return fetchDataJson(url);
   }
 
+  // 29N3: a run whose home area is us-* reads the Caltrain region
+  // doc (region-us has no congestion file — congestion stays null).
+  function regionDir() {
+    return String((run && run.meta && run.meta.area) || "").startsWith("us-") ? "region-us" : "region";
+  }
+
   async function ensureRegion() {
     if (regionNetwork !== null || corridorsIndex !== null) return;
     try {
-      regionNetwork = await fetchJson(assetUrl("/data/region/network.json"));
+      regionNetwork = await fetchJson(assetUrl(`/data/${regionDir()}/network.json`));
     } catch {
       regionNetwork = null;
     }
@@ -3359,7 +3365,7 @@ async function bootSim() {
     } else {
       store.set({
         dayStrip: { segments: daySegments({ run, agentKey: key, day }),
-          hasBike: runHasBikeTrip(run) },
+          hasBike: runHasBikeTrip(run), train: isCaltrainRun(run) },
         routeSteps: { outings: outingStepsFor({ run, agentKey: key, day }) },
         monthStrip: monthStrip({ run, agentKey: key }),
       });

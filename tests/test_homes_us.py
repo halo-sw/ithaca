@@ -265,3 +265,74 @@ def test_graph_run_build_uses_us_raw_pbf(tmp_path: Path,
 def test_scene_run_scene_us_menlo_known(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         run_scene("us-menlo", tmp_path)
+
+
+def test_station_box_home_without_station_walk_dropped(
+        tmp_path: Path) -> None:
+    area_dir = tmp_path / "us-st-palo-alto"
+    _write(area_dir, "buildings.json", {"buildings": [
+        _building("b1", "apartments", "Alma Lofts", LON0, LAT0),
+    ]})
+    _write(area_dir, "area.json", {
+        "area": "us-st-palo-alto",
+        "roads": [],
+        "pois": [{"id": "s1", "name": "Palo Alto",
+                  "category": "railway:station",
+                  "geometry": {"type": "Point",
+                               "coordinates": [LON0, LAT0]}}],
+        "workplaces": [],
+    })
+    # No walk graph: no station walk is measurable (st is None).
+    _write(area_dir, "graph.json",
+           {"nodes": {}, "edges": {"walk": [], "bike": [], "drive": []}})
+    stats: dict = {}
+    homes = build_us_homes(area_dir, ZORI, [(LON0, LAT0, "94025")],
+                           stats=stats)
+    assert homes == []
+    assert stats["dropped_no_station_walk"] == 1
+    assert stats["dropped_no_zori"] == 0
+
+
+def _write_station_box_with_far_hq(area_dir: Path) -> None:
+    # 29N3i: station-box home whose HQ lies far outside the box graph.
+    _write(area_dir, "buildings.json", {"buildings": [
+        _building("b1", "apartments", "Alma Lofts", LON0, LAT0),
+    ]})
+    _write(area_dir, "area.json", {
+        "area": "us-st-palo-alto",
+        "roads": [],
+        "pois": [{"id": "s1", "name": "Palo Alto",
+                  "category": "railway:station",
+                  "geometry": {"type": "Point",
+                               "coordinates": [LON0, LAT0]}}],
+        "workplaces": [{"id": "meta-hq", "lon": LON0 + 1.0,
+                        "lat": LAT0 + 1.0}],
+    })
+    nodes = {"n0": [LON0, LAT0], "n1": [LON0 + 0.001, LAT0]}
+    walk, bike = [], []
+    for edges in (walk, bike):
+        edges.append({"from": "n0", "to": "n1", "length_m": 88.0})
+        edges.append({"from": "n1", "to": "n0", "length_m": 88.0})
+    _write(area_dir, "graph.json",
+           {"nodes": nodes,
+            "edges": {"walk": walk, "bike": bike, "drive": []}})
+
+
+def test_station_box_home_gets_no_meta_hq_work_target(
+        tmp_path: Path) -> None:
+    area_dir = tmp_path / "us-st-palo-alto"
+    _write_station_box_with_far_hq(area_dir)
+    homes = build_us_homes(area_dir, ZORI, [(LON0, LAT0, "94025")])
+    assert len(homes) == 1
+    assert homes[0].get("work_targets", {}) == {}
+    assert homes[0]["commute"]["bike_direct_min"]["value"] is not None
+    assert homes[0]["commute"]["walk_direct_min"]["value"] is not None
+
+
+def test_us_menlo_home_keeps_meta_hq_work_target(
+        tmp_path: Path) -> None:
+    area_dir = tmp_path / "us-menlo"
+    _write_area(area_dir)
+    homes = build_us_homes(area_dir, ZORI, [(LON0 + 0.001, LAT0, "94025")])
+    assert homes
+    assert "meta-hq" in homes[0]["work_targets"]

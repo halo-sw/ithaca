@@ -107,11 +107,16 @@ async function loadAreaMetaFs(readText, areaMetaCache, areaId) {
   return meta;
 }
 
-async function loadRegionFs(readText) {
+// 29N3: a run whose home areas are us-* reads the Caltrain region
+// doc (region-us has no congestion file — congestion stays null).
+// areaIds is optional; without it the Seoul region loads as before.
+async function loadRegionFs(readText, areaIds = null) {
+  const areas = Array.isArray(areaIds) ? areaIds.filter(Boolean).map(String) : [];
+  const dir = areas.length > 0 && areas.every((a) => a.startsWith("us-")) ? "region-us" : "region";
   const region = {};
   for (const [key, file] of [["network", "network.json"], ["congestion", "congestion.json"]]) {
     try {
-      region[key] = JSON.parse(await readText("data", `region/${file}`));
+      region[key] = JSON.parse(await readText("data", `${dir}/${file}`));
     } catch {
       region[key] = null;
     }
@@ -435,7 +440,7 @@ export function createConsultHandler({ dataDir, scenDir, rawDir = null, fetchImp
         loadArea: (areaId) => loadAreaFs(read, areaCache, areaId),
         loadAreaMeta: (areaId) => loadAreaMetaFs(read, areaMetaCache, areaId),
         loadDecisions: (name, label) => loadDecisionsFs(read, name, label),
-        loadRegion: () => loadRegionFs(read),
+        loadRegion: (areaIds) => loadRegionFs(read, areaIds),
         judgeHome: (args) => judgeHome({ ...args, fetchImpl }),
         loadPayroll, loadRtms, loadHousing,
         loadSafety: () => loadSafetyFs(read),

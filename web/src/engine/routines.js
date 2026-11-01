@@ -21,7 +21,7 @@
 // text} built where it was scheduled, so the UI can always say what is
 // happening and why (stage 7, Part A).
 
-import { destForHome, nameForHome, rideMinutesForHome, weekdayOf, WEEKDAYS, dateOf } from "./scenario.js";
+import { destForHome, nameForHome, rideMinutesForHome, waitMinutesForHome, weekdayOf, WEEKDAYS, dateOf } from "./scenario.js";
 import { MAX_ANCHOR_M, nearestRoundTrip, poisByName, stationsByName } from "./places.js";
 import { ruleDefault, WEEKEND_HOME } from "./decisions.js";
 import { criterionDefault, defaultFlat, resolveCriteria } from "./criteria.js";
@@ -111,6 +111,7 @@ export function planAgent(agent, day, ctx) {
   let parkVisits = 0;
   let commuteWalk = 0; // graph minutes on commute/school legs
   let commuteRide = 0; // assumed ride minutes (station_ride only)
+  let commuteWait = 0; // pre-boarding wait minutes (29N3 Caltrain half-headway)
   // Fatigue (stage 8, household only): the day opens at the overnight
   // baseline; every load/recovery rounds to 0.1 so trip deltas and the
   // series points always agree. Background neighbours carry no series.
@@ -211,7 +212,11 @@ export function planAgent(agent, day, ctx) {
     const distance_m = round2(leg.distance_m);
     const minutes = round1(leg.minutes);
     const arrive = depart + Math.max(1, Math.round(minutes));
-    const fatigueDelta = round1(walkFatigue(minutes, F));
+    // 29N3: a bike last mile tires like a bike trip (same 0.6 factor
+    // as addTrip) and tags its mode; walks are unchanged.
+    const fatigueDelta = labels.mode === "bike"
+      ? round1(walkFatigue(minutes, F) * 0.6)
+      : round1(walkFatigue(minutes, F));
     fatLoad(fatigueDelta);
     fatPoint(arrive, labels.arrive || null);
     const trip = {
@@ -223,6 +228,7 @@ export function planAgent(agent, day, ctx) {
       fatigue_delta: fatigueDelta,
       cause,
     };
+    if (labels.mode) trip.mode = labels.mode;
     trips.push(trip);
     collect.trips.push(trip);
     clock = arrive;
@@ -398,22 +404,48 @@ export function planAgent(agent, day, ctx) {
     fatAfterHome = fat;
   }
 
-  // Destination walk for a place commute (stage 9c): the alighting
+  // Destination leg for a place commute (stage 9c): the alighting
   // station to the workplace on the destination graph. Graph minutes
   // only — never a straight-line estimate (see graph.js): without a
   // loaded destination area, an anchored station, or a route, the walk
   // is 0 with an explicit note.
-  function planDestWalk(destName, wp) {
+  function planDestLeg(destName, wp, lastMile) {
     const none = (note) => ({ go: null, back: null, source: "none", note, graphArea: destAreaId });
-    if (!destName) return none("목적지 역 없음");
-    if (!dest) return none("목적지 지역 미생성");
+    const wantBike = lastMile && lastMile.mode === "bike";
+    const shuttleMin = wantBike && Number.isFinite(lastMile.shuttle_min_assumed)
+      ? lastMile.shuttle_min_assumed : null;
+    // 29N3: without a bike route the assumed Meta shuttle covers the
+    // last mile — a fixed leg, never a straight-line guess.
+    const shuttle = () => ({ go: null, back: null, source: "assumed",
+      note: "Meta shuttle (assumed, schedule not public)", graphArea: destAreaId,
+      mode: "shuttle", shuttleMin });
+    if (!destName) return shuttleMin !== null ? shuttle() : none("목적지 역 없음");
+    if (!dest) return shuttleMin !== null ? shuttle() : none("목적지 지역 미생성");
     const networkHit = region && region.network ? stationCoords(region.network, destName) : null;
     let anchor = networkHit ? { lon: networkHit.lon, lat: networkHit.lat } : null;
     if (!anchor) {
       const pois = stationsByName(dest.places, destName);
       if (pois.length > 0) anchor = { lon: pois[0].lon, lat: pois[0].lat };
     }
-    if (!anchor) return none("하차역 위치 확인 불가");
+    if (!anchor) return shuttleMin !== null ? shuttle() : none("하차역 위치 확인 불가");
+    // 29N3: a bike last mile rides the destination bike graph (Menlo
+    // Park station to Meta HQ), timed at the bike speed.
+    if (wantBike) {
+      const bikeRouter = (dest && dest.bikeRouter) || null;
+      if (bikeRouter) {
+        const sNode = bikeRouter.nearestNode(anchor.lon, anchor.lat);
+        const wNode = bikeRouter.nearestNode(wp.lon, wp.lat);
+        if (sNode.id !== null && wNode.id !== null
+            && sNode.distM <= MAX_ANCHOR_M && wNode.distM <= MAX_ANCHOR_M) {
+          const go = bikeRouter.route(sNode.id, wNode.id);
+          const back = bikeRouter.route(wNode.id, sNode.id);
+          if (go && back) {
+            return { go, back, source: "graph", note: "", graphArea: destAreaId, mode: "bike" };
+          }
+        }
+      }
+      return shuttleMin !== null ? shuttle() : none("목적지 자전거 연결 확인 불가");
+    }
     const sNode = dest.router.nearestNode(anchor.lon, anchor.lat);
     const wNode = dest.router.nearestNode(wp.lon, wp.lat);
     if (sNode.id === null || wNode.id === null
@@ -491,14 +523,23 @@ export function planAgent(agent, day, ctx) {
       return;
     }
     const destName = destForHome(work.destination_station, homeLabel);
-    const dw = planDestWalk(destName, wp);
-    const dwGoMin = dw.go ? round1(dw.go.lengthM / speed / 60) : 0;
-    const dwBackMin = dw.back ? round1(dw.back.lengthM / speed / 60) : 0;
+    const lastMile = (work && work.last_mile) || null;
+    const dw = planDestLeg(destName, wp, lastMile);
+    // 29N3: a bike last mile is timed at the bike speed, like the
+    // commuteToPlace bike branch. Otherwise the walk speed, as before.
+    const dwSpd = dw.mode === "bike" ? F.bike_mps : speed;
+    const dwGoMin = dw.go ? round1(dw.go.lengthM / dwSpd / 60) : round1(dw.shuttleMin || 0);
+    const dwBackMin = dw.back ? round1(dw.back.lengthM / dwSpd / 60) : round1(dw.shuttleMin || 0);
+    // 29N3: optional pre-boarding wait (Caltrain headway half, GTFS).
+    // Absent or 0 → today's behaviour, no wait away.
+    const waitMin = waitMinutesForHome(work, homeLabel);
+    const waitLen = waitMin !== null && waitMin > 0 ? waitMin : 0;
     const overText = walkCand
       ? `도보 ${round1(walkMin)}분(${F.walk_commute_max_min}분 초과)`
       : "도보 연결 없음";
     const ids = ["C-commute-depart", "C-walk-speed", "C-walk-route", "C-work-days",
       "C-walk-commute-max", "C-ride-minutes", "C-congestion", "C-fatigue-load", "C-fatigue-recovery"];
+    if (waitLen > 0) ids.push("C-ride-wait");
     if (found.decision) ids.push("C-station-route");
     const cause = makeCause("routine", ids,
       `${wk} 근무일 · ${anchorText(F.morning_anchor_min, depart)} · ` +
@@ -506,10 +547,11 @@ export function planAgent(agent, day, ctx) {
       found.decision ? found.decision.id : null);
     const out = addTrip(depart, found.dest.route, homeEnd(), poiEnd(found.dest.place), "commute", cause);
     commuteRide += rideMin * 2;
+    commuteWait += waitLen;
     const dwGoLen = dw.go && dwGoMin > 0 ? Math.max(1, Math.round(dwGoMin)) : 0;
     const dwBackLen = dw.back && dwBackMin > 0 ? Math.max(1, Math.round(dwBackMin)) : 0;
     const tBoard = out.arrive_min;
-    const tWork = tBoard + rideMin + dwGoLen;
+    const tWork = tBoard + waitLen + rideMin + dwGoLen;
     const tWorkEnd = tWork + F.workday_minutes;
     const tBackBoard = tWorkEnd + dwBackLen;
     const tStation = tBackBoard + rideMin;
@@ -522,7 +564,7 @@ export function planAgent(agent, day, ctx) {
       rides = buildRides({
         network: region.network, congestion: region.congestion || null,
         fromName: name, toName: destName, rideMinutes: rideMin,
-        departOut: tBoard, departBack: tBackBoard,
+        departOut: tBoard + waitLen, departBack: tBackBoard,
         weekday, crit: F,
       });
       if (!rides) journeyNote = "노선도에 없는 역";
@@ -551,19 +593,46 @@ export function planAgent(agent, day, ctx) {
       minutes: dwGoMin, distance_m: dw.go ? round2(dw.go.lengthM) : 0,
       source: dw.source, note: dw.note || "",
     };
+    // 29N3: a routed bike last mile tags its mode (Korean walks keep
+    // the detail byte-identical — no mode key without last_mile).
+    if (dw.mode) outDetail.dest_walk.mode = dw.mode;
+    // 29N3: the Caltrain wait boards after the home-station walk — its
+    // own away record, then the ride. No wait → today's timeline.
+    let tRide = tBoard;
+    if (waitLen > 0) {
+      const waitCause = makeCause("routine",
+        ["C-commute-depart", "C-ride-wait", "C-work-days"],
+        `${wk} 근무일 · ${name}역에서 열차 대기 ${round1(waitLen)}분(아침 배차 간격의 절반)`);
+      addAway(tBoard, tBoard + waitLen, "wait", "열차 대기", {
+        wait_minutes: waitLen,
+        wait_minutes_source: work.wait_minutes_source || "caltrain_gtfs_half_headway",
+        station: name,
+      }, waitCause);
+      tRide = tBoard + waitLen;
+    }
     // A zero-minute destination walk (workplace at the station node) leaves
     // no trip record — the timeline spends 0 minutes there too.
     const walkGo = dw.go && dwGoMin > 0;
     const walkBack = dw.back && dwBackMin > 0;
-    if (rideMin > 0) addAway(tBoard, tBoard + rideMin, "ride", "지하철 이동", outDetail, cause);
+    // 29N3: a Caltrain journey reads "Caltrain" in both languages;
+    // every other line keeps "지하철 이동".
+    const rideLegs = rides ? [...rides.out.legs, ...rides.back.legs] : [];
+    const rideLabel = rideLegs.some((l) => l && (l.line === "caltrain" || l.lineName === "Caltrain"))
+      ? "Caltrain" : "지하철 이동";
+    if (rideMin > 0) addAway(tRide, tRide + rideMin, "ride", rideLabel, outDetail, cause);
     const stationEnd = { kind: "poi", id: `station:${destName || "?"}`, label: destName || "하차역" };
     const workEnd = { kind: "poi", id: wpId, label: wp.name };
     if (walkGo) {
-      const dwCause = makeCause("routine", ["C-walk-speed", "C-walk-route", "C-fatigue-load"],
-        `하차 후 ${wp.name}까지 도보 ${dwGoMin}분 (목적지 도보 그래프)`);
-      addRemoteTrip(tBoard + rideMin,
+      const isBike = dw.mode === "bike";
+      const dwCause = makeCause("routine",
+        isBike ? ["C-bike-speed", "C-bike-commute-max", "C-fatigue-load"]
+          : ["C-walk-speed", "C-walk-route", "C-fatigue-load"],
+        isBike ? `하차 후 ${wp.name}까지 자전거 ${dwGoMin}분 (목적지 자전거 그래프)`
+          : `하차 후 ${wp.name}까지 도보 ${dwGoMin}분 (목적지 도보 그래프)`);
+      addRemoteTrip(tRide + rideMin,
         { minutes: dwGoMin, distance_m: dw.go.lengthM, path: dw.go.nodeIds, graphArea: dw.graphArea },
-        stationEnd, workEnd, dwCause, { arrive: "직장 도착" });
+        stationEnd, workEnd, dwCause,
+        isBike ? { arrive: "직장 도착", mode: "bike", speedMps: F.bike_mps } : { arrive: "직장 도착" });
     }
     const lastOutLeg = rides && rides.out.legs[rides.out.legs.length - 1];
     const firstOutLeg = rides && rides.out.legs[0];
@@ -575,7 +644,7 @@ export function planAgent(agent, day, ctx) {
       workplace: { name: wp.name, lon: wp.lon, lat: wp.lat },
       commute: {
         mode: "ride",
-        out_start: tBoard, out_end: tBoard + rideMin,
+        out_start: tRide, out_end: tRide + rideMin,
         back_start: tBackBoard, back_end: tStation,
         dest_station: destName,
         dest_stop_id: lastOutLeg ? lastOutLeg.stopIds[lastOutLeg.stopIds.length - 1] : null,
@@ -583,14 +652,19 @@ export function planAgent(agent, day, ctx) {
       },
     }, cause);
     if (walkBack) {
-      const dwCause = makeCause("routine", ["C-walk-speed", "C-walk-route", "C-fatigue-load"],
-        `${wp.name}에서 ${destName}역까지 도보 ${dwBackMin}분 (목적지 도보 그래프)`);
+      const isBackBike = dw.mode === "bike";
+      const dwCause = makeCause("routine",
+        isBackBike ? ["C-bike-speed", "C-bike-commute-max", "C-fatigue-load"]
+          : ["C-walk-speed", "C-walk-route", "C-fatigue-load"],
+        isBackBike ? `${wp.name}에서 ${destName}역까지 자전거 ${dwBackMin}분 (목적지 자전거 그래프)`
+          : `${wp.name}에서 ${destName}역까지 도보 ${dwBackMin}분 (목적지 도보 그래프)`);
       addRemoteTrip(tWorkEnd,
         { minutes: dwBackMin, distance_m: dw.back.lengthM, path: dw.back.nodeIds, graphArea: dw.graphArea },
-        workEnd, stationEnd, dwCause);
+        workEnd, stationEnd, dwCause,
+        isBackBike ? { mode: "bike", speedMps: F.bike_mps } : {});
     }
     if (rideMin > 0) {
-      addAway(tBackBoard, tStation, "ride", "지하철 이동", mkRideDetail("back", rides && rides.back), cause);
+      addAway(tBackBoard, tStation, "ride", rideLabel, mkRideDetail("back", rides && rides.back), cause);
     }
     addTrip(tStation, found.dest.back, poiEnd(found.dest.place), homeEnd(), "commute", cause,
       { arrive: "귀가" });
@@ -970,6 +1044,7 @@ export function planAgent(agent, day, ctx) {
     walk_minutes: round1(walkMinutes),
     commute_walk_minutes: round1(commuteWalk),
     commute_ride_minutes: commuteRide,
+    commute_wait_minutes: round1(commuteWait),
     errands_done: errandsDone,
     park_visits: parkVisits,
     home_evening_minutes: Math.max(0, (F.day_end_min - F.evening_start_min) - awayEvening),

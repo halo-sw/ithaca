@@ -10,6 +10,8 @@
 // still NEVER emits a final eligibility verdict — no "대상입니다"
 // anywhere in this module's output (pinned by tests).
 
+import { fmtMoney } from "./currency.js";
+
 export const SUPPORT_COMPARE_RESULTS = ["충족", "미충족", "확인 필요"];
 export const SUPPORT_NOTE = "공고 원문에서 조건을 확인해 주세요.";
 export const SUPPORT_NEEDS_OFFICIAL = "공식 확인 필요";
@@ -69,6 +71,8 @@ function fmtVal(value, unit) {
   if (value === null || value === undefined) return null;
   if (typeof value === "boolean") return value ? "예" : "아니요";
   if (Array.isArray(value)) return value.map((v) => String(v)).join(" / ") || null;
+  // 29N3i: dollars lead with $ ($3,541), never trail (3,541$).
+  if (unit === "$" && Number.isFinite(value)) return fmtMoney(value, "USD");
   if (Number.isFinite(value)) return unit ? `${value.toLocaleString("ko-KR")}${unit}` : String(value);
   return String(value);
 }

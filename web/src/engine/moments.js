@@ -229,19 +229,22 @@ export function householdEveningMinutes(run, window = null) {
   return { total: Math.round(total), bestDay, window: { start, end } };
 }
 
-function gapCandidate(runA, runB, labelA, labelB) {
+function gapCandidate(runA, runB, labelA, labelB, lang = "ko") {
+  const en = lang === "en";
   const count = (run, kind) => {
     const hh = householdKeys(run);
     return (run.aways || []).filter((a) => hh.has(a.agent) && a.kind === kind).length;
   };
   const eveA = householdEveningMinutes(runA);
   const eveB = householdEveningMinutes(runB);
+  // 29N3g: English generic words so Muse never romanises them; Korean
+  // requests keep the exact current nouns and units.
   const metrics = [
-    { key: "park", noun: "공원", unit: (n) => `${n}번`,
+    { key: "park", noun: en ? "park" : "공원", unit: (n) => (en ? `${n} times` : `${n}번`),
       a: count(runA, "park"), b: count(runB, "park") },
-    { key: "errand", noun: "장보기", unit: (n) => `${n}번`,
+    { key: "errand", noun: en ? "groceries" : "장보기", unit: (n) => (en ? `${n} times` : `${n}번`),
       a: count(runA, "errand"), b: count(runB, "errand") },
-    { key: "evening", noun: "저녁에 집", unit: (n) => `${Math.round(n / 60)}시간`,
+    { key: "evening", noun: en ? "evening at home" : "저녁에 집", unit: (n) => (en ? `${Math.round(n / 60)} hours` : `${Math.round(n / 60)}시간`),
       a: eveA.total, b: eveB.total },
   ];
   let pick = null;
@@ -280,7 +283,9 @@ function gapCandidate(runA, runB, labelA, labelB) {
   // 29a6c: the evening-at-home line names the metric up front and joins
   // the homes with · (translated whole in en.js seedPatterns).
   const text = pick.key === "evening"
-    ? `저녁에 집에 있던 시간: ${labelA} ${pick.unit(pick.a)} · ${labelB} ${pick.unit(pick.b)}`
+    ? (lang === "en"
+      ? `Evening time at home: ${labelA} ${pick.unit(pick.a)} · ${labelB} ${pick.unit(pick.b)}`
+      : `저녁에 집에 있던 시간: ${labelA} ${pick.unit(pick.a)} · ${labelB} ${pick.unit(pick.b)}`)
     : `${pick.noun} ${labelA} ${pick.unit(pick.a)} vs ${labelB} ${pick.unit(pick.b)}`;
   return {
     kind: "gap", gapRel: pick.rel,
@@ -327,13 +332,13 @@ function decisionCandidate(runA, runB, labelA, labelB) {
   };
 }
 
-export function pickMoments(runA, runB, { max = 3 } = {}) {
+export function pickMoments(runA, runB, { max = 3, lang = "ko" } = {}) {
   const labelA = homeOf(runA, "A");
   const labelB = homeOf(runB, "B");
   const cands = [
     crowdedCandidate(runA, runB, labelA, labelB),
     commuteCandidate(runA, runB, labelA, labelB),
-    gapCandidate(runA, runB, labelA, labelB),
+    gapCandidate(runA, runB, labelA, labelB, lang),
     decisionCandidate(runA, runB, labelA, labelB),
   ].filter(Boolean);
   cands.sort((x, y) => (y.gapRel - x.gapRel)

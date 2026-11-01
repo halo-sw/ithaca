@@ -233,6 +233,8 @@ describe("timeline on the real demo build", { skip: SKIP_RUN }, () => {
       "수인·분당선 복정→이매 (11분, 혼잡 70% 가정)",
       "이매 환승 4분",
       "경강선 이매→판교 (2분, 혼잡 70% 가정)",
+      "직장 (걸어서 1분)",
+      "직장 (가정: 판교역 인근) (걸어서 1분)",
       "직장 (가정: 판교역 인근) 근무",
     ]);
     assert.equal(current, 8);
@@ -246,7 +248,7 @@ describe("timeline on the real demo build", { skip: SKIP_RUN }, () => {
     const days = monthStrip({ run, agentKey: "h1" });
     assert.equal(days.length, 30);
     assert.equal(days[0].weekend, false);
-    assert.equal(days[0].commuteMin, 78);
+    assert.equal(days[0].commuteMin, 79);
     assert.ok(days.some((d) => d.weekend), "a weekend exists");
     for (const d of days) {
       if (d.weekend) assert.equal(d.commuteMin, 0);

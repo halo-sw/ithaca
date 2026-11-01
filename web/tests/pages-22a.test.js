@@ -81,6 +81,7 @@ describe("22a runtime-data-list", () => {
       "st-a/extract.osm.pbf": null,
       "homes/summary.json": {},
       "region/network.json": {},
+      "region-us/network.json": {},
       "region/congestion.json": {},
       "region/safety.json": {},
       "sim/demo-x-A.json": {},
@@ -113,6 +114,7 @@ describe("22a runtime-data-list", () => {
   it("lists region/congestion.json and the subtree + top-level json", async () => {
     const list = await runtimeDataList(fakeReader());
     for (const p of ["region/congestion.json", "region/network.json",
+      "region-us/network.json",
       "homes/summary.json", "sim/demo-x-A.json", "walkgraph/w1.json",
       "areas-index.json"]) {
       assert.ok(list.includes(p), p);

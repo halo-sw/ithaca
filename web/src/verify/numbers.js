@@ -10,8 +10,9 @@
 // Engine values are the household's door-to-door numbers — simulated
 // neighbours (b01…b60) are never averaged in:
 //   C01       mean over commuting household members of one-way
-//             door-to-door minutes: (commute_walk + commute_ride) /
-//             one-way commutes, where one-way commutes are distinct
+//             door-to-door minutes: (commute_walk + commute_ride +
+//             commute_wait) / one-way commutes, where one-way commutes
+//             are distinct
 //             (day, am|pm) halves among the member's purpose=commute
 //             trips and kind=ride aways (am = before 12:00). Walk and
 //             ride totals come from totals.per_member; runs without
@@ -150,6 +151,16 @@ function rideAwayMinutes(a) {
   return 0;
 }
 
+// Minutes of pre-boarding wait aways (29N3 Caltrain half-headway):
+// part of door-to-door, so part of the one-way average. Runs without
+// wait aways (all Korean runs) sum 0 — their numbers are unchanged.
+function waitAwayMinutes(run, member) {
+  return ((run && run.aways) || [])
+    .filter((a) => a && a.kind === "wait" && a.agent === member
+      && Number.isFinite(a.start_min) && Number.isFinite(a.end_min))
+    .reduce((n, a) => n + Math.max(0, a.end_min - a.start_min), 0);
+}
+
 const AM_END_MINUTES = 720; // 12:00
 
 // One member's one-way door-to-door commute, or null when the member
@@ -182,7 +193,9 @@ export function commuteOneWayMinutes(run, member) {
       .filter((a) => a && a.kind === "ride" && a.agent === member)
       .reduce((n, a) => n + rideAwayMinutes(a), 0);
   }
-  return round1((walk + ride) / halves.size);
+  let wait = pm ? pm.commute_wait_minutes : undefined;
+  if (!Number.isFinite(wait)) wait = waitAwayMinutes(run, member);
+  return round1((walk + ride + wait) / halves.size);
 }
 
 // Engine value for one deterministic item, or null when the run/home

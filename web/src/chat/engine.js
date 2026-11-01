@@ -385,7 +385,12 @@ export function simReadyFor(candidate, area) {
 // OSM name) — never on the raw listing name.
 export function homeForScenario(candidate, resolvedName) {
   const walk = (candidate.commute && candidate.commute.walk) || {};
-  return {
+  // 29N3: US station-box candidates carry the built commute block
+  // (walk_to_station_min, caltrain_min, headway_min, last_mile,
+  // total_min) — scenarioFromProfile builds the Caltrain ride from it.
+  const built = candidate.commute_block && candidate.commute_block.caltrain_min !== undefined
+    ? candidate.commute_block : null;
+  const home = {
     id: candidate.id,
     name: resolvedName || candidate.name,
     scene: candidate.scene,
@@ -394,6 +399,8 @@ export function homeForScenario(candidate, resolvedName) {
     lon: candidate.lon,
     lat: candidate.lat,
   };
+  if (built) home.commute = built;
+  return home;
 }
 
 // Browser worker runner (progress posts per home). Guarded: no Worker

@@ -170,10 +170,11 @@ export function DayStrip({ segments, ticks, minute, label, onJump, bare }) {
   );
 }
 
-export function ActivityLegend({ hasBike = false }) {
+export function ActivityLegend({ hasBike = false, train = false }) {
   const order = hasBike ? [...ACTIVITY_ORDER, "bike"] : ACTIVITY_ORDER;
   // 29L2: English legend words are built here (Home, Walking, …)
   // inside data-no-i18n nodes; Korean is unchanged.
+  // 29N3d: a Caltrain run's ride reads Train / 열차.
   const lang = currentLang();
   return (
     <HStack gap={2} vAlign="center" wrap="wrap">
@@ -182,8 +183,8 @@ export function ActivityLegend({ hasBike = false }) {
           <span className="ui-swatch" style={{ background: ACTIVITIES[a].color }} aria-hidden="true" />
           <ActivityIcon activity={a} />
           {lang === "en"
-            ? <span data-no-i18n><Text type="supporting">{activityLabelEn(a)}</Text></span>
-            : <Text type="supporting">{activityLabel(a)}</Text>}
+            ? <span data-no-i18n><Text type="supporting">{activityLabelEn(a, { train })}</Text></span>
+            : <Text type="supporting">{activityLabel(a, { train })}</Text>}
         </HStack>
       ))}
     </HStack>
@@ -318,7 +319,8 @@ export function TimelineBar({ state, compact = true, defaultMenuOpen = false }) 
               onClick={() => setMenuOpen(!menuOpen)} />
           </div>
           <div className="ui-strip-legend">
-            <ActivityLegend hasBike={!!(state.dayStrip && state.dayStrip.hasBike)} />
+            <ActivityLegend hasBike={!!(state.dayStrip && state.dayStrip.hasBike)}
+              train={!!(state.dayStrip && state.dayStrip.train)} />
           </div>
           {menuOpen && (
             <div className="ui-bar13f2-menu">

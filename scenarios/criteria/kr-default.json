@@ -86,6 +86,18 @@
       "editable": true
     },
     {
+      "id": "C-ride-wait",
+      "group": "move",
+      "title": "Caltrain 대기",
+      "rule": "Caltrain 대기 = 아침 배차 간격의 절반(GTFS). 승차 전에 대기(away kind wait)로 따로 기록한다.",
+      "values": {
+        "half_headway": { "value": "아침 배차 간격의 절반", "unit": "분", "overridable": false }
+      },
+      "source": "데이터: Caltrain GTFS",
+      "affects": ["commute_ride_minutes"],
+      "editable": false
+    },
+    {
       "id": "C-station-route",
       "group": "move",
       "title": "역 출입구 선택",

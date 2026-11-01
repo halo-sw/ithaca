@@ -10,6 +10,7 @@
 // views; it changes no routing.
 
 import { classifyEducation } from "../education.js";
+import { normalizeStation } from "./journey.js";
 
 export const STATION_CATS = new Set(["railway:station", "railway:subway_station", "public_transport:station"]);
 export const SCHOOL_CAT = "amenity:school";
@@ -103,11 +104,19 @@ export function buildPlaces(area, router) {
   };
 }
 
-// Verbatim-name lookup within station categories (stable id order).
+// Station lookup within station categories (stable id order). Names
+// match after normalizeStation, so "Palo Alto", "Palo Alto Caltrain"
+// and "Palo Alto Station" all find the same POI — the same helper the
+// region-network lookup uses (workplace.js stationCoords).
 export function stationsByName(places, name) {
-  return (places.byName.get(name) || [])
-    .filter((p) => STATION_CATS.has(p.category))
-    .sort((a, b) => (a.id < b.id ? -1 : 1));
+  const want = normalizeStation(name);
+  const out = [];
+  for (const list of (places.byName || new Map()).values()) {
+    for (const p of list) {
+      if (STATION_CATS.has(p.category) && normalizeStation(p.name) === want) out.push(p);
+    }
+  }
+  return out.sort((a, b) => (a.id < b.id ? -1 : 1));
 }
 
 // Verbatim-name lookup across all POIs (stable id order).

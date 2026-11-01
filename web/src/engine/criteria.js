@@ -26,6 +26,7 @@ export const CRITERIA_SOURCES = new Set([
   "데이터: OSM",
   "데이터: 실거래가",
   "데이터: 서울교통공사",
+  "데이터: Caltrain GTFS",
   "가정값",
 ]);
 

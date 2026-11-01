@@ -25,11 +25,13 @@ import { costUsd } from "../judge/run.js";
 import { MONEY_TOOL_DEFS, MONEY_HANDLERS } from "./tools-money.js";
 import { SEARCH_TOOL_DEFS, SEARCH_HANDLERS } from "./tools-search.js";
 import { PRIORITY_GROUPS, PRIORITY_METRICS, validateWeights } from "../priorities.js";
+import { US_REGION_IDS } from "../places-us.js";
 import { safetyView } from "../safety.js";
 import { educationCounts, schoolRoute } from "../education.js";
 import { glossDef, glossaryTerms } from "../ui/glossary.js";
 import { SUBMIT_REPORT_DEF } from "./report-def.js";
 import { runComparisonLoop } from "../verify/compare.js";
+import { activityEn } from "../i18n/en-activity.js";
 
 export const CONSULT_AREAS = [
   { id: "pangyo", label: "판교" },
@@ -572,18 +574,21 @@ function explain_criterion(session, args) {
 async function list_areas(session) {
   // 12a: the built areas index when the server has it, else the four
   // legacy areas (tests, old servers).
+  // 29N3: the seven Caltrain station boxes ship scene.json too, so
+  // run_simulation accepts them like us-menlo (the list shape stays
+  // pinned by consult-tools.test.js — the note carries the change).
   const US_MENLO_AREA = { id: "us-menlo", label: "Menlo Park · Meta HQ (US)",
-    note: "월세(Zillow ZIP 추정), Caltrain 통근 회랑 입구, 3D 상자 없음" };
+    note: "월세(Zillow ZIP 추정), Caltrain 통근 회랑 입구" };
   if (session && session.loadAreasIndex) {
     const areas = await cachedIndexAreas(session);
     if (areas.length > 0) {
       return { ok: true,
         areas: [...areas.map((a) => ({ id: a.id, label: a.label })), { ...US_MENLO_AREA }],
-        note: "3D로 살아 볼 수 있는 상자(1.2 km 역세권) 목록이다. 미국 Caltrain 회랑 8곳(us-menlo와 7개 역세권)은 find_homes로 찾을 수 있으나, 3D 상자는 있는 곳만 있다(이번 단계에서 역세권 3D는 없음)." };
+        note: "3D로 살아 볼 수 있는 상자(1.2 km 역세권) 목록이다. 미국 Caltrain 회랑 8곳(us-menlo와 7개 역세권)은 find_homes와 run_simulation으로 쓸 수 있다(역세권 3D 상자 있음)." };
     }
   }
   return { ok: true, areas: [...clone(CONSULT_AREAS), { ...US_MENLO_AREA }],
-    note: "오늘 고를 수 있는 지역은 이 4곳뿐이다. 전국 생성은 다음 단계다. 미국 Caltrain 회랑 8곳(us-menlo와 7개 역세권)은 find_homes로 찾을 수 있으나, 3D 상자는 있는 곳만 있다(이번 단계에서 역세권 3D는 없음)." };
+    note: "오늘 고를 수 있는 지역은 이 4곳뿐이다. 전국 생성은 다음 단계다. 미국 Caltrain 회랑 8곳(us-menlo와 7개 역세권)은 find_homes와 run_simulation으로 쓸 수 있다(역세권 3D 상자 있음)." };
 }
 
 async function list_complexes(session, args) {
@@ -745,15 +750,20 @@ async function runOne(session, label, decisionsMode) {
   homeOf(scenario, label);
   const home = scenario.homes.find((h) => h.label === label);
   const area = await needArea(session, home.area);
+  // 29N3: the region doc follows the run's homes — us-* homes read
+  // region-us (Caltrain, no congestion file).
+  const runAreas = scenario.homes.map((h) => h.area);
   let region = null;
   if (session.loadRegion) {
-    region = await session.loadRegion().catch(() => null);
+    region = await session.loadRegion(runAreas).catch(() => null);
   }
   // Destination graph for place commutes (stage 9c): same resolution as
   // the CLIs (server: cheap bbox reads; fixtures: the tiny areas).
+  // 29N3: the destination lookup also spans the US boxes (us-menlo
+  // holds Meta HQ for Caltrain last miles).
   const destArea = await loadDestArea({ scenario, network: region && region.network,
     homeArea: area,
-    listAreas: async () => CONSULT_AREAS.map((a) => a.id),
+    listAreas: async () => [...CONSULT_AREAS.map((a) => a.id), ...US_REGION_IDS],
     readAreaMeta: session.loadAreaMeta
       || (async (id) => ({ bbox: (await needArea(session, id)).bbox || null })),
     loadArea: (id) => needArea(session, id) }).catch(() => null);
@@ -877,19 +887,22 @@ function get_day(session, args) {
     return fail(`unknown member ${JSON.stringify(args.member)} (household: ${known})`);
   }
   const label = (run.agents.find((a) => a.key === key) || {}).label || key;
+  // 29N3g: English requests read English generic words (one table in
+  // i18n/en-activity.js); proper names never match a key and pass through.
+  const en = session && session.context && session.context.lang === "en";
   const trips = run.trips
     .filter((t) => t.agent === key && t.day === day)
     .map((t) => ({ depart: hhmm(t.depart_min), arrive: hhmm(t.arrive_min),
-      purpose: t.purpose, from: (t.from && (t.from.label || t.from.id)) || "",
-      to: (t.to && (t.to.label || t.to.id)) || "",
+      purpose: t.purpose, from: en ? activityEn((t.from && (t.from.label || t.from.id)) || "") : (t.from && (t.from.label || t.from.id)) || "",
+      to: en ? activityEn((t.to && (t.to.label || t.to.id)) || "") : (t.to && (t.to.label || t.to.id)) || "",
       minutes: t.minutes, distance_m: t.distance_m, source: "graph",
       cause: t.cause || null }));
   const aways = run.aways
     .filter((a) => a.agent === key && a.day === day)
     .map((a) => ({ start: hhmm(a.start_min), end: hhmm(a.end_min),
-      kind: a.kind, label: a.label || "",
+      kind: a.kind, label: en ? activityEn(a.label || "") : a.label || "",
       ride_minutes: (a.detail && a.detail.ride_minutes) || undefined,
-      ride_note: (a.detail && a.detail.ride_minutes) ? "가정값 (user_input)" : undefined,
+      ride_note: (a.detail && a.detail.ride_minutes) ? (en ? "assumed (user_input)" : "가정값 (user_input)") : undefined,
       cause: a.cause || null }));
   return { ok: true, run: hit.id, home: hit.home, day: day1, member: key, label,
     trips, aways, date_note: `day ${day1} of ${run.meta.days}` };
@@ -897,6 +910,10 @@ function get_day(session, args) {
 
 const KIND_KO = { shop_choice: "장보기", park_or_home: "공원/귀가",
   station_route: "역 출구", weekend_plan: "주말 계획" };
+// 29N3g: English generic words from the one activity table (proper names
+// never match a key, so only generic words change).
+const KIND_EN = { shop_choice: "groceries", park_or_home: "park or home",
+  station_route: "station exit", weekend_plan: "weekend plan" };
 
 function explain_decision(session, args) {
   let hit;
@@ -914,9 +931,12 @@ function explain_decision(session, args) {
   const label = (hit.run.agents.find((a) => a.key === d.agent) || {}).label || d.agent;
   const badge = d.chosen_by === "model" && d.provider === "baseten" ? "Muse Spark Open"
     : d.chosen_by === "model" ? "Muse Spark 1.3" : "규칙";
+  // 29N3g: English requests read the English generic word so Muse never
+  // romanises it; Korean requests keep the exact current value.
+  const enDec = session && session.context && session.context.lang === "en";
   return { ok: true, run: hit.id, id: d.id, agent: d.agent, agent_label: label,
     day: d.day + 1, time: hhmm(d.minute), kind: d.kind,
-    kind_ko: KIND_KO[d.kind] || d.kind,
+    kind_ko: enDec ? KIND_EN[d.kind] || d.kind : KIND_KO[d.kind] || d.kind,
     options: (d.options || []).map((o) => ({ key: o.key, label: o.label || o.key,
       minutes: o.minutes, distance_m: o.distance_m, source: "graph" })),
     default_key: d.default_key, chosen_key: d.chosen_key,

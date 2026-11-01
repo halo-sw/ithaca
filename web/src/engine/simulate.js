@@ -42,9 +42,16 @@ export function simulate(area, scenarioJson, homeLabel, opts = {}) {
   if (wantDest) {
     if (destArea.area === area.area) {
       dest = { area: destArea, router, places };
+      if (bikeRouter) dest.bikeRouter = bikeRouter;
     } else {
       const destRouter = new Router(destArea.graph);
       dest = { area: destArea, router: destRouter, places: buildPlaces(destArea, destRouter) };
+      // 29N3: a bike last mile (US Caltrain) rides the destination
+      // bike graph — one Router when the area has bike edges.
+      const destBikeEdges = destArea.graph && destArea.graph.edges && destArea.graph.edges.bike;
+      if (Array.isArray(destBikeEdges) && destBikeEdges.length > 0) {
+        dest.bikeRouter = new Router(destArea.graph, { mode: "bike" });
+      }
     }
   }
   const collect = { trips: [], aways: [], decisions: [], unavailable: [], tripSeq: 1 };
@@ -52,8 +59,8 @@ export function simulate(area, scenarioJson, homeLabel, opts = {}) {
   const totals = {};
   for (const a of agents) {
     totals[a.key] = { walk_minutes: 0, walk_distance_m: 0, commute_walk_minutes: 0,
-      commute_ride_minutes: 0, errands_done: 0, park_visits: 0, home_evening_minutes: 0, trips: 0,
-      fatigue: null };
+      commute_ride_minutes: 0, commute_wait_minutes: 0, errands_done: 0, park_visits: 0,
+      home_evening_minutes: 0, trips: 0, fatigue: null };
   }
   for (const agent of agents) {
     const schedule = planSchedule(agent, scenario, crit.flat);
@@ -68,6 +75,7 @@ export function simulate(area, scenarioJson, homeLabel, opts = {}) {
       t.walk_minutes += summary.walk_minutes;
       t.commute_walk_minutes += summary.commute_walk_minutes;
       t.commute_ride_minutes += summary.commute_ride_minutes;
+      t.commute_wait_minutes += summary.commute_wait_minutes || 0;
       t.errands_done += summary.errands_done;
       t.park_visits += summary.park_visits;
       t.home_evening_minutes += summary.home_evening_minutes;
@@ -89,13 +97,15 @@ export function simulate(area, scenarioJson, homeLabel, opts = {}) {
   }
   const householdKeys = new Set(agents.filter((a) => a.household).map((a) => a.key));
   const household = { walk_minutes: 0, walk_distance_m: 0, commute_walk_minutes: 0,
-    commute_ride_minutes: 0, errands_done: 0, park_visits: 0, home_evening_minutes: 0, trips: 0 };
+    commute_ride_minutes: 0, commute_wait_minutes: 0, errands_done: 0, park_visits: 0,
+    home_evening_minutes: 0, trips: 0 };
   for (const [key, t] of Object.entries(totals)) {
     if (!householdKeys.has(key)) continue;
     household.walk_minutes += t.walk_minutes;
     household.walk_distance_m += t.walk_distance_m;
     household.commute_walk_minutes += t.commute_walk_minutes;
     household.commute_ride_minutes += t.commute_ride_minutes;
+    household.commute_wait_minutes += t.commute_wait_minutes || 0;
     household.errands_done += t.errands_done;
     household.park_visits += t.park_visits;
     household.home_evening_minutes += t.home_evening_minutes;
@@ -241,6 +251,7 @@ export function compare(runA, runB) {
         walk_distance_m: { a: pa.walk_distance_m, b: pb.walk_distance_m },
         commute_walk_minutes: { a: pa.commute_walk_minutes, b: pb.commute_walk_minutes },
         commute_ride_minutes: { a: pa.commute_ride_minutes, b: pb.commute_ride_minutes },
+        commute_wait_minutes: { a: pa.commute_wait_minutes, b: pb.commute_wait_minutes },
         home_evening_minutes: { a: pa.home_evening_minutes, b: pb.home_evening_minutes },
         fatigue: { a: pa.fatigue || null, b: pb.fatigue || null },
       };
