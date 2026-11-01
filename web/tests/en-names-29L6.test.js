@@ -12,10 +12,10 @@ register("./jsx-loader.mjs", import.meta.url);
 
 const EN_CASES = [
   ["대하빌딩", "Daeha Building"],
-  ["엘리시아빌", "Ellisia Vill"],
-  ["신일유토빌", "Sinilyuto Vill"],
-  ["역삼우성아파트", "Yeoksamuseong Apt"],
-  ["동아팰리스빌라", "Donga Palace Villa"],
+  ["엘리시아빌", "Ellisia Ville"],
+  ["신일유토빌", "Sinilyuto Ville"],
+  ["역삼우성아파트", "Yeoksam Woosung Apt."],
+  ["동아팰리스빌라", "Dong-A Palace Villa"],
   ["역삼동다세대주택", "Yeoksam-dong Multi-family house"],
   ["다세대주택", "Multi-family house"],
   ["팰리스", "Palace"],

@@ -146,7 +146,7 @@ describe("29a1b name gloss", () => {
   it("keeps digits, hyphens and brackets tight", async () => {
     const { HomeName } = await import("../src/ui/candidate-card.jsx");
     const el = HomeName({ name: "현대아파트(75-1)", lang: "en" });
-    assert.equal(el.props.children[1].props.children, " (Hyeondaeapateu(75-1))");
+    assert.equal(el.props.children[1].props.children, " (Hyundai Apt. (75-1))");
   });
   it("no Hangul means no gloss", async () => {
     const { HomeName } = await import("../src/ui/candidate-card.jsx");

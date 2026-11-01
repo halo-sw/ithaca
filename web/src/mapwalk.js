@@ -2,6 +2,7 @@
 // dayTimeline builds time-ordered segments for one day; positionAt
 // interpolates; activityLine formats the status line.
 import { romanizeName } from "./i18n/romanize.js";
+import { workplaceLabel } from "./ui/scene-chrome.js";
 
 function fmtTime(min) {
   const m = Math.max(0, Math.round(min));
@@ -300,6 +301,19 @@ export function activityLine(seg, minute, lang) {
     return `${t} · ${String(seg.label || "")}`;
   }
   const label = String(seg.label || "");
+  // 39d: a workplace stay row reads as the English workplace label,
+  // never romanized whole ("직장 (가정: 디지털미디어시티역 인근)
+  // 근무" → "Work (assumed: near Digital Media City Stn)"). Korean
+  // output is unchanged.
+  if (en && /근무\s*$/.test(label)) {
+    const m = label.match(/^직장\s*\(가정:\s*(.+?)\s*인근\)\s*근무\s*$/);
+    if (m) {
+      let st = m[1].trim();
+      if (st.endsWith("역") && st.length > 1) st = st.slice(0, -1);
+      if (st && st !== "역") return `${t} · ${workplaceLabel(st, "en", romanizeName(st))}`;
+    }
+    return `${t} · Work`;
+  }
   return `${t} · ${en ? toEnglish(label) : label}`;
 }
 

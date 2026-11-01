@@ -400,6 +400,13 @@ export function homeForScenario(candidate, resolvedName) {
     lat: candidate.lat,
   };
   if (built) home.commute = built;
+  if (candidate.address && typeof candidate.address === "object"
+    && typeof candidate.address.road === "string" && candidate.address.road) {
+    home.address = {
+      road: candidate.address.road,
+      sigungu: typeof candidate.address.sigungu === "string" ? candidate.address.sigungu : "",
+    };
+  }
   return home;
 }
 
@@ -529,10 +536,16 @@ export function profileSummary(profile) {
       bits.push("출근 없이");
     } else {
       // 26c: a resolved place (Meta HQ) chips its place name.
-      const where = (wps[0].resolved
-        && (wps[0].resolved.station || (wps[0].resolved.place && wps[0].resolved.place.name)))
-        || wps[0].text;
-      if (where) bits.push(`${where} 출근`);
+      // 39a: two different stations chip both (`강남·광화문 출근`).
+      const wheres = [];
+      for (const w of wps) {
+        if (!w) continue;
+        const where = (w.resolved
+          && (w.resolved.station || (w.resolved.place && w.resolved.place.name)))
+          || w.text;
+        if (where && !wheres.includes(where)) wheres.push(where);
+      }
+      if (wheres.length > 0) bits.push(`${wheres.join("·")} 출근`);
     }
   }
   const members = profileValue(profile, "members");

@@ -19,6 +19,7 @@ import { basemapApiBase, isUsLonLat } from "../basemap.js";
 import { SceneThumb, MiniMap, AerialThumb } from "./preview.jsx";
 import { LANG, currentLang } from "../i18n/lang.js";
 import { homeNameEn } from "../i18n/home-names.js";
+import { roadAddressEn } from "../i18n/road-address.js";
 
 export function tenurePriceLine(candidate, tenure) {
   const t = (candidate.tenures || []).find((x) => x.tenure === tenure)
@@ -100,7 +101,7 @@ export function commuteShortLine(candidate, destName) {
     return { text: `${where}약 ${total}분 (${walkBit} · 지하철 ${c.ride.minutes}분) · 추정 (살아 보기 전)`, source: src };
   }
   if (c.walk && c.walk.known) {
-    return { text: `${c.walk.station} 도보 ${c.walk.minutes < 1 ? "1분 이내" : `${c.walk.minutes}분`} · 승차 미확인`, source: "official" };
+    return { text: `${c.walk.station}역까지 걸어서 ${c.walk.minutes < 1 ? "1분 이내" : `${c.walk.minutes}분`} · 지하철 시간은 출근지를 알면 계산해요`, source: "official" };
   }
   return { text: "도보 미확인", source: "unknown" };
 }
@@ -213,7 +214,7 @@ export function commuteRowLine(candidate, destName) {
       estimate: false, source: "official" };
   }
   if (walkKnown) {
-    return { text: `총 ${near(c.walk.minutes)} · ${c.walk.station}역 걸어서`,
+    return { text: `${c.walk.station}역까지 걸어서 ${near(c.walk.minutes)} · 지하철 시간은 출근지를 알면 계산해요`,
       estimate: false, source: "official" };
   }
   return { text: "도보 미확인", estimate: false, source: "unknown" };
@@ -224,16 +225,20 @@ const SRC_CLS = { official: "ui-src-official", estimate: "ui-src-estimate", said
 
 // 29a1: home/complex names keep the Hangul original (the DOM
 // translator skips it); English mode adds a romanized gloss beside it.
-export function HomeName({ name, lang = LANG }) {
+export function HomeName({ name, lang = LANG, address = null }) {
   // 29M1c: plain component — re-render comes from the chat state update
   // that follows every consult response (registration runs before set).
   const original = String(name ?? "");
   const gloss = lang === "en" && /[가-힣]/.test(original)
     ? homeNameEn(original) : "";
+  // 39c: English mode shows the road-name address in English under the
+  // name; Korean screens are unchanged.
+  const addrEn = lang === "en" ? roadAddressEn(address) : "";
   return (
     <span className="ui-home-name">
       <span data-no-i18n>{original}</span>
       {gloss && gloss !== original ? <span className="ui-name-gloss">{` (${gloss})`}</span> : null}
+      {addrEn ? <span className="ui-home-address" data-no-i18n style={{ display: "block", fontSize: 14, color: "#6b7280" }}>{addrEn}</span> : null}
     </span>
   );
 }
@@ -925,7 +930,7 @@ export function CandidateCard({ candidate, tenure, destName, photos, index,
       <div className="ui-cand-row-main">
         <div className="ui-cand-row-top">
           <span className={`ui-cand-disc${picked ? " is-pick" : ""}`} aria-hidden="true"{...(/^[AB]$/.test(disc) ? { "data-home": disc } : null)}>{disc}</span>
-          <span className="ui-cand-row-name"><HomeName name={displayNameFor(candidate)} /></span>
+          <span className="ui-cand-row-name"><HomeName name={displayNameFor(candidate)} address={candidate.address} /></span>
           <Button size="sm" variant={picked ? "primary" : "secondary"}
             label={picked ? "담음 ✓" : "담기"}
             aria-label={pickLabel}
@@ -1094,7 +1099,7 @@ function FullCard({ candidate, price, facts, row, hero, rest,
       )}
       <div className="ui-cand-body">
         <div>
-          <div className="ui-cand-name"><HomeName name={displayNameFor(candidate)} /></div>
+          <div className="ui-cand-name"><HomeName name={displayNameFor(candidate)} address={candidate.address} /></div>
           {candidate.dong && <div className="ui-cand-place">{candidate.dong}</div>}
           {candidate.kind_mismatch && <Text type="supporting">{KIND_MISMATCH_KO}</Text>}
         </div>

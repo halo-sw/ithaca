@@ -9,6 +9,7 @@
 import { displayNameFor } from "./homes.js";
 import { haversineM } from "./frame.js";
 import { placeNameEn } from "./ui/scene-chrome.js";
+import { roadAddressEn } from "./i18n/road-address.js";
 import { usStationDisplay } from "./region-names.js";
 
 export const OVERVIEW_MIN_M = 400;
@@ -240,11 +241,16 @@ export function labelItemsFor(area, opts = {}) {
     const raw = (b && buildingNameOf(b, complex)) || String(homeBuildingId);
     const name = homeDisplayName(raw, homeName, homeCandidate) || raw;
     const anchor = (b && anchorOf(b)) || (complex && anchorOf(complex)) || null;
+    // 39c: the home pill carries the road-name address — Korean road in
+    // sub, English road in subEn (used where the label renders English).
+    const homeAddr = (homeCandidate && homeCandidate.address) || null;
+    const roadKo = homeAddr && typeof homeAddr.road === "string" ? homeAddr.road : "";
     items.push({
       id: `home:${String(homeBuildingId)}`,
       level: "always",
       title: `우리 집 · ${name}`,
-      sub: "",
+      sub: roadKo,
+      subEn: roadAddressEn(homeAddr),
       accent: true,
       lon: anchor ? anchor[0] : null,
       lat: anchor ? anchor[1] : null,
@@ -451,8 +457,10 @@ export function labelBoxW(title, lang = "ko", opts = {}) {
   const wOf = (s) => [...String(s ?? "")].reduce(
     (a, ch) => a + (HANGUL_CH.test(ch) ? 13 : 7.5), 0) + 24 + glyph;
   let w = wOf(shown);
-  if (opts && opts.sub) {
-    const sub = lang === "en" ? placeNameEn(opts.sub) : String(opts.sub);
+  if (opts && (opts.sub || opts.subEn)) {
+    // 39c: English width uses the English sub when the item carries one.
+    const picked = lang === "en" ? (opts.subEn || opts.sub || "") : (opts.sub || "");
+    const sub = lang === "en" ? placeNameEn(picked) : String(picked);
     const sw = wOf(sub);
     if (sw > w) w = sw;
   }
