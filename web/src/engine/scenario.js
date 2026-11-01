@@ -382,6 +382,13 @@ export function parseScenario(raw) {
       out.lon = h.lon;
       out.lat = h.lat;
     }
+    if (h.address !== null && typeof h.address === "object" && !Array.isArray(h.address)
+      && typeof h.address.road === "string" && h.address.road !== "") {
+      out.address = {
+        road: h.address.road,
+        sigungu: typeof h.address.sigungu === "string" ? h.address.sigungu : "",
+      };
+    }
     return out;
   });
   if (raw.workday_minutes !== undefined
