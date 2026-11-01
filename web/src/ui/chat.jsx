@@ -94,6 +94,7 @@ import {
   runGate, profileHomeKinds, regionsForCurrency, regionsForDoc,
   usSearchActive,
 } from "../chat/engine.js";
+import { fetchDataJson, fetchDataText } from "../data-fetch.js";
 import { buildCustomMoneyDoc, buildUsRentMoneyDoc, verifyHomeFor } from "../chat/custom-money.js";
 import { personaFor, slimRunForReport } from "../verify/compare.js";
 import { newCustomId, saveCustomRun, loadCustomRun } from "../chat/idb.js";
@@ -115,6 +116,7 @@ import { LANG, currentLang } from "../i18n/lang.js";
 import { homeNameEn, registerHomeNamesEn, harvestHomeNamesEn, homeNamesEnSnapshot } from "../i18n/home-names.js";
 import { translateExact } from "../i18n/translate.js";
 import { sceneActionLabelFor } from "./scene-chrome.js";
+import { MapWalk } from "./mapwalk.jsx";
 
 const ENV = (typeof import.meta !== "undefined" && import.meta.env) || {};
 const IS_DEV = ENV.DEV === true;
@@ -1973,16 +1975,8 @@ export function ChatScreen() {
   };
 
   // --- data (loaded once, cached) ---
-  const fetchJson = async (url) => {
-    const r = await fetch(url);
-    if (!r.ok) throw new Error(`${url}: ${r.status}`);
-    return r.json();
-  };
-  const fetchText = async (url) => {
-    const r = await fetch(url);
-    if (!r.ok) throw new Error(`${url}: ${r.status}`);
-    return r.text();
-  };
+  const fetchJson = (url) => fetchDataJson(url);
+  const fetchText = (url) => fetchDataText(url);
 
   // 29g2: replay / restored transcripts never ran a search, so the map
   // data (regions doc + subway network) was never loaded — load it from
@@ -3777,9 +3771,41 @@ export function SceneFrame({ scene, onBack, onClose, runReady }) {
     });
     return () => { live = false; };
   }, [runReady]);
+  // 38c: the same run on a flat map — a 3D | 지도 toggle for scenes
+  // with a custom= param (moment runs). The choice lasts the session.
+  let hasCustom = false;
+  try {
+    const q = String((scene && scene.url) || "").split("?")[1] || "";
+    hasCustom = new URLSearchParams(q).get("custom") != null;
+  } catch {
+    hasCustom = false;
+  }
+  const [sceneMode, setSceneMode] = useState(() => {
+    try {
+      if (typeof window !== "undefined" && window.sessionStorage) {
+        return window.sessionStorage.getItem("ithaca.sceneMode") || "3d";
+      }
+    } catch {
+      // Private mode: stay on the default.
+    }
+    return "3d";
+  });
+  const setMode = (m) => {
+    setSceneMode(m);
+    try {
+      if (typeof window !== "undefined" && window.sessionStorage) {
+        window.sessionStorage.setItem("ithaca.sceneMode", m);
+      }
+    } catch {
+      // Private mode: the choice just does not persist.
+    }
+  };
+  const mapMode = hasCustom && sceneMode === "map";
   if (!scene) return null;
   const backFull = lang === "en" ? "To the map" : "지도로";
   const openFull = lang === "en" ? "Open in new window" : "새 창으로";
+  const mode3d = "3D";
+  const modeMap = lang === "en" ? "Map" : "지도";
   const waitLine = runState === "failed"
     ? (lang === "en" ? "Couldn't rebuild the 3D for this recording." : "이 기록의 3D를 다시 계산하지 못했어요.")
     : (lang === "en" ? "Preparing the 3D…" : "3D를 준비하고 있어요…");
@@ -3788,10 +3814,22 @@ export function SceneFrame({ scene, onBack, onClose, runReady }) {
       <div className="ui-chat-scene-head">
         <span className="ui-chat-scene-title">{scene.title}</span>
         <span style={{ flex: "1 1 auto" }} />
+        {hasCustom && (
+          <span role="group" aria-label={mode3d}
+            style={{ display: "inline-flex", gap: 4 }}>
+            <Button size="sm" variant={mapMode ? "ghost" : "primary"}
+              label={mode3d} aria-label={mode3d} title={mode3d}
+              aria-pressed={!mapMode} onClick={() => setMode("3d")} />
+            <Button size="sm" variant={mapMode ? "primary" : "ghost"}
+              label={modeMap} aria-label={modeMap} title={modeMap}
+              aria-pressed={mapMode} onClick={() => setMode("map")} />
+          </span>
+        )}
         <Button size="sm" variant="ghost"
           label={sceneActionLabelFor(backFull, { phone, lang })}
           aria-label={backFull} title={backFull}
           onClick={() => onBack && onBack()} />
+        {!mapMode && (
         <Button size="sm" variant="ghost"
           label={sceneActionLabelFor(openFull, { phone, lang })}
           aria-label={openFull} title={openFull}
@@ -3810,10 +3848,13 @@ export function SceneFrame({ scene, onBack, onClose, runReady }) {
               }).catch(() => {});
             }
           }} />
+        )}
         <IconButton label="작업판 닫기" variant="ghost" size="sm"
           icon={<Icon icon="close" />} onClick={() => onClose && onClose()} />
       </div>
-      {runState === "ready" ? (
+      {mapMode ? (
+        <MapWalk url={scene.url} lang={lang} phone={phone} runReady={runReady} />
+      ) : runState === "ready" ? (
         <iframe className="ui-chat-scene-frame" src={scene.url}
           title={scene.title} allow="fullscreen" />
       ) : (
