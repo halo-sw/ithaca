@@ -18,7 +18,12 @@ export function personaFor(profile, { noCommute = false } = {}) {
     && "value" in p.members ? p.members.value : p.members;
   const members = Array.isArray(raw) ? raw : [];
   if (members.some((m) => m && m.role === "child")) return "young_family";
-  if (noCommute) return "remote_worker";
+  const odRaw = p.officeDays && typeof p.officeDays === "object"
+    && !Array.isArray(p.officeDays) && "value" in p.officeDays
+    ? p.officeDays.value : p.officeDays;
+  if (noCommute || (Number.isInteger(odRaw) && odRaw >= 0 && odRaw <= 4)) {
+    return "remote_worker";
+  }
   if (members.some((m) => m
     && (m.role === "senior" || ["60s", "70s", "80+"].includes(m.ageBand)))) {
     return "multigen_family";

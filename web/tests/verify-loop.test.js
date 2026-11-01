@@ -72,10 +72,15 @@ const VPASS = { persona: "young_family", home: HOME,
 
 describe("verifyReport", () => {
   const run = loopRun();
+  // 38e: all six personas ship scenarios — the 미지원 path is pinned
+  // with a locally nulled map so the branch stays covered.
+  const GT_NULL = { ...GT,
+    persona_map: { ...GT.persona_map, remote_worker: null,
+      multigen_family: null, pet_owner: null } };
   it("unsupported personas stay 미지원 and never pass", () => {
     for (const persona of ["remote_worker", "multigen_family", "pet_owner"]) {
       const res = verifyReport({ persona, home: HOME, sentences: [] }, run,
-        persona, { groundTruth: GT });
+        persona, { groundTruth: GT_NULL });
       assert.deepEqual(res, { status: "미지원",
         reason_ko: "이 가족 유형은 아직 시뮬레이션 시나리오가 없어요",
         pass: false });
@@ -156,6 +161,9 @@ describe("runVerifyLoop", () => {
     assert.equal(GT.acceptance.on_fail_after_retries, "escalate_to_user");
   });
   it("passing draft needs one attempt; 미지원 returns at once", async () => {
+    // 38e: remote_worker ships a scenario — pin the 미지원 path locally.
+    const GT_NULL = { ...GT,
+      persona_map: { ...GT.persona_map, remote_worker: null } };
     const ok = await runVerifyLoop({ draft: VPASS, run,
       persona: "young_family", groundTruth: GT,
       maxRetries: 3, revise: async (r) => r });
@@ -163,7 +171,7 @@ describe("runVerifyLoop", () => {
     assert.equal(ok.handoff, null);
     let reviseCalls = 0;
     const un = await runVerifyLoop({ draft: V1, run,
-      persona: "remote_worker", groundTruth: GT,
+      persona: "remote_worker", groundTruth: GT_NULL,
       maxRetries: 3, revise: async (r) => { reviseCalls++; return r; } });
     assert.equal(un.attempts.length, 1);
     assert.equal(un.result.status, "미지원");

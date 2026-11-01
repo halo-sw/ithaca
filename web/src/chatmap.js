@@ -62,15 +62,22 @@ export const BASEMAP_MUTE = { saturate: 0.12, slope: 0.72 };
 // map reads line.color from the network doc first — this table only
 // fills lines that carry none.
 export const LINE_COLORS = {
+  line1: "#0052A4",
   line2: "#00A84D",
   line3: "#EF7C1C",
+  line4: "#00A5DE",
   line5: "#996CAC",
+  line6: "#CD7C2F",
   line7: "#747F00",
   line8: "#E6186C",
   line9: "#BDB092",
   bundang: "#F5A200",
   sinbundang: "#D4003B",
   gyeonggang: "#003DA5",
+  gyeongui: "#77C4A3",
+  arex: "#0090D2",
+  uisinseol: "#B0CE18",
+  sillim: "#6789CA",
   caltrain: "#E31837",
 };
 export const LINE_FALLBACK_COLOR = "#6b7280";

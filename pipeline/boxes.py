@@ -61,7 +61,10 @@ REGION_EXTRACT_DIR = "_cache/regions"
 # Code version: bump when the box pipeline changes enough to rebuild.
 BOX_CODE_VERSION = "12a.1"
 
-MAX_BOXES = 60
+MAX_BOXES = 200
+
+MIN_HOME_BOX_HOMES = 8
+MAX_HOME_BOXES = 80
 COUNT_RADIUS_M = 600.0
 
 # Always included (brief §A.2), plus the three existing box stations.
@@ -105,6 +108,9 @@ def _norm_station(name: str) -> str:
     return (name or "").strip().removesuffix("역").strip()
 
 
+PLACE_VALUES = ("quarter", "neighbourhood", "suburb")
+
+
 class _RegionScan(osmium.SimpleHandler):
     """Collect metro stations + apartment buildings from a region extract."""
 
@@ -112,6 +118,7 @@ class _RegionScan(osmium.SimpleHandler):
         super().__init__()
         self.stations: list[dict] = []
         self.apartments: list[tuple[float, float]] = []
+        self.places: list[dict] = []
 
     def _station_hit(self, kind: str, obj, lon: float, lat: float):
         tags = dict(obj.tags)
@@ -128,6 +135,10 @@ class _RegionScan(osmium.SimpleHandler):
         tags = dict(n.tags)
         if tags.get("railway") in RAILWAY_STATION_TAGS and tags.get("name"):
             self._station_hit("node", n, n.location.lon, n.location.lat)
+            return
+        if tags.get("place") in PLACE_VALUES and tags.get("name"):
+            self.places.append({"name": tags["name"],
+                                "lon": n.location.lon, "lat": n.location.lat})
             return
         if _is_apartment_tags(tags):
             self.apartments.append((n.location.lon, n.location.lat))
@@ -160,10 +171,11 @@ def _is_apartment_tags(tags: dict) -> bool:
 
 
 def scan_region_extract(region_pbf: str | Path) -> dict:
-    """One pyosmium pass: stations + apartment centroids."""
+    """One pyosmium pass: stations + apartment centroids + place nodes."""
     handler = _RegionScan()
     handler.apply_file(str(region_pbf), locations=True)
-    return {"stations": handler.stations, "apartments": handler.apartments}
+    return {"stations": handler.stations, "apartments": handler.apartments,
+            "places": handler.places}
 
 
 def _local_xy(lon: float, lat: float, lon0: float, lat0: float):
@@ -293,7 +305,7 @@ def box_coords(box: dict) -> tuple[float, float]:
 def manifest_signature(box: dict, source_extract: Path) -> dict:
     lon, lat = box_coords(box)
     st = source_extract.stat()
-    return {"station": box["station"], "lon": lon, "lat": lat,
+    return {"station": box.get("station", box.get("id")), "lon": lon, "lat": lat,
             "bbox": list(bbox_from_center(lon, lat)),
             "source_extract": source_extract.name,
             "source_mtime": int(st.st_mtime),
@@ -374,6 +386,104 @@ def update_boxes_report(build_dir: str | Path, entry: dict) -> dict:
     return doc
 
 
+def _station_bboxes(boxes: list[dict]) -> list:
+    out = []
+    for b in boxes:
+        if b.get("lon") is None or b.get("lat") is None:
+            continue
+        out.append(bbox_from_center(float(b["lon"]), float(b["lat"])))
+    return out
+
+
+def _inside_bbox(lon: float, lat: float, bbox) -> bool:
+    return bool(bbox[0] <= lon <= bbox[2] and bbox[1] <= lat <= bbox[3])
+
+
+def _place_name_for(lon: float, lat: float, region_id: str,
+                    scanned: dict | None) -> str:
+    places = []
+    label = region_id
+    if scanned and region_id in scanned:
+        scan = scanned[region_id]
+        places = scan.get("places", []) or []
+        label = scan.get("_label", region_id)
+    best, best_d = None, 1000.0
+    for p in places:
+        if not p.get("name"):
+            continue
+        dx, dy = _local_xy(float(p["lon"]), float(p["lat"]), lon, lat)
+        import math as _math
+        d = _math.hypot(dx, dy)
+        if d <= 1000.0 and (best is None or d < best_d):
+            best, best_d = p["name"], d
+    if best:
+        return best
+    return str(label).split()[-1]
+
+
+def select_home_boxes(homes: list[dict], boxes: list[dict],
+                      scanned: dict | None = None,
+                      max_boxes: int = MAX_HOME_BOXES,
+                      min_homes: int = MIN_HOME_BOX_HOMES) -> list[dict]:
+    """Greedy 1.2 km cover of homes outside every station box.
+
+    Candidate centres are the uncovered home points; the centre whose
+    box holds the most uncovered homes wins each round (ties: lower
+    lon, then lat). Stops when the best box holds fewer than
+    ``min_homes`` or after ``max_boxes`` picks.
+    """
+    station_bboxes = _station_bboxes(boxes or [])
+    pts = []
+    for h in homes or []:
+        try:
+            lon, lat = float(h["lon"]), float(h["lat"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if any(_inside_bbox(lon, lat, b) for b in station_bboxes):
+            continue
+        pts.append({"lon": lon, "lat": lat,
+                    "region": h.get("region")})
+    uncovered = list(range(len(pts)))
+    cell = 0.005
+    picked: list[dict] = []
+    per_region: dict[str, int] = {}
+    while uncovered and len(picked) < max_boxes:
+        grid: dict[tuple[int, int], list[int]] = {}
+        for i in uncovered:
+            p = pts[i]
+            grid.setdefault((math.floor(p["lon"] / cell),
+                             math.floor(p["lat"] / cell)), []).append(i)
+        best_idx, best_members = None, []
+        for i in sorted(uncovered, key=lambda j: (pts[j]["lon"], pts[j]["lat"])):
+            p = pts[i]
+            bbox = bbox_from_center(p["lon"], p["lat"])
+            cx, cy = math.floor(p["lon"] / cell), math.floor(p["lat"] / cell)
+            members = []
+            for dx in (-2, -1, 0, 1, 2):
+                for dy in (-2, -1, 0, 1, 2):
+                    for j in grid.get((cx + dx, cy + dy), []):
+                        q = pts[j]
+                        if _inside_bbox(q["lon"], q["lat"], bbox):
+                            members.append(j)
+            if best_idx is None or len(members) > len(best_members):
+                best_idx, best_members = i, members
+        if best_idx is None or len(best_members) < min_homes:
+            break
+        c = pts[best_idx]
+        region = c.get("region") or ""
+        per_region[region] = per_region.get(region, 0) + 1
+        name = _place_name_for(c["lon"], c["lat"], region, scanned)
+        label_scan = (scanned or {}).get(region, {}).get("_label", region)
+        picked.append({"id": f"hm-{region}-{per_region[region]:02d}",
+                       "lon": c["lon"], "lat": c["lat"],
+                       "region": region, "region_label": label_scan,
+                       "homes": len(best_members),
+                       "label": f"{name} 일대"})
+        gone = set(best_members)
+        uncovered = [j for j in uncovered if j not in gone]
+    return picked
+
+
 # --- discovery run -----------------------------------------------------------
 
 def run_discovery(raw_pbf: str | Path = DEFAULT_RAW_PBF,
@@ -392,6 +502,8 @@ def run_discovery(raw_pbf: str | Path = DEFAULT_RAW_PBF,
     doc = json.loads(regions_path.read_text(encoding="utf-8"))
     scanned: dict[str, dict] = {}
     for region in doc["regions"]:
+        if region.get("country") == "US" or str(region.get("id", "")).startswith("us-"):
+            continue
         bbox = region.get("bbox")
         if not bbox:
             continue
@@ -402,7 +514,32 @@ def run_discovery(raw_pbf: str | Path = DEFAULT_RAW_PBF,
         scan["_label"] = region["label"]
         scanned[region["id"]] = scan
     selected = select_boxes(scanned, max_boxes=max_boxes)
+    homes_path = build_dir / "homes-index.json"
+    homes_rows: list[dict] = []
+    if homes_path.exists():
+        try:
+            homes_rows = json.loads(homes_path.read_text(encoding="utf-8")).get("homes", [])
+        except (json.JSONDecodeError, OSError):
+            homes_rows = []
+    home_boxes = select_home_boxes(homes_rows, selected["boxes"], scanned)
+    selected["home_boxes"] = home_boxes
+    selected["summary"] = {"home_boxes": len(home_boxes)}
     out = build_dir / BOXES_FILE
+    station_bboxes = _station_bboxes(selected["boxes"])
+    home_bboxes = [bbox_from_center(float(b["lon"]), float(b["lat"]))
+                   for b in home_boxes]
+    uncovered_after = 0
+    for h in homes_rows:
+        try:
+            lon, lat = float(h["lon"]), float(h["lat"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if any(_inside_bbox(lon, lat, b) for b in station_bboxes):
+            continue
+        if any(_inside_bbox(lon, lat, b) for b in home_bboxes):
+            continue
+        uncovered_after += 1
+    selected["summary"]["homes_uncovered_after"] = uncovered_after
     out.write_text(json.dumps(selected, indent=2, sort_keys=True,
                                ensure_ascii=False) + "\n", encoding="utf-8")
     return {"file": str(out),
@@ -410,4 +547,6 @@ def run_discovery(raw_pbf: str | Path = DEFAULT_RAW_PBF,
             "boxes": len(selected["boxes"]),
             "skipped": len(selected["skipped"]),
             "forced": sorted(b["station"] for b in selected["boxes"]
-                             if b.get("forced"))}
+                             if b.get("forced")),
+            "home_boxes": len(home_boxes),
+            "homes_uncovered_after": uncovered_after}

@@ -384,8 +384,8 @@
             "cafe",
             "coworking"
           ],
-          "engine": "none",
-          "engine_source": "no trip purpose for cafe/coworking visits"
+          "engine": "supported",
+          "engine_source": "cafe trips (purpose=cafe)"
         },
         {
           "id": "R05",
@@ -581,20 +581,18 @@
         {
           "id": "M05",
           "priority": "should",
-          "verify": "judge",
+          "verify": "deterministic",
           "label_ko": "어르신 낮 시간 활동 (경로당·산책로)",
           "label_en": "Daytime activity for elders (senior center, walking path)",
-          "evidence_events": [
-            "elder_outing"
-          ],
+          "data_field": "poi.park_walk_minutes",
           "keywords": [
             "경로당",
             "산책로",
             "복지관",
             "senior"
           ],
-          "engine": "none",
-          "engine_source": "no event kind: elder_outing"
+          "engine": "partial",
+          "engine_source": "senior park walks (purpose=park); 경로당 not modelled"
         }
       ]
     },
@@ -632,7 +630,7 @@
             "walk"
           ],
           "engine": "supported",
-          "engine_source": "park trips (purpose=park)"
+          "engine_source": "park trips (purpose=park); morning dog walk"
         },
         {
           "id": "P03",
@@ -657,14 +655,14 @@
           "verify": "deterministic",
           "label_ko": "동물병원 접근성",
           "label_en": "Vet access",
-          "data_field": "poi.vet_minutes",
+          "data_field": "poi.vet_walk_minutes",
           "rule": "report value within ±3 min",
           "keywords": [
             "동물병원",
             "vet"
           ],
-          "engine": "none",
-          "engine_source": "no trip purpose for vet visits"
+          "engine": "supported",
+          "engine_source": "vet trips (purpose=vet)"
         },
         {
           "id": "P05",
@@ -697,8 +695,8 @@
     "young_family": "scenarios/personas/dual-income-child.json",
     "newlywed_couple": "scenarios/personas/newlywed-couple.json",
     "single_firstjob": "scenarios/personas/single-firstjob.json",
-    "remote_worker": null,
-    "multigen_family": null,
-    "pet_owner": null
+    "remote_worker": "scenarios/personas/remote-worker.json",
+    "multigen_family": "scenarios/personas/multigen-family.json",
+    "pet_owner": "scenarios/personas/pet-owner.json"
   }
 }

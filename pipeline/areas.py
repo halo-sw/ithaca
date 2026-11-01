@@ -418,8 +418,41 @@ def _resolve_us_station_box(area_id: str,
                    workplaces=[dict(META_HQ_WORKPLACE)])
 
 
+HOME_BOX_PREFIX = "hm-"
+
+
 def is_station_box(area_id: str) -> bool:
     return area_id.startswith(STATION_BOX_PREFIX)
+
+
+def is_home_box(area_id: str) -> bool:
+    return area_id.startswith(HOME_BOX_PREFIX)
+
+
+def resolve_home_box(area_id: str,
+                     build_dir: str | Path = DEFAULT_BUILD_DIR) -> AreaDef:
+    """Resolve a stage-38a ``hm-<region>-<NN>`` home box.
+
+    Coordinates come from ``station-boxes.json`` (the discovery run);
+    the box is the same 1.2 km ``bbox`` kind as station boxes, with
+    no station attached.
+    """
+    from .boxes import load_boxes
+
+    if not is_home_box(area_id):
+        raise KeyError(f"not a home box {area_id!r}")
+    boxes = load_boxes(build_dir)
+    hit = None
+    if boxes:
+        hit = next((b for b in boxes.get("home_boxes", [])
+                    if b.get("id") == area_id), None)
+    if hit is None:
+        raise KeyError(f"unknown home box {area_id!r}")
+    lon, lat = float(hit["lon"]), float(hit["lat"])
+    bbox = bbox_from_center(lon, lat)
+    return AreaDef(id=area_id, label=str(hit.get("label", area_id)),
+                   kind="bbox", bbox=bbox, center=(lon, lat),
+                   station=None, boundary=None)
 
 
 def resolve_station_box(area_id: str,

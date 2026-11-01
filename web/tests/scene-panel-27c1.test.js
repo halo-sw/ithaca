@@ -54,7 +54,7 @@ describe("27c1 scene panel (SSR, no DOM)", () => {
         onBack: () => {}, onClose: () => {} }));
     assert.ok(html.includes("<iframe"), "iframe");
     assert.ok(html.includes("판교 동네"), "title");
-    assert.ok(html.includes("지도로"), "back");
+    assert.ok(html.includes("후보 지도"), "back");
     assert.ok(html.includes("새 창으로"), "new window");
     assert.ok(html.includes("작업판 닫기"), "close");
   });

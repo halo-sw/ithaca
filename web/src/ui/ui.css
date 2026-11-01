@@ -883,11 +883,20 @@ body.printing-share #share-print { display: block !important; padding: var(--ui-
   height: 100%; background: var(--ui-page); }
 .ui-chat-scene-head { display: flex; align-items: center; gap: 8px;
   padding: 8px 12px; border-bottom: 1px solid var(--ui-border);
-  flex-wrap: nowrap; }
-/* 29L6: the scene title never wraps — the row fits 390 px on one line. */
-.ui-chat-scene-title { font-weight: 600; white-space: nowrap;
-  flex: 0 1 auto; min-width: 0; }
+  flex-wrap: wrap; }
+/* 38c4: the title takes its own full-width first line when the row
+   does not fit — never clipped. */
+.ui-chat-scene-title { font-weight: 600;
+  flex: 1 1 12em; min-width: 0; overflow-wrap: anywhere; }
 .ui-chat-scene-frame { flex: 1 1 auto; width: 100%; border: 0; }
+/* 38c4: the map fills the panel — the SVG takes the remaining
+   height, credit and controls sit on 16 px gutters at the bottom. */
+.ui-mapwalk { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.ui-mapwalk-map { flex: 1 1 auto; min-height: 200px; min-width: 0; }
+.ui-mapwalk-foot { padding: 0 16px 12px; }
+@media (max-width: 480px) {
+  .ui-chat-scene-title { flex-basis: 100%; }
+}
 /* ---------- 27a: chat-first empty screen + work panel on request ---------- */
 /* 26w: the first screen shows the product — the landing glide plays
    behind the empty state (same canvas, quiet, no captions) under a soft

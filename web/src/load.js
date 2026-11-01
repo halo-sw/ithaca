@@ -5,8 +5,9 @@
 // fs reads) and inlines every {"$ref": file} section.
 
 import { assetUrl } from "./paths.js";
+import { fetchDataJson } from "./data-fetch.js";
 
-export async function loadArea(areaId, fetchJson) {
+export async function loadArea(areaId, fetchJson = fetchDataJson) {
   const base = assetUrl(`/data/${areaId}`);
   const area = await fetchJson(`${base}/area.json`);
   for (const [key, value] of Object.entries(area)) {

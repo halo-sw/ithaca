@@ -11,11 +11,10 @@
 // posts (they carry no runs).
 import { simulate } from "./engine/simulate.js";
 import { assetUrl } from "./paths.js";
+import { fetchDataJson } from "./data-fetch.js";
 
-async function fetchJson(url) {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`${url}: ${r.status}`);
-  return r.json();
+function fetchJson(url) {
+  return fetchDataJson(url);
 }
 
 async function loadArea(areaId) {

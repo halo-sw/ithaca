@@ -320,6 +320,10 @@ function parseMember(raw, index) {
     errands_per_week: parseErrands(raw.errands_per_week, where),
     park_walks_per_week: raw.park_walks_per_week === undefined ? 0 : raw.park_walks_per_week,
     clinic_visits_per_month: raw.clinic_visits_per_month === undefined ? 0 : raw.clinic_visits_per_month,
+    cafe_visits_per_week: raw.cafe_visits_per_week === undefined ? 0 : raw.cafe_visits_per_week,
+    vet_visits_per_month: raw.vet_visits_per_month === undefined ? 0 : raw.vet_visits_per_month,
+    home_office: raw.home_office === undefined ? false : raw.home_office,
+    dog_walk_morning: raw.dog_walk_morning === undefined ? false : raw.dog_walk_morning,
   };
 }
 
@@ -358,6 +362,18 @@ export function parseScenario(raw) {
     }
     if (!Number.isInteger(pm.clinic_visits_per_month) || pm.clinic_visits_per_month < 0 || pm.clinic_visits_per_month > 31) {
       fail(`household.members[${i}].clinic_visits_per_month wants 0..31`);
+    }
+    if (!Number.isInteger(pm.cafe_visits_per_week) || pm.cafe_visits_per_week < 0 || pm.cafe_visits_per_week > 5) {
+      fail(`household.members[${i}].cafe_visits_per_week wants 0..5`);
+    }
+    if (!Number.isInteger(pm.vet_visits_per_month) || pm.vet_visits_per_month < 0 || pm.vet_visits_per_month > 4) {
+      fail(`household.members[${i}].vet_visits_per_month wants 0..4`);
+    }
+    if (typeof pm.home_office !== "boolean") {
+      fail(`household.members[${i}].home_office wants a boolean`);
+    }
+    if (typeof pm.dog_walk_morning !== "boolean") {
+      fail(`household.members[${i}].dog_walk_morning wants a boolean`);
     }
   }
   const homesOut = homes.map((h) => {

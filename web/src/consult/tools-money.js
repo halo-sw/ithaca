@@ -54,6 +54,17 @@ export const REGION_RTMS_DISTRICT = {
 
 export async function rtmsDistrictForArea(session, areaId) {
   if (AREA_RTMS_DISTRICT[areaId]) return AREA_RTMS_DISTRICT[areaId];
+  if (session && session.loadStationBoxes && String(areaId).startsWith("hm-")) {
+    try {
+      const doc = await session.loadStationBoxes();
+      const hit = (doc.home_boxes || []).find((b) => b.id === areaId);
+      if (hit && hit.region && REGION_RTMS_DISTRICT[hit.region]) {
+        return REGION_RTMS_DISTRICT[hit.region];
+      }
+    } catch {
+      // fall through to null
+    }
+  }
   if (session && session.loadStationBoxes && String(areaId).startsWith("st-")) {
     try {
       const doc = await session.loadStationBoxes();

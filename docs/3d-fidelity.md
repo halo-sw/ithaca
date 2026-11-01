@@ -129,3 +129,34 @@ The screen calls the subway time "official" only when every leg comes from the t
 5. **There is no station exit data.** Walks are measured to the OSM station node, which may not be the exit a person uses.
 6. **The Migeum scene has many estimated heights.** 36.5% by count. Most are small buildings, so it is 12.0% by footprint.
 7. **The chat's 2D map is not the photo.** It uses the same VWorld source, but as the grey base map (`white` layer), so price pins and lines stay readable. The 3D scenes use the aerial photo.
+
+## 6. Coverage: every home now has a scene nearby (38a)
+
+Before 38a only the station boxes existed, so 46% of homes in the index had a 3D scene. 38a adds boxes around homes that sit far from any station box (`hm-<region>-NN`, 1 km, chosen greedily so each one covers at least 8 homes).
+
+- **Boxes:** 186 in all (122 station boxes, 64 home boxes). 복정 was skipped in discovery.
+- **Homes with a scene:** 17,848 of 18,035 (99.0%). By region: gangdong and songpa 100%, gangnam, jungwon and seongdong 99%, sujeong 97%, bundang and suji 92%, wirye 81%.
+- **Below a validation gate: 18 boxes.** They are kept, because a smaller scene is still better than none, and the engine records any trip it cannot route as unavailable instead of inventing one. The gates are at least 50 POIs (`POIS_MIN_SCENE`) and a walk graph whose largest connected part holds at least 95% of nodes (`WALK_LCC_MIN_SHARE`, on the 300 m buffered graph).
+
+| Box | Place | POIs | Walk graph largest part | Gate missed |
+|---|---|---:|---:|---|
+| hm-bundang-03 | 야탑동 일대 | 48 | 100% | POIs |
+| hm-bundang-05 | 서현동 일대 | 33 | 100% | POIs |
+| hm-bundang-06 | 분당구 일대 | 30 | 100% | POIs |
+| hm-jungwon-04 | 상대원동 일대 | 39 | 100% | POIs |
+| hm-jungwon-07 | 도촌동 일대 | 27 | 97.1% | POIs |
+| hm-sujeong-04 | 고등동 일대 | 30 | 100% | POIs |
+| hm-bundang-04 | 구미동 일대 | 87 | 88.6% | walk graph |
+| hm-gangnam-05 | 일원동 일대 | 282 | 91.8% | walk graph |
+| hm-sujeong-03 | 양지동 일대 | 97 | 84.7% | walk graph |
+| hm-suji-05 | 동천동 일대 | 118 | 89.9% | walk graph |
+| hm-bundang-09 | 운중동 일대 | 45 | 93.3% | both |
+| hm-bundang-11 | 판교동 일대 | 34 | 91.5% | both |
+| hm-suji-09 | 수지구 일대 | 14 | 70.1% | both |
+| st-동천 | 동천역 인근 | 182 | 93.9% | walk graph |
+| st-수서 | 수서역 인근 | 321 | 93.2% | walk graph |
+| st-오리 | 오리역 인근 | 183 | 93.6% | walk graph |
+| st-자양 | 자양역 인근 | 357 | 92.4% | walk graph |
+| st-종합운동장 | 종합운동장역 인근 | 260 | 88.5% | walk graph |
+
+Few POIs means OSM has few mapped places there; a split walk graph means some paths in the box are not joined to the rest in OSM (for example across a road, stream or rail line without a mapped crossing).

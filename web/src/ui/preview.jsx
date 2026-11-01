@@ -20,6 +20,7 @@ import { Text } from "@astryxdesign/core/Text";
 import { PHOTOS_DISCLAIMER, sceneThumbnail,
   createWebGLThumbnailRenderer } from "../places/photos.js";
 import { assetUrl } from "../paths.js";
+import { fetchDataJson } from "../data-fetch.js";
 import { aerialThumbTiles, aerialThumbUrl, aerialThumbZoom } from "../aerial/thumb.js";
 import { aerialCreditFor } from "../aerial/drape.js";
 import { basemapApiBase } from "../basemap.js";
@@ -99,11 +100,11 @@ export function PhotoStrip({ photos }) {
 function defaultThumbDeps(boxId) {
   return {
     loadArea: async (id) => {
-      const area = await (await fetch(assetUrl(`/data/${id}/area.json`))).json();
+      const area = await fetchDataJson(assetUrl(`/data/${id}/area.json`));
       for (const [key, value] of Object.entries(area)) {
         if (value && typeof value === "object" && !Array.isArray(value)
             && Object.keys(value).join() === "$ref") {
-          area[key] = await (await fetch(assetUrl(`/data/${id}/${value.$ref}`))).json();
+          area[key] = await fetchDataJson(assetUrl(`/data/${id}/${value.$ref}`));
         }
       }
       return area;

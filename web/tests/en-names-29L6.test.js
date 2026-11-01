@@ -77,12 +77,12 @@ describe("29L6 label box from the shown text", () => {
 
 describe("29L6 phone scene header labels", () => {
   it("shortens English actions on phones only", () => {
-    assert.equal(sceneActionLabelFor("To the map", { phone: true, lang: "en" }), "Map");
+    assert.equal(sceneActionLabelFor("Homes map", { phone: true, lang: "en" }), "Homes");
     assert.equal(sceneActionLabelFor("Open in new window", { phone: true, lang: "en" }), "New window");
-    assert.equal(sceneActionLabelFor("To the map", { phone: false, lang: "en" }), "To the map");
+    assert.equal(sceneActionLabelFor("Homes map", { phone: false, lang: "en" }), "Homes map");
     assert.equal(
       sceneActionLabelFor("Open in new window", { phone: false, lang: "en" }), "Open in new window");
-    assert.equal(sceneActionLabelFor("지도로", { phone: true, lang: "ko" }), "지도로");
+    assert.equal(sceneActionLabelFor("후보 지도", { phone: true, lang: "ko" }), "후보 지도");
     assert.equal(sceneActionLabelFor("새 창으로", { phone: true, lang: "ko" }), "새 창으로");
   });
 });
