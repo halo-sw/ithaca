@@ -47,6 +47,18 @@ export function usAreaLabel(region, lang) {
   return lang === "en" ? e.en : e.ko;
 }
 
+// 29N3i: a US Caltrain station's English map name -> its Korean name
+// ("Palo Alto" -> "팔로알토"). Null when the name is not a US
+// station (Korean stations pass through untouched).
+export function usStationKoName(name) {
+  const want = String(name || "").trim().toLowerCase();
+  if (!want) return null;
+  for (const e of Object.values(US_AREA_LABELS)) {
+    if (e.en.toLowerCase() === want) return e.ko;
+  }
+  return null;
+}
+
 const PLACE_TO_REGION = { pangyo: "bundang", jeongja: "bundang", migeum: "bundang" };
 
 export function regionsForNames(names) {

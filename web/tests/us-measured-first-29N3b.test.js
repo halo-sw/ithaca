@@ -46,6 +46,8 @@ function paloAltoHome(id) {
     commute: {
       destination: "Menlo Park",
       best: { mode: "bike", min: 25.9 },
+      bike_direct_min: { value: 25.9, source: "estimate" },
+      walk_direct_min: { value: 70, source: "estimate" },
       walk_to_station_min: { value: 8, source: "osm_graph" },
       caltrain_min: { value: 3, source: "caltrain_gtfs" },
       headway_min: { value: 16, source: "caltrain_gtfs" },
@@ -68,9 +70,13 @@ function menloHome(id) {
 
 describe("29N3b measured Caltrain first", () => {
   it("usCommuteBest ignores the stale bike best on a station-box home", () => {
+    // 29N3i: the alt comes from the commute block's direct leaves.
     assert.deepEqual(
       usCommuteBest(
-        { region: "us-st-palo-alto", commute: { best: { mode: "bike", min: 25.9 } } },
+        { region: "us-st-palo-alto",
+          commute: { best: { mode: "bike", min: 25.9 },
+            bike_direct_min: { value: 25.9, source: "estimate" },
+            walk_direct_min: { value: 70, source: "estimate" } } },
         { total_min: 40.4 }, { mode: "bike", minutes: 25.9 }),
       { mode: "caltrain", min: 40.4, alt: { mode: "bike", min: 25.9 } });
     assert.deepEqual(

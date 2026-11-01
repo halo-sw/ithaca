@@ -60,7 +60,7 @@ describe("29N3d Caltrain wording, never subway", () => {
       "Palo Alto Stn · Caltrain");
     assert.equal(
       stationRideLabel("Palo Alto", "ko", { caltrain: true }),
-      "Palo Alto역 · 칼트레인");
+      "팔로알토역 · 칼트레인");
   });
 
   it("Korean runs keep the subway wording", () => {

@@ -954,8 +954,13 @@ def build_us_homes(area_dir: str | Path, zori: dict[str, dict],
         if area_id != AREA_ID and st is None:
             dropped_no_station_walk += 1
             continue
+        # 29N3i: only us-menlo homes get a meta-hq work target (HQ
+        # snaps to the area's own graph). Station-box graphs do not
+        # contain HQ, so snapping it to the box's nearest node fakes a
+        # short walk (e.g. 11 min Palo Alto -> Meta HQ); box homes
+        # commute via the Caltrain block + direct estimates instead.
         work_targets: dict = {}
-        if meta_hq is not None and nodes:
+        if area_id == AREA_ID and meta_hq is not None and nodes:
             home_node = _nearest_node(lon, lat, nodes)
             hq_node = _nearest_node(meta_hq["lon"], meta_hq["lat"], nodes)
             entry = {"walk_m": None, "walk_minutes": None,

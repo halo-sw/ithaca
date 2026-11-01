@@ -9,6 +9,7 @@
 import { displayNameFor } from "./homes.js";
 import { haversineM } from "./frame.js";
 import { placeNameEn } from "./ui/scene-chrome.js";
+import { usStationKoName } from "./region-names.js";
 
 export const OVERVIEW_MIN_M = 400;
 export const DONG_MAX_M = 250;
@@ -540,7 +541,8 @@ export function stationRideLabel(base, lang = "ko", opts = {}) {
       const stem = b.endsWith("역") ? b.slice(0, -1) : b;
       return `${placeNameEn(stem)} Stn · Caltrain`;
     }
-    return `${stationNameFor(b)} · 칼트레인`;
+    // 29N3i: US stations take their Korean name on the Korean screen.
+    return `${stationNameFor(usStationKoName(b) || b)} · 칼트레인`;
   }
   if (lang === "en") {
     const stem = b.endsWith("역") ? b.slice(0, -1) : b;

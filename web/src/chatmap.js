@@ -10,6 +10,7 @@
 
 import { findPath, normalizeStation } from "./engine/journey.js";
 import { romanizeName } from "./i18n/romanize.js";
+import { usStationKoName } from "./region-names.js";
 import { usAreaLabel } from "./region-names.js";
 import { fmtMoney, fmtWonEn } from "./money/currency.js";
 
@@ -1014,6 +1015,9 @@ export function stationLabelName(name, lang) {
   const raw = String(name ?? "").trim();
   const ko = raw.endsWith("역") ? raw : `${raw}역`;
   if (lang === "en") return romanizeName(ko);
+  // 29N3i: US stations print their Korean name on the Korean screen.
+  const usKo = usStationKoName(raw);
+  if (usKo) return usKo.endsWith("역") ? usKo : `${usKo}역`;
   return ko;
 }
 

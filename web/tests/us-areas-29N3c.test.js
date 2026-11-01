@@ -69,10 +69,25 @@ describe("29N3c US areas sort spreads one home per area", () => {
     const mins = r.candidates.map((c) => c.best_min);
     assert.ok(mins.every(Number.isFinite), `headlines: ${mins}`);
     assert.deepEqual([...mins].sort((a, b) => a - b), mins);
-    assert.ok(r.sort_note.includes("one home per area (closest area first)"),
+    // 29N3i: one language per screen (Korean here — no window).
+    assert.equal(r.sort_note, "정렬: 동네마다 한 곳씩(가까운 동네부터)",
       `note: ${r.sort_note}`);
-    assert.ok(r.sort_note.includes("동네마다 한 곳씩(가까운 동네부터)"),
-      `note: ${r.sort_note}`);
+    assert.ok(!/[A-Za-z]/.test(r.sort_note), `note: ${r.sort_note}`);
+  });
+
+  it("English screen reads the English note only, no Hangul", () => {
+    const prev = globalThis.window;
+    globalThis.window = { location: { search: "?lang=en", href: "" } };
+    try {
+      const r = find_homes(PROFILE, { homes: twelveOverSix() },
+        { sort: "areas", limit: 6, regions: [...AREAS6] });
+      assert.equal(r.sort_note, "one home per area (closest area first)",
+        `note: ${r.sort_note}`);
+      assert.ok(!/[가-힣]/.test(r.sort_note), `note: ${r.sort_note}`);
+    } finally {
+      if (prev === undefined) delete globalThis.window;
+      else globalThis.window = prev;
+    }
   });
 
   it("3 areas x 4 rows, limit 6 -> 3 distinct first, then commute order", () => {

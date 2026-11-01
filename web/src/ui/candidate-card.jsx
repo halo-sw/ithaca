@@ -144,8 +144,9 @@ export function commuteRowLine(candidate, destName) {
   const altMin = candidate && candidate.bike_direct_estimate_min;
   if (bd && bd.en && bd.ko && stationBox) {
     const en = currentLang() === "en";
-    const work = candidate && candidate.commute && candidate.commute.work;
-    const altMode = (work && work.mode) || "bike";
+    // 29N3i: the side-note mode rides with the estimate itself —
+    // never from work_targets (old box data may carry a bogus one).
+    const altMode = (candidate && candidate.direct_estimate_mode) || "bike";
     if (Number.isFinite(altMin)) {
       const n = Math.round(altMin);
       const alt = en

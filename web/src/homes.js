@@ -25,6 +25,7 @@ import { photosNear, PHOTOS_DISCLAIMER } from "./places/photos.js";
 import { nearestStationByWalk } from "./walkgraph.js";
 import { fmtMoney } from "./money/currency.js";
 import { usAreaLabel } from "./region-names.js";
+import { currentLang } from "./i18n/lang.js";
 
 export const HOME_SORTS = ["areas", "commute", "monthly", "deals", "priority"];
 export const DEFAULT_HOME_SORT = "areas";
@@ -374,7 +375,23 @@ export function usCommuteBest(home, corridor, work) {
   const region = home && home.region;
   const stationBox = typeof region === "string" && region.indexOf("us-st-") === 0;
   if (stationBox && cal !== null) {
-    if (direct && direct.min < cal) return { mode: "caltrain", min: cal, alt: direct };
+    // 29N3i: the side-note estimate comes only from the built
+    // commute block's direct leaves — never from work_targets (old
+    // box data may still carry a bogus meta-hq walk snapped to the
+    // box graph while HQ sits outside it).
+    const c = home && home.commute;
+    const leaf = (v) => (v && Number.isFinite(v.value) ? v.value : null);
+    const bikeLeaf = c ? leaf(c.bike_direct_min) : null;
+    const walkLeaf = c ? leaf(c.walk_direct_min) : null;
+    let leafDirect = null;
+    if (bikeLeaf !== null && (walkLeaf === null || bikeLeaf <= walkLeaf)) {
+      leafDirect = { mode: "bike", min: bikeLeaf };
+    } else if (walkLeaf !== null) {
+      leafDirect = { mode: "walk", min: walkLeaf };
+    }
+    if (leafDirect && leafDirect.min < cal) {
+      return { mode: "caltrain", min: cal, alt: leafDirect };
+    }
     return { mode: "caltrain", min: cal };
   }
   const b = home && home.commute && home.commute.best;
@@ -874,7 +891,8 @@ export function find_homes(profile, index, opts = {}) {
         rent_source: usRentSource(home),
         ...(best ? { best_mode: best.mode, best_min: best.min,
           ...(best.alt && Number.isFinite(best.alt.min)
-            ? { bike_direct_estimate_min: best.alt.min } : {}) } : {}) } : {}),
+            ? { bike_direct_estimate_min: best.alt.min,
+              direct_estimate_mode: best.alt.mode } : {}) } : {}) } : {}),
       ...(corridor ? { corridor_min: corridor.total_min, corridor,
         commute_breakdown: { ...corridor,
           en: caltrainBreakdownText(corridor, "en"),
@@ -933,7 +951,10 @@ export function find_homes(profile, index, opts = {}) {
     // 29N3c: US rows carry no station origin, so the neighbourhood
     // pick cannot group them — spread one home per US area in
     // headline-commute order, filling leftover slots in commute order.
-    sort_note = "정렬: 동네마다 한 곳씩(가까운 동네부터) · one home per area (closest area first)";
+    // 29N3i: one language per screen — never both at once.
+    sort_note = currentLang() === "en"
+      ? "one home per area (closest area first)"
+      : "정렬: 동네마다 한 곳씩(가까운 동네부터)";
     const first = spreadUsFirstPage(sorted, limit, 1);
     candidates = first.concat(
       sorted.filter((r) => !first.includes(r)).slice(0, limit - first.length));
