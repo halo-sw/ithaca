@@ -332,17 +332,35 @@ function findMembers(text) {
 // N = 1..4; full-remote words read 0; N = 5 (or no cue) reads null.
 function findOfficeDays(text) {
   const src = String(text || "");
-  const dated = /주\s*(\d)\s*일\s*출근/.exec(src)
-    || /주\s*(\d)\s*회\s*출근/.exec(src)
-    || /일주일에\s*(\d)\s*번\s*출근/.exec(src)
-    || /(\d)\s*days?\s*a\s*week\s*in\s*the\s*office/i.exec(src)
-    || /\bin\s*office\s*(\d)\s*days?/i.exec(src)
-    || /\bhybrid\s*(\d)\s*days?/i.exec(src);
-  if (dated) {
-    const n = Number(dated[1]);
-    if (n >= 1 && n <= 4) return { value: n, evidence: dated[0] };
-    return null;
+  const enNum = { one: 1, two: 2, three: 3, four: 4 };
+  const koNum = { 한: 1, 두: 2, 세: 3, 네: 4 };
+  const numOf = (raw) => {
+    if (/^\d$/.test(raw)) return Number(raw);
+    const hit = enNum[String(raw).toLowerCase()] ?? koNum[raw];
+    return hit === undefined ? null : hit;
+  };
+  // 39a: a dated match always beats the remote words below.
+  const cands = [
+    /주\s*(\d)\s*일\s*출근/.exec(src),
+    /주\s*(\d)\s*회\s*출근/.exec(src),
+    /일주일에\s*(\d)\s*번\s*출근/.exec(src),
+    /일주일에\s*(한|두|세|네)\s*번\s*출근/.exec(src),
+    /(\d)\s*days?\s*a\s*week\s*in\s*the\s*office/i.exec(src),
+    /\bin\s*office\s*(\d)\s*days?/i.exec(src),
+    /\bhybrid\s*(\d)\s*days?/i.exec(src),
+  ];
+  if (/출근/.test(src)) cands.push(/주\s*(\d)\s*일/.exec(src));
+  if (/(office|commute|go in|work in)/i.test(src)) {
+    cands.push(/(\d|one|two|three|four)\s*days?\s*(?:a|per)\s*week/i.exec(src));
   }
+  let sawDated = false;
+  for (const m of cands) {
+    if (!m) continue;
+    sawDated = true;
+    const n = numOf(m[1]);
+    if (n !== null && n >= 1 && n <= 4) return { value: n, evidence: m[0] };
+  }
+  if (sawDated) return null;
   const remoteKo = /(완전 재택|재택근무|풀재택|재택)/.exec(src);
   if (remoteKo) return { value: 0, evidence: remoteKo[0] };
   const remoteEn = /(work from home|fully remote|\bWFH\b|\bremote\b)/i.exec(src);
@@ -427,6 +445,8 @@ const WORKPLACE_ALIASES = {
   "상암동": "디지털미디어시티",
   "DMC": "디지털미디어시티",
   "Sangam": "디지털미디어시티",
+  "Digital Media City": "디지털미디어시티",
+  "DMC Station": "디지털미디어시티",
 };
 
 function lookupWorkplaceAlias(mention) {
@@ -452,6 +472,13 @@ function resolveWorkplace(mention, stations) {
 }
 
 function findWorkplace(text, stations) {
+  return matchWorkplaceIn(text, stations);
+}
+
+// 39a: one mention pass over a single clause (or the whole text) —
+// the match the single findWorkplace always ran. Pure.
+function matchWorkplaceIn(clause, stations) {
+  const text = String(clause || "");
   // 26c: a US workplace resolves first, without any station list.
   const us = findUsWorkplace(text);
   if (us) {
@@ -490,7 +517,7 @@ function findWorkplace(text, stations) {
   }
   // English patterns (24b), only when no Korean pattern matched.
   const mentionPat = "[A-Za-z][A-Za-z .'-]{1,40}?";
-  const tail = "(?=[.,;:!]|\\s+(?:and|but|every|daily|for|by|with|to)\\b|$)";
+  const tail = "(?=[.,;:!]|\\s*\\d|\\s+(?:and|but|every|daily|for|by|with|to|on)\\b|$)";
   const enPats = [
     new RegExp(`commut(?:e|es|ing) to (${mentionPat})(?:\\s+station|\\s+stn)?${tail}`, "i"),
     new RegExp(`work(?:s|ing)? (?:at|in|near|around) (${mentionPat})(?:\\s+station|\\s+stn)?${tail}`, "i"),
@@ -520,6 +547,96 @@ function findWorkplace(text, stations) {
     }
   }
   return null;
+}
+
+// 39a: person words pin a clause's workplace to a household member.
+const SELF_WORD_RE = /(저는|나는|제가)/;
+const SELF_SHORT_RE = /(^|[\s,.])전(?=[\s,.]|$)/;
+const PARTNER_WORD_RE = /(남편은|남편이|아내는|아내가|와이프는|신랑은|배우자는)/;
+const EN_SELF_WORD_RE = /\bI\s+(?:work|commute|go to the office)\b/i;
+const EN_PARTNER_WORD_RE = /\bmy\s+(?:wife|husband|partner)\b/i;
+const WORK_VERB_RE = /(출근|일하|일해|직장|회사)|\b(work|works|working|office|commute|commutes|commuting)\b/i;
+const HAS_PERSON_RE = /(저는|나는|제가|남편은|남편이|아내는|아내가|와이프는|신랑은|배우자는|(^|[\s,.])전(?=[\s,.]|$)|\bI\s+(?:work|commute|go to the office)\b|\bmy\s+(?:wife|husband|partner)\b)/i;
+
+function memberForClause(clause) {
+  const c = String(clause || "");
+  if (SELF_WORD_RE.test(c) || SELF_SHORT_RE.test(c)) return 0;
+  if (PARTNER_WORD_RE.test(c)) return 1;
+  if (EN_PARTNER_WORD_RE.test(c)) return 1;
+  if (EN_SELF_WORD_RE.test(c)) return 0;
+  return null;
+}
+
+function workplaceStationOf(hit) {
+  if (!hit || !hit.resolved) return null;
+  if (typeof hit.resolved === "string") return hit.resolved;
+  if (hit.resolved.place) return hit.resolved.place.name || null;
+  return null;
+}
+
+function stripPersonWords(clause) {
+  const t = String(clause || "")
+    .replace(/(남편은|남편이|아내는|아내가|와이프는|신랑은|배우자는|저는|나는|제가)/g, " ")
+    .replace(/(^|[\s,.])전(?=[\s,.]|$)/g, "$1 ")
+    .replace(/\b(my\s+(?:wife|husband|partner)|I\s+(?:work|commute|go to the office))\b/gi, " ")
+    .replace(/(출근해요|출근합니다|출근|일해요|일하|일해|직장|회사)/g, " ")
+    .trim().replace(/\s+/g, " ");
+  return t.replace(/(은|는|이|가|을|를|에서|으로|로|에|의)$/, "").trim();
+}
+
+// 39a: every member's workplace, member-ordered so workplaces[i] is
+// member i's (scenarioFromProfile reads workplaces[i] || workplaces[0]).
+// Clauses split on `,` `.` `그리고` `고 `; a person word pins the
+// clause to a member, and a work verb at the end of the sentence
+// covers the earlier clauses. Pure.
+function findWorkplaces(text, stations) {
+  const src = String(text || "");
+  const single = () => {
+    const one = findWorkplace(src, stations);
+    return one
+      ? [{ member: 0, text: one.text, evidence: one.evidence, resolved: one.resolved }]
+      : [];
+  };
+  if (!src || !HAS_PERSON_RE.test(src)) return single();
+  const sharedVerb = WORK_VERB_RE.test(src);
+  const out = [];
+  const seen = new Set();
+  const topRe = /[^,.]+/g;
+  let tm;
+  while ((tm = topRe.exec(src)) !== null) {
+    const top = tm[0];
+    if (!top.trim()) continue;
+    const base = tm.index;
+    const subs = top.split(/그리고|(?<=[가-힣])고\s+/);
+    let cursor = 0;
+    for (const sub of subs) {
+      const at = top.indexOf(sub, cursor);
+      cursor = at + sub.length;
+      const member = memberForClause(sub);
+      if (member === null || seen.has(member)) continue;
+      const hit = matchWorkplaceIn(sub, stations);
+      if (hit && (workplaceStationOf(hit) || WORK_VERB_RE.test(sub) || sharedVerb)) {
+        out.push({ member, text: hit.text, evidence: hit.evidence, resolved: hit.resolved });
+        seen.add(member);
+        continue;
+      }
+      if (!hit) {
+        const mention = stripPersonWords(sub);
+        const resolved = mention ? resolveWorkplace(mention, stations) : null;
+        if (resolved) {
+          // Verbatim slice: the clause plus its adjacent comma/period,
+          // so a " · "-joined evidence still passes guardProfileValues.
+          const bare = sub.replace(/^\s+/, "").replace(/\s+$/, "");
+          const adj = src[base + at + sub.replace(/\s+$/, "").length];
+          const evidence = (adj === "," || adj === ".") ? bare + adj : bare;
+          out.push({ member, text: mention, evidence, resolved });
+          seen.add(member);
+        }
+      }
+    }
+  }
+  if (out.length === 0) return single();
+  return out.sort((a, b) => a.member - b.member);
 }
 
 // Resolve an English station mention ("Gangnam") to the Korean station
@@ -788,7 +905,7 @@ export function extract_profile(text, current = null, opts = {}) {
     return { value: Number(e[1]), evidence: e[0] };
   })();
   const membersHit = findMembers(src);
-  const workHit = findWorkplace(src, stations);
+  const workHits = findWorkplaces(src, stations);
   const kindsHit = findHomeKinds(src);
 
   // Salary: "연봉 4천" anchor; bare "4천" with 연봉 nearby also counts
@@ -871,7 +988,8 @@ export function extract_profile(text, current = null, opts = {}) {
   if (petsHit && profile.pets.value === null) {
     set("pets", petsHit.value, petsHit.evidence, "함께 사는 동물");
   }
-  if (workHit) {
+  if (workHits.length === 1) {
+    const workHit = workHits[0];
     if (workHit.resolved && workHit.resolved.place) {
       const p = workHit.resolved.place;
       set("workplaces",
@@ -887,6 +1005,29 @@ export function extract_profile(text, current = null, opts = {}) {
       set("workplaces", workplaces, workHit.evidence,
         workHit.resolved ? `직장 근처역: ${workHit.resolved}` : "우리 자료에 없는 곳(모름)");
     }
+  } else if (workHits.length > 1) {
+    // 39a: one entry per member, evidence joined by ` · ` in text
+    // order so every part stays a verbatim slice for the guard.
+    const ordered = [...workHits].sort((a, b) => src.indexOf(a.evidence) - src.indexOf(b.evidence));
+    const ev = ordered.map((h) => h.evidence).join(" · ");
+    const workplaces = workHits.map((h) => {
+      if (h.resolved && h.resolved.place) {
+        const p = h.resolved.place;
+        return { member: h.member, text: h.evidence,
+          resolved: { place: { id: p.id, name: p.name, lon: p.lon, lat: p.lat },
+            region: h.resolved.region || US_REGION_ID } };
+      }
+      return { member: h.member, text: h.text,
+        resolved: h.resolved ? { station: h.resolved } : null };
+    });
+    const named = [];
+    for (const w of workplaces) {
+      const name = w.resolved && (w.resolved.station
+        || (w.resolved.place && w.resolved.place.name));
+      if (name) named.push(name);
+    }
+    set("workplaces", workplaces, ev,
+      named.length > 0 ? `직장 근처역: ${named.join("·")}` : "우리 자료에 없는 곳(모름)");
   }
   if (kindsHit && (profile.home_kinds.value || []).length === 0) {
     set("home_kinds", kindsHit.kinds, kindsHit.evidence, "원하는 집 유형");
@@ -1195,7 +1336,6 @@ export function scenarioFromProfile(profile, homes, opts = {}) {
     // 38e: seniors never commute — daily park walks, monthly clinic.
     if ((m.role || "adult") === "senior") {
       out.work = { type: "none" };
-      out.workdays = [];
       out.park_walks_per_week = 7;
       out.clinic_visits_per_month = 2;
       out.errands_per_week = { supermarket: 1, convenience: 2 };
