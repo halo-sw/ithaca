@@ -49,31 +49,45 @@ DEFAULT_BUILD_DIR = REPO_ROOT / "data" / "build"
 REGION_DIR = "region"
 NETWORK_FILE = "network.json"
 
-# Lines the journey view needs (stage 8: five; 12a2 adds 3/5/7/경강선).
+# Lines the journey view needs (stage 8: five; 12a2 adds 3/5/7/경강선;
+# 38b adds 1/4/6/경의·중앙/공항철도/우이신설/신림).
 # "match" substrings hit the OSM relation name; match order is explicit
-# below because 신분당선 contains 분당선.
+# below because 신분당선 contains 분당선. line1/line4 anchor on the
+# 수도권 전철 prefix so other cities' … 1호선 / … 4호선 never match.
 LINE_SPECS = (
+    {"id": "line1", "name": "1호선", "match": ("수도권 전철 1호선",), "circle": False},
     {"id": "line2", "name": "2호선", "match": ("서울 지하철 2호선", "수도권 전철 2호선"), "circle": True},
     {"id": "line3", "name": "3호선", "match": ("서울 지하철 3호선", "수도권 전철 3호선"), "circle": False},
+    {"id": "line4", "name": "4호선", "match": ("수도권 전철 4호선",), "circle": False},
     {"id": "line5", "name": "5호선", "match": ("서울 지하철 5호선", "수도권 전철 5호선"), "circle": False},
+    {"id": "line6", "name": "6호선", "match": ("서울 지하철 6호선", "수도권 전철 6호선"), "circle": False},
     {"id": "line7", "name": "7호선", "match": ("서울 지하철 7호선", "수도권 전철 7호선"), "circle": False},
     {"id": "line8", "name": "8호선", "match": ("서울 지하철 8호선", "수도권 전철 8호선"), "circle": False},
     {"id": "line9", "name": "9호선", "match": ("서울 지하철 9호선", "수도권 전철 9호선"), "circle": False},
     {"id": "sinbundang", "name": "신분당선", "match": ("신분당선",), "circle": False},
     {"id": "bundang", "name": "수인·분당선", "match": ("수인·분당선", "수인분당선", "분당선"), "circle": False},
     {"id": "gyeonggang", "name": "경강선", "match": ("경강선",), "circle": False},
+    {"id": "gyeongui", "name": "경의·중앙선", "match": ("경의·중앙선", "경의중앙선"), "circle": False},
+    {"id": "arex", "name": "공항철도", "match": ("인천국제공항철도 일반열차", "공항철도"), "circle": False},
+    {"id": "uisinseol", "name": "우이신설선", "match": ("우이신설선",), "circle": False},
+    {"id": "sillim", "name": "신림선", "match": ("신림선",), "circle": False},
 )
 
 # Match precedence over LINE_SPECS (신분당선 before 분당선, which it
 # contains; the rest are mutually exclusive).
-MATCH_ORDER = ("sinbundang", "bundang", "line2", "line3", "line5",
-               "line7", "line8", "line9", "gyeonggang")
+MATCH_ORDER = ("sinbundang", "bundang", "line1", "line2", "line3",
+               "line4", "line5", "line6", "line7", "line8", "line9",
+               "gyeonggang", "gyeongui", "arex", "uisinseol", "sillim")
 
 ROUTE_VALUES = {"subway", "train", "light_rail"}
 STOP_ROLES = {"stop", "stop_exit_only", "stop_entry_only", "platform",
               "platform_exit_only", "platform_entry_only"}
-SKIP_PATTERN_WORDS = ("급행",)  # express patterns: local order covers all stops
+SKIP_PATTERN_WORDS = ("급행", "특급", "직통", "셔틀")  # 38b adds 특급/직통/셔틀
 NON_METRO_WORDS = ("부산", "대구", "광주", "대전", "인천", "도시철도")
+# 38b lines whose match strings are anchored (수도권 전철/서울 지하철
+# prefixes) or otherwise distinctive: the veto above never applies.
+_NO_VETO_LINES = frozenset({"line1", "line4", "line6", "gyeongui",
+                            "arex", "uisinseol", "sillim"})
 
 COORD_NDIGITS = 6
 GEOM_SIMPLIFY_DEG = 0.00015  # ~15 m
@@ -105,13 +119,17 @@ def _line_of_relation(tags: dict) -> dict | None:
     if tags.get("type") != "route" or tags.get("route") not in ROUTE_VALUES:
         return None
     name = tags.get("name", "")
-    if any(w in name for w in NON_METRO_WORDS):
-        return None
     # Order matters: 신분당선 contains 분당선.
     by_id = {spec["id"]: spec for spec in LINE_SPECS}
     for line_id in MATCH_ORDER:
         spec = by_id[line_id]
         if any(k in name for k in spec["match"]):
+            # 38b lines match anchored/distinctive names (line1/line4 on
+            # the 수도권 전철 prefix), so the other-cities veto — which
+            # would also catch legit names like "… → 인천" — skips them.
+            if (line_id not in _NO_VETO_LINES
+                    and any(w in name for w in NON_METRO_WORDS)):
+                return None
             return spec
     return None
 
