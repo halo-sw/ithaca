@@ -481,6 +481,8 @@ const seedPhrases = {
   "동네별": "By area",
   "동네별로 한 곳씩": "One home per neighbourhood",
   "정렬: 동네별로 한 곳씩 (가까운 동네부터 먼 동네까지 고르게)": "Sorted: one home per neighbourhood, spread from near to far",
+  "동네마다 한 곳씩(가까운 동네부터)": "one home per area (closest area first)",
+  "정렬: 동네마다 한 곳씩(가까운 동네부터)": "Sorted: one home per area (closest area first)",
   "대출 없음": "No loan",
   "대출 갚는 돈 없음": "No loan payment",
   "대출 갚는 돈": "Loan payment",
@@ -507,6 +509,9 @@ const seedPhrases = {
   "땅+단지 이름": "parcel + complex name",
   // 41e: the server key is one chat session per visitor.
   "무료 체험 대화는 한 번만 쓸 수 있어요. 계속하려면 내 모델 키를 넣어 주세요.": "The free trial chat can be used once. To keep going, add your own model key.",
+  "오픈 웨이트 모델(Muse Spark Open)로 같은 상담을 돌려 볼 수 있어요": "Run the same consult on the open-weights model (Muse Spark Open)",
+  "Muse Spark Open이 바빠서 이번 답은 Muse Spark 1.3이 했어요.": "Muse Spark Open is busy, so this answer used Muse Spark 1.3.",
+  "멘로파크 Meta 본사로 출근해요. 두 명이고, 월세는 4,500달러 이하예요.": "I work at Meta HQ in Menlo Park. Two of us, rent up to $4,500 a month.",
   "내 모델 키 넣기": "Add my model key",
   "단지 이름": "complex name",
 };
