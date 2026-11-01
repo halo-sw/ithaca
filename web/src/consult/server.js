@@ -6,6 +6,7 @@
 // in a bounded in-memory cache (runs are deterministic and re-runnable).
 
 import { readFile, readdir } from "node:fs/promises";
+import { fetchDataText } from "../data-fetch.js";
 import { join } from "node:path";
 import { providerConfig, completeWithTools } from "../judge/providers.js";
 import { writeDiary } from "./diary.js";
@@ -173,9 +174,13 @@ export function httpReadText(baseUrl, fetchImpl) {
   const get = fetchImpl || fetch;
   return async (kind, rel) => {
     const url = `${root}${kind === "data" ? "data" : "scenarios"}/${rel}`;
-    const res = await get(url);
-    if (!res.ok) throw new Error("not found: " + rel);
-    return await res.text();
+    try {
+      // The relay only ever reads the public site, so always try gz first
+      // (fetchDataText falls back to the plain url on 404).
+      return await fetchDataText(url, { fetchImpl: get, gz: true });
+    } catch {
+      throw new Error("not found: " + rel);
+    }
   };
 }
 

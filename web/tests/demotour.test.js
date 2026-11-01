@@ -103,7 +103,7 @@ describe("demo tour step machine", () => {
     assert.match(rec.a, /2,698곳 중 6곳/);
     assert.match(rec.a, /동네별로 한 곳씩 6곳/);
     assert.match(rec.a, /백궁 동양파라곤.*5\.7억/);
-    assert.match(rec.a, /용답역 근처 연립·다세대 \(291-22\).*4\.35억/);
+    assert.match(rec.a, /서울숲 더샵.*6\.4억/);
     assert.match(rec.a, /정자 → 판교 총 7\.2분/);
     assert.match(rec.a, /대기 시간 제외/);
     assert.match(rec.a, /3D로 살아 보기 가능/);
@@ -165,9 +165,9 @@ describe("demo tour step machine", () => {
     // Default sort is areas (동네별): one pick per area for 7억 이하 50㎡ 이상 매매.
     assert.equal(r.total_matching, 2698);
     assert.deepEqual(r.candidates.map((c) => c.name), [
-      "백궁 동양파라곤", "그린빌리지(1동)", "유지빌라3차", "신광빌라",
-      "(47-4)", "(291-22)",
+      "백궁 동양파라곤", "수서현대벤쳐빌", "(84-0)", "다누림빌", "신우아트빌", "서울숲 더샵",
     ]);
+    for (const c of r.candidates) assert.ok(rec.a.includes(c.name), c.name);
     assert.ok(r.candidates.every((c) => c.scene));
     // Every result carries a ride number with a source (12a2 brief §1).
     for (const c of r.candidates) {

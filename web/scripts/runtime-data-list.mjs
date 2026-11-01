@@ -14,7 +14,7 @@
 // - top-level *.json.
 // - never _cache/, personas/, *.pbf, osm.json, graph.json or report.json
 //   — unless something already in the list references them.
-import { readdir, readFile } from "node:fs/promises";
+import { readdir, readFile, stat } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
 
 const EXCLUDED_BASENAMES = new Set(["osm.json", "graph.json", "report.json"]);
@@ -100,11 +100,17 @@ export async function runtimeDataList(reader) {
   return out.sort();
 }
 
-async function walkFs(root, dir, into) {
+export async function walkFs(root, dir, into) {
   for (const e of await readdir(join(root, dir), { withFileTypes: true })) {
     const rel = dir ? `${dir}/${e.name}` : e.name;
-    if (e.isDirectory()) await walkFs(root, rel, into);
-    else if (e.isFile()) into.push(rel);
+    let s;
+    try {
+      s = await stat(join(root, rel));
+    } catch {
+      continue;
+    }
+    if (s.isDirectory()) await walkFs(root, rel, into);
+    else if (s.isFile()) into.push(rel);
   }
 }
 

@@ -246,6 +246,75 @@
       "editable": true
     },
     {
+      "id": "C-cafe-freq",
+      "group": "daily",
+      "title": "카페 가는 횟수",
+      "rule": "구성원별 cafe_visits_per_week(주 0–5회)만큼 출근하지 않는 평일에 카페·도서관·공유오피스에 간다. 가는 날은 월→금 순서대로 앞 비출근일부터 정한다.",
+      "values": {},
+      "source": "가정값",
+      "affects": ["walk_minutes", "trips"],
+      "editable": true
+    },
+    {
+      "id": "C-cafe-dwell",
+      "group": "daily",
+      "title": "카페 머무는 시간",
+      "rule": "카페에서는 120분 머문 뒤 귀가한다.",
+      "values": {
+        "dwell_min": { "value": 120, "unit": "분", "overridable": true }
+      },
+      "source": "가정값",
+      "affects": ["home_evening_minutes"],
+      "editable": true
+    },
+    {
+      "id": "C-cafe-start",
+      "group": "daily",
+      "title": "카페 출발 시각",
+      "rule": "카페 일정은 오전 10:00 기준으로 잡는다. 앞 일정이 있으면 끝나고 30분 뒤에 출발한다.",
+      "values": {
+        "start_min": { "value": 600, "unit": "분(자정~)", "overridable": true }
+      },
+      "source": "가정값",
+      "affects": ["trips"],
+      "editable": true
+    },
+    {
+      "id": "C-dog-walk",
+      "group": "daily",
+      "title": "아침 강아지 산책",
+      "rule": "dog_walk_morning 구성원은 매일 07:00 기준으로 가장 가까운 공원에 다녀오고 15분 머문다. 출근이 더 이르면 산책도 앞당겨 겹치지 않게 한다.",
+      "values": {
+        "dwell_min": { "value": 15, "unit": "분", "overridable": true },
+        "start_min": { "value": 420, "unit": "분(자정~)", "overridable": true }
+      },
+      "source": "가정값",
+      "affects": ["walk_minutes", "trips"],
+      "editable": true
+    },
+    {
+      "id": "C-vet-freq",
+      "group": "daily",
+      "title": "동물병원 가는 횟수",
+      "rule": "구성원별 vet_visits_per_month(월 0–4회)만큼 동물병원에 간다. 가는 날은 시드로 정한다.",
+      "values": {},
+      "source": "가정값",
+      "affects": ["walk_minutes", "trips"],
+      "editable": true
+    },
+    {
+      "id": "C-vet-dwell",
+      "group": "daily",
+      "title": "동물병원 머무는 시간",
+      "rule": "동물병원에서는 40분 머문 뒤 귀가한다.",
+      "values": {
+        "dwell_min": { "value": 40, "unit": "분", "overridable": true }
+      },
+      "source": "가정값",
+      "affects": ["home_evening_minutes"],
+      "editable": true
+    },
+    {
       "id": "C-daily-rhythm",
       "group": "daily",
       "title": "하루 시간표",

@@ -132,6 +132,10 @@ const FLAT_MAP = {
   "C-shop-dwell": { dwell_min: "shop_dwell_min" },
   "C-park-dwell": { dwell_min: "park_dwell_min" },
   "C-clinic-dwell": { dwell_min: "clinic_dwell_min" },
+  "C-cafe-dwell": { dwell_min: "cafe_dwell_min" },
+  "C-cafe-start": { start_min: "cafe_start_min" },
+  "C-dog-walk": { dwell_min: "dog_walk_dwell_min", start_min: "dog_walk_start_min" },
+  "C-vet-dwell": { dwell_min: "vet_dwell_min" },
   "C-daily-rhythm": {
     midday_anchor_min: "midday_anchor_min",
     evening_anchor_min: "evening_anchor_min",

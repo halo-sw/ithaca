@@ -337,8 +337,8 @@ async function knownArea(session, areaId) {
   if (session.loadAreasIndex) {
     return (await cachedIndexAreas(session)).some((a) => a.id === areaId);
   }
-  // No index loader (tests, old servers): station boxes load directly.
-  return typeof areaId === "string" && areaId.startsWith("st-");
+  // No index loader (tests, old servers): station/home boxes load directly.
+  return typeof areaId === "string" && (areaId.startsWith("st-") || areaId.startsWith("hm-"));
 }
 
 async function needArea(session, areaId) {
@@ -1208,6 +1208,15 @@ async function safetyKeyFor(session, areaId) {
   // Legacy areas and region ids pass through; station boxes resolve to
   // their region via station-boxes.json.
   if (CONSULT_AREAS.some((a) => a.id === areaId)) return areaId;
+  if (session.loadStationBoxes && String(areaId).startsWith("hm-")) {
+    try {
+      const doc = await session.loadStationBoxes();
+      const hit = (doc.home_boxes || []).find((b) => b.id === areaId);
+      if (hit && hit.region) return hit.region;
+    } catch {
+      // fall through to the region-id attempt below
+    }
+  }
   if (session.loadStationBoxes && String(areaId).startsWith("st-")) {
     try {
       const doc = await session.loadStationBoxes();

@@ -172,10 +172,13 @@ describe("29j2 writeReport revise loop", () => {
   });
 
   it("pet_owner is unsupported with no model call", async () => {
+    // 38e: pet_owner ships a scenario — pin the unsupported path locally.
+    const GT_NULL = { ...GT,
+      persona_map: { ...GT.persona_map, pet_owner: null } };
     let calls = 0;
     const call = async () => { calls++; throw new Error("must not be called"); };
     const out = await writeReport({ call, provider: "meta", runs: RUNS,
-      labels: LABELS, homes: HOMES, persona: "pet_owner", groundTruth: GT });
+      labels: LABELS, homes: HOMES, persona: "pet_owner", groundTruth: GT_NULL });
     assert.equal(out.status, "unsupported");
     assert.equal(calls, 0);
   });

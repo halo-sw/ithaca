@@ -20,6 +20,9 @@
 //   N01       the same one-way value for claim.member
 //   C05/F01/F03/P02/F05/M02  mean minutes of purpose=errand/school/
 //             park/park/clinic/clinic trips by household members only
+//   R04/M05/P04  mean minutes of purpose=cafe/park/vet trips by
+//             household members only (null when no such trip ran —
+//             the item is then inapplicable, never failed)
 //   C02       home.monthly_won + maintenance_won_month + utilities_won_month
 // Items with engine:"none" are never checked here (미지원, handled by
 // loop.js) — never failed, never passed.
@@ -29,11 +32,13 @@ import { memberLabelKo } from "../profile.js";
 
 export const MINUTE_TOLERANCE = {
   C01: 5, N01: 5, C05: 2, F01: 2, F03: 2, P02: 2, F05: 3, M02: 3,
+  R04: 2, M05: 2, P04: 3,
 };
 
 const ITEM_PURPOSE = {
   C01: "commute", N01: "commute", C05: "errand", F01: "school",
   F03: "park", P02: "park", F05: "clinic", M02: "clinic",
+  R04: "cafe", M05: "park", P04: "vet",
 };
 
 const round1 = (n) => Math.round(n * 10) / 10;

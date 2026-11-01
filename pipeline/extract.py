@@ -92,10 +92,10 @@ def ensure_extract(area_id: str, raw_pbf: Path = DEFAULT_RAW_PBF,
                    overwrite: bool = False,
                    area: AreaDef | None = None) -> dict:
     """Resolve the area (OSM lookup) and clip the national PBF to it."""
-    from .areas import is_station_box, is_us_area, write_area_def
+    from .areas import is_home_box, is_station_box, is_us_area, write_area_def
 
     if (area_id not in AREA_IDS and not is_station_box(area_id)
-            and not is_us_area(area_id)):
+            and not is_home_box(area_id) and not is_us_area(area_id)):
         raise KeyError(f"unknown area {area_id!r}; expected one of {list(AREA_IDS)} or st-<station>")
     binary = find_osmium(osmium_bin)
     raw_pbf, build_dir = Path(raw_pbf), Path(build_dir)
@@ -113,6 +113,10 @@ def ensure_extract(area_id: str, raw_pbf: Path = DEFAULT_RAW_PBF,
 
             area = resolve_station_box(area_id, build_dir, raw_pbf,
                                        osmium_bin=binary)
+        elif is_home_box(area_id):
+            from .areas import resolve_home_box
+
+            area = resolve_home_box(area_id, build_dir)
         else:
             from .areas import build_candidate_extract, scan_candidates
 
@@ -151,16 +155,20 @@ def _clip_source(area_id: str, build_dir: Path, raw_pbf: Path) -> Path:
     Falls back to the national PBF when the region extract is absent
     (e.g. a box built before discovery ran for its region).
     """
-    from .areas import is_station_box
+    from .areas import is_home_box, is_station_box
     from .boxes import REGION_EXTRACT_DIR, load_boxes, station_of
 
-    if not is_station_box(area_id):
+    if not is_station_box(area_id) and not is_home_box(area_id):
         return raw_pbf
     boxes = load_boxes(build_dir)
     region = None
     if boxes:
-        hit = next((b for b in boxes.get("boxes", [])
-                    if b.get("station") == station_of(area_id)), None)
+        if is_home_box(area_id):
+            hit = next((b for b in boxes.get("home_boxes", [])
+                        if b.get("id") == area_id), None)
+        else:
+            hit = next((b for b in boxes.get("boxes", [])
+                        if b.get("station") == station_of(area_id)), None)
         region = hit.get("region") if hit else None
     if region:
         cand = build_dir / REGION_EXTRACT_DIR / f"{region}.osm.pbf"
@@ -192,10 +200,10 @@ def ensure_buffered_extract(area_id: str, raw_pbf: Path = DEFAULT_RAW_PBF,
     """
     import json
 
-    from .areas import is_station_box, is_us_area
+    from .areas import is_home_box, is_station_box, is_us_area
 
     if (area_id not in AREA_IDS and not is_station_box(area_id)
-            and not is_us_area(area_id)):
+            and not is_home_box(area_id) and not is_us_area(area_id)):
         raise KeyError(f"unknown area {area_id!r}; expected one of {list(AREA_IDS)} or st-<station>")
     binary = find_osmium(osmium_bin)
     raw_pbf, build_dir = Path(raw_pbf), Path(build_dir)

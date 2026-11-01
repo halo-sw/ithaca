@@ -79,4 +79,11 @@ export const WORDS = {
   "알파리움1단지": "Alpharium Complex 1", "알파리움2단지": "Alpharium Complex 2",
   "잠실주공아파트": "Jamsil Jugong Apartments", "잠실아파트": "Jamsil Apartments",
   "장미아파트": "Jangmi Apartments",
+  // 38: new lines, households and home-box labels.
+  "경의·중앙선": "Gyeongui-Jungang Line", "경의중앙선": "Gyeongui-Jungang Line",
+  "공항철도": "AREX", "우이신설선": "Ui-Sinseol Line", "신림선": "Sillim Line",
+  "디지털미디어시티": "Digital Media City", "서울역": "Seoul Station",
+  "일대": "area", "부모님": "parents", "어르신": "senior", "어머니": "mother", "아버지": "father",
+  "강아지 산책": "dog walk", "강아지": "dog", "반려견": "dog", "반려견 가구": "Dog-owning household",
+  "재택": "work from home", "작업": "work session", "동물병원": "vet",
 };
