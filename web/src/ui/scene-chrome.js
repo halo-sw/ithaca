@@ -24,7 +24,7 @@ export function toolsLabelFor(label, { phone = false, lang = "ko" } = {}) {
 // the caller's aria-label/title. Korean labels stay as they are.
 export function sceneActionLabelFor(label, { phone = false, lang = "ko" } = {}) {
   if (!phone || lang !== "en") return label;
-  if (label === "To the map") return "Map";
+  if (label === "Homes map") return "Homes";
   if (label === "Open in new window") return "New window";
   return label;
 }

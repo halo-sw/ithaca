@@ -3747,10 +3747,10 @@ export function mergeGreenBoxes(cache) {
 // embed iframe, so the conversation never navigates away. 지도로
 // returns to the map, 새 창으로 opens the same scene in a new tab.
 export function SceneFrame({ scene, onBack, onClose, runReady }) {
-  // 29L6: hooks before the early return; on a ≤ 480 px phone the two
-  // actions shorten (Map / New window, Korean stays) so the header
-  // row fits 390 px on one line. The full text stays in
-  // aria-label/title, and the title itself never wraps.
+  // 29L6: hooks before the early return; on a ≤ 480 px phone the
+  // back action shortens (Map, Korean stays) and 새 창으로 hides
+  // (desktop-only) — 38c4 lets the head row wrap with the title on
+  // its own first line, so nothing ever clips.
   const phone = usePhoneMedia();
   const lang = currentLang();
   // 36i2: a replay moment scene waits on the rebuilt run — the header
@@ -3802,10 +3802,10 @@ export function SceneFrame({ scene, onBack, onClose, runReady }) {
   };
   const mapMode = hasCustom && sceneMode === "map";
   if (!scene) return null;
-  const backFull = lang === "en" ? "To the map" : "지도로";
+  const backFull = lang === "en" ? "Homes map" : "후보 지도";
   const openFull = lang === "en" ? "Open in new window" : "새 창으로";
   const mode3d = "3D";
-  const modeMap = lang === "en" ? "Map" : "지도";
+  const modeMap = "2D";
   const waitLine = runState === "failed"
     ? (lang === "en" ? "Couldn't rebuild the 3D for this recording." : "이 기록의 3D를 다시 계산하지 못했어요.")
     : (lang === "en" ? "Preparing the 3D…" : "3D를 준비하고 있어요…");
@@ -3829,7 +3829,7 @@ export function SceneFrame({ scene, onBack, onClose, runReady }) {
           label={sceneActionLabelFor(backFull, { phone, lang })}
           aria-label={backFull} title={backFull}
           onClick={() => onBack && onBack()} />
-        {!mapMode && (
+        {!mapMode && !phone && (
         <Button size="sm" variant="ghost"
           label={sceneActionLabelFor(openFull, { phone, lang })}
           aria-label={openFull} title={openFull}

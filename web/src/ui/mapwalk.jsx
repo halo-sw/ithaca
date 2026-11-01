@@ -2,17 +2,20 @@
 // Parses the scene URL (custom/home/day), waits on runReady like
 // SceneFrame, then draws that day's walk + ride segments over the
 // VWorld white tiles with fitMapView. No keys, no stored geocoder.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "@astryxdesign/core/Button";
 import { loadCustomRun } from "../chat/idb.js";
 import { loadBoxArea, NETWORK_URL } from "../chat/engine.js";
 import { fetchDataJson } from "../data-fetch.js";
 import { fitMapView, lineColorFor, findStop } from "../chatmap.js";
 import { basemapApiBase, basemapTileUrl, basemapTiles,
   basemapUnderlayTiles, basemapProvider } from "../basemap.js";
-import { dayTimeline, positionAt, activityLine } from "../mapwalk.js";
+import { dayTimeline, positionAt, activityLine, parseMapWalkMinute,
+  stationLabelsFor, placeLabels } from "../mapwalk.js";
 
-const W = 390;
-const H = 300;
+// 38c4: SSR fallback box (4:3); the live box comes from the wrapper.
+const FALLBACK_W = 400;
+const FALLBACK_H = 300;
 
 export function parseMapWalkUrl(url) {
   try {
@@ -23,17 +26,11 @@ export function parseMapWalkUrl(url) {
       home: p.get("home") || "A",
       day: Number(p.get("day")) || 1,
       follow: Number(p.get("follow")) || 1,
+      startMinute: parseMapWalkMinute(p.get("t")),
     };
   } catch {
-    return { custom: null, home: "A", day: 1, follow: 1 };
+    return { custom: null, home: "A", day: 1, follow: 1, startMinute: null };
   }
-}
-
-function lineForLabel(network, label) {
-  for (const ln of (network && network.lines) || []) {
-    if (ln && (ln.name === label || ln.id === label)) return ln;
-  }
-  return null;
 }
 
 function ptsAttr(pts, toXY) {
@@ -43,7 +40,27 @@ function ptsAttr(pts, toXY) {
   }).join(" ");
 }
 
-export function MapWalk({ url, lang = "ko", phone = false, runReady }) {
+// The black work square marks a work stay only. Other stays are a
+// small grey dot, and nothing when they sit on the home pin.
+export function StayMark({ seg, x, y, homeCoord }) {
+  if (!seg || seg.kind !== "stay" || !Array.isArray(seg.pts) || !seg.pts[0]) return null;
+  if (seg.awayKind === "work") {
+    return (
+      <g>
+        <rect x={x - 6} y={y - 6} width={12} height={12} fill="#111827" />
+      </g>
+    );
+  }
+  const p = seg.pts[0];
+  if (homeCoord && p[0] === homeCoord[0] && p[1] === homeCoord[1]) return null;
+  return (
+    <g>
+      <circle cx={x} cy={y} r={3} fill="#9ca3af" />
+    </g>
+  );
+}
+
+export function MapWalk({ url, lang = "ko", phone = false, runReady, fixture }) {
   const en = lang === "en";
   const parsed = useMemo(() => parseMapWalkUrl(url), [url]);
   const [runState, setRunState] = useState(
@@ -63,11 +80,14 @@ export function MapWalk({ url, lang = "ko", phone = false, runReady }) {
     return () => { live = false; };
   }, [runReady]);
   const [day, setDay] = useState(parsed.day);
-  const [data, setData] = useState(null);
-  const [minute, setMinute] = useState(null);
+  // 38c4: `fixture` is ready-made `data` (SSR/tests) — it skips the load.
+  const [data, setData] = useState(fixture || null);
+  const [minute, setMinute] = useState(parsed.startMinute ?? null);
   const [playing, setPlaying] = useState(false);
+  const [follow, setFollow] = useState(false);
 
   useEffect(() => {
+    if (fixture) { setData(fixture); return undefined; }
     if (runState !== "ready" || !parsed.custom) return undefined;
     let live = true;
     (async () => {
@@ -106,7 +126,7 @@ export function MapWalk({ url, lang = "ko", phone = false, runReady }) {
       }
     })();
     return () => { live = false; };
-  }, [runState, parsed.custom, parsed.home]);
+  }, [runState, parsed.custom, parsed.home, fixture]);
 
   const days = (data && data.saved && data.saved.scenario && data.saved.scenario.days) || 30;
 
@@ -130,7 +150,7 @@ export function MapWalk({ url, lang = "ko", phone = false, runReady }) {
       const f = Math.min(Math.max(parsed.follow || 1, 1), keys.length);
       agents = [keys[f - 1], ...keys.filter((k) => k !== keys[f - 1])];
     }
-    return dayTimeline(data.run, { day, agents, nodeCoordsFor, stationCoord, network: data.network });
+    return dayTimeline(data.run, { day: day - 1, agents, nodeCoordsFor, stationCoord, network: data.network });
   }, [data, day, parsed.follow]);
 
   const segments = tl.segments || [];
@@ -150,6 +170,24 @@ export function MapWalk({ url, lang = "ko", phone = false, runReady }) {
   useEffect(() => {
     if (playing && segments.length && effMinute >= t1) setPlaying(false);
   }, [playing, effMinute, t1, segments.length]);
+
+  // 38c4: the SVG fills the panel — measure the wrapper so the
+  // viewBox matches the real box (4:3 fallback in SSR).
+  const wrapRef = useRef(null);
+  const [box, setBox] = useState(null);
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver((entries) => {
+      const r = entries[0] && entries[0].contentRect;
+      if (r && r.width > 1 && r.height > 1) {
+        setBox((b) => (b && Math.abs(b.w - r.width) < 1 && Math.abs(b.h - r.height) < 1
+          ? b : { w: r.width, h: r.height }));
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  });
 
   if (runState === "pending") {
     return (
@@ -173,12 +211,30 @@ export function MapWalk({ url, lang = "ko", phone = false, runReady }) {
     );
   }
 
+  const W = box && box.w > 1 ? box.w : FALLBACK_W;
+  const H = box && box.h > 1 ? box.h : FALLBACK_H;
   const allPts = [];
   for (const s of segments) for (const p of (s.pts || [])) allPts.push({ lon: p[0], lat: p[1] });
   for (const o of (tl.others || [])) {
     for (const s of (o.segments || [])) for (const p of (s.pts || [])) allPts.push({ lon: p[0], lat: p[1] });
   }
-  const fit = fitMapView(allPts, W, H);
+  // Follow keeps the moving dot centred at the current zoom: the same
+  // lon/lat span as the whole day, re-centred on the dot.
+  let fitPts = allPts;
+  if (follow && pos) {
+    const lons = allPts.map((p) => p.lon);
+    const lats = allPts.map((p) => p.lat);
+    const spanLon = Math.max(Math.max(...lons) - Math.min(...lons), 1e-6);
+    const spanLat = Math.max(Math.max(...lats) - Math.min(...lats), 1e-6);
+    fitPts = [
+      { lon: pos.lon - spanLon / 2, lat: pos.lat - spanLat / 2 },
+      { lon: pos.lon + spanLon / 2, lat: pos.lat + spanLat / 2 },
+    ];
+  }
+  // 38c4: 28 px on every side keeps the home pin, the work
+  // square and the station pills inside the frame.
+  const fit = fitMapView(fitPts, W, H, undefined,
+    { top: 28, right: 28, bottom: 28, left: 28 });
   const toXY = (lon, lat) => fit.toXY(lon, lat);
   const apiBase = basemapApiBase();
   const [cx, cy] = fit.toLonLat(W / 2, H / 2);
@@ -205,12 +261,50 @@ export function MapWalk({ url, lang = "ko", phone = false, runReady }) {
       : "지도 © 국토교통부 공간정보 오픈플랫폼(VWorld) · © OpenStreetMap contributors");
   const dayLabel = en ? `Day ${day}` : `${day}일차`;
   const playLabel = playing ? (en ? "Pause" : "일시정지") : (en ? "Play" : "재생");
+  // 38c4: one pill per boarding / transfer / alighting station.
+  const coordOfStation = (name) => {
+    try {
+      const s = data.network ? findStop(data.network, name) : null;
+      return s ? [s.lon, s.lat] : null;
+    } catch {
+      return null;
+    }
+  };
+  const pillNames = stationLabelsFor(segments);
+  const pillTexts = en ? stationLabelsFor(segments, "en") : pillNames;
+  const measurePill = (text) => ({ w: 18 + String(text || "").length * 14, h: 24 });
+  const pinObstacles = [];
+  if (hx != null && hy != null) pinObstacles.push({ x: hx - 14, y: hy - 14, w: 28, h: 28 });
+  const workSeg = segments.find((s) => s && s.kind === "stay" && s.awayKind === "work" && s.pts && s.pts[0]);
+  if (workSeg) {
+    const [wx, wy] = toXY(workSeg.pts[0][0], workSeg.pts[0][1]);
+    pinObstacles.push({ x: wx - 14, y: wy - 14, w: 28, h: 28 });
+  }
+  if (pos) {
+    const [ox, oy] = toXY(pos.lon, pos.lat);
+    pinObstacles.push({ x: ox - 14, y: oy - 14, w: 28, h: 28 });
+  }
+  const placedPills = placeLabels(
+    pillNames.map((name, i) => {
+      const c = coordOfStation(name);
+      if (!c) return null;
+      const [x, y] = toXY(c[0], c[1]);
+      return { name, text: pillTexts[i], x, y };
+    }).filter(Boolean),
+    measurePill,
+    pinObstacles,
+  ).map((p) => ({
+    ...p,
+    x: Math.min(Math.max(p.x, 1), Math.max(1, W - p.w - 1)),
+    y: Math.min(Math.max(p.y, 1), Math.max(1, H - p.h - 1)),
+  }));
 
   return (
-    <div className="ui-mapwalk" style={{ width: "100%", fontSize: 14 }}>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img"
+    <div className="ui-mapwalk" style={{ width: "100%", maxWidth: "100%", fontSize: 14 }}>
+      <div ref={wrapRef} className="ui-mapwalk-map">
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" role="img"
         aria-label={en ? "Daily route map" : "하루 동선 지도"}
-        style={{ display: "block", width: "100%", height: "auto" }}>
+        style={{ display: "block", width: "100%", height: "100%" }}>
         <rect x={0} y={0} width={W} height={H} fill="#f1f5f9" />
         {underlay.map((t) => {
           const [x0, y0] = toXY(t.nw[0], t.nw[1]);
@@ -244,7 +338,7 @@ export function MapWalk({ url, lang = "ko", phone = false, runReady }) {
           if (s.kind === "ride") {
             return (
               <polyline key={i} points={ptsAttr(s.pts || [], toXY)}
-                fill="none" stroke={lineColorFor(lineForLabel(data.network, s.label))} strokeWidth={3} />
+                fill="none" stroke={lineColorFor({ id: s.line })} strokeWidth={3} />
             );
           }
           if (s.kind === "walk") {
@@ -253,12 +347,9 @@ export function MapWalk({ url, lang = "ko", phone = false, runReady }) {
                 fill="none" stroke="#1f2937" strokeWidth={3} strokeLinejoin="round" />
             );
           }
+          if (!s.pts || !s.pts[0]) return null;
           const [sx, sy] = toXY(s.pts[0][0], s.pts[0][1]);
-          return (
-            <g key={i}>
-              <rect x={sx - 6} y={sy - 6} width={12} height={12} fill="#111827" />
-            </g>
-          );
+          return <StayMark key={i} seg={s} x={sx} y={sy} homeCoord={homeCoord} />;
         })}
         {homeCoord && hx != null && (
           <g>
@@ -271,31 +362,48 @@ export function MapWalk({ url, lang = "ko", phone = false, runReady }) {
           const [dx, dy] = toXY(pos.lon, pos.lat);
           return <circle cx={dx} cy={dy} r={6} fill="#e11d48" stroke="#fff" strokeWidth={2} />;
         })()}
+        {placedPills.map((p) => (
+          <g key={p.name}>
+            <rect x={p.x} y={p.y} width={p.w} height={p.h} rx={p.h / 2}
+              fill="#fff" stroke="#94a3b8" strokeWidth={1} />
+            <text x={p.x + p.w / 2} y={p.y + p.h / 2 + 5} textAnchor="middle"
+              fontSize={14} fill="#0f172a">{p.text}</text>
+          </g>
+        ))}
       </svg>
+      </div>
+      <div className="ui-mapwalk-foot">
       <p data-no-i18n style={{ fontSize: 12, color: "#64748b", margin: "4px 0" }}>{credit}</p>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
-        <button type="button" onClick={() => setPlaying((p) => !p)}
-          aria-label={playLabel} style={{ fontSize: 14, flex: "0 0 auto" }}>
-          {playing ? (en ? "❚❚" : "❚❚") : (en ? "▶" : "▶")} {playLabel}
-        </button>
-        <input type="range" min={t0} max={t1} step={1} value={effMinute} style={{ flex: "1 1 auto", minWidth: 0 }}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%",
+        maxWidth: "100%", flexWrap: "wrap" }}>
+        <Button size="sm" label={`${playing ? "❚❚" : "▶"} ${playLabel}`}
+          aria-label={playLabel} onClick={() => setPlaying((p) => !p)} />
+        <input type="range" min={t0} max={t1} step={1} value={effMinute} style={{ flex: "1 1 160px", minWidth: 120, maxWidth: "100%" }}
           aria-label={en ? "Time of day" : "시간"}
           onChange={(e) => { setPlaying(false); setMinute(Number(e.target.value)); }} />
-        <button type="button" disabled={day <= 1} style={{ fontSize: 14, flex: "0 0 auto" }}
-          aria-label={en ? "Previous day" : "이전 날"}
-          onClick={() => { setDay((d) => Math.max(1, d - 1)); setMinute(null); setPlaying(false); }}>
-          {"‹"}
-        </button>
-        <span data-no-i18n style={{ fontSize: 14, flex: "0 0 auto" }}>{dayLabel}</span>
-        <button type="button" disabled={day >= days} style={{ fontSize: 14, flex: "0 0 auto" }}
-          aria-label={en ? "Next day" : "다음 날"}
-          onClick={() => { setDay((d) => Math.min(days, d + 1)); setMinute(null); setPlaying(false); }}>
-          {"›"}
-        </button>
+        <span style={{ display: "flex", alignItems: "center", gap: 4, flex: "0 1 auto", maxWidth: "100%" }}>
+          <Button size="sm" variant="ghost" label="‹"
+            aria-label={en ? "Previous day" : "이전 날"}
+            isDisabled={day <= 1}
+            onClick={() => { setDay((d) => Math.max(1, d - 1)); setMinute(null); setPlaying(false); }} />
+          <span data-no-i18n style={{ fontSize: 14, flex: "0 0 auto" }}>{dayLabel}</span>
+          <Button size="sm" variant="ghost" label="›"
+            aria-label={en ? "Next day" : "다음 날"}
+            isDisabled={day >= days}
+            onClick={() => { setDay((d) => Math.min(days, d + 1)); setMinute(null); setPlaying(false); }} />
+        </span>
+        <Button size="sm" variant="secondary" label={en ? "Fit" : "전체"}
+          aria-label={en ? "Fit whole day" : "전체 보기"}
+          onClick={() => setFollow(false)} />
+        <Button size="sm" variant={follow ? "primary" : "secondary"}
+          label={en ? "Follow" : "따라가기"}
+          aria-label={en ? "Follow the moving dot" : "따라가기"}
+          aria-pressed={follow} onClick={() => setFollow((f) => !f)} />
       </div>
-      <p data-no-i18n style={{ fontSize: 14, margin: "8px 0 0" }}>
+      <p data-no-i18n style={{ fontSize: 14, margin: "8px 0 0", whiteSpace: "normal", overflowWrap: "break-word" }}>
         {pos && pos.seg ? activityLine(pos.seg, effMinute, en ? "en" : "ko") : ""}
       </p>
+      </div>
     </div>
   );
 }

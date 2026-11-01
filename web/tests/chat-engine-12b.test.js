@@ -116,6 +116,29 @@ describe("chat engine presentation", () => {
     assert.equal(profileSummary({}), "");
   });
 
+  it("chips pets, parents and office days", () => {
+    const couple = {
+      members: { value: [{ role: "adult" }, { role: "adult" }], source: "customer" },
+      pets: { value: { kind: "dog", count: 1 }, source: "customer" },
+      workplaces: { value: [{ text: "판교" }], source: "customer" },
+      tenure: { value: "trade", source: "customer" },
+      priceMax: { value: 700000000, source: "customer" },
+    };
+    assert.equal(profileSummary(couple), "판교 출근 · 2인 · 반려견 1 · 매매 7억 원 이하");
+    const seniors = {
+      ...couple,
+      members: { value: [{ role: "adult" }, { role: "adult" },
+        { role: "senior" }, { role: "senior" }], source: "customer" },
+    };
+    const seniorChip = profileSummary(seniors);
+    assert.ok(seniorChip.includes("4인") && seniorChip.includes("부모님 2"), seniorChip);
+    const hybrid = {
+      ...couple,
+      officeDays: { value: 2, source: "customer" },
+    };
+    assert.ok(profileSummary(hybrid).includes("주 2일 출근"), profileSummary(hybrid));
+  });
+
   it("rows every field with its source", () => {
     const rows = fieldRows(profile);
     const byKey = Object.fromEntries(rows.map((r) => [r.key, r]));

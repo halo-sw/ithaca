@@ -530,6 +530,22 @@ export function profileSummary(profile) {
   }
   const members = profileValue(profile, "members");
   if (Array.isArray(members) && members.length > 0) bits.push(`${members.length}인`);
+  const pets = profileValue(profile, "pets");
+  if (pets && typeof pets === "object") {
+    const count = Number(pets.count) || 1;
+    if (pets.kind === "dog") bits.push(`반려견 ${count}`);
+    else if (pets.kind === "cat") bits.push(`반려묘 ${count}`);
+    else bits.push("반려동물");
+  }
+  if (Array.isArray(members)) {
+    const seniors = members.filter((m) => m && m.role === "senior").length;
+    if (seniors > 0) bits.push(`부모님 ${seniors}`);
+  }
+  const officeDays = profileValue(profile, "officeDays");
+  if (officeDays === 0) bits.push("재택");
+  else if (typeof officeDays === "number" && Number.isFinite(officeDays)) {
+    bits.push(`주 ${officeDays}일 출근`);
+  }
   const tenure = profileValue(profile, "tenure");
   if (tenure && TENURE_KO[tenure]) {
     const budget = tenure === "jeonse" ? profileValue(profile, "depositMax")
