@@ -84,11 +84,11 @@ describe("demo tour step machine", () => {
     const rec = recordedReplyFor("switch");
     assert.ok(rec);
     assert.match(rec.q, /B로 바꾸면/);
-    assert.match(rec.a, /12시간 44분/);
-    assert.match(rec.a, /4시간 59분/);
+    assert.match(rec.a, /13시간 28분/);
+    assert.match(rec.a, /5시간 43분/);
     assert.match(rec.a, /A 208만 원 → B 199만 원/);
     assert.match(rec.a, /A 약 420만 원 → B 약 430만 원/);
-    assert.match(rec.a, /A 8\.3 → B 1\.3/);
+    assert.match(rec.a, /A 8\.4 → B 1\.4/);
     assert.match(rec.a, /고객님이 정하세요/);
     assert.ok((rec.tools || []).length > 0);
     assert.equal(recordedReplyFor("nope"), null);

@@ -281,8 +281,8 @@ describe("stage 10b UI render smoke (SSR, no DOM)", { skip: SKIP_ALL }, () => {
       "?mode=sim&scenario=demo-two-homes&home=A&day=1&t=08:30&follow=1&tab=money&share=1");
     assert.ok(html.includes("결과 공유"), "share dialog title");
     // Stage 11b: with both docs present the rows show numbers, not "—".
-    assert.ok(html.includes("12시간 44분"), "walked-hours A value");
-    assert.ok(html.includes("4시간 59분"), "walked-hours B value");
+    assert.ok(html.includes("13시간 28분"), "walked-hours A value");
+    assert.ok(html.includes("5시간 43분"), "walked-hours B value");
   });
 
   it("shows a loading state until the share docs arrive (stage 11b)", () => {
@@ -295,7 +295,7 @@ describe("stage 10b UI render smoke (SSR, no DOM)", { skip: SKIP_ALL }, () => {
     const html = renderCase(patch,
       "?mode=sim&scenario=demo-two-homes&home=A&day=1&t=08:30&follow=1&tab=money&share=1");
     assert.ok(html.includes("비교 숫자 불러오는 중"), "short loading state");
-    assert.ok(!html.includes("12시간 44분"), "no half-rendered rows");
+    assert.ok(!html.includes("13시간 28분"), "no half-rendered rows");
   });
 
   it("renders the tour share step with the loading state (stage 11b)", () => {

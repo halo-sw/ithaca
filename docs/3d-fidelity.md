@@ -89,7 +89,7 @@ Most estimated heights belong to small buildings. The median footprint of an est
 
 **Over 30 days:**
 - The average one-way commute is 39 min for A and 8 min for B.
-- Time walked in the month is 12 h 44 min for A and 4 h 59 min for B.
+- Time walked in the month is 13 h 28 min for A and 5 h 43 min for B.
 
 The screen calls the subway time "official" only when every leg comes from the timetable. So A's 20 subway minutes are tagged "Assumed".
 
