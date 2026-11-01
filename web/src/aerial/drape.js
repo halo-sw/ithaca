@@ -11,9 +11,14 @@ import { TILE_PX, MAX_MOSAIC_PX, tilesForBBox, uvForLonLat, pickZoom } from "./t
 import { haversineM, xyToLonLat } from "../frame.js";
 import { LIVE_API, apiUrl } from "../paths.js";
 import { isUsLonLat } from "../basemap.js";
+import { isomapShotBounds, naipExportUrl, naipUvForLonLat } from "../isomap.js";
 
 export const AERIAL_CREDIT = "항공사진 © 국토교통부 공간정보 오픈플랫폼(VWorld)";
 export const USGS_CREDIT = "Imagery: USGS The National Map";
+// 39a2: the isomap shot's US close-up comes from this single NAIP
+// export (not the z16-capped tile pyramid), so it carries its own
+// public-domain credit. Normal 3D keeps USGS_CREDIT.
+export const NAIP_CREDIT = "Imagery: USGS NAIP (public domain)";
 
 // 26e: USGS The National Map tiles are addressed z/y/x and are
 // public domain; browsers fetch them directly, no relay, no key.
@@ -356,4 +361,134 @@ export async function drapeAerial({ THREE, renderer, scene, area, origin,
   }
   void scene;
   return { ok: true, tiles: drawn, zoom, texture: tex, range };
+}
+
+// 39a2: sharp re-drape for the isomap shot only (normal 3D unchanged).
+// After the scene-wide drape, this covers the shot's ground bbox
+// (span × 1.6 square around lon/lat) at the best zoom the source has
+// and re-points ground + roof UVs at it. Vertices outside the bbox
+// sample the clamped edge — the ortho frustum (span wide) always fits
+// inside the bbox, so the frame itself stays sharp. Any failure leaves
+// the scene-wide drape in place: { ok: false, reason }.
+export async function drapeIsomapSharp({ THREE, renderer, origin,
+  terrainMesh = null, groundMesh = null, roofMesh = null,
+  lon, lat, span, size = 2048, area = null }) {
+  const bounds = isomapShotBounds({ lon, lat, span });
+  const us = isUsLonLat(lon, lat) || isUsArea(area);
+  const grounds = drapedGroundMeshes({ terrainMesh, groundMesh });
+  if (!us) {
+    if (!LIVE_API) return { ok: false, reason: "static" };
+    try {
+      const r = await fetch(apiUrl("/api/aerial/status"));
+      if (!r.ok) return { ok: false, reason: "status" };
+      const status = await r.json();
+      if (!status || status.hasKey !== true) return { ok: false, reason: "no-key" };
+    } catch {
+      return { ok: false, reason: "status" };
+    }
+    // Highest zoom first: z19 when every tile of the shot box answers,
+    // else the z18 mosaic. Same Satellite path and mosaic convention
+    // as the scene-wide drape.
+    for (const zoom of [19, 18]) {
+      const range = tilesForBBox(bounds, zoom);
+      const nx = range.x1 - range.x0 + 1;
+      const ny = range.y1 - range.y0 + 1;
+      if (nx * TILE_PX > MAX_MOSAIC_PX || ny * TILE_PX > MAX_MOSAIC_PX) continue;
+      const canvas = document.createElement("canvas");
+      canvas.width = nx * TILE_PX;
+      canvas.height = ny * TILE_PX;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = hexCss(0xd2c9a9);
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      let drawn = 0;
+      let failed = false;
+      const jobs = [];
+      for (let ty = range.y0; ty <= range.y1; ty++) {
+        for (let tx = range.x0; tx <= range.x1; tx++) jobs.push([tx, ty]);
+      }
+      await Promise.all(Array.from({ length: 6 }, async () => {
+        while (jobs.length > 0) {
+          const [tx, ty] = jobs.pop();
+          try {
+            const r = await fetch(apiUrl(`/api/tiles/Satellite/${zoom}/${ty}/${tx}.jpeg`));
+            if (!r.ok) { failed = true; continue; }
+            const img = await loadBitmap(await r.blob());
+            ctx.drawImage(img, (tx - range.x0) * TILE_PX, (ty - range.y0) * TILE_PX);
+            drawn += 1;
+          } catch {
+            failed = true;
+          }
+        }
+      }));
+      if (failed) continue;
+      const tex = mosaicTexture(THREE, renderer, canvas);
+      for (const ground of grounds) {
+        pushMosaicUVs(ground.geometry, origin, range, zoom, false, ground);
+        ground.material.map = tex;
+        ground.material.vertexColors = false;
+        ground.material.needsUpdate = true;
+      }
+      if (roofMesh) {
+        pushMosaicUVs(roofMesh.geometry, origin, range, zoom, true, roofMesh);
+        roofMesh.material.map = tex;
+        roofMesh.material.color.setRGB(1, 1, 1);
+        roofMesh.material.needsUpdate = true;
+      }
+      return { ok: true, source: "vworld", zoom, tiles: drawn, range, texture: tex };
+    }
+    return { ok: false, reason: "tiles" };
+  }
+  // US: one 2048 px NAIP export over the shot bbox (the tile pyramid
+  // stops at z16). The bbox is the texture range; v comes from
+  // Web-Mercator y so it lines up with uvForLonLat.
+  const s = Number(size) || 2048;
+  let img;
+  try {
+    const r = await fetch(naipExportUrl(bounds, s));
+    if (!r.ok) return { ok: false, reason: `naip-${r.status}` };
+    img = await loadBitmap(await r.blob());
+  } catch (err) {
+    return { ok: false, reason: String((err && err.message) || err) };
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = s;
+  canvas.height = s;
+  canvas.getContext("2d").drawImage(img, 0, 0, s, s);
+  const tex = mosaicTexture(THREE, renderer, canvas);
+  const paintNaip = (geo, mesh, onlyUpward) => {
+    const pos = geo && geo.attributes && geo.attributes.position;
+    if (!pos || typeof pos.getX !== "function") return;
+    const nor = geo.attributes.normal;
+    let uv = geo.attributes.uv;
+    if (!uv) {
+      uv = new Float32Array(pos.count * 2);
+      geo.setAttribute("uv", { array: uv, itemSize: 2 });
+    }
+    const arr = uv.array || uv;
+    const set = typeof uv.setXY === "function"
+      ? (i, u, v) => uv.setXY(i, u, v)
+      : (i, u, v) => { arr[i * 2] = u; arr[i * 2 + 1] = v; };
+    updateWorld(mesh);
+    for (let i = 0; i < pos.count; i++) {
+      if (onlyUpward && nor && nor.getY(i) <= 0.9) continue;
+      const [east, north] = worldEN(mesh, pos, i);
+      const [llon, llat] = xyToLonLat(east, north, origin);
+      const [u, v] = naipUvForLonLat(llon, llat, bounds);
+      set(i, Math.min(1, Math.max(0, u)), Math.min(1, Math.max(0, v)));
+    }
+    uv.needsUpdate = true;
+  };
+  for (const ground of grounds) {
+    paintNaip(ground.geometry, ground, false);
+    ground.material.map = tex;
+    ground.material.vertexColors = false;
+    ground.material.needsUpdate = true;
+  }
+  if (roofMesh) {
+    paintNaip(roofMesh.geometry, roofMesh, true);
+    roofMesh.material.map = tex;
+    roofMesh.material.color.setRGB(1, 1, 1);
+    roofMesh.material.needsUpdate = true;
+  }
+  return { ok: true, source: "naip", size: s, bounds, texture: tex };
 }

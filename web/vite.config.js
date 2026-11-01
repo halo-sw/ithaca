@@ -1,4 +1,5 @@
 import { readFile, stat } from "node:fs/promises";
+import { gunzipSync } from "node:zlib";
 import { isAbsolute, join, normalize, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
@@ -13,7 +14,11 @@ import { serveTile } from "./src/aerial/proxy.js";
 // in dev. The data stays outside web/ (never copied); the production build
 // only bundles the JS app.
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
-const DATA_DIR = normalize(join(ROOT, "..", "data", "build"));
+// 39a: dev data dir override — absolute ITHACA_DATA_DIR wins (release
+// tarball layout), else today's data/build.
+const DATA_DIR = process.env.ITHACA_DATA_DIR && isAbsolute(process.env.ITHACA_DATA_DIR)
+  ? normalize(process.env.ITHACA_DATA_DIR)
+  : normalize(join(ROOT, "..", "data", "build"));
 // Committed scenario JSON (scenarios/*.json) for sim mode + the worker.
 const SCEN_DIR = normalize(join(ROOT, "..", "scenarios"));
 // Raw reference data (RTMS CSVs, housing snapshot) for the consult server
@@ -61,6 +66,18 @@ export function resolveDataPath(dir, url) {
   return { rel, full };
 }
 
+// 39a: pure helper — pick the file to serve. When <file>.json is
+// missing but <file>.json.gz exists (release tarball stores some
+// boxes gzipped), serve the gz path. `exists` is injected for tests.
+export function pickDataPath(full, exists) {
+  if (exists(full)) return { path: full, gzipped: false };
+  if (full.endsWith(".json")) {
+    const gz = `${full}.gz`;
+    if (exists(gz)) return { path: gz, gzipped: true };
+  }
+  return null;
+}
+
 function serveDir(mount, dir, { jsonOnly = false, allow = [] } = {}) {
   return async (req, res, next) => {
     let rel;
@@ -88,13 +105,30 @@ function serveDir(mount, dir, { jsonOnly = false, allow = [] } = {}) {
         res.end("forbidden");
         return;
       }
-      const st = await stat(full);
-      if (!st.isFile()) {
-        res.statusCode = 404;
-        res.end("not found");
-        return;
+      // 39a: missing .json falls back to .json.gz (gunzipped JSON).
+      let picked = full;
+      let gzipped = false;
+      try {
+        const st = await stat(full);
+        if (!st.isFile()) throw new Error("not-file");
+      } catch {
+        if (full.endsWith(".json")) {
+          try {
+            const gst = await stat(`${full}.gz`);
+            if (!gst.isFile()) throw new Error("not-file");
+            picked = `${full}.gz`;
+            gzipped = true;
+          } catch {
+            next();
+            return;
+          }
+        } else {
+          next();
+          return;
+        }
       }
-      const body = await readFile(full);
+      const raw = await readFile(picked);
+      const body = gzipped ? gunzipSync(raw) : raw;
       res.setHeader("Content-Type", full.endsWith(".json") ? "application/json"
         : full.endsWith(".csv") ? "text/csv; charset=utf-8" : "application/octet-stream");
       res.end(body);

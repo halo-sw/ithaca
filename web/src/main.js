@@ -15,7 +15,8 @@ import { ARCH_FOV_DEG, GLIDE_FRAME_M, STOP_FRAME_M, TOUR_AZIMUTH, applyFollowOff
 import { loadArea, originOf } from "./load.js";
 import { fetchDataJson } from "./data-fetch.js";
 import { assetUrl, STATIC_SITE, LIVE_API } from "./paths.js";
-import { drapeAerial, drapeCorridorAerial, isUsArea } from "./aerial/drape.js";
+import { NAIP_CREDIT, aerialCreditFor, drapeAerial, drapeCorridorAerial, drapeIsomapSharp, isUsArea } from "./aerial/drape.js";
+import { hideIsomapChrome, hideIsomapThing, isomapCameraOffset, isomapOrthoFrustum, parseIsomapParams } from "./isomap.js";
 import { drapeAreaOnce } from "./area-ground.js";
 import { compare as compareRuns } from "./engine/simulate.js";
 import { oneWayByLabel } from "./verify/numbers.js";
@@ -3810,7 +3811,157 @@ async function bootSim() {
   new ResizeObserver(refitSim).observe(document.getElementById("scene-wrap"));
 }
 
+// 39a: isomap shooting mode — the 3D scene with the real aerial
+// drape, shot from a fixed isometric camera as square tiles. Reuses
+// the area-from-URL path (?area=<box id>); the capture loop
+// (web/scripts/isomap-shoot.mjs) waits for window.__isomap.ready.
+async function bootIsomap() {
+  const iso = parseIsomapParams(PARAMS);
+  const px = iso.px;
+  window.__isomap = { ready: false };
+  const fail = (reason) => {
+    window.__isomap = { ready: true, ok: false, reason };
+  };
+  try {
+  let area;
+  let scene14;
+  try {
+    [area, scene14] = await Promise.all([fetchArea(areaId), fetchScene(areaId)]);
+  } catch (err) {
+    fail(String((err && err.message) || err));
+    return;
+  }
+  const built = buildWorld(area, scene14, {});
+  const { origin, renderer, scene, controls, heightAt } = built;
+  // Square canvas, deterministic pixels.
+  renderer.setPixelRatio(1);
+  renderer.setSize(px, px, false);
+  const canvas = document.getElementById("scene");
+  if (canvas) {
+    canvas.width = px;
+    canvas.height = px;
+  }
+  // Hide all chrome and overlays: every top-level DOM node except the
+  // scene wrap, plus in-wrap labels/pills/pins/timeline/credits. The
+  // credit text is returned in window.__isomap.credit instead. No
+  // buildUI/placeLabels/route lines are created in this mode; hide the
+  // people + any line overlays from the world.
+  try {
+    const shotCanvas = (renderer && renderer.domElement)
+      || document.getElementById("scene") || canvas;
+    const safe = new Set();
+    try {
+      let n = shotCanvas;
+      while (n) { safe.add(n); n = n.parentElement; }
+    } catch { /* chain walk must not break the shot */ }
+    try { hideIsomapChrome(shotCanvas, px); } catch { /* hiding must not break the shot */ }
+    for (const el of document.querySelectorAll(
+      "[id*='label'],[class*='label'],[id*='pill'],[class*='pill']," +
+      "[id*='pin'],[class*='pin'],[id*='timeline'],[class*='timeline']," +
+      "[id*='credit'],[class*='credit'],[id*='route'],[class*='route']")) {
+      try {
+        if (safe.has(el)) continue;
+        if (el && typeof el.contains === "function" && shotCanvas && el.contains(shotCanvas)) continue;
+        el.style.display = "none";
+      } catch { /* one overlay hide cannot stop the shot */ }
+    }
+  } catch { /* DOM hiding must not break the shot */ }
+  if (built.crowd) built.crowd.visible = false;
+  try { hideIsomapThing(built.crowdMeshes); } catch { /* one hide cannot stop the shot */ }
+  try { hideIsomapThing(built.streetMeshes); } catch { /* one hide cannot stop the shot */ }
+  scene.traverse((o) => {
+    if (o && o.isLine) o.visible = false;
+  });
+  if (controls) controls.enabled = false;
+  // Fixed daylight: one directional sun from the south-west + soft
+  // ambient, shadows on if the renderer supports them. No fog, no
+  // animation, flat light-neutral sky.
+  scene.fog = null;
+  scene.background = new THREE.Color(0xe9e7e2);
+  const sun = new THREE.DirectionalLight(0xffffff, 2.2);
+  sun.position.set(-300, 400, 500);
+  if (renderer.shadowMap) {
+    try { renderer.shadowMap.enabled = true; } catch { /* keep rendering */ }
+  }
+  scene.add(sun);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+  // Orthographic camera centred on (lon, lat) at ground height.
+  const clon = Number.isFinite(iso.lon) ? iso.lon : origin.lon;
+  const clat = Number.isFinite(iso.lat) ? iso.lat : origin.lat;
+  const [ex, ny] = lonLatToXY(clon, clat, origin);
+  let gh = 0;
+  try { gh = heightAt(ex, -ny) || 0; } catch { gh = 0; }
+  const target = new THREE.Vector3(ex, gh, -ny);
+  const frustum = isomapOrthoFrustum(iso.span);
+  const isoCam = new THREE.OrthographicCamera(
+    frustum.left, frustum.right, frustum.top, frustum.bottom, 1, 6000);
+  const [ox, oy, oz] = isomapCameraOffset(iso.az, iso.el, 3000);
+  isoCam.position.set(target.x + ox, target.y + oy, target.z + oz);
+  isoCam.lookAt(target);
+  isoCam.updateProjectionMatrix();
+  let credit = aerialCreditFor(area);
+  // Aerial drape forced on (ground + roofs, the existing path).
+  let draped = null;
+  try {
+    draped = await drapeAreaOnce({ areaId: area.area || areaId,
+      args: { THREE, renderer, scene, area, origin,
+        terrainMesh: built.terrainMesh, groundMesh: built.groundMesh,
+        roadMeshes: built.sceneRoadMeshes, roofMesh: built.roofMesh,
+        fringeMesh: built.base, look: LOOK, style: "photo" } });
+  } catch (err) {
+    fail(String((err && err.message) || err));
+    return;
+  }
+  if (!draped || !draped.ok) {
+    fail((draped && draped.reason) || "drape-failed");
+    return;
+  }
+  // 39a2: sharp re-drape for the shot only (normal 3D unchanged).
+  // Failures keep the scene-wide drape above; the shot still goes out.
+  let sharp = null;
+  try {
+    sharp = await drapeIsomapSharp({ THREE, renderer, origin,
+      terrainMesh: built.terrainMesh, groundMesh: built.groundMesh,
+      roofMesh: built.roofMesh, lon: clon, lat: clat, span: iso.span, area });
+  } catch (err) {
+    sharp = { ok: false, reason: String((err && err.message) || err) };
+  }
+  if (sharp && sharp.ok && sharp.source === "naip") credit = NAIP_CREDIT;
+  const drape = sharp && sharp.ok
+    ? (sharp.source === "naip"
+      ? { source: sharp.source, size: sharp.size, ok: true }
+      : { source: sharp.source, zoom: sharp.zoom, ok: true })
+    : { source: null, ok: false, reason: (sharp && sharp.reason) || "sharp-failed" };
+  try {
+    document.getElementById("loading")?.remove();
+    document.getElementById("fade")?.classList.add("clear");
+  } catch { /* keep rendering */ }
+  renderer.render(scene, isoCam);
+  renderer.render(scene, isoCam);
+  window.__isomapShot = () => {
+    renderer.render(scene, isoCam);
+    return renderer.domElement.toDataURL("image/png");
+  };
+  window.__isomap = { ready: true, ok: true, credit, drape,
+    area: areaId, lon: clon, lat: clat, span: iso.span, az: iso.az, el: iso.el };
+  } catch (err) {
+    // Top-level guard: any crash still resolves the shot waiter.
+    window.__isomap = { ready: true, ok: false,
+      reason: String((err && err.message) || err) };
+  }
+}
+
 loadAreasList().then(() => {
+  // 39a: shooting mode reuses the area-from-URL path (?area=<box id>).
+  if (PARAMS.get("isomap") === "1") {
+    bootIsomap().catch((err) => {
+      try {
+        window.__isomap = { ready: true, ok: false,
+          reason: String((err && err.message) || err) };
+      } catch { /* the waiter must always resolve */ }
+    });
+    return;
+  }
   // 12b: / (no routing params) is the landing, ?chat= the
   // conversation; ?mode=sim… / ?tour=demo deep links keep working.
   const route = routeForSearch(location.search);
