@@ -56,7 +56,7 @@ function makeFact({ id, day, minute, kind, text_ko }) {
   return { id, day, minute, kind, text_ko, numbers: numbersOf(text_ko) };
 }
 
-function commuteFacts(run, hh) {
+function commuteFacts(run, hh, lang = "ko") {
   const facts = [];
   for (const agent of hh) {
     const trips = (run.trips || []).filter((t) => t.agent === agent);
@@ -73,14 +73,18 @@ function commuteFacts(run, hh) {
       if (!dep.id) continue;
       const span = workStart - dep.depart_min;
       if (!(span > 0)) continue;
-      const text = `${day + 1}일째 출근 ${Math.round(span)}분 (집 ${hhmm(dep.depart_min)} 출발)`;
+      // 29N3h: English text built in code (times via hhmm, always HH:MM);
+      // Korean output keeps the exact current text.
+      const text = lang === "en"
+        ? `day ${day + 1} commute ${Math.round(span)} min (${hhmm(dep.depart_min)} start)`
+        : `${day + 1}일째 출근 ${Math.round(span)}분 (집 ${hhmm(dep.depart_min)} 출발)`;
       facts.push(makeFact({ id: dep.id, day, minute: dep.depart_min, kind: "commute", text_ko: text }));
     }
   }
   return facts;
 }
 
-function crowdedFacts(run, hh) {
+function crowdedFacts(run, hh, lang = "ko") {
   const facts = [];
   for (const away of run.aways || []) {
     if (!hh.has(away.agent)) continue;
@@ -89,11 +93,13 @@ function crowdedFacts(run, hh) {
       if (!c || !c.hasData || c.source === ASSUMED_SOURCE) continue;
       if (!Number.isFinite(c.valuePct)) continue;
       if (c.valuePct < 80) continue;
-      const line = leg.lineName || "전철";
+      const line = leg.lineName || (lang === "en" ? "train" : "전철");
       const from = leg.from || "";
       const to = leg.to || "";
       const route = from && to ? ` ${from}→${to}` : "";
-      const text = `${away.day + 1}일째 ${line}${route} 혼잡 ${Math.round(c.valuePct)}% (실측)`;
+      const text = lang === "en"
+        ? `day ${away.day + 1} crowded ${line}${route} ${Math.round(c.valuePct)}% (measured)`
+        : `${away.day + 1}일째 ${line}${route} 혼잡 ${Math.round(c.valuePct)}% (실측)`;
       facts.push(makeFact({ id: awayId(away), day: away.day, minute: boardMin, kind: "crowded", text_ko: text }));
     }
   }
@@ -121,7 +127,7 @@ function eveningFacts(run, hh, lang = "ko") {
   return facts;
 }
 
-function lateEvents(run, hh) {
+function lateEvents(run, hh, lang = "ko") {
   const events = [];
   for (const t of run.trips || []) {
     if (!hh.has(t.agent)) continue;
@@ -129,20 +135,24 @@ function lateEvents(run, hh) {
     if (!Number.isFinite(t.arrive_min) || t.arrive_min < LATE_MIN) continue;
     if (!t.id) continue;
     events.push({ id: t.id, day: t.day, minute: t.arrive_min,
-      text_ko: `${t.day + 1}일째 귀가 ${hhmm(t.arrive_min)} (늦은 귀가)` });
+      text_ko: lang === "en"
+        ? `day ${t.day + 1} return home ${hhmm(t.arrive_min)} (late return)`
+        : `${t.day + 1}일째 귀가 ${hhmm(t.arrive_min)} (늦은 귀가)` });
   }
   if (events.length === 0) {
     for (const a of run.aways || []) {
       if (!hh.has(a.agent)) continue;
       if (!Number.isFinite(a.end_min) || a.end_min < LATE_MIN) continue;
       events.push({ id: awayId(a), day: a.day, minute: a.end_min,
-        text_ko: `${a.day + 1}일째 귀가 ${hhmm(a.end_min)} (늦은 귀가)` });
+        text_ko: lang === "en"
+          ? `day ${a.day + 1} return home ${hhmm(a.end_min)} (late return)`
+          : `${a.day + 1}일째 귀가 ${hhmm(a.end_min)} (늦은 귀가)` });
     }
   }
   return events;
 }
 
-function decisionFacts(run) {
+function decisionFacts(run, lang = "ko") {
   const facts = [];
   for (const d of run.decisions || []) {
     if (!d) continue;
@@ -150,7 +160,9 @@ function decisionFacts(run) {
     if (d.chosen_key === d.default_key) continue;
     if (typeof d.reason_ko !== "string" || d.reason_ko.trim().length === 0) continue;
     if (!d.id) continue;
-    const text = `${d.day + 1}일째 결정: ${d.reason_ko.trim()}`;
+    const text = lang === "en"
+      ? `day ${d.day + 1} decision: ${d.reason_ko.trim()}`
+      : `${d.day + 1}일째 결정: ${d.reason_ko.trim()}`;
     facts.push(makeFact({ id: d.id, day: d.day, minute: d.minute, kind: "decision", text_ko: text }));
   }
   return facts;
@@ -160,9 +172,11 @@ const KIND_ORDER = ["commute", "crowded", "evening", "late", "decision"];
 
 function commuteMinutes(f) {
   const nums = (f && f.numbers) || [];
-  // Commute text is "<day>일째 출근 <span>분 ...": the span is the number
-  // right after 출근. Fall back to the largest number.
-  const m = String((f && f.text_ko) || "").match(/출근\s*(\d+(?:\.\d+)?)\s*분/);
+  // Commute text is "<day>일째 출근 <span>분 ..." (ko) or
+  // "day <day> commute <span> min ..." (en): the span is the number
+  // right after 출근 / commute. Fall back to the largest number.
+  const ct = String((f && f.text_ko) || "");
+  const m = ct.match(/출근\s*(\d+(?:\.\d+)?)\s*분/) || ct.match(/commute\s*(\d+(?:\.\d+)?)\s*min/);
   if (m) return Number(m[1]);
   return nums.length > 0 ? Math.max(...nums) : -Infinity;
 }
@@ -205,11 +219,11 @@ export function runDigest(run, label, { name = "", maxFacts = 40, lang = "ko" } 
   const r = run || {};
   const hh = householdKeys(r);
   const byKind = {
-    commute: commuteFacts(r, hh),
-    crowded: crowdedFacts(r, hh),
+    commute: commuteFacts(r, hh, lang),
+    crowded: crowdedFacts(r, hh, lang),
     evening: eveningFacts(r, hh, lang),
-    late: lateEvents(r, hh).map((e) => makeFact({ ...e, kind: "late" })),
-    decision: decisionFacts(r),
+    late: lateEvents(r, hh, lang).map((e) => makeFact({ ...e, kind: "late" })),
+    decision: decisionFacts(r, lang),
   };
   for (const k of KIND_ORDER) {
     byKind[k].sort((a, b) => (a.day - b.day) || (a.minute - b.minute));
@@ -240,8 +254,10 @@ export function runDigest(run, label, { name = "", maxFacts = 40, lang = "ko" } 
     for (const f of picked) {
       if (f.kind === "commute" && f._longest) {
         delete f._longest;
-        if (!String(f.text_ko || "").endsWith(" (30일 중 가장 오래)")) {
-          f.text_ko = `${f.text_ko} (30일 중 가장 오래)`;
+        // 29N3h: the longest-day marker carries the same 30 in both languages.
+        const longestTag = lang === "en" ? " (longest of the 30 days)" : " (30일 중 가장 오래)";
+        if (!String(f.text_ko || "").endsWith(longestTag)) {
+          f.text_ko = `${f.text_ko}${longestTag}`;
         }
         if (!f.numbers.includes(30)) f.numbers = [...f.numbers, 30];
       }

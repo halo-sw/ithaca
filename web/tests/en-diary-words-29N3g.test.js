@@ -61,3 +61,67 @@ describe("29N3g english digest/record words", () => {
     assert.ok(src.includes("Never romanise a Korean generic word (장보기, 공원); use the English word."));
   });
 });
+
+// 29N3h: the English diary request sends an English digest — every fact
+// kind has its English text built in code (times via hhmm, always HH:MM);
+// Korean output is byte-identical.
+function diaryFixtureRun() {
+  return {
+    meta: { days: 30 },
+    agents: [{ key: "h1", household: true, label: "나" }],
+    trips: [
+      { id: "c1", agent: "h1", day: 0, depart_min: 480, arrive_min: 500,
+        minutes: 20, purpose: "commute", mode: "walk", distance_m: 800,
+        from: { id: "home", label: "집", kind: "home" },
+        to: { id: "w1", label: "직장", kind: "work" } },
+      { id: "late1", agent: "h1", day: 5, depart_min: 1300, arrive_min: 1335,
+        minutes: 35, purpose: "home", mode: "walk", distance_m: 800,
+        from: { id: "w1", label: "직장", kind: "work" },
+        to: { id: "home", label: "집", kind: "home" } },
+    ],
+    aways: [
+      { agent: "h1", day: 0, kind: "work", start_min: 517, end_min: 1000, label: "직장" },
+      { agent: "h1", day: 10, kind: "park", start_min: 1161, end_min: 1191, label: "공원" },
+    ],
+    decisions: [],
+  };
+}
+
+describe("29N3h english diary digest", () => {
+  it("runDigest in English has no Hangul and HH:MM times", () => {
+    const digest = runDigest(diaryFixtureRun(), "A", { lang: "en" });
+    assert.equal(digest.facts.length, 3);
+    for (const f of digest.facts) {
+      assert.ok(!HANGUL.test(f.text_ko), f.text_ko);
+      assert.match(f.text_ko, /\b\d{2}:\d{2}\b/, f.text_ko);
+    }
+    const byKind = Object.fromEntries(digest.facts.map((f) => [f.kind, f]));
+    assert.equal(byKind.commute.text_ko, "day 1 commute 37 min (08:00 start)");
+    assert.equal(byKind.evening.text_ko, "day 11 evening park 30 min (19:21 start)");
+    assert.equal(byKind.late.text_ko, "day 6 return home 22:15 (late return)");
+  });
+
+  it("English facts keep id, day, minute and numbers", () => {
+    const run = diaryFixtureRun();
+    const en = runDigest(run, "A", { lang: "en" });
+    const ko = runDigest(run, "A", { lang: "ko" });
+    for (const kind of ["commute", "evening", "late"]) {
+      const e = en.facts.find((f) => f.kind === kind);
+      const k = ko.facts.find((f) => f.kind === kind);
+      assert.equal(e.id, k.id);
+      assert.equal(e.day, k.day);
+      assert.equal(e.minute, k.minute);
+      assert.deepEqual(e.numbers, k.numbers);
+    }
+  });
+
+  it('lang "ko" output is unchanged', () => {
+    const run = diaryFixtureRun();
+    assert.deepEqual(runDigest(run, "A", { lang: "ko" }), runDigest(run, "A"));
+  });
+
+  it("chat.jsx passes lang to runDigest", () => {
+    const src = readFileSync(new URL("../src/ui/chat.jsx", import.meta.url), "utf8");
+    assert.ok(src.includes('runDigest(runs[l], l, { name: (payload.names || {})[l] || "", lang: currentLang() })'));
+  });
+});

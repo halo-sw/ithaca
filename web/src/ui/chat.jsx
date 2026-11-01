@@ -2609,7 +2609,7 @@ export function ChatScreen() {
       // 27d: the diary follows without blocking the result card.
       if (LIVE_API) {
         try {
-          const digests = labels.map((l) => runDigest(runs[l], l, { name: (payload.names || {})[l] || "" }));
+          const digests = labels.map((l) => runDigest(runs[l], l, { name: (payload.names || {})[l] || "", lang: currentLang() }));
           setMessages((prev) => prev.map((m) => (m.id === simId
             ? { ...m, data: { ...m.data, diary: { status: "writing" } } } : m)));
           postDiary({ provider, digests, lang: LANG }).then((result) => {
