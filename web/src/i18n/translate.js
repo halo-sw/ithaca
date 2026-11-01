@@ -116,6 +116,7 @@ export function createTranslator({ phrases = {}, patterns = [], words = {} } = {
   const missing = new Set();
   const compiled = (patterns || []).map((p) => {
     const slots = [];
+    const isJoinerOnly = String(p.ko).replace(/\{\d+(?::\\d\+)?\}/g, "").trim() === "·";
     // 29a2: a ":\d+" slot suffix marks a digits-only capture, so a
     // pattern like "{0}까지 약 {1:\d+}분" never swallows a "· …" tail
     // into {1}. Plain "{n}" slots still match anything.
@@ -132,12 +133,12 @@ export function createTranslator({ phrases = {}, patterns = [], words = {} } = {
     }
     src += escapeRegExp(ko.slice(last));
     // 29a1: en may be a function of the translated captures (plurals).
-    return { en: p.en, re: new RegExp("^" + src + "$"), slots };
+    return { en: p.en, re: new RegExp("^" + src + "$"), slots, isJoinerOnly };
   });
 
-  function exactOrPattern(s) {
+  function exactOrPattern(s, skipJoinerOnly = false) {
     if (Object.hasOwn(phrases, s)) return phrases[s];
-    return matchPatterns(s);
+    return matchPatterns(s, skipJoinerOnly);
   }
 
   // Common words first (glossary), then whole-string phrases, then a
@@ -227,8 +228,9 @@ export function createTranslator({ phrases = {}, patterns = [], words = {} } = {
     return mapped.join(" ").replace(/ ([,):])/g, "$1").replace(/\( /g, "(");
   }
 
-  function matchPatterns(s) {
+  function matchPatterns(s, skipJoinerOnly = false) {
     for (const p of compiled) {
+      if (skipJoinerOnly && p.isJoinerOnly) continue;
       const m = s.match(p.re);
       if (!m) continue;
       const caps = p.slots.map((n, i) => {
@@ -267,10 +269,21 @@ export function createTranslator({ phrases = {}, patterns = [], words = {} } = {
       const loc = localizeNumbers(core);
       if (loc !== core) {
         cand = loc;
-        result = exactOrPattern(loc);
+        result = exactOrPattern(loc, true);
         if (result === undefined && !HANGUL.test(loc)) result = loc;
       }
     }
+    if (result === undefined) result = exactOrPattern(core, true);
+    // 39d3: whole-string phrases/patterns (minus the bare "{0} · {1}"
+    // joiner) win first, so a pattern that itself contains " · "
+    // matches whole. Only on a miss does a " · "-joined core split
+    // into segments (un-localized core, each via translateCore,
+    // accepted only when every piece is Hangul-free).
+    if (result === undefined && HANGUL.test(core) && core.includes(" · ")) {
+      const parts = core.split(" · ").map((p) => translateCore(p));
+      if (parts.every((p) => !HANGUL.test(p))) result = parts.join(" · ");
+    }
+    if (result === undefined && cand !== core) result = exactOrPattern(cand);
     if (result === undefined) result = exactOrPattern(core);
     // 29a7: chip-like request phrases ("후보 찾아줘") become frames.
     if (result === undefined) result = matchChipFrame(core);

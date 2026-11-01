@@ -1,6 +1,6 @@
 // Revised Romanization of Hangul, syllable by syllable (pure, no DOM).
 import { STATION_EN } from "./en-stations.js";
-import { LOANWORDS, PLACE_TERMS } from "./en-loanwords.js";
+import { LOANWORDS, PLACE_TERMS, HOME_KINDS } from "./en-loanwords.js";
 
 const LEADS = ["g", "kk", "n", "d", "tt", "r", "m", "b", "pp",
   "s", "ss", "", "j", "jj", "ch", "k", "t", "p", "h"];
@@ -194,8 +194,45 @@ function namePieces(w) {
   return out;
 }
 
+// 39d: generated lot-number names (homes.js displayNameFor) read as
+// English from their shape, so the gloss never romanizes the whole
+// sentence ("산성역 근처 연립·다세대 (84-0)" → "Row house near
+// Sanseong Stn (84-0)"). A kind outside HOME_KINDS skips this step.
+function lotNameEn(s) {
+  const m = /^(.*)\((\d+(?:-\d+)?)\)\s*$/.exec(s);
+  if (!m) return null;
+  const lot = m[2];
+  const head = m[1].trim();
+  if (!head) return null;
+  if (head.endsWith("근처")) {
+    const st = head.slice(0, -"근처".length).trim();
+    if (st.endsWith("역") && st.length > 1) return `Near ${romanizeName(st)} (${lot})`;
+    return null;
+  }
+  if (Object.hasOwn(HOME_KINDS, head)) return `${HOME_KINDS[head]} (${lot})`;
+  const sp = head.lastIndexOf(" ");
+  if (sp > 0) {
+    const kind = head.slice(sp + 1);
+    const place = head.slice(0, sp).trim();
+    if (Object.hasOwn(HOME_KINDS, kind) && place) {
+      if (place.endsWith("근처")) {
+        const st = place.slice(0, -"근처".length).trim();
+        if (st.endsWith("역") && st.length > 1) {
+          return `${HOME_KINDS[kind]} near ${romanizeName(st)} (${lot})`;
+        }
+        return null;
+      }
+      return `${romanizeName(place)} ${HOME_KINDS[kind].toLowerCase()} (${lot})`;
+    }
+  }
+  return `${romanizeName(head)} (${lot})`;
+}
+
 export function romanizeName(name) {
-  return String(name).trim().split(/\s+/).filter(Boolean).map((w) => {
+  const s = String(name).trim();
+  const lot = lotNameEn(s);
+  if (lot != null) return lot;
+  return s.split(/\s+/).filter(Boolean).map((w) => {
     if (Object.hasOwn(NAMES, w)) return NAMES[w];
     // Station: the word minus a trailing 역 is an official English name.
     const bare = (w.endsWith("역") && w.length > 1) ? w.slice(0, -1) : w;
