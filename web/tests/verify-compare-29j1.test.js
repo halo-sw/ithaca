@@ -284,10 +284,13 @@ describe("29j1 verifyComparison and runComparisonLoop", () => {
     assert.equal(handoff.ask_user, true);
   });
   it("unsupported persona: one attempt, 미지원, revise never called", async () => {
+    // 38e: remote_worker ships a scenario — pin the 미지원 path locally.
+    const GT_NULL = { ...GT,
+      persona_map: { ...GT.persona_map, remote_worker: null } };
     let reviseCalls = 0;
     const { result, attempts, handoff } = await runComparisonLoop({
       draft, revise: async (report) => { reviseCalls += 1; return report; },
-      runs, labels, homes, persona: "remote_worker", groundTruth: GT,
+      runs, labels, homes, persona: "remote_worker", groundTruth: GT_NULL,
     });
     assert.equal(result.status, "미지원");
     assert.equal(attempts.length, 1);

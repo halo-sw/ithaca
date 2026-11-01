@@ -43,6 +43,7 @@ export const PROFILE_FIELDS = [
   "members", "workplaces", "salaryAnnual", "takehomeMonthly", "cash",
   "debts", "tenure", "depositMax", "monthlyMax", "priceMax", "sizeMin",
   "commuteMax", "priorities", "mustHaves", "home_kinds", "currency",
+  "officeDays", "pets",
 ];
 
 export function field(value, source, note = "") {
@@ -58,7 +59,7 @@ export function emptyProfile() {
     members: blank(), workplaces: blank(), salaryAnnual: blank(),
     takehomeMonthly: blank(), cash: blank(), debts: blank(), tenure: blank(),
     depositMax: blank(), monthlyMax: blank(), priceMax: blank(),
-    sizeMin: blank(), commuteMax: blank(),
+    sizeMin: blank(), commuteMax: blank(), officeDays: blank(), pets: blank(),
     priorities: blank(), mustHaves: field([], "asked", ""),
     home_kinds: field([], "asked", ""),
     currency: field("KRW", "default"),
@@ -260,8 +261,114 @@ function findMembers(text) {
     if (members.length === 0) members.push({ role: "adult" });
     members.push({ role: "child" });
   }
+  // 38e: seniors living together (Korean first, then English).
+  // Two-cues name the pair; single words add one each (deduped).
+  // A "near parents" sentence without a live-together word adds nobody.
+  const liveTogether = /모시고|같이 살|함께 살|모셔/.test(text)
+    || /\bwith my parents\b/i.test(text)
+    || /\blives? with\b/i.test(text);
+  if (liveTogether) {
+    const seniorLabels = [];
+    let seniorEvidence = null;
+    let seniorCount = 0;
+    const twoKo = ["양가 부모님", "시부모님", "부모님"].find((w) => text.includes(w));
+    const enParents = /\bmy\s+parents\b/i.exec(text);
+    if (twoKo) {
+      seniorCount = 2;
+      seniorEvidence = twoKo;
+      seniorLabels.push("부모님", "부모님");
+    } else if (enParents) {
+      seniorCount = 2;
+      seniorEvidence = enParents[0];
+      seniorLabels.push("부모님", "부모님");
+    } else if (text.includes("장인어른") && text.includes("장모님")) {
+      seniorCount = 2;
+      seniorEvidence = "장인어른·장모님";
+      seniorLabels.push("부모님", "부모님");
+    } else {
+      const singles = [
+        ["어머니", "어머니"], ["엄마", "어머니"], ["아버지", "아버지"],
+        ["아빠", "아버지"], ["장모님", "어머니"], ["시어머니", "어머니"],
+        ["할머니", "어머니"], ["할아버지", "아버지"], ["어르신", "어르신"],
+      ];
+      const seenKo = new Set();
+      const evParts = [];
+      for (const [w, label] of singles) {
+        if (text.includes(w) && !seenKo.has(w)) {
+          seenKo.add(w);
+          seniorCount += 1;
+          evParts.push(w);
+          seniorLabels.push(label);
+        }
+      }
+      const enSingle = /\bmy\s+(mother|mom|father|dad|grandma|grandpa|mother-in-law|father-in-law)\b/gi;
+      let m;
+      const seenEn = new Set();
+      while ((m = enSingle.exec(text)) !== null) {
+        const key = m[1].toLowerCase();
+        if (seenEn.has(key)) continue;
+        seenEn.add(key);
+        seniorCount += 1;
+        evParts.push(m[0]);
+        seniorLabels.push(/mother|mom|grandma/.test(key) ? "어머니"
+          : /father|dad|grandpa/.test(key) ? "아버지" : "어르신");
+      }
+      if (evParts.length > 0) seniorEvidence = evParts.join("·");
+    }
+    if (seniorCount > 0) {
+      if (members.length === 0) members.push({ role: "adult" });
+      evidence = evidence ? `${evidence}·${seniorEvidence}` : seniorEvidence;
+      for (let s = 0; s < seniorCount; s += 1) {
+        members.push({ role: "senior", relation: "부모",
+          label: seniorLabels[s] || "부모님" });
+      }
+    }
+  }
   if (members.length === 0) return null;
   return { members, evidence };
+}
+
+// 38e: office days per week (Korean first, then English, word-bounded).
+// N = 1..4; full-remote words read 0; N = 5 (or no cue) reads null.
+function findOfficeDays(text) {
+  const src = String(text || "");
+  const dated = /주\s*(\d)\s*일\s*출근/.exec(src)
+    || /주\s*(\d)\s*회\s*출근/.exec(src)
+    || /일주일에\s*(\d)\s*번\s*출근/.exec(src)
+    || /(\d)\s*days?\s*a\s*week\s*in\s*the\s*office/i.exec(src)
+    || /\bin\s*office\s*(\d)\s*days?/i.exec(src)
+    || /\bhybrid\s*(\d)\s*days?/i.exec(src);
+  if (dated) {
+    const n = Number(dated[1]);
+    if (n >= 1 && n <= 4) return { value: n, evidence: dated[0] };
+    return null;
+  }
+  const remoteKo = /(완전 재택|재택근무|풀재택|재택)/.exec(src);
+  if (remoteKo) return { value: 0, evidence: remoteKo[0] };
+  const remoteEn = /(work from home|fully remote|\bWFH\b|\bremote\b)/i.exec(src);
+  if (remoteEn) return { value: 0, evidence: remoteEn[0] };
+  return null;
+}
+
+// 38e: pets (Korean first, then English). "두 마리"/"2 dogs" reads 2.
+function findPets(text) {
+  const src = String(text || "");
+  const pair = /두 마리/.test(src) || /2\s*마리/.test(src)
+    || /2\s*dogs/i.test(src) || /\btwo dogs\b/i.test(src);
+  const count = pair ? 2 : 1;
+  const dogKo = /(강아지|반려견|개를 키|댕댕이)/.exec(src);
+  if (dogKo) return { value: { kind: "dog", count }, evidence: dogKo[0] };
+  const catKo = /(고양이|반려묘|냥이)/.exec(src);
+  if (catKo) return { value: { kind: "cat", count }, evidence: catKo[0] };
+  const petKo = /(반려동물)/.exec(src);
+  if (petKo) return { value: { kind: "pet", count }, evidence: petKo[0] };
+  const dogEn = /\b(dog|puppy)\b/i.exec(src);
+  if (dogEn) return { value: { kind: "dog", count }, evidence: dogEn[0] };
+  const catEn = /\b(cat|kitten)\b/i.exec(src);
+  if (catEn) return { value: { kind: "cat", count }, evidence: catEn[0] };
+  const petEn = /\bpet\b/i.exec(src);
+  if (petEn) return { value: { kind: "pet", count }, evidence: petEn[0] };
+  return null;
 }
 
 // Housing-type words the customer named ("오피스텔이면 좋겠어요").
@@ -310,10 +417,33 @@ function normStationWord(s) {
   return String(s || "").trim().replace(/역$/, "").trim();
 }
 
+// 38b: small alias table applied before the exact match. An alias must
+// itself equal a network station name (서울역 → 서울, 상암·DMC variants →
+// 디지털미디어시티); anything else still resolves exact-only, never a guess.
+const WORKPLACE_ALIASES = {
+  "서울역": "서울",
+  "상암": "디지털미디어시티",
+  "상암DMC": "디지털미디어시티",
+  "상암동": "디지털미디어시티",
+  "DMC": "디지털미디어시티",
+  "Sangam": "디지털미디어시티",
+};
+
+function lookupWorkplaceAlias(mention) {
+  const m = String(mention || "").trim();
+  if (!m) return null;
+  if (Object.hasOwn(WORKPLACE_ALIASES, m)) return WORKPLACE_ALIASES[m];
+  const up = m.toUpperCase();
+  for (const k of Object.keys(WORKPLACE_ALIASES)) {
+    if (k.toUpperCase() === up) return WORKPLACE_ALIASES[k];
+  }
+  return null;
+}
+
 // Resolve a workplace mention to a station in our data (exact normalised
 // match only — never a guess). stations: array of names.
 function resolveWorkplace(mention, stations) {
-  const want = normStationWord(mention);
+  const want = normStationWord(lookupWorkplaceAlias(mention) ?? mention);
   if (!want) return null;
   for (const s of stations || []) {
     if (normStationWord(s) === want) return normStationWord(s);
@@ -395,7 +525,18 @@ function findWorkplace(text, stations) {
 // Resolve an English station mention ("Gangnam") to the Korean station
 // name via romanize() + the NAMES overrides (24b, pure).
 function resolveEnglishStation(mention, stations) {
-  const norm = String(mention || "").toLowerCase().replace(/[\s.\-]/g, "");
+  // 38b: strip a trailing "station"/"stn", then accept the shared alias
+  // table (Sangam/DMC → 디지털미디어시티) before romanized comparison.
+  const cleaned = String(mention || "").trim().replace(/\s+(?:station|stn)\.?$/i, "");
+  const hit = lookupWorkplaceAlias(cleaned);
+  if (hit) {
+    const want = normStationWord(hit);
+    for (const s of stations || []) {
+      if (normStationWord(s) === want) return normStationWord(s);
+    }
+    return null;
+  }
+  const norm = cleaned.toLowerCase().replace(/[\s.\-]/g, "");
   if (!norm) return null;
   for (const s of stations || []) {
     const base = String(s).replace(/역$/, "");
@@ -722,6 +863,14 @@ export function extract_profile(text, current = null, opts = {}) {
   if (membersHit && profile.members.value === null) {
     set("members", membersHit.members, membersHit.evidence, "함께 사는 사람");
   }
+  const officeHit = findOfficeDays(src);
+  if (officeHit && profile.officeDays.value === null) {
+    set("officeDays", officeHit.value, officeHit.evidence, "일주일 출근 일수");
+  }
+  const petsHit = findPets(src);
+  if (petsHit && profile.pets.value === null) {
+    set("pets", petsHit.value, petsHit.evidence, "함께 사는 동물");
+  }
   if (workHit) {
     if (workHit.resolved && workHit.resolved.place) {
       const p = workHit.resolved.place;
@@ -826,6 +975,9 @@ export function missingQuestions(profile) {
 // "출근 안 해요" (noCommute) runs honestly without one.
 // Returns { ok: false, ask: "workplace" } | { ok: true } | { ok: true, noCommute: true }.
 export function runGate(profile) {
+  // 38e: full remote (officeDays 0) runs honestly without a workplace.
+  const od = profile && profile.officeDays ? profile.officeDays.value : null;
+  if (od === 0) return { ok: true, noCommute: true };
   const wps = profile && profile.workplaces ? profile.workplaces.value : null;
   if (Array.isArray(wps) && wps.length > 0 && wps[0]) {
     const w = wps[0];
@@ -1012,6 +1164,18 @@ export function scenarioFromProfile(profile, homes, opts = {}) {
     return d ? d.minutes : null;
   };
   const commuteKnown = v("commuteMax");
+  // 38e: hybrid/full-remote days and pets from the customer profile.
+  const officeDays = v("officeDays");
+  const od = Number.isInteger(officeDays) ? officeDays : null;
+  const pets = v("pets");
+  const hasDog = !!(pets && pets.kind === "dog");
+  const hasCatPet = !!(pets && (pets.kind === "cat" || pets.kind === "pet"));
+  const firstAdultIdx = members.findIndex((mm) => {
+    const r = (mm && mm.role) || "adult";
+    return r !== "senior" && r !== "child";
+  });
+  const OFFICE_WORKDAYS = { 1: ["Wed"], 2: ["Tue", "Thu"],
+    3: ["Mon", "Wed", "Fri"], 4: ["Mon", "Tue", "Thu", "Fri"] };
   const membersOut = members.map((m, i) => {
     const wp = workplaces[i] || workplaces[0] || null;
     const dest = wp && wp.resolved && wp.resolved.station ? wp.resolved.station : null;
@@ -1025,11 +1189,39 @@ export function scenarioFromProfile(profile, homes, opts = {}) {
       park_walks_per_week: 1,
       clinic_visits_per_month: 0,
     };
+    // 38e: seniors never commute — daily park walks, monthly clinic.
+    if ((m.role || "adult") === "senior") {
+      out.work = { type: "none" };
+      out.workdays = [];
+      out.park_walks_per_week = 7;
+      out.clinic_visits_per_month = 2;
+      out.errands_per_week = { supermarket: 1, convenience: 2 };
+      return out;
+    }
     if ((m.role || "adult") === "child") {
       out.work = { type: "none" };
       out.schooldays = ["Mon", "Tue", "Wed", "Thu", "Fri"];
       return out;
     }
+    // 38e: hybrid office days + pets (seniors/children returned above).
+    if (od === 0) {
+      out.home_office = true;
+      out.work = { type: "none" };
+      out.cafe_visits_per_week = 2;
+    } else if (od !== null && OFFICE_WORKDAYS[od]) {
+      out.workdays = [...OFFICE_WORKDAYS[od]];
+      out.cafe_visits_per_week = Math.min(2, 5 - od);
+    }
+    if (i === firstAdultIdx) {
+      if (hasDog) {
+        out.dog_walk_morning = true;
+        out.park_walks_per_week = 7;
+        out.vet_visits_per_month = 1;
+      } else if (hasCatPet) {
+        out.vet_visits_per_month = 1;
+      }
+    }
+    if (od === 0) return out; // full remote: never a commute
     // 26d: a resolved place (e.g. Meta HQ) commutes by walk/bike from
     // lon/lat — no station walk needed. Korean station workplaces below
     // are unchanged.
@@ -1124,6 +1316,8 @@ export function exampleProfile() {
       "customer", "예시: 모두 보통"),
     mustHaves: field([], "customer", "예시: 없음"),
     home_kinds: field([], "customer", "예시: 없음"),
+    officeDays: field(null, "asked", ""),
+    pets: field(null, "asked", ""),
     currency: field("KRW", "default", "예시: 원화 기준"),
     _example: true,
   };
