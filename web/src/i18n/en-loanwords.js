@@ -46,7 +46,7 @@ export const LOANWORDS = {
   "카운티": "County", "그랜드": "Grand", "그랑": "Grand", "올림픽": "Olympic",
   "스위트": "Suite", "스테이트": "State", "스테이": "Stay", "레지던스": "Residence",
   "테라스": "Terrace", "클래식": "Classic", "블레스": "Bless", "그레이스": "Grace",
-  "스톤": "Stone", "에이스": "Ace", "에비뉴": "Avenue", "애비뉴": "Avenue",
+  "스톤": "Stone", "베어": "Bear", "에이스": "Ace", "에비뉴": "Avenue", "애비뉴": "Avenue",
   "허브": "Hub", "아트": "Art", "리치": "Rich", "하임": "Heim", "하이": "Hi",
   "라움": "Raum", "리움": "Rium", "뷰티": "Beauty", "가든": "Garden",
   "코아": "Core", "프라자": "Plaza", "플라자": "Plaza", "센터": "Center",
