@@ -608,6 +608,8 @@ const seedPatterns = [
   { ko: "{0} → {1} 총 {2} · {3}역 걸어서", en: "{0} → {1} {2} total · {3} Stn, walk only" },
   { ko: "총 {0}분 · {1}역 걸어서 {2}분 + 지하철 {3}분", en: "Total {0} min · {1} Stn walk {2} min + subway {3} min" },
   { ko: "총 {0}분 · {1}역 걸어서", en: "Total {0} min · {1} Stn, walk only" },
+  // 39a: no workplace yet — the station walk is never called the total.
+  { ko: "{0}역까지 걸어서 {1} · 지하철 시간은 출근지를 알면 계산해요", en: "{1} walk to {0} Stn · subway time is added once we know your workplace" },
   { ko: "예산보다 {0} 적어요", en: "{0} under budget" },
   { ko: "예산보다 {0} 많아요", en: "{0} over budget" },
   { ko: "2곳 중 {0}곳 담음", en: "{0} of 2 picked" },
