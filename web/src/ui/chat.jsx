@@ -3477,9 +3477,7 @@ export function ChatScreen() {
       const workplaceUnplaced = Boolean(first && first.text && !first.resolved && !first.noCommute);
       const budgetUsd = prof.monthlyMax ? prof.monthlyMax.value : undefined;
       const note = coverageNote({ coverage, budgetUsd, workplaceText, workplaceUnplaced });
-      const chips = (note.chips || []).map((chip) => (chip.id === "budget" && coverage.suggestUsd != null
-        ? { ...chip, value: coverage.suggestUsd } : chip));
-      result = { ...result, coverage_note: { ...note, chips } };
+      result = { ...result, coverage, coverage_note: note };
     }
     // 29N2f: the network swap lives in the candidatesData effect —
     // setting the candidates is enough on every path.
@@ -4742,12 +4740,13 @@ export function ChatScreen() {
     if (id === "nocommute") return handleTrayNoCommute();
     if (id === "seoul") return handleExample();
     if (id === "budget") {
-      const note = stateRef.current.candidatesData
-        && stateRef.current.candidatesData.result
-        && stateRef.current.candidatesData.result.coverage_note;
+      const res = stateRef.current.candidatesData
+        && stateRef.current.candidatesData.result;
+      const note = res && res.coverage_note;
       const chip = note && Array.isArray(note.chips)
         ? note.chips.find((c) => c && c.id === "budget") : null;
-      const v = Number(chip && (chip.value ?? chip.suggestUsd));
+      const coverage = res && res.coverage;
+      const v = Number((chip && (chip.value ?? chip.suggestUsd)) ?? (coverage && coverage.suggestUsd));
       if (Number.isFinite(v) && v > 0) {
         const next = { ...(stateRef.current.profile || {}),
           monthlyMax: { value: v, source: "customer" } };

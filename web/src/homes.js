@@ -121,11 +121,11 @@ export function coverageNote({ coverage, budgetUsd, workplaceText, workplaceUnpl
   const min = Number(cov.minMonthlyUsd);
   const budget = Number(budgetUsd);
   if (Number.isFinite(budget) && Number.isFinite(min) && min > budget) {
-    const areas = Array.isArray(cov.usAreas) ? cov.usAreas : [];
-    const first = areas[0];
-    const last = areas[areas.length - 1];
+    const ends = US_REGION_IDS.filter((id) => id.indexOf("us-st-") === 0);
+    const first = usAreaLabel(ends[0], "en");
+    const last = usAreaLabel(ends[ends.length - 1], "en");
     lines.push(`Caltrain 축 ${first}–${last} 지역을 다뤄요. 가장 낮은 월세는 ${fmtMoney(min, "USD")}(${cov.minMonthlyArea}, Zillow ZIP 추정)라 예산 ${fmtMoney(budget, "USD")}보다 높아요.`);
-    chips.push({ id: "budget", label: `${fmtMoney(cov.suggestUsd, "USD")}까지 보기` });
+    chips.push({ id: "budget", label: `${fmtMoney(cov.suggestUsd, "USD")}까지 보기`, value: cov.suggestUsd });
   }
   if (lines.length > 0) chips.push({ id: "seoul", label: "서울 예시로 해 보기" });
   return { lines, chips };
