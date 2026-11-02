@@ -163,9 +163,10 @@ describe("42b landing 바로 해 보기 captions and key row (SSR)", () => {
   it("live entries read 무료 체험 1회 · 이후 내 키, replay needs no key", () => {
     const html = renderToStaticMarkup(React.createElement(LandingPage));
     const trial = html.match(/무료 체험 1회 · 이후 내 키/g) || [];
-    assert.equal(trial.length, 2);
-    assert.ok(html.includes("Muse 실시간"));
-    assert.ok(html.includes("키 없이 기록 재생"));
+    assert.equal(trial.length, 1);
+    assert.equal(html.match(/Muse 실시간/g).length, 1);
+    assert.ok(html.includes("키 없이"));
+    assert.ok(html.includes("녹화된 30일을 재생해요"));
     assert.ok(!html.includes("키 없이 바로 재생"));
   });
 
