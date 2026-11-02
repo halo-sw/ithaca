@@ -4734,11 +4734,14 @@ export function ChatScreen() {
       setModelErrors((e) => ({ ...e, [p]: null }));
     }
   };
-  // 43b3: coverage-note chips — each chip re-runs the search.
+  // 43b5: coverage-note chips send a normal chat turn through send —
+  // liveResearch needs loaded rule-flow data, which a Muse session
+  // may not have, so the turn lets Muse or the rule flow re-search.
   function handleCoverageChip(id) {
-    if (id === "meta") return handleTrayWorkplace("Meta HQ");
-    if (id === "nocommute") return handleTrayNoCommute();
     if (id === "seoul") return handleExample();
+    const en = LANG === "en";
+    if (id === "meta") return send(en ? "My workplace is Meta HQ in Menlo Park." : "직장은 멘로파크 Meta 본사예요.");
+    if (id === "nocommute") return send(en ? "I don't commute. Show homes without a commute." : "출근 안 해요.");
     if (id === "budget") {
       const res = stateRef.current.candidatesData
         && stateRef.current.candidatesData.result;
@@ -4748,12 +4751,8 @@ export function ChatScreen() {
       const coverage = res && res.coverage;
       const v = Number((chip && (chip.value ?? chip.suggestUsd)) ?? (coverage && coverage.suggestUsd));
       if (Number.isFinite(v) && v > 0) {
-        const next = { ...(stateRef.current.profile || {}),
-          monthlyMax: { value: v, source: "customer" } };
-        profileRef.current = next;
-        setProfile(next);
-        store.set({ chatSummary: profileSummary(next) });
-        liveResearch(next);
+        return send(en ? `Show homes up to ${fmtMoney(v, "USD")} a month.`
+          : `월세 ${fmtMoney(v, "USD")} 이하로 다시 찾아 줘.`);
       }
     }
     return undefined;
