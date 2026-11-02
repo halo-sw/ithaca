@@ -122,6 +122,7 @@ describe("29N3h english diary digest", () => {
 
   it("chat.jsx passes lang to runDigest", () => {
     const src = readFileSync(new URL("../src/ui/chat.jsx", import.meta.url), "utf8");
-    assert.ok(src.includes('runDigest(runs[l], l, { name: (payload.names || {})[l] || "", lang: currentLang() })'));
+    assert.ok(src.includes("return runDigest(runs[l], l, { name: digestName, lang: currentLang() });"));
+    assert.ok(src.includes("? homeNameEn(rawName) : rawName"));
   });
 });

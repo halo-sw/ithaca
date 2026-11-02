@@ -68,6 +68,15 @@ function fail(message) {
   return { ok: false, error: String(message).slice(0, 500) };
 }
 
+// 41b: complex-name retry ignoring spaces (and "·"), so a model
+// spelling with spaces still finds the stored spaceless name.
+export function matchesIgnoringSpaces(storedNames, want) {
+  const norm = (s) => String(s || "").replace(/[\s·]+/g, "");
+  const w = norm(want);
+  if (!w) return false;
+  return (storedNames || []).some((n) => norm(n) === w);
+}
+
 function hhmm(minute) {
   return `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`;
 }
@@ -216,7 +225,7 @@ export const TOOL_DEFS = [
         run: str("Optional run id from run_simulation for the child's school route."),
       }, required: ["area"] } } },
   { type: "function", function: { name: "define_term",
-    description: "Plain-Korean definition of a housing term, shared with the UI glossary (전세, 월세, 매매, 전세가율, LTV, DSR, 확정일자, 전입신고, 전세보증보험, 공공임대, 주거비 부담률, 혼잡도, 등기부등본).",
+    description: "Plain-Korean definition of a housing term, shared with the UI glossary (전세, 월세, 매매, 전세가율, LTV, DSR, 확정일자, 전입신고, 전세보증보험, 주거비 부담률, 혼잡도, 등기부등본).",
     parameters: { type: "object", additionalProperties: false,
       properties: {
         term: str("The term to define."),
@@ -492,7 +501,8 @@ async function update_scenario(session, patch) {
     try {
       const area = await needArea(session, h.area);
       const names = new Set((area.complexes || []).map((c) => c.name));
-      if (!names.has(h.complex_name)) {
+      if (!names.has(h.complex_name)
+        && !matchesIgnoringSpaces([...names], h.complex_name)) {
         return { ok: false, errors: [`homes: no complex named ${JSON.stringify(h.complex_name)} in ${h.area} — call list_complexes to pick a real one`] };
       }
     } catch (err) {
@@ -1153,7 +1163,8 @@ async function apply_persona(session, args) {
     try {
       const area = await needArea(session, h.area);
       const names = new Set((area.complexes || []).map((c) => c.name));
-      if (!names.has(h.complex_name)) {
+      if (!names.has(h.complex_name)
+        && !matchesIgnoringSpaces([...names], h.complex_name)) {
         return fail(`persona ${id}: no complex named ${JSON.stringify(h.complex_name)} in ${h.area}`);
       }
     } catch (err) {

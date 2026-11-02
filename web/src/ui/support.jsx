@@ -1,6 +1,5 @@
 // 지원 제도 한눈에 tab (React, Astryx). Same salary, what support
-// exists: public-rental candidates (stage-6 recommend, precomputed without
-// commute) plus policy-loan / youth / newly-wed condition comparisons.
+// exists: policy-loan / youth / newly-wed condition comparisons.
 // Row-by-row 대조 only — never "대상입니다".
 import { useState } from "react";
 import { Banner } from "@astryxdesign/core/Banner";
@@ -11,9 +10,6 @@ import { MetadataList, MetadataListItem } from "@astryxdesign/core/MetadataList"
 import { SegmentedControl, SegmentedControlItem } from "@astryxdesign/core/SegmentedControl";
 import { Text } from "@astryxdesign/core/Text";
 import { fmtWon } from "../money/format.js";
-import { ELIGIBILITY_NOTE } from "../money/housing.js";
-import { Gloss } from "./gloss.jsx";
-import { BURDEN_PLAIN_LABEL } from "./copy.js";
 import { compareAllSupport, SUPPORT_NOTE, SUPPORT_NEEDS_OFFICIAL } from "../money/support.js";
 
 // Engine results (충족/미충족/확인 필요) in the customer's words.
@@ -114,7 +110,6 @@ export function SupportTab({ state }) {
     has_newborn: ynTri(newborn),
   };
   const compared = supportDoc ? compareAllSupport(supportDoc, profile) : null;
-  const rentals = doc.support_rentals;
   return (
     <VStack gap={2}>
       <HStack gap={1} vAlign="center" wrap="wrap">
@@ -134,31 +129,6 @@ export function SupportTab({ state }) {
           <YesNo label="2년 안에 아기 출산·입양" value={newborn} onChange={setNewborn} />
         </HStack>
         <Text type="supporting">적은 값은 이 화면에서 조건을 비교할 때만 써요. 보증금을 비워두면 홈 A 전세 한가운데 값으로 둬요.</Text>
-      </VStack>
-      <VStack gap={1}>
-        <Heading level={4}><Gloss term="공공임대">공공임대</Gloss> 후보</Heading>
-        {!rentals && (
-          <Text type="supporting">후보 자료가 없어요. 상담에서 공공임대 후보를 물어보세요.</Text>
-        )}
-        {rentals && rentals.candidates.length === 0 && (
-          <Text type="supporting">감당할 수 있는 선 안에서 면적이 맞는 후보가 없어요.</Text>
-        )}
-        {rentals && rentals.candidates.map((c) => (
-          <VStack gap={1} key={`${c.complex_id}-${c.unit_type}`}>
-            <Text>{`${c.address} ${c.exclusive_area_m2}㎡`}</Text>
-            <Text type="supporting">
-              {`보증금 ${fmtWon(c.deposit_won)} · 월 ${fmtWon(c.monthly_rent_won)}`}
-              {c.burden_pct !== null ? ` · ${BURDEN_PLAIN_LABEL} ${c.burden_pct}%` : ""}
-              {" · 출퇴근 시간은 상담에서 확인해요 (걸어서 직접 잰 시간)"}
-            </Text>
-            {(c.notices || []).slice(0, 2).map((n) => (
-              <Text key={n.id} type="supporting">
-                <a href={n.source_url} target="_blank" rel="noreferrer">{n.title || "공고 원문"}</a>
-              </Text>
-            ))}
-          </VStack>
-        ))}
-        {rentals && <Text type="supporting">{ELIGIBILITY_NOTE}</Text>}
       </VStack>
       <VStack gap={1}>
         <Heading level={4}>빌릴 수 있는 돈·청년·신혼 도움 (조건을 한 줄씩 비교해요)</Heading>

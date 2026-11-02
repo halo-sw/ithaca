@@ -1413,14 +1413,18 @@ async function bootSim() {
   // Committed decision file overlay (?provider=meta|baseten): extras apply
   // only when the file's choice matches the run's (a rule fallback run
   // may choose differently — its own provenance then stands).
-  const judgeProvider = PARAMS.get("provider") || "meta";
+  // 41g: only request a decision file on an explicit ?provider= run —
+  // normal runs never wrote one, so never 404 one.
   const judgeExtras = new Map();
   try {
-    const r = await fetch(assetUrl(`/scenarios/decisions/${scenarioName}-${homeLabel}-${judgeProvider}.json`));
-    if (r.ok) {
-      const doc = await r.json();
-      for (const d of doc.decisions || []) judgeExtras.set(d.id, d);
-      console.log(`[sim] judge overlay: ${judgeExtras.size} records (${judgeProvider})`);
+    if (PARAMS.has("provider")) {
+      const judgeProvider = PARAMS.get("provider") || "meta";
+      const r = await fetch(assetUrl(`/scenarios/decisions/${scenarioName}-${homeLabel}-${judgeProvider}.json`));
+      if (r.ok) {
+        const doc = await r.json();
+        for (const d of doc.decisions || []) judgeExtras.set(d.id, d);
+        console.log(`[sim] judge overlay: ${judgeExtras.size} records (${judgeProvider})`);
+      }
     }
   } catch {
     // No committed decisions: the run's own provenance stands.

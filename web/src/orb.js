@@ -57,13 +57,11 @@ export function regionHoverFacts(regionId, { homes, manifest, rentalCoverage }) 
         && p.lat >= box[1] && p.lat <= box[3]).length;
     }
   }
-  const rentals = rentalCoverage && rentalCoverage[regionId];
   return {
     region: regionId,
     homes: list.length,
     jeonse60MedianWon: median(jeonse60),
     photos,
-    publicRental: Boolean(rentals && rentals.present),
   };
 }
 

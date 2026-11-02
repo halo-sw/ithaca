@@ -33,9 +33,9 @@ export const ENGINE_DEFAULTS = {
   commute_sort: { value: "commute", note: "기본 정렬: 출퇴근 짧은 순" },
 };
 
-export const TENURES = ["jeonse", "wolse", "trade", "public", "undecided"];
+export const TENURES = ["jeonse", "wolse", "trade", "undecided"];
 export const TENURE_KO = {
-  jeonse: "전세", wolse: "월세", trade: "매매", public: "공공임대",
+  jeonse: "전세", wolse: "월세", trade: "매매",
   undecided: "아직 모름",
 };
 
@@ -207,7 +207,7 @@ function findMoney(text) {
 // --- extract_profile -----------------------------------------------------------
 
 const TENURE_WORDS = [
-  ["공공임대", "public"], ["전세", "jeonse"], ["월세", "wolse"], ["매매", "trade"],
+  ["전세", "jeonse"], ["월세", "wolse"], ["매매", "trade"],
 ];
 
 function findTenure(text) {
@@ -219,8 +219,7 @@ function findTenure(text) {
   }
   // English cues (24b): word-bounded, case-insensitive, Korean first.
   const en = [
-    [/\bpublic\s+(?:rental|housing)\b/i, "public"],
-    [/\bjeonse\b|\bchonsei\b/i, "jeonse"],
+    [/\bjeonse\b|\bchonsei\b|\bdeposit[-\s]+lease\b|\blump\s*-\s*sum\s+deposit\b|\bkey\s+money\b/i, "jeonse"],
     [/\bmonthly\s+rent\b|\bwolse\b/i, "wolse"],
     [/\bbuy\b|\bpurchase\b|\bbuying\b/i, "trade"],
     [/\bnot\s+sure\b|\bundecided\b|\bdon't\s+know\s+yet\b/i, "undecided"],
@@ -233,7 +232,7 @@ function findTenure(text) {
 }
 
 function findMembers(text) {
-  const two = ["부부", "신혼", "둘이", "2인", "두 사람", "맞벌이"];
+  const two = ["부부", "신혼", "둘이", "2인", "두 사람", "두 명", "두명", "2명", "맞벌이"];
   const child = ["아이", "자녀", "초등", "어린이", "애기", "아기"];
   const one = ["혼자", "신입", "1인", "나 혼자", "자취"];
   // English cues (24b): word-bounded, case-insensitive, Korean first.
@@ -943,7 +942,7 @@ export function extract_profile(text, current = null, opts = {}) {
     };
   }
   const tenureNow = profile.tenure.value;
-  if (depositHit && (tenureNow === "jeonse" || tenureNow === "wolse" || tenureNow === "public")
+  if (depositHit && (tenureNow === "jeonse" || tenureNow === "wolse")
       && profile.depositMax.value === null) {
     set("depositMax", depositHit.won, depositHit.evidence,
       `${TENURE_KO[tenureNow] || ""} 보증금 상한`);
@@ -1081,8 +1080,8 @@ export function missingQuestions(profile) {
       out.push({ field: "cash", ask: "집 사는 데 쓸 수 있는 모은 돈은 얼마예요? (대출 계산에 써요)" });
     }
   } else if (!tenure) {
-    out.push({ field: "tenure", ask: "전세·월세·매매·공공임대 중 어떻게 살고 싶으세요?" });
-  } else if (tenure === "jeonse" || tenure === "wolse" || tenure === "public") {
+    out.push({ field: "tenure", ask: "전세·월세·매매 중 어떻게 살고 싶으세요?" });
+  } else if (tenure === "jeonse" || tenure === "wolse") {
     if (v("depositMax") === null && !isUsd) {
       out.push({ field: "depositMax", ask: "보증금은 얼마까지 생각하세요? (예: 2억 이하)" });
     }
@@ -1225,6 +1224,22 @@ export function memberLabelEn(label) {
   m = /^구성원 (\d+)$/.exec(label);
   if (m) return `Member ${m[1]}`;
   return label;
+}
+
+// 41g: a member label mid-sentence reads lowercase ("You averaged
+// 13.9 minutes and your partner averaged 13.9 minutes one-way"),
+// never "Your partner". Sentence-start capitals stay untouched.
+const MID_SENTENCE_LABELS = ["Your partner", "Your child", "Your parent",
+  "Your sibling", "Your housemate", "You"];
+
+export function lowerMidSentenceMemberLabels(text) {
+  let s = String(text || "");
+  for (const label of MID_SENTENCE_LABELS) {
+    const low = label.charAt(0).toLowerCase() + label.slice(1);
+    const esc = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    s = s.replace(new RegExp(`(\\b(?:and|or|but)\\s+)${esc}\\b`, "g"), `$1${low}`);
+  }
+  return s;
 }
 
 export function memberLabelKo(label) {

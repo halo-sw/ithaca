@@ -11,7 +11,7 @@ describe("sources page data", () => {
   it("covers every source named in ATTRIBUTION.md", () => {
     const attr = readFileSync(join(ROOT, "ATTRIBUTION.md"), "utf8");
     const need = ["OpenStreetMap", "Geofabrik", "GIS건물통합정보",
-      "건축물대장", "실거래가", "공공주택", "경찰청",
+      "건축물대장", "실거래가", "경찰청",
       "혼잡도", "역간거리", "Commons", "주택도시기금", "전세사기",
       "Terrain Tiles"];
     for (const word of need) {

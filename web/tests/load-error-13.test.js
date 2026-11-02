@@ -7,7 +7,7 @@ describe("explainLoadError", () => {
     const e = explainLoadError({ feature: "rentals",
       cause: "not-built", detail: { file: "region/housing.json",
         command: ".venv/bin/python -m pipeline housing" } });
-    assert.match(e.title, /공공임대/);
+    assert.match(e.title, /자료가 아직 안 만들어졌어요/);
     assert.match(e.body, /region\/housing.json/);
     assert.match(e.body, /pipeline housing/);
     assert.match(e.body, /민간 매물 후보/);

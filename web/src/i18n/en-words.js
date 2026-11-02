@@ -10,7 +10,7 @@ export const WORDS = {
   "나": "me", "배우자": "spouse", "부모": "parents", "식구": "household", "식구들": "household",
   "구성원": "member", "본인": "me",
   // housing and money
-  "전세": "jeonse", "월세": "monthly rent", "반전세": "semi-jeonse", "매매": "purchase",
+  "전세": "deposit lease", "월세": "monthly rent", "반전세": "part-deposit rent", "매매": "purchase",
   "공공임대": "public rental", "보증금": "deposit", "관리비": "maintenance fee",
   "오피스텔": "officetel", "아파트": "apartment", "빌라": "villa", "원룸": "studio",
   "연립·다세대": "multi-unit house", "다세대": "multi-unit house", "연립": "row house",

@@ -69,7 +69,6 @@ export const FEATURE_KO = {
   jeonse: "전세 점검",
   money: "돈 계산",
   safety: "안심 정보",
-  rentals: "공공임대",
   support: "도움 제도",
   photos: "사진",
   model: "모델 답변",

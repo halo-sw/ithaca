@@ -13,6 +13,7 @@ import { createStreetHandler } from "./street.js";
 import { createConsultHandler, httpReadText, readBody } from "../web/src/consult/server.js";
 import { VOICE_MAX_BYTES, createTranscribeHandler } from "../web/src/consult/voice.js";
 import { BYOK_HEADER } from "../web/src/consult/byok.js";
+import { SESSION_HEADER } from "../web/src/chat/session-id.js";
 // Model endpoints this relay calls with the server key: Meta (META_API_BASE) for chat and voice; Baseten (BASETEN_API_BASE) only with a browser-supplied key.
 export { META_API_BASE, BASETEN_API_BASE } from "../web/src/judge/providers.js";
 import { metaApiKey } from "../web/src/judge/providers.js";
@@ -111,6 +112,49 @@ export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(
   const consult10 = new Map();
   const consultDay = new Map();
   const consultGlobal = [];
+  // 41f: Muse Spark Open on the server key has its own global day
+  // bucket (150/day) so open-weights traffic never eats the main
+  // budget. BYOK baseten calls count here too.
+  const consultGlobalBaseten = [];
+  // 41e: one server-key chat session per IP — the first session id
+  // seen on the server key is remembered for 24 h; a different (or
+  // missing) session id from the same IP is refused without a model
+  // call. BYOK requests (x-model-key) skip this rule entirely.
+  const serverKeyUse = new Map();
+  const SERVER_KEY_SESSION_TTL_MS = 86400000;
+  const SERVER_KEY_SESSION_MAX = 10000;
+
+  // True when a server-key request must be refused: the IP already
+  // spent its session on another (or an unknown) session id.
+  // Requests without a session id never record — refused when the
+  // IP already used one, allowed otherwise.
+  function serverKeySessionBlocked(client, session, t) {
+    const rec = serverKeyUse.get(client);
+    if (rec) {
+      if (t - rec.t >= SERVER_KEY_SESSION_TTL_MS) {
+        serverKeyUse.delete(client);
+      } else if (session !== rec.session) {
+        return true;
+      } else {
+        return false;
+      }
+    }
+    if (session) {
+      if (serverKeyUse.size >= SERVER_KEY_SESSION_MAX) {
+        for (const [key, value] of serverKeyUse) {
+          if (t - value.t >= SERVER_KEY_SESSION_TTL_MS) serverKeyUse.delete(key);
+          if (serverKeyUse.size < SERVER_KEY_SESSION_MAX) break;
+        }
+        while (serverKeyUse.size >= SERVER_KEY_SESSION_MAX) {
+          const oldest = serverKeyUse.keys().next();
+          if (oldest.done) break;
+          serverKeyUse.delete(oldest.value);
+        }
+      }
+      serverKeyUse.set(client, { session, t });
+    }
+    return false;
+  }
   const tilesHour = new Map();
   // 32c: street-level photos (Mapillary) — the token stays server-side
   // (env only, never logged, never echoed, never sent to the browser).
@@ -187,7 +231,7 @@ export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(
       res.statusCode = 204;
       if (cors) res.setHeader("Access-Control-Allow-Origin", cors);
       res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-      res.setHeader("Access-Control-Allow-Headers", `content-type, ${BYOK_HEADER}`);
+      res.setHeader("Access-Control-Allow-Headers", `content-type, ${BYOK_HEADER}, ${SESSION_HEADER}`);
       res.setHeader("Vary", "Origin");
       res.end();
       return;
@@ -241,7 +285,7 @@ export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(
         ok: true,
         meta: { hasServerKey: Boolean(metaApiKey(env)) },
         voice: { hasServerKey: Boolean(metaApiKey(env)) },
-        baseten: { hasServerKey: false },
+        baseten: { hasServerKey: Boolean(env.BASETEN_API_KEY) },
         recorded: { hasServerKey: true },
         relay: true,
       }, cors);
@@ -278,6 +322,17 @@ export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(
     }
 
     if (path === "/api/consult") {
+      // 41e: server key only — one chat session per IP. BYOK
+      // requests keep their current buckets, unchecked here.
+      const byok = reqHeader(req, BYOK_HEADER);
+      if (!byok) {
+        const rawSession = reqHeader(req, SESSION_HEADER);
+        const session = typeof rawSession === "string" ? rawSession.slice(0, 64) : "";
+        if (serverKeySessionBlocked(client, session, t)) {
+          sendJson(res, 429, { ok: false, error: "server_key_used", byok: true }, cors);
+          return;
+        }
+      }
       const over = Math.max(
         checkBucket(consult10, client, t, 600000, 20),
         checkBucket(consultDay, client, t, DAY_MS, 100),
@@ -287,10 +342,10 @@ export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(
         sendLimited(res, over, cors);
         return;
       }
-      // Peek at the provider so non-BYOK browsers stay on the recorded
-      // demo path: without the BYOK header only "meta" (or missing) is
-      // allowed. Buffer the body once and hand it to the handler parked
-      // on req.body so it is read exactly once.
+      // Peek at the provider first: the baseten day bucket below
+      // applies to every open-weights call (BYOK or server key).
+      // Buffer the body once and hand it to the handler parked on
+      // req.body so it is read exactly once.
       let provider;
       try {
         const raw = await readBody(req);
@@ -303,10 +358,26 @@ export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(
       } catch {
         provider = undefined;
       }
-      const byok = reqHeader(req, BYOK_HEADER);
-      if (!byok && provider !== undefined && provider !== "meta") {
-        sendJson(res, 400, { ok: false, error: "provider" }, cors);
+      if (provider === "baseten"
+        && checkGlobal(consultGlobalBaseten, t, DAY_MS, 150) > 0) {
+        sendJson(res, 429, { ok: false, error: "open_limit" }, cors);
         return;
+      }
+      // 41f: without the BYOK header, "meta" (or missing) stays on the
+      // server key as before; "baseten" needs BASETEN_API_KEY on the
+      // server. Anything else is rejected.
+      if (!byok) {
+        if (provider === undefined || provider === "meta") {
+          /* server key path, allowed */
+        } else if (provider === "baseten") {
+          if (!env.BASETEN_API_KEY) {
+            sendJson(res, 400, { ok: false, error: "provider" }, cors);
+            return;
+          }
+        } else {
+          sendJson(res, 400, { ok: false, error: "provider" }, cors);
+          return;
+        }
       }
       corsHeaders(res, cors);
       return consultHandler(req, res);

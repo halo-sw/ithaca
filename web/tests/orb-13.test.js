@@ -42,11 +42,9 @@ describe("orb data builder", () => {
     assert.equal(facts.homes, 2);
     assert.equal(facts.jeonse60MedianWon, 400000000);
     assert.equal(facts.photos, 2);
-    assert.equal(facts.publicRental, true);
     const empty = regionHoverFacts("gangnam",
       { homes: HOMES, manifest: MANIFEST, rentalCoverage: {} });
     assert.equal(empty.homes, 0);
     assert.equal(empty.jeonse60MedianWon, null);
-    assert.equal(empty.publicRental, false);
   });
 });

@@ -6,11 +6,11 @@ import { purchaseCosts } from "./purchase.js";
 // monthly rent; 전세 = interest-only on min(loan, jeonse_loan_cap_won)
 // (the rest is a separately-arranged shortfall amount, never a lending
 // verdict); 매매 = amortised payment on (price − cash) over loan_years
-// at loan_rate_pct; 공공임대 = API deposit + monthly rent. The app never
+// at loan_rate_pct. The app never
 // judges loan eligibility (LTV·DSR) or move-in eligibility — the
 // disclaimer says so on screen.
 
-export const TENURES = ["매매", "전세", "월세", "공공임대"];
+export const TENURES = ["매매", "전세", "월세"];
 
 export const JEONSE_LOAN_CAP_DEFAULT_WON = 500000000;
 
@@ -45,7 +45,7 @@ export function wonShort(v) {
   return `${n.toLocaleString("ko-KR")}원`;
 }
 
-// args: {tenure, price_won (매매가|전세금), deposit_won (월세/공공 보증금),
+// args: {tenure, price_won (매매가|전세금), deposit_won (월세 보증금),
 //        monthly_rent_won, cash_won, loan_rate_pct, loan_years,
 //        jeonse_loan_cap_won, source}
 // Returns {tenure, monthly_won, upfront_won, loan_won, cash_used_won,
@@ -67,16 +67,14 @@ export function tenureCost(args = {}) {
     source, rate_pct: rate, years,
   });
 
-  if (tenure === "월세" || tenure === "공공임대") {
+  if (tenure === "월세") {
     const deposit = Math.max(0, Math.round(Number(args.deposit_won) || 0));
     const monthly = Math.max(0, Math.round(Number(args.monthly_rent_won) || 0));
     return out(monthly, deposit, 0, {
-      kind: tenure === "월세" ? "wolse" : "public",
+      kind: "wolse",
       deposit_won: deposit,
       monthly_rent_won: monthly,
-      note: tenure === "월세"
-        ? "보증금은 가진 돈에서 먼저 내고, 월세만 매달 내는 것으로 계산해요."
-        : "공공임대 공식 자료의 보증금·월 임대료 그대로 계산해요.",
+      note: "보증금은 가진 돈에서 먼저 내고, 월세만 매달 내는 것으로 계산해요.",
     });
   }
   if (tenure === "전세") {

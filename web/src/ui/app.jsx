@@ -952,7 +952,6 @@ export function CompareCard({ state, bare }) {
       {tab === "jeonse" && <JeonseTab state={state} />}
       {tab === "support" && <SupportTab state={state} />}
       {tab === "listings" && <ListingsTab state={state} />}
-      {tab === "listings-public" && <ListingsTab state={state} sub="public" />}
       {tab === "criteria" && <CriteriaTab state={state} />}
     </VStack>
   );
@@ -1076,7 +1075,7 @@ function AttrLine({ state }) {
             ? "© OpenStreetMap contributors (ODbL) · 지도·항공사진: USGS The National Map · 월세: Zillow ZORI (ZIP 추정, 참고용) · 나무·인물은 장식용 모의 표시"
             : (<>
               © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors (ODbL) · GIS건물통합정보 (국토교통부/VWorld) · 나무·인물은 장식용 모의 표시
-              {money && " · 실거래: 국토교통부 실거래가 공개시스템(참고용) · 공공임대: LH·마이홈 (공공주택 데이터 API)"}
+              {money && " · 실거래: 국토교통부 실거래가 공개시스템(참고용)"}
               {jeonse && " · 실거래: 국토교통부 실거래가 공개시스템(참고용) · 등기: GIS건물통합정보 · 체크리스트: 인터넷등기소·정부24·HUG/HF/SGI"}
               {safety && " · 치안: 경찰청 범죄 발생 지역별 통계 (2025년)"}
               {congestion && " · 혼잡도: 서울교통공사 지하철혼잡도정보(2026-09-30 기준, 공공누리 3유형)"}

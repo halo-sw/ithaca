@@ -58,7 +58,7 @@ async function demoScenario() {
 }
 
 describe("consult tools", () => {
-  it("exposes the forty-three documented tools", () => {
+  it("exposes the forty documented tools", () => {
     assert.deepEqual([...TOOL_NAMES].sort(), [
       "compare", "explain_decision", "find_places", "get_day", "get_fatigue", "get_journey",
       "get_scenario",
@@ -66,16 +66,15 @@ describe("consult tools", () => {
       "set_view", "update_scenario",
       "list_criteria", "explain_criterion",
       "set_money", "estimate_net_pay", "price_reference", "living_cost",
-      "recommend_public_rental", "add_home_c",
       "apply_persona", "get_priorities", "set_priorities",
       "get_safety", "get_education", "define_term",
       "worth_it", "jeonse_check", "mock_deposit_loss", "support_programs",
       "parse_listing", "check_listing", "add_listing_c",
-      "extract_profile", "find_homes", "find_public_rentals", "build_scenario",
+      "extract_profile", "find_homes", "build_scenario",
       "neighborhood", "open_panel", "pick_homes", "start_life_run",
       "submit_report",
     ].sort());
-    assert.equal(TOOL_DEFS.length, 43);
+    assert.equal(TOOL_DEFS.length, 40);
     assert.equal(MAX_TOOL_ROUNDS, 6);
     for (const t of TOOL_DEFS) {
       assert.equal(t.type, "function");

@@ -38,7 +38,6 @@ export const TENURE_PLAIN_LEAD = {
   "매매": "내 집 마련해 살면",
   "전세": "전세로 살면",
   "월세": "월세로 살면",
-  "공공임대": "공공임대로 살면",
 };
 
 export function monthlyHousingLabel(tenure) {
@@ -56,7 +55,7 @@ export const HOW_CALCULATED = "어떻게 계산했나요?";
 const MEASURED_SOURCES = new Set([
   "서울교통공사", "실측", "실거래", "rtms", "graph", "그래프",
   "register", "관청 자료", "건축물대장", "police", "경찰청",
-  "housing_api", "공공임대", "network", "schedule", "photos",
+  "housing_api", "network", "schedule", "photos",
 ]);
 
 export function sourceBadgeFor(source) {

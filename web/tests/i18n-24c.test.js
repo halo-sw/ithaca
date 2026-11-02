@@ -64,10 +64,10 @@ describe("24c words before romanizing", () => {
   const { translate } = createTranslator({ phrases, patterns, words: WORDS });
   it("joined persona label reads as words", () => {
     assert.equal(translate("강남 출근 · 1인 · 전세 3억 원 이하"),
-      "Gangnam commute · 1 person · jeonse ₩300M or less");
+      "Gangnam commute · 1 person · deposit lease 300,000,000 won or less");
   });
   it("eok + man money localizes through the word path", () => {
-    assert.equal(translate("전세 2억 6,000만 원"), "jeonse ₩260M");
+    assert.equal(translate("전세 2억 6,000만 원"), "deposit lease 260,000,000 won");
   });
   it("station + on foot keeps the name readable", () => {
     const out = translate("잠실역까지 걸어서");

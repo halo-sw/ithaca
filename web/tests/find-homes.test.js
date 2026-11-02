@@ -1,8 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
-  find_homes, find_public_rentals, pickBucket, budgetFit, commuteLine,
-  amenityMinutes, publicRentalCoverage, regionOfAddress, NO_PUBLIC_RENTAL_NOTE,
+  find_homes, pickBucket, budgetFit, commuteLine,
+  amenityMinutes,
   DEFAULT_HOME_SORT, HOME_SORTS, HOME_SORT_KO,
 } from "../src/homes.js";
 import { field, emptyProfile } from "../src/profile.js";
@@ -244,47 +244,6 @@ describe("must-haves on the graph", () => {
       mustHaves: field(["초등학교 도보 3분"], "customer", ""),
     });
     assert.equal(find_homes(strict, { homes: [home()] }, { boxes }).total_matching, 0);
-  });
-});
-
-describe("find_public_rentals", () => {
-  const SNAP = {
-    complexes: [
-      { name: "행복주택", address: "서울특별시 송파구 문정동",
-        unit_types: [{ unit_type: "26A", building_type: "아파트",
-          exclusive_area_m2: 26, deposit_won: 30000000, monthly_rent_won: 200000 }] },
-      { name: "먼행복", address: "경기도 하남시 망월동",
-        unit_types: [{ unit_type: "36A", building_type: "아파트",
-          exclusive_area_m2: 36, deposit_won: 900000000, monthly_rent_won: 500000 }] },
-    ],
-  };
-
-  it("applies budget rules and sorts by monthly", () => {
-    const p = profile({
-      tenure: field("public", "customer", ""),
-      monthlyMax: field(300000, "customer", ""),
-    });
-    const r = find_public_rentals(p, SNAP);
-    assert.equal(r.total_matching, 1);
-    assert.equal(r.candidates[0].complex_name, "행복주택");
-    assert.match(r.sort_note, /매달 드는 돈/);
-    assert.match(r.eligibility_note, /공고 원문/);
-  });
-
-  it("reports per-region coverage honestly", () => {
-    const cov = publicRentalCoverage(SNAP, ["songpa-gu", "gangnam"]);
-    assert.equal(cov["songpa-gu"].present, true);
-    assert.equal(cov["gangnam"].present, false);
-    assert.equal(NO_PUBLIC_RENTAL_NOTE, "이 지역 공공임대 자료 없음");
-  });
-
-  it("parses 시군구 segments, not road-name substrings", () => {
-    assert.equal(regionOfAddress("서울특별시 송파구 위례성대로8길 46"), "songpa-gu");
-    assert.equal(regionOfAddress("서울특별시 송파구 강동대로5길 14"), "songpa-gu");
-    assert.equal(regionOfAddress("강남구 삼성동 140-32"), "gangnam");
-    assert.equal(regionOfAddress("경기도 성남시 분당구 정자일로 1"), "bundang");
-    assert.equal(regionOfAddress("경기도 하남시 위례동"), "wirye");
-    assert.equal(regionOfAddress("부산광역시 해운대구"), null);
   });
 });
 

@@ -31,8 +31,6 @@ export const DEMO_TOUR_STEPS = [
     secs: 10, params: { home: "A", tab: "money" } },
   { id: "listing", caption: "매물 붙여넣기 — 예시 글로 확인해 보기",
     secs: 12, params: { home: "A", tab: "listings", fill: "example" } },
-  { id: "public", caption: "공공임대 — 직장 근처 공고 찾기",
-    secs: 10, params: { home: "A", tab: "listings", sub: "public" } },
   { id: "agent", caption: "상담 — B로 바꾸면 어떻게 달라질까요?",
     secs: 14, params: { home: "A", agent: "1", ask: "switch" } },
   { id: "share", caption: "결과 공유 — 그림으로 저장하고 인쇄하기",

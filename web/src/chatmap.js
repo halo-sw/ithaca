@@ -295,11 +295,46 @@ export function extractGreenRings(landuse) {
 
 // Door-to-work minutes: the fastest mode (29N2b best) for US homes,
 // else the labelled Caltrain total, else (commute.work) when known,
-// else the walk + ride sum.
-export function commuteMinutesOf(candidate) {
+// else the walk + ride sum. 41g: with a run mode (walk/bike — the mode
+// the 30-day run used for that home) the pin shows that mode's
+// minutes, never the other mode's.
+// 41g: the last-mile mode the 30-day run used for a home — "bike"
+// when a ride away records a bike destination walk, "walk" when the
+// run records destination walks without one, else null (never a guess).
+export function runCommuteModeOf(run) {
+  let walked = false;
+  for (const a of (run && run.aways) || []) {
+    const dw = a && a.detail && a.detail.dest_walk;
+    if (dw) {
+      if (dw.mode === "bike") return "bike";
+      walked = true;
+      continue;
+    }
+    // 41j: direct walk/bike commutes (Meta HQ A/B) never ride, so no
+    // ride away carries dest_walk — the work away stamps detail.commute
+    // as the plain string "walk"/"bike", and the commute trips carry
+    // purpose "commute" (bike trips tag mode "bike", walks no mode).
+    const cm = a && a.detail && a.detail.commute;
+    if (cm === "bike") return "bike";
+    if (cm === "walk") walked = true;
+  }
+  for (const t of (run && run.trips) || []) {
+    if (!t || t.purpose !== "commute") continue;
+    if (t.mode === "bike") return "bike";
+    walked = true;
+  }
+  return walked ? "walk" : null;
+}
+
+export function commuteMinutesOf(candidate, runMode = null) {
+  const cc = (candidate && candidate.commute) || {};
+  if ((runMode === "walk" || runMode === "bike") && cc.work) {
+    const w = runMode === "walk" ? cc.work.walk_minutes : cc.work.bike_minutes;
+    if (Number.isFinite(w)) return Math.round(w * 10) / 10;
+  }
   if (candidate && Number.isFinite(candidate.best_min)) return candidate.best_min;
   if (candidate && Number.isFinite(candidate.corridor_min)) return candidate.corridor_min;
-  const c = (candidate && candidate.commute) || {};
+  const c = cc;
   const workMin = c.work && c.work.minutes;
   if (Number.isFinite(workMin)) return Math.round(workMin * 10) / 10;
   const walk = (c.walk && c.walk.known ? c.walk.minutes : 0) || 0;
@@ -408,7 +443,7 @@ export function buildChatMap({ regions, network, tiles, green, candidates, picks
     lat: c.lat,
     picked: picked.has(c.id),
     letter: letterOf.get(c.id) || null,
-    commuteMin: commuteMinutesOf(c),
+    commuteMin: commuteMinutesOf(c, c.runMode || c.run_mode || null),
     candidate: c,
   })).filter((p) => Number.isFinite(p.lon) && Number.isFinite(p.lat));
   const workStop = findStop(network, workplaceStation);
@@ -550,8 +585,9 @@ export function tagHeaderFor(pin, lang) {
 
 const TENURE_FIRST = { jeonse: "전", wolse: "월", monthly: "월", sale: "매", maemae: "매" };
 
-// 31j: English tenure initials over the card's short money style
-// (`J ₩260M`, `M ₩600K / ₩10M`, `S ₩300M`). USD stays `$4,261`.
+// 31j: English tenure initials over the card's full-digit money style
+// (41i: `J 260,000,000 won`, `M 600,000 won / 10,000,000 won`,
+// `S 300,000,000 won` — never ₩, never K/M/B). USD stays `$4,261`.
 // 34a: built from the tenure numbers (never by the DOM translator),
 // Korean output byte-identical.
 const TENURE_FIRST_EN = { jeonse: "J", wolse: "M", monthly: "M", sale: "S", maemae: "S" };
@@ -1436,7 +1472,11 @@ export function layoutChatStage({ focus, specs, W, H, pad, obstacles,
   // 29M2c: neighbourhoods freeze at the pin-fit zoom — refit passes
   // only pull constant-size boxes back inside, never regroup (a
   // zoomed-out refit would otherwise merge far pins into the card).
-  const fixedGroups = groupTightAnchors(anchorHomes(fitMapView(focus, w, h, MAP_FIT_MARGIN, pad)),
+  // 41g: picked (A/B) homes never join a group — they always keep
+  // their own pin next to the others, never only a cluster row.
+  const groupables = anchorHomes(fitMapView(focus, w, h, MAP_FIT_MARGIN, pad))
+    .filter((m) => !(m.pin && m.pin.picked));
+  const fixedGroups = groupTightAnchors(groupables,
     GROUP_CARD_PX).filter((g) => g.length <= 8)
     .map((g) => new Set(g.map((m) => m.id)));
   const pass = (fit) => {

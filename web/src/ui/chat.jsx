@@ -56,7 +56,9 @@ import {
 import { selectPhotosForList } from "../places/select-photos.js";
 import { newUsageLog, recordTurn } from "../models/catalog.js";
 import { loadByoKey } from "../consult/byok.js";
-import { buildChatMap, extractGreenRings } from "../chatmap.js";
+import { rotateChatSessionId } from "../chat/session-id.js";
+import { ModelPanel } from "./model-panel.jsx";
+import { buildChatMap, extractGreenRings, runCommuteModeOf } from "../chatmap.js";
 import { ChatMap } from "./chatmap.jsx";
 import { mapFilterChips, filterPatch } from "./map-filters.js";
 import { defaultOverrides, setOverride, resetOverride,
@@ -79,7 +81,7 @@ import { SupportTab } from "./support.jsx";
 import { PasteCheck } from "./listings.jsx";
 import { HOME_SORTS, HOME_SORT_KO, HOME_SORT_SHORT_KO, applyKindPreference, usEmptyHint, displayNameFor } from "../homes.js";
 import { chipSourceIds } from "../sources.js";
-import { META_HQ_EXAMPLE, US_REGION_IDS } from "../places-us.js";
+import { META_HQ_EXAMPLE, META_HQ_EXAMPLE_KO, US_REGION_IDS } from "../places-us.js";
 import { EXAMPLE_PROFILE_LABEL, noCommuteEntry } from "../profile.js";
 import { outingsFor, hhmm } from "../timeline.js";
 import { runDigest } from "../diary/digest.js";
@@ -102,7 +104,10 @@ import { chatUrl, simMomentUrl, tourUrl, withoutEmbed, saveTranscript, loadTrans
   clearTranscript, parseChatSearch } from "../chat/urls.js";
 import { recordingUrl, validateRecording, replaySchedule, replayRunPlan, RECORDINGS } from "../chat/recording.js";
 import { ruleTurnPlan } from "../chat/intent.js";
-import { postConsultStream, postDiary, postReportStream, loadScenario } from "./consult-client.js";
+import { postConsultStream, postDiary, postReportStream, loadScenario, basetenFallbackProvider } from "./consult-client.js";
+import { loadProviderChoice, saveProviderChoice, isValidProvider,
+  offerOpenWeights, providerLabel, openFallbackLine, recordedModelOf,
+  OPEN_MODEL_HINT } from "./provider-switch.js";
 import { shouldCallMuse, isNoKeyError, KEYLESS_LINE,
   getMuseLive, getMuseStatus, subscribeMuseLive, setMuseLive, refreshMuseLive } from "./muse-status.js";
 import { voiceSupported, voiceKeyReady } from "./voice.js";
@@ -439,14 +444,25 @@ export function diaryFallbackLine(oneWay, names, lang = "ko") {
   const nmB = (names && names.B) || "B";
   const hasC = names && names.C !== undefined && names.C !== null && names.C !== "";
   if (lang === "en") {
+    // 41i: the model reads the same English names the cards show —
+    // a Korean raw name becomes its homeNameEn here too.
+    const enName = (n, fb) => {
+      const s = (n === undefined || n === null || n === "") ? fb : String(n);
+      return /[가-힣]/.test(s) ? homeNameEn(s) : s;
+    };
+    const enNames = {
+      A: enName(names && names.A, "A"),
+      B: enName(names && names.B, "B"),
+      ...(hasC ? { C: enName(names.C, "C") } : {}),
+    };
     const fmt = (v) => (v === null || v === undefined || v === "" || Number.isNaN(Number(v))
       ? "–" : `${Math.round(Number(v))} min`);
     const a = fmt(oneWay && oneWay.A);
     const b = fmt(oneWay && oneWay.B);
-    let line = `Finished living there. A ${nmA}: average one-way commute ${a}; B ${nmB}: ${b}. Couldn't write the diary this time.`;
+    let line = `Finished living there. A ${enNames.A}: average one-way commute ${a}; B ${enNames.B}: ${b}. Couldn't write the diary this time.`;
     if (hasC) {
       const c = fmt(oneWay && oneWay.C);
-      line = `Finished living there. A ${nmA}: average one-way commute ${a}; B ${nmB}: ${b}; C ${names.C}: ${c}. Couldn't write the diary this time.`;
+      line = `Finished living there. A ${enNames.A}: average one-way commute ${a}; B ${enNames.B}: ${b}; C ${enNames.C}: ${c}. Couldn't write the diary this time.`;
     }
     return line;
   }
@@ -1382,12 +1398,12 @@ export function CardMsg({ msg, handlers, toolRows, cardHi }) {
         )}
       </ChatMessageBubble>
       <ToolRows rows={rows} />
-      <CiteRows tools={tools} sourceIds={chipIds} toolCalls={msg.tool_calls || []} />
+      <CiteRows tools={tools} sourceIds={chipIds} toolCalls={msg.tool_calls || []} usSession={currencyOf(handlers.profile) === "USD"} />
     </ChatMessage>
   );
 }
 
-const CHAT_CHIPS = ["매물 글 붙여 넣기", "공공임대 찾기", "도움 제도 보여줘"];
+const CHAT_CHIPS = ["매물 글 붙여 넣기", "도움 제도 보여줘"];
 
 // 26e: USD customers get sort chips instead of the Korean-only ones.
 // They map to find_homes sorts (HOME_SORTS): commute / monthly.
@@ -1663,7 +1679,7 @@ export function ThreadList({ children }) {
   );
 }
 
-const US_NO_JEONSE_SUPPORT = "미국 자료에는 전세·공공임대·지원 제도 정보가 없어요.";
+const US_NO_JEONSE_SUPPORT = "미국 자료에는 전세·지원 제도 정보가 없어요.";
 
 const GREETING = [
   "안녕하세요! 집 찾기를 도와드려요.",
@@ -1672,6 +1688,9 @@ const GREETING = [
 ].join("\n");
 
 const NO_KEY_NOTICE = "이 질문은 개발 서버 + 키에서 답해요 (기록된 화면에서는 물음에 답만 해요). 상황·후보·살아 보기는 키 없이도 돼요.";
+// 41e: the relay's server key serves one chat session per IP
+// (English via the i18n table).
+const SERVER_KEY_USED_LINE = "무료 체험 대화는 한 번만 쓸 수 있어요. 계속하려면 내 모델 키를 넣어 주세요.";
 const STATIC_OFF_LINE = "공개 사이트에서는 Muse와 대화하기가 꺼져 있어요 (키 보호). 조건 읽기·후보·30일 살아 보기는 그대로 돼요.";
 
 // --- ?agent=1 card for sim/tour screens (replaces the floating panel) ---------------------
@@ -1860,7 +1879,15 @@ export function ChatScreen() {
   const [error, setError] = useState("");
   // 13f: usage lives in the 설정 sheet's 모델 section (usage log).
   const [usageLog, setUsageLog] = useState(() => newUsageLog());
-  const [provider, setProvider] = useState("meta");
+  // 41f: the header model switch — the choice rides on every
+  // /api/consult call (chat, report, diary) and persists for the
+  // rest of the session (sessionStorage, never throws).
+  const [provider, setProviderRaw] = useState(() => loadProviderChoice());
+  const setProvider = (v) => {
+    if (!isValidProvider(v)) return;
+    setProviderRaw(v);
+    saveProviderChoice(v);
+  };
   const [view, setView] = useState("chat");
   // 26p: phones show the pane toggle (대화 / 지도·후보) on its own row
   // under the top bar; wider screens keep it inside the bar (extra).
@@ -1974,6 +2001,16 @@ export function ChatScreen() {
     if (keylessNoticedRef.current) return;
     keylessNoticedRef.current = true;
     pushMsg({ role: "system", kind: "system", content: KEYLESS_LINE });
+  };
+
+  // 41e: the IP's free server-key session is spent — said once, with
+  // the key panel inline. Never retried; the rule flow still answers.
+  const serverKeyUsedNoticedRef = useRef(false);
+  const [byokOpen, setByokOpen] = useState(false);
+  const noticeServerKeyUsedOnce = () => {
+    if (serverKeyUsedNoticedRef.current) return;
+    serverKeyUsedNoticedRef.current = true;
+    pushMsg({ role: "assistant", kind: "byok", content: SERVER_KEY_USED_LINE });
   };
 
   // --- data (loaded once, cached) ---
@@ -2363,29 +2400,42 @@ export function ChatScreen() {
     }
     setMessages((prev) => prev.map((m) => (m.id === simId
       ? { ...m, data: { ...m.data, report: { status: "checking", persona, attempts: [] } } } : m)));
-    let byoKey = "";
-    try {
-      byoKey = loadByoKey(typeof sessionStorage !== "undefined" ? sessionStorage : null, provider);
-    } catch { /* no storage — server key path */ }
-    try {
-      const done = await postReportStream({ provider, persona, labels,
-        runs: slim, homes, names, lang: LANG, byoKey }, (ev) => {
-        if (ev && ev.type === "attempt") {
-          setMessages((prev) => prev.map((m) => {
-            if (m.id !== simId || !m.data || !m.data.report
-              || m.data.report.status !== "checking") return m;
-            return { ...m,
-              data: { ...m.data,
-                report: { ...m.data.report,
-                  attempts: [...m.data.report.attempts, ev] } } };
-          }));
-        }
-      });
+    const keyFor = (p) => {
+      try {
+        return loadByoKey(typeof sessionStorage !== "undefined" ? sessionStorage : null, p);
+      } catch { return ""; /* no storage — server key path */ }
+    };
+    const onAttempt = (ev) => {
+      if (ev && ev.type === "attempt") {
+        setMessages((prev) => prev.map((m) => {
+          if (m.id !== simId || !m.data || !m.data.report
+            || m.data.report.status !== "checking") return m;
+          return { ...m,
+            data: { ...m.data,
+              report: { ...m.data.report,
+                attempts: [...m.data.report.attempts, ev] } } };
+        }));
+      }
+    };
+    const attemptReport = (provider) => postReportStream({ provider, persona, labels,
+      runs: slim, homes, names, lang: LANG, byoKey: keyFor(provider) }, onAttempt);
+    const applyDone = (done) => {
       setMessages((prev) => prev.map((m) => (m.id === simId
         ? { ...m, data: { ...m.data, report: { ...done, persona, attempts: done.attempts } } } : m)));
       if (done && done.status === "handoff") {
         pushMsg({ role: "assistant", kind: "handoff",
           data: { question_ko: done.handoff.question_ko, simId } });
+      }
+    };
+    try {
+      // 41g: a failed open-weights check runs once more on Muse Spark
+      // 1.3, like the chat turn (41f basetenFallbackProvider).
+      try {
+        applyDone(await attemptReport(provider));
+      } catch (firstErr) {
+        const fallback = basetenFallbackProvider(provider, firstErr);
+        if (!fallback) throw firstErr;
+        applyDone(await attemptReport(fallback));
       }
     } catch {
       setMessages((prev) => prev.map((m) => {
@@ -2491,6 +2541,13 @@ export function ChatScreen() {
         (s, l, onP) => runner(s, l, (pg) => setProgress(
           { done: pg.done + 1, total: picked.length + 1, label: pg.label })),
         scenValue, labels);
+      // 41g: stamp the 30-day run's last-mile mode onto the picked
+      // candidates so the pin and card headline use it.
+      labels.forEach((l, i) => {
+        const m = runCommuteModeOf(runs[l]);
+        const c = picked[i];
+        if (m && c && c.commute && c.commute.work) c.runMode = m;
+      });
       const runId = addToolRow({ name: "run_simulation", ok: true,
         summary: `${noCommute ? "출근 없이 · " : ""}30일 · ${labels.join("·")}`, ms });
       const cmpId = addToolRow({ name: "compare", ok: true,
@@ -2603,10 +2660,25 @@ export function ChatScreen() {
       // 27d: the diary follows without blocking the result card.
       if (LIVE_API) {
         try {
-          const digests = labels.map((l) => runDigest(runs[l], l, { name: (payload.names || {})[l] || "", lang: currentLang() }));
+          // 41i: the model reads each home's English name (the same
+          // homeNameEn the cards show), never the Korean raw name.
+          const digests = labels.map((l) => {
+            const rawName = (payload.names || {})[l] || "";
+            const digestName = currentLang() === "en" && /[가-힣]/.test(rawName)
+              ? homeNameEn(rawName) : rawName;
+            return runDigest(runs[l], l, { name: digestName, lang: currentLang() });
+          });
           setMessages((prev) => prev.map((m) => (m.id === simId
             ? { ...m, data: { ...m.data, diary: { status: "writing" } } } : m)));
-          postDiary({ provider, digests, lang: LANG }).then((result) => {
+          // 41g: a failed open-weights diary runs once more on Muse
+          // Spark 1.3, like the chat turn (41f basetenFallbackProvider).
+          let diaryProvider = provider;
+          postDiary({ provider, digests, lang: LANG }).catch((firstErr) => {
+            const fallback = basetenFallbackProvider(provider, firstErr);
+            if (!fallback) throw firstErr;
+            diaryProvider = fallback;
+            return postDiary({ provider: fallback, digests, lang: LANG });
+          }).then((result) => {
             setMessages((prev) => prev.map((m) => (m.id === simId
               ? { ...m, data: { ...m.data, diary: { status: "done", ...result } } } : m)));
             // 26t: the prefix is deterministic; only a model-written
@@ -2616,6 +2688,7 @@ export function ChatScreen() {
               content: LANG === "en"
                 ? `Finished living there. ${result.summary}`
                 : `다 살아 봤어요. ${result.summary}`,
+              model: diaryProvider,
               suggestions: ["출근길 보여 줘", "한 달에 얼마 들어?", "동네 걸어 보기"] });
           }).catch(() => {
             setMessages((prev) => prev.map((m) => (m.id === simId
@@ -2688,28 +2761,45 @@ export function ChatScreen() {
       work_open: workOpen, profile: st.profile || null, customer_text,
       ...(reportStatus === undefined ? {} : { report_status: reportStatus }) };
     try {
-      let byoKey = "";
-      try {
-        byoKey = loadByoKey(typeof sessionStorage !== "undefined" ? sessionStorage : null, provider);
-      } catch { /* no storage — server key path */ }
-      setLiveRows([]);
-      const out = await postConsultStream({ provider, messages: history, scenario: scen,
-        context: ctx, byoKey }, (ev) => {
-        if (ev.type === "tool_start") {
-          setLiveRows((prev) => [...prev, { name: ev.name, pending: true }]);
-        } else if (ev.type === "tool_end") {
-          setLiveRows((prev) => {
-            const next = [...prev];
-            for (let i = next.length - 1; i >= 0; i--) {
-              if (next[i].pending && next[i].name === ev.name) {
-                next[i] = { name: ev.name, ok: ev.ok, summary: ev.summary, pending: false };
-                break;
+      // BYOK keys are per provider, so each attempt loads its own.
+      const attempt = (prov) => {
+        let byoKey = "";
+        try {
+          byoKey = loadByoKey(typeof sessionStorage !== "undefined" ? sessionStorage : null, prov);
+        } catch { /* no storage — server key path */ }
+        setLiveRows([]);
+        return postConsultStream({ provider: prov, messages: history, scenario: scen,
+          context: ctx, byoKey }, (ev) => {
+          if (ev.type === "tool_start") {
+            setLiveRows((prev) => [...prev, { name: ev.name, pending: true }]);
+          } else if (ev.type === "tool_end") {
+            setLiveRows((prev) => {
+              const next = [...prev];
+              for (let i = next.length - 1; i >= 0; i--) {
+                if (next[i].pending && next[i].name === ev.name) {
+                  next[i] = { name: ev.name, ok: ev.ok, summary: ev.summary, pending: false };
+                  break;
+                }
               }
-            }
-            return next;
-          });
-        }
-      });
+              return next;
+            });
+          }
+        });
+      };
+      // 41f: a failed open-weights turn runs once more on Muse Spark
+      // 1.3 with one notice line. server_key_used never retries (41e).
+      let usedProvider = provider;
+      let out;
+      try {
+        out = await attempt(provider);
+      } catch (firstErr) {
+        const fallback = basetenFallbackProvider(provider, firstErr);
+        if (!fallback) throw firstErr;
+        pushMsg({ role: "assistant", kind: "text",
+          content: openFallbackLine(LANG), fromModel: false });
+        out = await attempt(fallback);
+        usedProvider = fallback;
+      }
       setLiveRows([]);
       const rows = { ...stateRef.current.toolRows };
       const callIds = [];
@@ -2737,7 +2827,7 @@ export function ChatScreen() {
       // stay translatable — only model-written text is fromModel.
       pushMsg({ role: "assistant", kind: "text", content: bubble.content || "",
         tool_calls: bubble.tool_calls, suggestions: [...suggestions],
-        fromModel: !out.fallback });
+        fromModel: !out.fallback, model: usedProvider });
       // 27g: the Muse path never ran ensureData, so the map stayed on its
       // placeholder after Muse found homes. Fill it now (no await — the
       // workOpen effect re-renders when it lands).
@@ -2791,16 +2881,26 @@ export function ChatScreen() {
       }
       // 13: per-turn usage into the 모델 panel log.
       setUsageLog((log) => recordTurn(log, {
-        provider, model: provider,
+        provider: usedProvider, model: usedProvider,
         input: (out.usage && out.usage.prompt_tokens) || 0,
         output: (out.usage && out.usage.completion_tokens) || 0,
         reasoning: (out.usage && out.usage.reasoning_tokens) || 0,
         latencyMs: out.latencyMs || 0,
       }));
-      setModelErrors((e) => ({ ...e, [provider]: null }));
+      setModelErrors((e) => ({ ...e, [usedProvider]: null }));
       setMuseFails(0);
     } catch (err) {
       setLiveRows([]);
+      // 41e: the IP's free server-key session is spent — notice once
+      // with the key panel, never retry the model; rules still answer.
+      if (err && err.code === "server_key_used") {
+        setModelErrors((e) => ({ ...e, [provider]: {
+          httpStatus: err.httpStatus || null, message: String(err.message || err).slice(0, 200),
+        } }));
+        noticeServerKeyUsedOnce();
+        await structuredFlow(text);
+        return;
+      }
       // 30b: no server key is not slowness — same rules answer, said
       // once, and the session stays keyless (no 27j counter).
       if (isNoKeyError(err)) {
@@ -2886,15 +2986,6 @@ export function ChatScreen() {
         pushMsg({ role: "assistant", kind: "text",
           content: "매물 확인은 개발 서버 + 키에서 실거래와 대조해요. 글 읽기는 ’매물 글 붙여 넣기’에서 바로 돼요." });
         pushMsg({ role: "assistant", kind: "listing", data: {} });
-      } else if (/공공임대/.test(content)) {
-        // 26e: USD runs have no jeonse/public/support data — one line,
-        // never the tabs.
-        const usd = stateRef.current.profile
-          && stateRef.current.profile.currency
-          && stateRef.current.profile.currency.value === "USD";
-        if (usd) {
-          pushMsg({ role: "assistant", kind: "text", content: US_NO_JEONSE_SUPPORT });
-        } else pushMsg({ role: "assistant", kind: "text", content: NO_KEY_NOTICE });
       } else if (/전세 점검/.test(content)) {
         const usd = stateRef.current.profile
           && stateRef.current.profile.currency
@@ -2940,8 +3031,6 @@ export function ChatScreen() {
     if (chip === "매물 글 붙여 넣기") {
       pushMsg({ role: "user", kind: "text", content: chip });
       pushMsg({ role: "assistant", kind: "listing", data: {} });
-    } else if (chip === "공공임대 찾기") {
-      send("공공임대 찾기");
     } else if (chip === "도움 제도 보여줘") {
       send("도움 제도 보여줘");
     } else if (chip === "Meta HQ까지 가까운 순") {
@@ -2996,6 +3085,7 @@ export function ChatScreen() {
     setReplayMeta(null);
     setReplaying(false);
     setMessages([]);
+    rotateChatSessionId();
     try {
       const u = new URL(window.location.href);
       u.searchParams.delete("replay");
@@ -3100,12 +3190,14 @@ export function ChatScreen() {
           if (doc.scenario) setScenario(doc.scenario);
           if (Array.isArray(doc.picks)) setPicks(doc.picks);
           const sched = replaySchedule(doc.messages);
+          // 41f: replays keep the model they were recorded with.
+          const replayModel = recordedModelOf(doc.meta && doc.meta.model);
           let t = 0;
           const timers = [];
           doc.messages.forEach((m, i) => {
             t += (sched[i] && sched[i].delayMs) || 1200;
             timers.push(setTimeout(() => {
-              pushMsg({ ...m });
+              pushMsg(replayModel && m && !m.model ? { ...m, model: replayModel } : { ...m });
               if (m && m.kind === "candidates" && doc.candidatesData) {
                 setCandidatesData(doc.candidatesData);
                 setWorkOpen(true);
@@ -3356,6 +3448,28 @@ export function ChatScreen() {
   const next = nextStepChips({ messages, picks, currency: nextCur });
   const nextShowReplay = replayChipVisible({ museFails, messages, replayId });
   const nextVisible = !busy && messages.length > 0 && !(replayId && replaying);
+  // 41f: the open-weights item shows only when the server holds
+  // a Baseten key. Wide screens switch in the header; phones (390 px)
+  // keep a compact label in the header and switch in the 모델 panel.
+  const openOffered = offerOpenWeights(getMuseStatus());
+  const openSwitchFull = (
+    <SegmentedControl label="모델 선택" value={provider} onChange={setProvider}
+      size="sm" title={OPEN_MODEL_HINT}>
+      <SegmentedControlItem value="meta" label="Muse Spark 1.3" />
+      <SegmentedControlItem value="baseten" label="Muse Spark Open · open weights" />
+    </SegmentedControl>
+  );
+  const modelSwitch = openOffered ? (phone ? (
+    <span className="ui-model-compact" title={OPEN_MODEL_HINT}>
+      <Text type="supporting">{providerLabel(provider)}</Text>
+    </span>
+  ) : openSwitchFull) : null;
+  const modelPanelSwitch = openOffered && phone ? (
+    <VStack gap={1}>
+      {openSwitchFull}
+      <Text type="supporting">{OPEN_MODEL_HINT}</Text>
+    </VStack>
+  ) : null;
   // 31f: scroll a candidate card into view (best-effort).
   function scrollToCandidateCard(id) {
     try {
@@ -3381,10 +3495,11 @@ export function ChatScreen() {
           <>
           <TopBar mode="chat" summary={summary}
             extra={tabsMount === "top" ? narrowTabs : null}
+            modelSwitch={modelSwitch}
             settings={{
               mode: "chat",
               model: { usageLog, serverKeys, errors: modelErrors },
-              modelExtra: IS_DEV ? (
+              modelExtra: modelPanelSwitch || (IS_DEV ? (
                 <DropdownMenu
                   button={{ label: provider === "meta" ? "Spark 1.3" : "Spark Open",
                     variant: "ghost", size: "sm" }}
@@ -3393,12 +3508,12 @@ export function ChatScreen() {
                     { label: "Spark 1.3 (Muse Spark 1.3)", onClick: () => setProvider("meta") },
                     { label: "Spark Open (Muse Spark Open)", onClick: () => setProvider("baseten") },
                   ]} />
-              ) : null,
+              ) : null),
               assumptions: { overrides,
                 onSet: (id, v) => setOverrides((o) => setOverride(o, id, v)),
                 onReset: (id) => setOverrides((o) => resetOverride(o, id)) },
               onIntro: null,
-              onRestart: () => { clearTranscript(); window.location.href = appUrl(); },
+              onRestart: () => { rotateChatSessionId(); clearTranscript(); window.location.href = appUrl(); },
             }} />
           {tabsMount === "shell" ? narrowTabs : null}
           </>
@@ -3447,8 +3562,20 @@ export function ChatScreen() {
                       </ChatMessage>
                     ) : m.role === "system" ? (
                       <ChatSystemMessage>{m.content}</ChatSystemMessage>
+                    ) : m.kind === "byok" ? (
+                      <div className="ui-byok-notice">
+                        <ChatSystemMessage>{m.content}</ChatSystemMessage>
+                        <div className="ui-byok-row">
+                          <Button size="sm" variant="secondary" label="내 모델 키 넣기"
+                            onClick={() => setByokOpen((v) => !v)} />
+                        </div>
+                        {byokOpen && (
+                          <ModelPanel usageLog={usageLog} serverKeys={serverKeys}
+                            errors={modelErrors} onClose={() => setByokOpen(false)} />
+                        )}
+                      </div>
                     ) : m.kind === "text" ? (
-                      <AssistantMsg msg={m} toolRows={toolRows} />
+                      <AssistantMsg msg={m} toolRows={toolRows} usSession={currencyOf(profile) === "USD"} />
                     ) : (
                       <CardMsg msg={m} handlers={handlers} toolRows={toolRows} cardHi={cardHi} />
                     )}
@@ -3581,6 +3708,9 @@ export const EMPTY_STARTERS = [
 
 const EMPTY_FIND_TEXT = "판교 출근, 모은 돈 1억, 4억 이하 매매로 혼자 살 집 찾아 줘";
 const META_HQ_TEXT = META_HQ_EXAMPLE;
+// 41g: the Korean starter sends the Korean prompt so the Korean screen
+// gets Korean answers; English keeps the English prompt.
+const META_HQ_TEXT_KO = META_HQ_EXAMPLE_KO;
 
 // 26w: an example card sends its prompt as the first message, the same
 // path as typing it (exported for the no-DOM test).
@@ -3659,7 +3789,7 @@ export function ChatEmpty({ onSend, onListing, onExample, replayId }) {
     else if (id === "replay") {
       try { window.location.href = appUrl("?replay=" + (LANG === "en" ? "menlo-month" : "seoul-couple")); } catch { /* keep the thread as it is */ }
     }
-    else if (id === "metahq") { if (onSend) onSend(META_HQ_TEXT); }
+    else if (id === "metahq") { if (onSend) onSend(LANG === "en" ? META_HQ_TEXT : META_HQ_TEXT_KO); }
     else if (id === "seoul") { if (onExample) onExample(); }
   };
   return (

@@ -75,16 +75,6 @@ describe("18-1 public rentals never appear in jeonse/wolse/trade results", () =>
     assert.deepEqual(r.candidates.map((c) => c.id), ["h2"]);
   });
 
-  it("lists only them for tenure=public", () => {
-    const index = { homes: [
-      home("h1", "하얀마을(6단지)(공공임대)", "아파트", "bundang",
-        [bucket(60, "jeonse", stat(150000000))]),
-      home("h2", "일반아파트", "아파트", "bundang",
-        [bucket(60, "jeonse", stat(400000000))]),
-    ] };
-    const r = find_homes(profile("public"), index, { limit: 6 });
-    assert.deepEqual(r.candidates.map((c) => c.id), ["h1"]);
-  });
 });
 
 describe("18-1 thin-deal rule (1 trade far below market)", () => {

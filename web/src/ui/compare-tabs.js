@@ -3,9 +3,8 @@
 //
 // Groups: 비교 (A·B 비교 / 내 기준 / 삶의 질 / 기준) · 돈 (생활비 /
 // 살 만한가?) · 안심 (치안·교육 / 전세 점검 / 지원 제도) · 매물 (내가 본
-// 매물 / 공공 공고). `listings-public` renders the same 매물 tab
-// scrolled to the public notices; every old `?tab=` id resolves to
-// itself, so deep links keep working.
+// 매물). Every old `?tab=` id resolves to itself, so deep links keep
+// working.
 
 export const COMPARE_TABS = [
   { value: "compare", label: "A·B 비교" },
@@ -17,7 +16,6 @@ export const COMPARE_TABS = [
   { value: "jeonse", label: "전세 점검" },
   { value: "support", label: "지원 제도" },
   { value: "listings", label: "내가 본 매물" },
-  { value: "listings-public", label: "공공 공고" },
   { value: "criteria", label: "기준" },
 ];
 
@@ -25,7 +23,7 @@ export const COMPARE_GROUPS = [
   { id: "compare", label: "비교", tabs: ["compare", "priorities", "quality", "criteria"] },
   { id: "money", label: "돈", tabs: ["money", "worthit"] },
   { id: "safety", label: "안심", tabs: ["safety", "jeonse", "support"] },
-  { id: "listings", label: "매물", tabs: ["listings", "listings-public"] },
+  { id: "listings", label: "매물", tabs: ["listings"] },
 ];
 
 export const VALID_COMPARE_TABS = COMPARE_TABS.map((t) => t.value);
@@ -57,8 +55,8 @@ export function resolveTabId(id) {
 }
 
 // 26e: USD runs hide the Korean-only tabs (전세 점검 · 지원 제도 ·
-// 치안·교육 · 공공 공고). Any other currency returns the input unchanged.
-const US_HIDDEN_TABS = new Set(["jeonse", "support", "safety", "listings-public"]);
+// 치안·교육). Any other currency returns the input unchanged.
+const US_HIDDEN_TABS = new Set(["jeonse", "support", "safety"]);
 
 export function tabsForCurrency(tabs, currency) {
   if (currency !== "USD") return tabs;

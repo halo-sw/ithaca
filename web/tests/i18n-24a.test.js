@@ -71,13 +71,13 @@ describe("romanize", () => {
 
 describe("localizeNumbers", () => {
   it("억 + 만 + 원", () => {
-    assert.equal(localizeNumbers("전세 2억 6,000만 원"), "전세 ₩260M");
+    assert.equal(localizeNumbers("전세 2억 6,000만 원"), "전세 260,000,000 won");
   });
   it("bare 억", () => {
-    assert.equal(localizeNumbers("3억"), "₩300M");
+    assert.equal(localizeNumbers("3억"), "300,000,000 won");
   });
   it("만 + 원", () => {
-    assert.equal(localizeNumbers("4,000만 원"), "₩40M");
+    assert.equal(localizeNumbers("4,000만 원"), "40,000,000 won");
   });
   it("분", () => {
     assert.equal(localizeNumbers("걸어서 5분"), "걸어서 5 min");

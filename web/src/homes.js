@@ -14,10 +14,6 @@
 // schedule (서울교통공사 표준 운행시간) or the 1–8-line average-speed
 // estimate, labelled per leg (C-ride-minutes). Only a missing path
 // stays "승차 미확인". Nothing is guessed, never straight-line.
-//
-// find_public_rentals(profile, snapshot, opts) applies the same
-// budget/size rules to the public-rental snapshot (stage 6/10 rules)
-// and reports per-region coverage ("이 지역 공공임대 자료 없음").
 
 import { findPath } from "./engine/journey.js";
 import { rideMinutes } from "./transit/schedule.js";
@@ -52,7 +48,6 @@ export const SOURCE_BADGES = {
   schedule: "서울교통공사 표준 운행시간",
   estimate: "추정 · 1~8호선 평균 속도",
   photos: "주변 사진",
-  public: "공공임대(LH·마이홈)",
   // 29N2e: US rows never carry the Korean badges above —
   // Zillow for the ZIP rent, OSM for the walk/bike graph, the
   // Caltrain timetable feed for the train leg.
@@ -89,9 +84,8 @@ export function usEmptyHint(homes, budget) {
 const TENURE_BUCKET = { jeonse: "jeonse", wolse: "wolse", trade: "trade" };
 
 // --- 18: candidate honesty ------------------------------------------------------
-// Public-rental complexes (register names carrying 임대/공공임대) never
-// appear in 전세·월세·매매 results — they belong to the 공공임대 path
-// (find_public_rentals over the LH snapshot, or tenure=public here).
+// Rental complexes (register names carrying a rental suffix) never
+// appear in 전세·월세·매매 results — they are filtered out here.
 export function isPublicRentalHome(home) {
   const name = String((home && (home.name || home.osm_name)) || "");
   if (!name) return false;
@@ -792,19 +786,16 @@ export function find_homes(profile, index, opts = {}) {
     wolse: profileValue(profile, "monthlyMax"),
     trade: profileValue(profile, "priceMax"),
   };
-  // 18: tenure=public lists only public-rental complexes (all their
-  // buckets); every other tenure skips them — they are not normal
-  // 전세·월세·매매 homes.
-  const publicOnly = tenure === "public";
+  // 18: rental complexes are never normal 전세·월세·매매 homes — skip them.
   const tenureKeys = tenure === "undecided" || !tenure
     ? ["jeonse", "wolse", "trade"]
-    : publicOnly ? ["jeonse", "wolse", "trade"] : [tenure];
+    : [tenure];
   const homes = (index && index.homes) || [];
   const rows = [];
   for (const home of homes) {
     if (regions && !regions.includes(home.region)) continue;
     if (kind && home.kind !== kind) continue;
-    if (isPublicRentalHome(home) !== publicOnly) continue;
+    if (isPublicRentalHome(home)) continue;
     const commute = commuteSummary(home, workplace, network, schedule, walkgraphs, walkMps);
     // 26c: with a work estimate the commuteMax filter compares its minutes.
     const commuteMins = commute.work ? commute.work.minutes
@@ -985,85 +976,5 @@ export function find_homes(profile, index, opts = {}) {
   };
 }
 
-// --- public rentals --------------------------------------------------------------
-
-// Address -> region id via the 시군구 segment (not substring: road
-// names like 위례성대로/강동대로 must not fake coverage). Returns null
-// when the address names no covered area.
-export function regionOfAddress(addr) {
-  const s = String(addr || "");
-  const gu = (s.match(/(성동구|송파구|강남구|강동구|분당구|수정구|중원구|수지구)/) || [])[1];
-  const GU_REGION = { 성동구: "seongdong", 송파구: "songpa-gu", 강남구: "gangnam",
-    강동구: "gangdong", 분당구: "bundang", 수정구: "sujeong",
-    중원구: "jungwon", 수지구: "suji" };
-  if (gu) return GU_REGION[gu];
-  if (/(^|[\s,])위례동/.test(s)) return "wirye";
-  return null;
-}
-
-export function publicRentalCoverage(snapshot, regionIds) {
-  // Per-region presence from parsed 시군구 segments.
-  const complexes = (snapshot && snapshot.complexes) || [];
-  const out = {};
-  for (const region of regionIds || []) {
-    const id = typeof region === "string" ? region : region.id;
-    out[id] = { present: false, complexes: 0 };
-  }
-  for (const c of complexes) {
-    const hit = regionOfAddress(c.address);
-    if (hit && out[hit]) {
-      out[hit].present = true;
-      out[hit].complexes += 1;
-    }
-  }
-  return out;
-}
-
-export const NO_PUBLIC_RENTAL_NOTE = "이 지역 공공임대 자료 없음";
-
-export function find_public_rentals(profile, snapshot, opts = {}) {
-  const depositMax = profileValue(profile, "depositMax");
-  const monthlyMax = profileValue(profile, "monthlyMax");
-  const sizeMin = profileValue(profile, "sizeMin");
-  const limit = Math.max(1, Math.min(12, opts.limit || 6));
-  const regions = opts.regions || null; // region ids (customer-named)
-  const out = [];
-  for (const c of (snapshot && snapshot.complexes) || []) {
-    if (regions) {
-      const hit = regionOfAddress(c.address);
-      if (!regions.includes(hit)) continue;
-    }
-    for (const u of c.unit_types || []) {
-      if (depositMax !== null && u.deposit_won !== null && u.deposit_won > depositMax) continue;
-      if (monthlyMax !== null && u.monthly_rent_won !== null && u.monthly_rent_won > monthlyMax) continue;
-      if (sizeMin !== null && u.exclusive_area_m2 !== null && u.exclusive_area_m2 + 5 < sizeMin) continue;
-      out.push({
-        complex_name: c.name,
-        address: c.address,
-        unit_type: u.unit_type,
-        building_type: u.building_type,
-        exclusive_area_m2: u.exclusive_area_m2,
-        deposit_won: u.deposit_won,
-        monthly_rent_won: u.monthly_rent_won,
-        sources: [SOURCE_BADGES.public],
-      });
-    }
-  }
-  out.sort((a, b) => {
-    const am = a.monthly_rent_won === null ? Infinity : a.monthly_rent_won;
-    const bm = b.monthly_rent_won === null ? Infinity : b.monthly_rent_won;
-    if (am !== bm) return am - bm;
-    const ad = a.deposit_won === null ? Infinity : a.deposit_won;
-    const bd = b.deposit_won === null ? Infinity : b.deposit_won;
-    if (ad !== bd) return ad - bd;
-    return String(a.complex_name) < String(b.complex_name) ? -1 : 1;
-  });
-  return {
-    ok: true,
-    count: Math.min(out.length, limit),
-    total_matching: out.length,
-    sort_note: "정렬: 매달 드는 돈 적은 순",
-    candidates: out.slice(0, limit),
-    eligibility_note: "입주 자격은 공고 원문에서 확인해 주세요.",
-  };
-}
+// (Public-rental search removed in 41d; rental complexes stay excluded
+// via isPublicRentalHome above.)

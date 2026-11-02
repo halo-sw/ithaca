@@ -22,9 +22,15 @@ function strip(s) {
   return String(s).replace(/,/g, "");
 }
 
+// 41a: English money reads full digits and the word "won" (owner
+// decision 2026-11-01) — never ₩ abbreviations, never M/K. US dollars
+// ("$4,261/mo") never pass through here; Korean output is untouched.
+function formatFull(won) {
+  return Math.round(won).toLocaleString("en-US") + " won";
+}
+
 function formatM(m) {
-  const r = Math.round(m * 10) / 10;
-  return "₩" + String(r) + "M";
+  return formatFull(m * 1000000);
 }
 
 function plural(d, one, many) {
@@ -33,13 +39,9 @@ function plural(d, one, many) {
 }
 
 function formatWon(won) {
-  // One ₩ amount from a 천-bearing figure: ₩1.07M style at or above a
-  // million (up to 2 decimals, trailing zeros trimmed), grouped won below.
-  if (won >= 1000000) {
-    const m = Math.round(won / 10000) / 100;
-    return "₩" + String(m) + "M";
-  }
-  return "₩" + Math.round(won).toLocaleString("en-US");
+  // 41a: full digits + " won" at every size ("1,040,000 won",
+  // "35,000 won", "1,500 won", "0 won").
+  return formatFull(won);
 }
 
 const WEEKDAY = { 월: "Mon", 화: "Tue", 수: "Wed", 목: "Thu", 금: "Fri", 토: "Sat", 일: "Sun" };
@@ -59,9 +61,13 @@ export function localizeNumbers(s) {
   out = out.replace(/(\d+)\s*천\s*원/g,
     (_, a) => formatWon(1000 * num(a)));
   // 억 is 100M; a number after 억, with or without 만, is ten-thousands.
-  out = out.replace(/(\d[\d,]*)\s*억\s*(\d[\d,]*)\s*(만)?(\s*)(원)?/g,
+  // 41a: decimal 억 ("1.7억" → 170,000,000 won) and colloquial 억 N천
+  // ("1억 2천" → 120,000,000 won) read as money too.
+  out = out.replace(/(\d+(?:\.\d+)?)\s*억\s*(\d+)\s*천\s*(만)?\s*(원)?/g,
+    (_, a, b) => formatFull(100000000 * num(a) + 10000000 * num(b)));
+  out = out.replace(/(\d[\d,]*(?:\.\d+)?)\s*억\s*(\d[\d,]*)\s*(만)?(\s*)(원)?/g,
     (_, a, b, man, sp, won) => formatM(100 * num(a) + num(b) / 100) + (won ? "" : sp));
-  out = out.replace(/(\d[\d,]*)\s*억(\s*)(원)?/g,
+  out = out.replace(/(\d[\d,]*(?:\.\d+)?)\s*억(\s*)(원)?/g,
     (_, a, sp, won) => formatM(100 * num(a)) + (won ? "" : sp));
   // 26t: 만 plus a comma-grouped remainder is one amount ("83만 5,000원"
   // → ₩835,000), like the 만/천 forms above. Runs after the 억 rules so
@@ -70,6 +76,10 @@ export function localizeNumbers(s) {
     (_, b, c) => formatWon(10000 * num(b) + num(c)));
   out = out.replace(/(\d[\d,]*)\s*만(\s*)(원)?/g,
     (_, b, sp, won) => formatM(num(b) / 100) + (won ? "" : sp));
+  // 41a: bare N원 ("0원", "1,500원") is money too — without this the
+  // token falls through to romanization ("0won", "1,500won").
+  out = out.replace(/(\d[\d,]*)\s*원(?![가-힣])/g,
+    (_, a) => formatFull(num(a)));
   // Counters and misc units before the generic 일/개 rules below, so that
   // 일차 wins over 일 and 가지 is not split by 개.
   out = out.replace(/(\d+)일차/g, "Day $1");
@@ -237,6 +247,14 @@ export function createTranslator({ phrases = {}, patterns = [], words = {} } = {
         let cap = m[i + 1] ?? "";
         if (HANGUL.test(cap)) {
           if (cap !== s) {
+            // 41a: a capture holding " · " splits like a whole string,
+            // so each segment matches its own pattern ("주 3일 출근" →
+            // "office 3 days a week") instead of word-fallback as one
+            // blob ("Ju 3 days commute").
+            if (cap.includes(" · ")) {
+              const parts = cap.split(" · ").map((seg) => translateCore(seg));
+              if (parts.every((x) => !HANGUL.test(x))) return parts.join(" · ");
+            }
             const t = translateCore(cap);
             cap = HANGUL.test(t) ? wordFallback(t) : t;
           } else {
@@ -263,9 +281,23 @@ export function createTranslator({ phrases = {}, patterns = [], words = {} } = {
     let result;
     let cand = core;
     // Money first when the core names eok/man: "전세 2억 6,000만 원"
-    // localizes to "전세 ₩260M" before any stale table pattern runs.
+    // localizes to "전세 260,000,000 won" before any stale table
+    // pattern runs.
     const numFirst = /억|만\s*원/.test(core);
-    if (numFirst) {
+    // 41a: a " · "-joined core tries its whole-string patterns on the
+    // raw core first — localizing first rewrites one segment's words
+    // ("주 3일 출근" → "주 3 days 출근") so that segment's own pattern
+    // never matches ("Ju 3 days commute"). A capture holding " · "
+    // splits the same way (matchPatterns).
+    const joinerFirst = numFirst && core.includes(" · ");
+    if (joinerFirst) result = exactOrPattern(core, true);
+    // An exact raw-core phrase beats a generic localized-pattern match:
+    // full-digit money no longer hits the ₩-keyed phrase entries, so a
+    // tail pattern ("{0}㎡ 이상") would otherwise swallow the whole core.
+    if (result === undefined && numFirst && Object.hasOwn(phrases, core)) {
+      result = phrases[core];
+    }
+    if (result === undefined && numFirst) {
       const loc = localizeNumbers(core);
       if (loc !== core) {
         cand = loc;
@@ -273,7 +305,7 @@ export function createTranslator({ phrases = {}, patterns = [], words = {} } = {
         if (result === undefined && !HANGUL.test(loc)) result = loc;
       }
     }
-    if (result === undefined) result = exactOrPattern(core, true);
+    if (result === undefined && !joinerFirst) result = exactOrPattern(core, true);
     // 39d3: whole-string phrases/patterns (minus the bare "{0} · {1}"
     // joiner) win first, so a pattern that itself contains " · "
     // matches whole. Only on a miss does a " · "-joined core split

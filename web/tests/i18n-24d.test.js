@@ -28,14 +28,14 @@ describe("24d localizeNumbers units", () => {
   it("11/2 (월) → 11/2 (Mon)", () => {
     assert.equal(localizeNumbers("11/2 (월)"), "11/2 (Mon)");
   });
-  it("1만 7천 원 → ₩17,000", () => {
-    assert.equal(localizeNumbers("1만 7천 원"), "₩17,000");
+  it("1만 7천 원 → 17,000 won", () => {
+    assert.equal(localizeNumbers("1만 7천 원"), "17,000 won");
   });
-  it("100만 7천 원 → ₩1.01M", () => {
-    assert.equal(localizeNumbers("100만 7천 원"), "₩1.01M");
+  it("100만 7천 원 → 1,007,000 won", () => {
+    assert.equal(localizeNumbers("100만 7천 원"), "1,007,000 won");
   });
-  it("5천만 원 → ₩50M", () => {
-    assert.equal(localizeNumbers("5천만 원"), "₩50M");
+  it("5천만 원 → 50,000,000 won", () => {
+    assert.equal(localizeNumbers("5천만 원"), "50,000,000 won");
   });
   it("30대 → 30s", () => {
     assert.equal(localizeNumbers("30대"), "30s");

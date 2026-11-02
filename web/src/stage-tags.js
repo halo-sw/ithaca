@@ -16,15 +16,31 @@ export function stageRect(canvasRect, { drawerOpen = false, drawerWidth = 0 } = 
 }
 
 // NDC (-1..1) to px, positioned in the full canvas rect. A tag is
-// hidden when it lands past the stage's right edge or outside the
-// stage vertically.
+// hidden when its anchor lands outside the stage on any side —
+// otherwise the label paints cut at the edge ("tner").
 export function placeTag(nx, ny, canvasRect, { drawerOpen = false, drawerWidth = 0 } = {}) {
   const stage = stageRect(canvasRect, { drawerOpen, drawerWidth });
   const x = (nx * 0.5 + 0.5) * canvasRect.width + canvasRect.left;
   const y = (-ny * 0.5 + 0.5) * canvasRect.height + canvasRect.top;
-  const visible = x <= stage.left + stage.width
+  const visible = x >= stage.left && x <= stage.left + stage.width
     && y >= stage.top && y <= stage.top + stage.height;
   return { x, y, visible };
+}
+
+// 41g: clamp a label box (anchor px + measured w/h) inside the stage
+// so person/place labels are never cut at the edge. An anchor off
+// screen (or a box that cannot fit) hides instead of painting half.
+export function clampLabelBox(x, y, w, h, stage) {
+  const box = stage || { left: 0, top: 0, width: 0, height: 0 };
+  const bw = Math.max(0, Number(w) || 0);
+  const bh = Math.max(0, Number(h) || 0);
+  const offScreen = x < box.left || x > box.left + box.width
+    || y < box.top || y > box.top + box.height;
+  if (offScreen) return { x, y, visible: false };
+  if (bw > box.width || bh > box.height) return { x, y, visible: false };
+  const cx = Math.min(Math.max(x - bw / 2, box.left), box.left + box.width - bw);
+  const cy = Math.min(Math.max(y, box.top), box.top + box.height - bh);
+  return { x: cx, y: cy, visible: true };
 }
 
 // 13e4: hide a tag when its BOX — not just its anchor point —

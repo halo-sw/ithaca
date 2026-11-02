@@ -6,8 +6,6 @@
 // find_homes(profile, {sort, limit, regions, kind}) — 3–6 candidates
 //   from homes-index.json. Sorting is the customer's choice; no score,
 //   no "추천 1위".
-// find_public_rentals(profile, {limit, regions}) — same budget rules
-//   on the public-rental snapshot, with per-region coverage.
 // build_scenario(profile, home_ids) — scenarioFromProfile over the
 //   picked 2 (or 3) homes becomes the working scenario for
 //   run_simulation.
@@ -21,8 +19,6 @@ import {
 } from "../profile.js";
 import {
   DEFAULT_HOME_SORT, HOME_SORTS, find_homes as findHomesCore,
-  find_public_rentals as findPublicCore, publicRentalCoverage,
-  NO_PUBLIC_RENTAL_NOTE,
 } from "../homes.js";
 import { parseScenario } from "../engine/scenario.js";
 // Region/kind words live client-safe in region-names.js (the browser
@@ -313,40 +309,6 @@ async function find_homes(session, args) {
   };
 }
 
-async function find_public_rentals(session, args) {
-  const profile = mergeProfiles(session.context && session.context.profile,
-    session.lastProfile, profileFromArgs(args));
-  if (!mergedHasValue(profile)) return fail("profile must be the extract_profile result object");
-  if (!session.loadHousing) {
-    return fail("public-rental data is unavailable on this server");
-  }
-  const regions = args.regions ? regionsForNames(args.regions) : null;
-  if (isUsProfile(profile, regions)) {
-    return fail("public-rental data covers Korean regions only — no US listings on this server");
-  }
-  const snapshot = await session.loadHousing();
-  const r = findPublicCore(profile, snapshot, {
-    limit: args.limit !== undefined ? args.limit : 6,
-    regions,
-  });
-  const coverage = publicRentalCoverage(snapshot, regions || [
-    "seongdong", "songpa-gu", "gangnam", "gangdong", "bundang",
-    "sujeong", "jungwon", "suji", "wirye",
-  ]);
-  const absent = Object.entries(coverage)
-    .filter(([, c]) => !c.present).map(([id]) => id);
-  session.lastCandidateNames = Object.fromEntries(
-    ((r && r.candidates) || [])
-      .filter((c) => c && typeof c.id === "string" && typeof c.name === "string")
-      .map((c) => [c.id, c.name]));
-  return {
-    ok: true,
-    ...r,
-    coverage_note: absent.length > 0
-      ? `${absent.join(", ")}: ${NO_PUBLIC_RENTAL_NOTE}` : null,
-  };
-}
-
 async function build_scenario(session, args) {
   const profile = mergeProfiles(session.context && session.context.profile,
     session.lastProfile, profileFromArgs(args));
@@ -417,15 +379,6 @@ export const SEARCH_TOOL_DEFS = [
           items: { type: "string" } },
         kind: { type: "string", description: "아파트, 연립·다세대(빌라) or 오피스텔 (omit for all)." },
       }, required: ["profile"] } } },
-  { type: "function", function: { name: "find_public_rentals",
-    description: "Public-rental candidates for the profile (same budget/size rules). Reports per-region coverage; regions without data read 이 지역 공공임대 자료 없음. Never an eligibility verdict — 입주 자격은 공고 원문에서 확인.",
-    parameters: { type: "object", additionalProperties: false,
-      properties: {
-        profile: { type: "object", additionalProperties: true },
-        limit: { type: "integer", description: "How many (1..12, default 6)." },
-        regions: { type: "array", description: "Region ids/words, only when the customer named any.",
-          items: { type: "string" } },
-      }, required: ["profile"] } } },
   { type: "function", function: { name: "build_scenario",
     description: "Build the working scenario from the profile + the 1–3 home ids the customer picked (homes need a scene box). Replaces the session scenario; call run_simulation next.",
     parameters: { type: "object", additionalProperties: false,
@@ -437,7 +390,7 @@ export const SEARCH_TOOL_DEFS = [
 ];
 
 export const SEARCH_HANDLERS = {
-  extract_profile, find_homes, find_public_rentals, build_scenario,
+  extract_profile, find_homes, build_scenario,
 };
 
 export { TENURE_KO, missingQuestions };

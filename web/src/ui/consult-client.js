@@ -11,6 +11,48 @@
 // stay off and the rule-based flow keeps working.
 
 import { assetUrl, LIVE_API, apiUrl } from "../paths.js";
+import { SESSION_HEADER, getChatSessionId } from "../chat/session-id.js";
+
+// 41e: one server-key chat session per IP — every /api/consult
+// request carries the tab's session id (BYOK requests too; the
+// relay enforces the rule on the server key only).
+function sessionHeaders() {
+  try {
+    const id = getChatSessionId();
+    if (id) return { [SESSION_HEADER]: id };
+  } catch {
+    /* no storage — the relay treats it as a new session */
+  }
+  return {};
+}
+
+function markServerKeyUsed(err, payload) {
+  if (payload && payload.error === "server_key_used") err.code = "server_key_used";
+  else if (payload && payload.error === "open_limit") err.code = "open_limit";
+  return err;
+}
+
+// 41f: a baseten turn that fails for any reason except the spent
+// server-key session is worth one retry on Muse Spark 1.3. Pure.
+export function basetenFallbackProvider(provider, err) {
+  if (provider !== "baseten") return null;
+  if (err && err.code === "server_key_used") return null;
+  return "meta";
+}
+
+// 41g: Spark Open answers slowly (4–5k reasoning tokens) — the diary
+// and report-check fetches wait longer on baseten than on meta.
+export const CONSULT_TIMEOUT_MS = { meta: 90000, baseten: 180000 };
+
+export function consultTimeoutMs(provider) {
+  return provider === "baseten" ? CONSULT_TIMEOUT_MS.baseten : CONSULT_TIMEOUT_MS.meta;
+}
+
+function timeoutSignal(ms) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  return { signal: ctrl.signal, done: () => clearTimeout(timer) };
+}
 
 // 27b2: NDJSON stream parser for the consult stream.
 export function parseNdjson(buffer, chunk) {
@@ -31,7 +73,7 @@ export function parseNdjson(buffer, chunk) {
 
 export async function postConsult({ provider, messages, scenario, context = null, byoKey = "" }) {
   if (!LIVE_API) return { off: true, messages: [] };
-  const headers = { "Content-Type": "application/json" };
+  const headers = { "Content-Type": "application/json", ...sessionHeaders() };
   // 13: BYOK travels in a header to our proxy (dev server or relay) only.
   if (byoKey) headers["x-model-key"] = byoKey;
   const started = (typeof performance !== "undefined" ? performance.now() : 0);
@@ -51,7 +93,7 @@ export async function postConsult({ provider, messages, scenario, context = null
     if (r.status === 429) {
       const err = new Error("잠시 쉬었다가 다시 물어봐 주세요 (요청이 많아요)");
       err.httpStatus = 429;
-      throw err;
+      throw markServerKeyUsed(err, payload);
     }
     const err = new Error((payload && payload.error) || `상담 서버 오류 (HTTP ${r.status})`);
     err.httpStatus = r.status;
@@ -63,14 +105,21 @@ export async function postConsult({ provider, messages, scenario, context = null
 
 export async function postDiary({ provider, digests, lang = "ko", byoKey = "" }) {
   if (!LIVE_API) return { off: true };
-  const headers = { "Content-Type": "application/json" };
+  const headers = { "Content-Type": "application/json", ...sessionHeaders() };
   if (byoKey) headers["x-model-key"] = byoKey;
   const started = (typeof performance !== "undefined" ? performance.now() : 0);
-  const r = await fetch(apiUrl("/api/consult"), {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ task: "diary", provider, digests, lang }),
-  });
+  const wait = timeoutSignal(consultTimeoutMs(provider));
+  let r;
+  try {
+    r = await fetch(apiUrl("/api/consult"), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ task: "diary", provider, digests, lang }),
+      signal: wait.signal,
+    });
+  } finally {
+    wait.done();
+  }
   const latencyMs = (typeof performance !== "undefined" ? performance.now() : 0) - started;
   let payload = null;
   try {
@@ -82,7 +131,7 @@ export async function postDiary({ provider, digests, lang = "ko", byoKey = "" })
     if (r.status === 429) {
       const err = new Error("잠시 쉬었다가 다시 물어봐 주세요 (요청이 많아요)");
       err.httpStatus = 429;
-      throw err;
+      throw markServerKeyUsed(err, payload);
     }
     const err = new Error((payload && payload.error) || `상담 서버 오류 (HTTP ${r.status})`);
     err.httpStatus = r.status;
@@ -98,7 +147,7 @@ export async function postDiary({ provider, digests, lang = "ko", byoKey = "" })
 // with the done payload (without `type`) plus latencyMs.
 export async function postConsultStream({ provider, messages, scenario, context = null, byoKey = "" }, onEvent) {
   if (!LIVE_API) return { off: true, messages: [] };
-  const headers = { "Content-Type": "application/json" };
+  const headers = { "Content-Type": "application/json", ...sessionHeaders() };
   if (byoKey) headers["x-model-key"] = byoKey;
   const started = (typeof performance !== "undefined" ? performance.now() : 0);
   const r = await fetch(apiUrl("/api/consult"), {
@@ -117,11 +166,11 @@ export async function postConsultStream({ provider, messages, scenario, context 
     if (r.status === 429) {
       const err = new Error("잠시 쉬었다가 다시 물어봐 주세요 (요청이 많아요)");
       err.httpStatus = 429;
-      throw err;
+      throw markServerKeyUsed(err, payload);
     }
     const err = new Error((payload && payload.error) || `상담 서버 오류 (HTTP ${r.status})`);
     err.httpStatus = r.status;
-    throw err;
+    throw markServerKeyUsed(err, payload);
   }
   const reader = r.body.getReader();
   const decoder = new TextDecoder();
@@ -161,14 +210,23 @@ export async function postConsultStream({ provider, messages, scenario, context 
 // 29j3: report-step stream (attempt lines then a done line).
 export async function postReportStream({ provider, persona, labels, runs, homes, names, lang, byoKey = "" }, onEvent) {
   if (!LIVE_API) return { off: true };
-  const headers = { "Content-Type": "application/json" };
+  const headers = { "Content-Type": "application/json", ...sessionHeaders() };
   if (byoKey) headers["x-model-key"] = byoKey;
-  const r = await fetch(apiUrl("/api/consult"), {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ task: "report", stream: true, provider,
-      persona, labels, runs, homes, names, lang }),
-  });
+  const wait = timeoutSignal(consultTimeoutMs(provider));
+  let r;
+  try {
+    r = await fetch(apiUrl("/api/consult"), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ task: "report", stream: true, provider,
+        persona, labels, runs, homes, names, lang }),
+      signal: wait.signal,
+    });
+  } catch (err) {
+    wait.done();
+    if (err && err.name === "AbortError") throw new Error("상담 서버 응답이 느려요 (시간 초과)");
+    throw err;
+  }
   if (r.status !== 200) {
     let payload = null;
     try {
@@ -178,7 +236,7 @@ export async function postReportStream({ provider, persona, labels, runs, homes,
     }
     const err = new Error((payload && payload.error) || `상담 서버 오류 (HTTP ${r.status})`);
     err.httpStatus = r.status;
-    throw err;
+    throw markServerKeyUsed(err, payload);
   }
   const reader = r.body.getReader();
   const decoder = new TextDecoder();

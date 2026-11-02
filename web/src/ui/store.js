@@ -32,7 +32,7 @@ export const INITIAL_STATE = {
   money: null, // <scenario>-money.json payload + agent C merges, or {error}
   moneyLoading: false,
   moneyTenure: {}, // {A: "전세", ...} UI-selected tenure per home
-  moneyCandidates: [], // recommend_public_rental results (agent) for "C로 추가"
+  moneyCandidates: [], // agent candidate results for "C로 추가"
   priorityWeights: null, // {explicit, weights} published by the 내 기준 tab (share card bars)
   moments: null, // 살아 보니 picks [{kind, home, agent, day, minute, text_ko, when_ko, evidence, ...}] or []
   legend: null, // {title, resRows, heightRows, note, simNote?}

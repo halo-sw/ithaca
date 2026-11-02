@@ -6,7 +6,7 @@ import { ChatComposer } from "@astryxdesign/core/Chat";
 import { assetUrl, appUrl } from "../paths.js";
 import { appEntryUrl, chatUrl } from "../chat/urls.js";
 import { currentLang } from "../i18n/lang.js";
-import { META_HQ_EXAMPLE } from "../places-us.js";
+import { META_HQ_EXAMPLE, META_HQ_EXAMPLE_KO } from "../places-us.js";
 import { COVERAGE_LINE, EXAMPLE_PROMPTS } from "./landing.jsx";
 import { LangToggle } from "./lang-toggle.jsx";
 import { PoweredByMuse, MUSE_LOGO_PATH } from "./powered-by-muse.jsx";
@@ -18,6 +18,9 @@ const COMPOSER_FILL = "판교로 출근해요. 혼자 살 집을 매매로 찾�
 const NIGHT_PROMPT = "판교 출근 집 두 곳에서 30일 살아 보고 밤 10시 이후 귀가를 보여 줘";
 const HOOD_PROMPT = "미금역 근처 매매 찾아 주고 동네를 보여 줘";
 const META_HQ_PROMPT = META_HQ_EXAMPLE;
+// 41g: the Korean button sends the Korean prompt so the Korean screen
+// gets Korean answers; English keeps the English prompt.
+const META_HQ_PROMPT_KO = META_HQ_EXAMPLE_KO;
 
 export function replayIdForLang(lang) {
   return lang === "en" ? "menlo-month" : "seoul-couple";
@@ -210,7 +213,7 @@ export function LandingPage() {
               <p className="ds-lp-judgecap">키 없이 바로 재생</p>
             </div>
             <div className="ds-lp-judgeitem">
-              <a className="ds-lp-btn ds-lp-btn--secondary" href={chatUrl(META_HQ_PROMPT)}>Meta 본사 출근으로 해 보기</a>
+              <a className="ds-lp-btn ds-lp-btn--secondary" href={chatUrl(currentLang() === "en" ? META_HQ_PROMPT : META_HQ_PROMPT_KO)}>Meta 본사 출근으로 해 보기</a>
               <p className="ds-lp-judgecap">Muse 실시간 · 하루 한도</p>
             </div>
             <div className="ds-lp-judgeitem">

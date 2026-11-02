@@ -1,6 +1,6 @@
 // "살 만한가?" multi-year housing-cost comparison (pure).
 //
-// Buy vs 전세 vs 월세 vs 공공임대 over a customer-picked horizon (5/10/20
+// Buy vs 전세 vs 월세 over a customer-picked horizon (5/10/20
 // years), from real-transaction reference prices and the customer's own
 // inputs. For each tenure: total cash out, interest paid, cash locked,
 // opportunity cost of locked cash at a customer-set return rate (가정값),
@@ -189,7 +189,6 @@ function opportunityCost(lockedWon, ratePct, year) {
 //   buy: {price_won} | null,
 //   jeonse: {deposit_won} | null,
 //   wolse: {deposit_won, monthly_won} | null,
-//   public: {deposit_won, monthly_won} | null,
 //   ownership_costs: applyOwnershipCosts() result | null,
 //   annual_income_won (for the DSR display; null skips it),
 //   other_debt_service_annual_won (customer-stated, default 0),
@@ -302,12 +301,11 @@ export function worthItComparison(opts = {}) {
       (deposit) => Math.max(0, deposit - cash));
   }
   if (opts.wolse) rental("월세", opts.wolse, (monthly) => ({ cash: monthly * 12, interest: 0 }), null);
-  if (opts.public) rental("공공임대", opts.public, (monthly) => ({ cash: monthly * 12, interest: 0 }), null);
 
   // Break-even per scenario: first year buy net ≤ rental net.
   const breakeven = {};
   const buy = tenures["매매"];
-  for (const name of ["전세", "월세", "공공임대"]) {
+  for (const name of ["전세", "월세"]) {
     const rent = tenures[name];
     if (!buy || !rent) continue;
     breakeven[name] = {};

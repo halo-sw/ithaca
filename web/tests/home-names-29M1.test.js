@@ -201,7 +201,8 @@ describe("29M1 agent names homes up front", () => {
       completeFn: complete,
     });
     assert.equal(out.ok, true);
-    assert.equal(complete.namesCalls().length, 1);
+    // 41b: the deterministic homeNameEn seeds the name, so no naming call.
+    assert.equal(complete.namesCalls().length, 0);
     const all = toolContents(out);
     const withCandidates = all.find((r) => Array.isArray(r.candidates));
     assert.ok(withCandidates, "a candidates tool result is read by the model");
@@ -252,7 +253,8 @@ describe("29M1 agent names homes up front", () => {
       completeFn: complete,
     });
     assert.equal(out.ok, true);
-    assert.equal(complete.namesCalls().length, 1);
+    // 41b: deterministic names seed first, so no naming call runs.
+    assert.equal(complete.namesCalls().length, 0);
   });
 });
 

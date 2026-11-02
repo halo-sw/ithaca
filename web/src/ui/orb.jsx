@@ -276,7 +276,7 @@ export function OrbView({ data, onRegion, highlightKey }) {
         <div className="ui-orb-tip" style={{ left: tip.x, top: tip.y }}>
           <div><strong>{tip.region.label}</strong></div>
           <div className="ui-num">{`집 ${tipFacts.homes}곳 · 전세 60㎡ 중간값 ${tipFacts.jeonse60MedianWon ? fmtWon(tipFacts.jeonse60MedianWon) : "없음"}`}</div>
-          <div className="ui-num">{`사진 ${tipFacts.photos}장 · 공공임대 ${tipFacts.publicRental ? "있음" : "자료 없음"}`}</div>
+          <div className="ui-num">{`사진 ${tipFacts.photos}장`}</div>
           <div><Text type="supporting">클릭하면 이 지역만 찾아요</Text></div>
         </div>
       )}

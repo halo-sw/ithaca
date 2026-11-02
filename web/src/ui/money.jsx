@@ -2,7 +2,6 @@
 // card in sim mode. Data comes from <scenario>-money.json (CLI) plus
 // agent merges for home C — never computed from thin air here.
 import { Banner } from "@astryxdesign/core/Banner";
-import { Button } from "@astryxdesign/core/Button";
 import { Collapsible } from "@astryxdesign/core/Collapsible";
 import { Divider } from "@astryxdesign/core/Divider";
 import { Heading } from "@astryxdesign/core/Heading";
@@ -24,7 +23,6 @@ import { congestionPeakLine } from "../engine/journey.js";
 import { MONEY_CATEGORY_KO } from "../money/timeline.js";
 import { TENURE_DISCLAIMER, TRADE_COSTS_NOTE } from "../money/tenure.js";
 import { purchaseCosts } from "../money/purchase.js";
-import { ELIGIBILITY_NOTE } from "../money/housing.js";
 
 const act = (name, ...args) => store.act(name, ...args);
 
@@ -36,7 +34,7 @@ const CAT_COLORS = {
   other_fixed: "#9fc4d8",
 };
 const HOME_COLORS = { A: "#b25a33", B: "#4a7ba7", C: "#7ba05b" };
-const TENURES = ["매매", "전세", "월세", "공공임대"];
+const TENURES = ["매매", "전세", "월세"];
 
 function SrcBadge({ source }) {
   return <SourceBadge source={source} />;
@@ -72,7 +70,7 @@ export function HowCalculated({ tenure, housing, maintenanceWon, transitWon = nu
     lines.push(`대출 갚는 돈 ${fmtWon(housing.monthly_won, { monthly: true })} (빌린 돈 ${fmtWon(housing.loan_won)}, 이자율 ${housing.rate_pct}% ${housing.years}년, 매달 같은 금액)`);
     lines.push(`집값 ${fmtWon(housing.upfront_won)} 중 내 돈 ${fmtWon(housing.cash_used_won)}을 먼저 내는 것으로 가정해요`);
   } else {
-    lines.push(`${tenure === "공공임대" ? "월 임대료" : "월세"} ${fmtWon(housing.monthly_won, { monthly: true })} + 관리비 ${fmtWon(maintenanceWon, { monthly: true })}`);
+    lines.push(`월세 ${fmtWon(housing.monthly_won, { monthly: true })} + 관리비 ${fmtWon(maintenanceWon, { monthly: true })}`);
     lines.push(`보증금 ${fmtWon(housing.upfront_won)}은 가진 돈에서 내는 것으로 가정해요`);
   }
   if (housing.breakdown && housing.breakdown.note) lines.push(housing.breakdown.note);
@@ -233,39 +231,6 @@ function BalanceLines({ series }) {
   );
 }
 
-function CandidateRow({ c }) {
-  const label = `${c.address || c.complex_name || ""} ${c.exclusive_area_m2}㎡`;
-  return (
-    <VStack gap={1}>
-      <HStack gap={1} vAlign="center" wrap="wrap">
-        <Text>{label}</Text>
-        <SrcBadge source="housing_api" />
-      </HStack>
-      <Text type="supporting">
-        {`보증금 ${fmtWon(c.deposit_won)} · 월 ${fmtWon(c.monthly_rent_won)}`}
-        {c.burden_pct !== null && c.burden_pct !== undefined ? ` · ${BURDEN_PLAIN_LABEL} ${c.burden_pct}%` : ""}
-        {c.commute_minutes !== null && c.commute_minutes !== undefined ? ` · 출퇴근 ${fmtMinutes(c.commute_minutes)} (걸어서 직접 잰 시간)` : " · 시뮬레이션은 지역 생성 후"}
-      </Text>
-      {(c.notices || []).slice(0, 2).map((n) => (
-        <Text key={n.id} type="supporting">
-          <a href={n.source_url} target="_blank" rel="noreferrer">{n.title || "공고 원문"}</a>
-        </Text>
-      ))}
-      <Text type="supporting">{ELIGIBILITY_NOTE}</Text>
-      <HStack gap={1}>
-        <Button size="sm" variant="secondary" label="C로 추가"
-          onClick={() => {
-            try {
-              act("consultSend", `공공임대 후보 ${c.complex_id} ${c.unit_type}형을 C로 추가해줘`);
-            } catch {
-              store.set({ consultOpen: true });
-            }
-          }} />
-      </HStack>
-    </VStack>
-  );
-}
-
 export function MoneyTab({ state }) {
   const doc = state.money;
   if (state.moneyLoading) return <Text type="supporting">불러오는 중…</Text>;
@@ -376,7 +341,7 @@ export function MoneyTab({ state }) {
                 </Text>
                 {h.reference && (
                   <Text type="supporting">
-                    {`실제로 거래된 값 ${h.area_m2}㎡ (${h.match_method === "parcel+name" ? "땅+단지 이름" : "단지 이름"}으로 찾은 ${h.parcel_rows + h.name_rows}건 중): `}
+                    {`실제로 거래된 값 ${h.area_m2}㎡${(h.parcel_rows != null || h.name_rows != null) ? ` (${h.match_method === "parcel+name" ? "땅+단지 이름" : "단지 이름"}으로 찾은 ${(Number(h.parcel_rows) || 0) + (Number(h.name_rows) || 0)}건 중)` : ""}: `}
                     {h.reference.trade.count > 0 ? `매매 한가운데 ${fmtWon(h.reference.trade.median)}` : "매매 없음"}
                     {h.reference.jeonse.count > 0 ? ` · 전세 ${fmtWon(h.reference.jeonse.deposit.median)}` : ""}
                     {h.reference.wolse.count > 0 ? ` · 월세 ${fmtWon(h.reference.wolse.deposit.median)}/${fmtWon(h.reference.wolse.monthly.median)}` : ""}
@@ -419,14 +384,6 @@ export function MoneyTab({ state }) {
         <Text type="supporting">{TRADE_COSTS_NOTE}</Text>
         <Text type="supporting">국토교통부 실거래가 공개시스템 참고용 자료라서 법적 효력이 없어요. 계약한 날짜 기준이에요.</Text>
       </VStack>
-      {state.moneyCandidates.length > 0 && (
-        <VStack gap={1}>
-          <Text><Gloss term="공공임대">공공임대</Gloss> 후보 (상담에서 찾은 것)</Text>
-          {state.moneyCandidates.slice(0, 5).map((c, i) => (
-            <CandidateRow key={`${c.complex_id}-${c.unit_type}-${i}`} c={c} />
-          ))}
-        </VStack>
-      )}
     </VStack>
   );
 }

@@ -67,11 +67,11 @@ function session(over = {}) {
 }
 
 describe("search tool defs", () => {
-  it("exposes four documented tools", () => {
+  it("exposes three documented tools", () => {
     assert.deepEqual(SEARCH_TOOL_DEFS.map((t) => t.function.name).sort(),
-      ["build_scenario", "extract_profile", "find_homes", "find_public_rentals"]);
+      ["build_scenario", "extract_profile", "find_homes"]);
     assert.deepEqual(Object.keys(SEARCH_HANDLERS).sort(),
-      ["build_scenario", "extract_profile", "find_homes", "find_public_rentals"]);
+      ["build_scenario", "extract_profile", "find_homes"]);
   });
 
   it("maps region words and kind words", () => {
@@ -125,32 +125,6 @@ describe("find_homes tool", () => {
       { profile: profile(), regions: ["강남"] });
     assert.equal(r.ok, true);
     assert.equal(r.total_matching, 0);
-  });
-});
-
-describe("find_public_rentals tool", () => {
-  const SNAP = {
-    fetched_at: "2026-10-28",
-    complexes: [{
-      source: "lh", id: "1", name: "송파행복", address: "서울특별시 송파구 문정동",
-      pnu: null, latitude: null, longitude: null,
-      unit_types: [{ unit_type: "26A", building_type: "아파트",
-        exclusive_area_m2: 26, deposit_won: 30000000, monthly_rent_won: 200000 }],
-    }],
-    notices: [],
-  };
-
-  it("finds budgeted units and reports coverage", async () => {
-    const s = session({ loadHousing: async () => SNAP });
-    const r = await callTool(s, "find_public_rentals", { profile: profile() });
-    assert.equal(r.ok, true);
-    assert.equal(r.total_matching, 1);
-    assert.match(r.coverage_note || "", /공공임대 자료 없음/);
-  });
-
-  it("fails honestly without a loader", async () => {
-    const r = await callTool(session(), "find_public_rentals", { profile: profile() });
-    assert.equal(r.ok, false);
   });
 });
 

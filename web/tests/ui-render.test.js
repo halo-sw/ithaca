@@ -269,7 +269,6 @@ describe("stage 10b UI render smoke (SSR, no DOM)", { skip: SKIP_ALL }, () => {
       "?mode=sim&scenario=demo-two-homes&home=A&day=1&t=08:30&follow=1&tab=listings&fill=example");
     assert.ok(html.includes("내가 본 매물 확인하기"), "paste-check heading");
     assert.ok(html.includes("송파구 방이동 올림픽카운티"), "example text prefilled from ?fill=example");
-    assert.ok(html.includes("공공 매물·공고"), "public notices section");
   });
 
   it("renders the share dialog (?tab=money&share=1) with no React errors", () => {

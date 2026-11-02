@@ -37,21 +37,33 @@
 
 ## What it is
 
-**The problem.** People make the most expensive decision of their lives from a few photos and a 30-minute viewing. For a first-job worker, a couple about to marry or a young family in Korea, that decision is also the riskiest: about 75 % of the victims of deposit fraud (전세사기) are in their 20s and 30s (press report of March 2025 citing Ministry of Land data). Everyone who has moved knows the feeling of finding out what a home is really like only after moving in.
+**Problem.** A first home is the largest purchase most people ever make, and it is chosen from a few photos and a 30-minute viewing. In Korea that decision is also the riskiest one young people make: about **75 % of deposit-fraud (전세사기) victims are in their 20s and 30s** (press report of March 2025 citing Ministry of Land data).
 
-**The idea.** An AI household moves in first. Tell it about your life, pick candidate homes from real transactions, and the household lives 30 days in home A and home B, side by side, in a 3D model of the real neighbourhood. Muse Spark makes the household's everyday choices and explains each one. A deterministic engine counts every minute and every won. The app then compares the two homes on the customer's own priorities, with a source or an "assumption" label on every number. It shows, explains and lets you decide. It never decides for you.
+**Who it is for.** First-job workers renting their first place, couples about to marry, and young families choosing between two homes.
 
-**Who it is for.** First-job workers renting their first place, couples about to marry, and families with young children choosing between two homes.
+**What Ithaca does.** Before you sign, an AI household modeled on your family lives **30 days in each of your two candidate homes**. Muse Spark makes the household's daily choices and explains each one. A deterministic engine counts every minute and every won. Then Ithaca shows what a listing never tells you: how many evenings you walk home after dark, how long the commute really takes, and what the month really costs. It shows, explains and lets you decide. It never decides for you.
+
+**What we measured.**
+
+| Claim | Result | Evidence |
+| --- | --- | --- |
+| Numbers in the report come from the engine, not the model | Every number in a report sentence is compared with the engine's value; a sentence with a wrong number or a missing record is rejected and rewritten (up to 3 tries) before you see it | [Verification](docs/verification.md) |
+| The report is checked before you see it | After stage 29k, the Seoul newlywed run passes the Muse judge on the first try at 100 % coverage | [Verification](docs/verification.md) |
+| Open weights agree with the hosted model | Muse Spark Open made the same choice as Muse Spark 1.3 at 120 of 139 shared decision points (86 %) | [Model comparison](docs/model-comparison.md) |
+
+**Built during the hackathon.** First commit 2026-10-28. Every line of product code was written by Muse Code from the stage briefs in [`briefs/`](briefs/).
+
+**Where it runs today.** 11 areas of south-east Seoul and Gyeonggi (real transactions from MOLIT), and the Caltrain corridor around Meta HQ in Menlo Park.
 
 **How it works, in five steps.**
 
 | | Step | What happens | Status |
 |---|---|---|---|
-| 1 | **Say it in your own words** | "맞벌이 예비부부, 판교 출근, 연봉 6천·5천, 모은 돈 2억, 7억 이하로 50㎡ 이상 집 사기" (a two-income engaged couple, Pangyo commute, salaries ₩60M and ₩50M, ₩200M saved, buying a home of 50 m² or more for ₩700M or less). The consult agent turns this into a household profile. Every value the customer said is marked "내가 말한 값", and every gap is marked "물어볼 값". | built (text and voice) |
-| 2 | **Get real candidate homes** | Candidates come from real transactions in 11 areas of south-east Seoul and Gyeonggi, with ride times from the operator's schedule and public rentals from the LH · 마이홈 API. They appear on a map with the subway lines, the workplace and the commute minutes. | built |
+| 1 | **Say it in your own words** | "맞벌이 예비부부, 판교 출근, 연봉 6천·5천, 모은 돈 2억, 7억 이하로 50㎡ 이상 집 사기" (a two-income engaged couple, Pangyo commute, salaries 60,000,000 won and 50,000,000 won, 200,000,000 won saved, buying a home of 50 m² or more for 700,000,000 won or less). The consult agent turns this into a household profile. Every value the customer said is marked "내가 말한 값", and every gap is marked "물어볼 값". | built (text and voice) |
+| 2 | **Get real candidate homes** | Candidates come from real transactions in 11 areas of south-east Seoul and Gyeonggi, with ride times from the operator's schedule. They appear on a map with the subway lines, the workplace and the commute minutes. | built |
 | 3 | **The household lives there for 30 days** | The household commutes, shops, walks in the park and visits clinics on the real walking graph, in both homes at once. Runs are paired over 10 seeds, so the gap between homes comes from the homes and not from chance. | built |
 | 4 | **The report is checked before you see it** | The agent's checklist and report are scored against a ground-truth checklist. Numbers must match the engine, and every sentence must cite a simulation event. A failed report goes back to the agent up to 3 times, then to the customer. Each try and its reason show in the chat while it runs. | built (scorer, claim checks, Muse judge, retry loop, on-screen timeline) |
-| 5 | **Compare with evidence** | Time, fatigue, money for 매매 / 전세 / 월세 / public rental, 전세 warning signs, support programmes, official safety and education figures, all weighted by the customer's own priorities. Each home gets a 0–100 **내 기준 점수**: a subjective score from the customer's own weights, with the formula one tap away. | built |
+| 5 | **Compare with evidence** | Time, fatigue, money for buying (매매), deposit lease (전세) and monthly rent (월세), deposit-lease warning signs, support programmes, official safety and education figures, all weighted by the customer's own priorities. Each home gets a 0–100 **내 기준 점수**: a subjective score from the customer's own weights, with the formula one tap away. | built |
 
 <p align="center">
   <img src="briefs/img/1031-menlo.jpg" width="820" alt="The chat replaying a real Muse Spark 1.3 session for a Meta HQ commuter in Menlo Park. Left: the live-in diary (Day 1 08:00, left home and commuted 12 minutes), 'All 8 sentences checked against the record', the block 'Only living there tells you' (rode home from work after dark: A 37 times, avg 11 min, 2.9 km, by bike; B 40 times; sunset 17:00) and the sources Zillow ZORI, OSM (US), USGS. Right: a light map of Menlo Park with the Meta HQ work pin and six price pins at $4,261 with 11 to 13 minutes; A and B are picked, with a See the result button.">
@@ -59,9 +71,9 @@
 
 <p align="center"><sub>Meta HQ in Menlo Park, replayed from a real Muse Spark 1.3 session: the checked diary and "Only living there tells you" on the left, six candidates with ZIP rent and door-to-work minutes on the map. Real GPU capture, 2026-10-31.</sub></p>
 
-**Why I built this.** I'm Halo, an office worker, and I have been looking for a home to start married life in. Between the deposit-fraud news and two people with very different daily routines, it was hard, and every change, like a new job, brings things you only meet after moving in. I can't know in advance how well I'll sleep, how crowded my commute will be, or what a neighbourhood is really like, so I wanted to simulate it first.
+**Why I built this.** I'm Halo, and I have been looking for a home to start married life in. Between the deposit-fraud news and two people with very different daily routines, it was hard, and every change, like a new job, brings things you only meet after moving in. I can't know in advance how well I'll sleep, how crowded my commute will be, or what a neighbourhood is really like, so I wanted to simulate it first.
 
-> Status (2026-10-31): work in progress. The hackathon runs 2026-10-27 → 11-05. The first commit is 2026-10-28, and nothing here predates the hackathon. Items marked *coming soon* are not built yet.
+> Status (2026-11-02): work in progress. The hackathon runs 2026-10-27 → 11-05. The first commit is 2026-10-28, and nothing here predates the hackathon. Items marked *coming soon* are not built yet.
 
 ## Try it
 
@@ -82,7 +94,7 @@ The live chat shares a daily Muse limit. When it runs out, or the relay is down,
 
 ### Your first live session
 
-1. **Say it in one sentence**: who lives there, where you work, and your budget. For example *"판교로 출근하는 신입, 연봉 4천, 모은 돈 1억, 4억 이하 집을 사고 싶어"* (a first-job worker in Pangyo, ₩40M salary, ₩100M saved, buying for ₩400M or less). Buying is the default; say jeonse, monthly rent or public rental to search those instead. Anything missing shows up as a chip (*Who with?*, *Purchase price limit?*). Tap one to fill it in, or skip it.
+1. **Say it in one sentence**: who lives there, where you work, and your budget. For example *"판교로 출근하는 신입, 연봉 4천, 모은 돈 1억, 4억 이하 집을 사고 싶어"* (a first-job worker in Pangyo, 40,000,000 won salary, 100,000,000 won saved, buying for 400,000,000 won or less). Buying is the default; say deposit lease (전세) or monthly rent to search those instead. Anything missing shows up as a chip (*Who with?*, *Purchase price limit?*). Tap one to fill it in, or skip it.
 2. **Read the candidates.** Each card and map pin shows the median of real deals and the door-to-work minutes. The pins show the same minutes as the cards.
 3. **Save two.** Tap **Pick** on two cards, or say *"1번, 2번 담아 줘"* (*"Save 1 and 2"*).
 4. **Let them live there.** Say *"두 집에서 살아 봐 줘"* (*"Live in both homes"*). The household lives 30 days in each home, and the chat shows each check while it runs.
@@ -99,7 +111,7 @@ Each model has one job, and numbers never come from a model. The Meta API base U
 |---|---|---|---|---|
 | <img src="web/public/brand/muse-logo.png" width="18" alt=""> **Muse Spark 1.3** (`muse-spark-1.3`) | `https://api.meta.ai/v1` | The household's everyday choices with reasons; the consult agent with tool calls | [`judge/run.js`](web/src/judge/run.js) → [`providers.js`](web/src/judge/providers.js) `complete`; [`consult/agent.js`](web/src/consult/agent.js) → `completeWithTools` | [3 real calls](docs/evidence/muse-spark-1.3-2026-10-31.json), [154 recorded decisions](scenarios/decisions/compare-1029/) |
 | <img src="web/public/brand/muse-logo.png" width="18" alt=""> **Muse Spark 1.3 as a judge** | `https://api.meta.ai/v1` | Reads each report sentence next to the simulation records it cites and answers supported or not, with a reason; a separate call from the writer | [`consult/report.js`](web/src/consult/report.js) `makeJudge` → [`verify/compare.js`](web/src/verify/compare.js) | [Verification](docs/verification.md) |
-| <img src="web/public/brand/muse-logo.png" width="18" alt=""> **Muse Spark Open** (`meta-models/muse-spark-open-1026`) | `https://inference.baseten.co/v1` (Baseten) | The same household decisions; one switch `--provider baseten` | same module | [3 real calls](docs/evidence/muse-spark-open-2026-10-31.json), 120 of 139 same choices as Spark 1.3 |
+| <img src="web/public/brand/muse-logo.png" width="18" alt=""> **Muse Spark Open** (`meta-models/muse-spark-open-1026`) | `https://inference.baseten.co/v1` (Baseten) | Live in the product (header switch: Muse Spark 1.3 | Muse Spark Open) + the same household decisions offline, `--provider baseten` | same module | [3 real calls](docs/evidence/muse-spark-open-2026-10-31.json), 120 of 139 same choices as Spark 1.3 |
 | <img src="web/public/brand/muse-logo.png" width="18" alt=""> **Muse Code** (agent mode on `muse-spark-1.3`) | Muse Code CLI | Wrote every line of product code and every test in this repository from stage briefs | — | [`briefs/`](briefs/) (brief + result per stage) |
 | <img src="web/public/brand/muse-logo.png" width="18" alt=""> **Muse Voice Transcribe 1.0** (`muse-voice-transcribe-1.0`) | `https://api.meta.ai/v1/asr/transcribe` | Speak instead of typing in the chat (Korean and English, detected automatically); the transcript goes into the box for the customer to check | [`consult/voice.js`](web/src/consult/voice.js) via the relay `/api/voice/transcribe` | — |
 | SAM 3.1 | — | Window area from listing photos | *coming soon* | — |
@@ -154,7 +166,7 @@ How each check works, with the diagram: [docs/verification.md](docs/verification
     <td><sub><b>On a phone.</b> Chat and Map &amp; homes as two tabs: the checked diary, “Only living there tells you” and its sources, and map pins that show the same door-to-work minutes as the cards.</sub></td>
   </tr>
   <tr>
-    <td colspan="2"><img src="briefs/img/1101-seoul.jpg" alt="Seoul, in Korean: an engaged couple working in Pangyo buys a home for ₩700M or less, replayed from a real Muse Spark 1.3 session. Left: the one-off purchase total ₩355.25M (₩200M own money, ₩155.25M borrowed), the monthly ₩1,036,388 (loan payment ₩741,188, maintenance, transit) and Only living there tells you. Right: six homes to buy, one per neighbourhood, with real-transaction prices and commute minutes over the subway lines; A Baekgung Dongyang Paragon (₩570M, 7 min) and B Yuji Villa 3 (₩350M, 35 min) are picked."></td>
+    <td colspan="2"><img src="briefs/img/1101-seoul.jpg" alt="Seoul, in Korean: an engaged couple working in Pangyo buys a home for 700,000,000 won or less, replayed from a real Muse Spark 1.3 session. Left: the one-off purchase total 355,250,000 won (200,000,000 won own money, 155,250,000 won borrowed), the monthly ₩1,036,388 (loan payment ₩741,188, maintenance, transit) and Only living there tells you. Right: six homes to buy, one per neighbourhood, with real-transaction prices and commute minutes over the subway lines; A Baekgung Dongyang Paragon (570,000,000 won, 7 min) and B Yuji Villa 3 (350,000,000 won, 35 min) are picked."></td>
   </tr>
   <tr>
     <td colspan="2"><sub><b>Two countries, one engine.</b> Seoul, in Korean: an engaged couple working in Pangyo buys a home. What they pay once at purchase and every month on the left; six homes to buy, one per neighbourhood, with real-transaction prices and commute minutes on the right.</sub></td>
@@ -241,7 +253,7 @@ Raw and built data are never committed; the scripts above regenerate them. Real-
 
 <br>
 
-OpenStreetMap (ODbL, via Geofabrik) · GIS건물통합정보 and 건축물대장 (국토교통부 / VWorld / 건축HUB) · 국토교통부 실거래가 공개시스템 · 공공주택 데이터 API (LH · 마이홈) · 서울교통공사 지하철혼잡도정보 (공공누리 3유형) and interstation times · 경찰청 범죄 발생 지역별 통계 (2025) · 주택도시기금 product pages (nhuf.molit.go.kr, checked 2026-10-29) · official 전세 checklist sites (인터넷등기소, 정부24, HUG 안심전세포털, 국세청). Full terms are in [`ATTRIBUTION.md`](ATTRIBUTION.md).
+OpenStreetMap (ODbL, via Geofabrik) · GIS건물통합정보 and 건축물대장 (국토교통부 / VWorld / 건축HUB) · 국토교통부 실거래가 공개시스템 · 서울교통공사 지하철혼잡도정보 (공공누리 3유형) and interstation times · 경찰청 범죄 발생 지역별 통계 (2025) · 주택도시기금 product pages (nhuf.molit.go.kr, checked 2026-10-29) · official 전세 checklist sites (인터넷등기소, 정부24, HUG 안심전세포털, 국세청). Full terms are in [`ATTRIBUTION.md`](ATTRIBUTION.md).
 
 </details>
 

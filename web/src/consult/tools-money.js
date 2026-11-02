@@ -1,16 +1,16 @@
 // Consult money tools (stage 6, Node-side): salary → living-cost answers.
 //
 // set_money / estimate_net_pay / price_reference / living_cost /
-// recommend_public_rental / add_home_c. All numbers come from the payroll
-// table, RTMS rows, the public-housing snapshot/API, or the engine run —
+// worth_it / jeonse_check / support_programs / parse_listing /
+// check_listing / add_listing_c. All numbers come from the payroll
+// table, RTMS rows, or the engine run —
 // the model only cites them. Guards (no forecasts, no loan/eligibility
 // judgement, no buy/don't-buy) live in consult/guards.js + the prompt.
 
 import { parseScenario, resolveHome, nameForHome } from "../engine/scenario.js";
 import { moneyOptsFromCriteria, resolveCriteria } from "../engine/criteria.js";
 import { Router } from "../engine/graph.js";
-import { buildPlaces, stationsByName } from "../engine/places.js";
-import { ADULT_MPS } from "../engine/agents.js";
+import { buildPlaces } from "../engine/places.js";
 import { buildPnuIndex, matchRtmsRow, complexOfBuildings, 단지명Matches } from "../money/pnu.js";
 import { referencePrice, rowsForComplex } from "../money/prices.js";
 import { estimateNetPay, memberMonthlyNet, householdMonthlyNet } from "../money/payroll.js";
@@ -23,10 +23,6 @@ import { parseListingText, guardListingValues, plainListingFields,
   listingPosition, last12Months } from "../money/listing.js";
 import { mockDepositLoss, MOCKLOSS_PATHS } from "../money/mockloss.js";
 import { compareAllSupport } from "../money/support.js";
-import {
-  normalizeSnapshot, recommendPublicRental, noticesFor,
-  ELIGIBILITY_NOTE,
-} from "../money/housing.js";
 import { fmtWon, fmtPct } from "../money/format.js";
 
 export const AREA_RTMS_DISTRICT = {
@@ -87,6 +83,15 @@ function fail(message) {
   return { ok: false, error: String(message).slice(0, 500) };
 }
 
+// 41b: complex-name retry ignoring spaces (and "·"), so a model
+// spelling with spaces still finds the stored spaceless name.
+export function matchesIgnoringSpaces(storedNames, want) {
+  const norm = (s) => String(s || "").replace(/[\s·]+/g, "");
+  const w = norm(want);
+  if (!w) return false;
+  return (storedNames || []).some((n) => norm(n) === w);
+}
+
 function needRun(session, id) {
   const hit = session.cache.runs.get(String(id));
   if (!hit) throw new Error(`unknown run ${JSON.stringify(id)} — call run_simulation first`);
@@ -101,12 +106,6 @@ async function needPayroll(session) {
 async function needRtms(session, district) {
   if (!session.loadRtms) throw new Error("RTMS data is unavailable on this server");
   return session.loadRtms(district);
-}
-
-async function needHousing(session) {
-  if (!session.loadHousing) throw new Error("public-rental data is unavailable on this server");
-  const snap = await session.loadHousing();
-  return snap && snap.complexes ? snap : normalizeSnapshot(snap);
 }
 
 async function needAssumption(session, file) {
@@ -210,7 +209,8 @@ async function price_reference(session, args) {
   } catch (err) {
     return fail(`cannot load area ${areaId}: ${String((err && err.message) || err).slice(0, 200)}`);
   }
-  if (!(area.complexes || []).some((c) => c.name === complexName)) {
+  if (!(area.complexes || []).some((c) => c.name === complexName)
+    && !matchesIgnoringSpaces((area.complexes || []).map((c) => c.name), complexName)) {
     return fail(`no complex named ${JSON.stringify(complexName)} in ${areaId} — call list_complexes`);
   }
   const rows = await needRtms(session, district).catch((err) => ({ __error: err }));
@@ -288,9 +288,8 @@ async function living_cost(session, args) {
     price = {
       price_won: tenure === "매매" ? ref.trade.median
         : tenure === "전세" ? ref.jeonse.deposit.median : null,
-      deposit_won: tenure === "월세" ? ref.wolse.deposit.median
-        : tenure === "공공임대" ? (args.deposit_won ?? null) : null,
-      monthly_rent_won: (tenure === "월세" || tenure === "공공임대") ? ref.wolse.monthly.median : null,
+      deposit_won: tenure === "월세" ? ref.wolse.deposit.median : null,
+      monthly_rent_won: tenure === "월세" ? ref.wolse.monthly.median : null,
       source: "rtms",
       area_m2: pref.area_m2,
       match_method: pref.match_method,
@@ -298,17 +297,6 @@ async function living_cost(session, args) {
       disclaimer: ref.disclaimer,
     };
     refNote = `기준가: ${run.meta.complex} ${pref.area_m2}㎡ (${pref.match_method}, ${ref.period.from}~${ref.period.to})`;
-  }
-  if (tenure === "공공임대" && (price.deposit_won === null || price.monthly_rent_won === null)) {
-    const hc = scenario.money.home_c;
-    if (hc && Number.isFinite(hc.deposit_won) && Number.isFinite(hc.monthly_rent_won)) {
-      price.deposit_won = hc.deposit_won;
-      price.monthly_rent_won = hc.monthly_rent_won;
-      price.source = "housing_api";
-      refNote = `공공임대 후보 ${hc.address || ""} ${hc.unit_type || ""}형`;
-    } else {
-      return fail("공공임대 living_cost needs home C (add_home_c) or explicit deposit_won/monthly_rent_won");
-    }
   }
   let housing;
   try {
@@ -365,22 +353,6 @@ function salarySourceOf(net) {
   return "mixed";
 }
 
-// --- recommend_public_rental -------------------------------------------------------
-
-function complexCentroid(complex) {
-  const c = complex && complex.centroid;
-  if (Array.isArray(c) && c.length >= 2) return { lon: c[0], lat: c[1] };
-  return null;
-}
-
-function haversineM(a, b) {
-  const R = 6371000;
-  const dLa = (b.lat - a.lat) * Math.PI / 180;
-  const dLo = (b.lon - a.lon) * Math.PI / 180;
-  const s = Math.sin(dLa / 2) ** 2 + Math.cos(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180) * Math.sin(dLo / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(s));
-}
-
 // Session-cached per-area commute index: pnu -> {areaId, lon, lat}
 // (cheap: no routers up front). Routers, station lists and graph nodes
 // build lazily per area/node on first commute lookup, so a recommend call
@@ -433,184 +405,6 @@ async function commuteIndex(session) {
   };
   session._commuteIndex = idx;
   return idx;
-}
-
-function workStationOf(scenario, memberRef) {
-  const members = (scenario.household || {}).members || [];
-  const list = memberRef !== undefined && memberRef !== null
-    ? members.filter((m, i) => [m.id, m.label, `m${i + 1}`, `h${i + 1}`].includes(String(memberRef)))
-    : members;
-  for (const m of list) {
-    if (m.work && m.work.type === "station_ride") return m.work.station_name;
-  }
-  return null;
-}
-
-async function recommend_public_rental(session, args) {
-  const snap = await needHousing(session).catch((err) => ({ __error: err }));
-  if (snap.__error) return fail(snap.__error.message);
-  const scenario = parseScenario(clone(session.scenario));
-  const table = await needPayroll(session).catch(() => null);
-  const net = table ? householdMonthlyNet(scenario.money, scenario.household.members, table)
-    : { household_monthly_net_won: 0, per_member: {} };
-  const monthlyNet = Number(args.monthly_net_won) > 0 ? Number(args.monthly_net_won) : net.household_monthly_net_won;
-  const threshold = Number(args.threshold_pct) > 0 ? Number(args.threshold_pct)
-    : scenario.money.burden_threshold_pct;
-  const stationName = args.work_station
-    || (typeof workStationOf(scenario, args.member) === "string" ? workStationOf(scenario, args.member) : null);
-  const idx = await commuteIndex(session);
-  if (!idx.distCache) idx.distCache = new Map(); // `${areaId}|${nodeId}` -> dist map (session-persistent)
-  const distCache = idx.distCache;
-  const commuteMinutes = (complex) => {
-    if (!complex.pnu) return null;
-    const slot = idx.nodeFor(complex.pnu);
-    if (!slot) return null;
-    const entry = idx.ensureRouter(slot.areaId);
-    if (!entry) return null;
-    const key = `${slot.areaId}|${slot.nodeId}`;
-    if (!distCache.has(key)) distCache.set(key, entry.router.distFrom(slot.nodeId).dist);
-    const dist = distCache.get(key);
-    let names = [];
-    if (stationName) {
-      names = [typeof stationName === "string" ? stationName : stationName[slot.areaId]];
-    } else {
-      // No station named: nearest station of any name.
-      let best = Infinity;
-      for (const st of entry.places.stations) {
-        const d = dist.get(st.nodeId);
-        if (d !== undefined && d < best) best = d;
-      }
-      return best === Infinity ? null : Math.round(best / ADULT_MPS / 60 * 10) / 10;
-    }
-    let best = Infinity;
-    for (const nm of names) {
-      if (!nm) continue;
-      for (const st of stationsByName(entry.places, nm)) {
-        const d = dist.get(st.nodeId);
-        if (d !== undefined && d < best) best = d;
-      }
-    }
-    return best === Infinity ? null : Math.round(best / ADULT_MPS / 60 * 10) / 10;
-  };
-  const rec = recommendPublicRental(snap, {
-    monthlyNetWon: monthlyNet,
-    thresholdPct: threshold,
-    targetAreaM2: Number(args.target_area_m2) || null,
-    areaTolM2: Number(args.area_tol_m2) || 10,
-    commuteMinutes,
-    limit: Math.min(10, Math.max(1, Number(args.limit) || 5)),
-  });
-  return {
-    ok: true,
-    monthly_net_won: monthlyNet,
-    work_station: stationName || null,
-    ...rec,
-    candidates: rec.candidates.map((c) => ({
-      ...c,
-      formatted_monthly: fmtWon(c.monthly_housing_won, { monthly: true }),
-      formatted_deposit: fmtWon(c.deposit_won),
-      eligibility_note: ELIGIBILITY_NOTE,
-    })),
-  };
-}
-
-// --- add_home_c ----------------------------------------------------------------------
-
-async function add_home_c(session, args) {
-  const snap = await needHousing(session).catch((err) => ({ __error: err }));
-  if (snap.__error) return fail(snap.__error.message);
-  const complex = (snap.complexes || []).find((c) =>
-    String(c.id) === String(args.complex_id) && (!args.complex_source || c.source === args.complex_source));
-  if (!complex) return fail(`unknown public-rental complex ${JSON.stringify(args.complex_id)} — call recommend_public_rental first`);
-  const unit = (complex.unit_types || []).find((u) => String(u.unit_type) === String(args.unit_type))
-    || (complex.unit_types || [])[0];
-  if (!unit) return fail(`complex ${complex.id} has no unit types with areas`);
-  if (!complex.pnu) {
-    return { ok: false,
-      error: `이 후보(${complex.address || complex.name})는 PNU가 없어 지역 매칭이 안 됩니다. 시뮬레이션은 지역 생성 후 — 주소로 공고만 확인해 주세요.` };
-  }
-  const idx = await commuteIndex(session);
-  const located = idx.pnuTo.get(complex.pnu);
-  if (!located) {
-    return { ok: false,
-      error: `이 후보(${complex.address || complex.name})는 지은 지역 밖에 있습니다. 시뮬레이션은 지역 생성 후 — 주소와 공고 링크로 확인해 주세요.` };
-  }
-  const entry = idx.ensureRouter(located.areaId);
-  const slot = idx.nodeFor(complex.pnu);
-  if (!entry || !slot) {
-    return { ok: false,
-      error: `이 후보(${complex.address || complex.name})는 그래프에 닿지 않습니다. 시뮬레이션은 지역 생성 후 — 주소와 공고 링크로 확인해 주세요.` };
-  }
-  const area = entry.area;
-  // The complex holding this parcel, else the nearest named complex.
-  const buildings = Array.isArray(area.buildings) ? area.buildings : [];
-  const hit = buildings.find((b) => b.register && b.register.pnu === complex.pnu);
-  let chosen = null;
-  let how = "";
-  if (hit) {
-    chosen = (area.complexes || []).find((c) => (c.building_ids || []).includes(hit.id)) || null;
-    if (chosen) how = "같은 필지의 단지";
-  }
-  if (!chosen) {
-    let best = Infinity;
-    const here = (() => {
-      const g = hit && hit.geometry;
-      const ring = g && g.type === "Polygon" ? g.coordinates[0]
-        : g && g.type === "MultiPolygon" ? g.coordinates[0][0] : null;
-      if (!ring || !ring.length) return null;
-      let lon = 0;
-      let lat = 0;
-      for (const [x, y] of ring) {
-        lon += x;
-        lat += y;
-      }
-      return { lon: lon / ring.length, lat: lat / ring.length };
-    })();
-    for (const c of area.complexes || []) {
-      const cc = complexCentroid(c);
-      if (!here || !cc) continue;
-      const d = haversineM({ lon: here.lon, lat: here.lat }, cc);
-      if (d < best) {
-        best = d;
-        chosen = c;
-      }
-    }
-    how = chosen ? `가장 가까운 단지(중심까지 약 ${Math.round(best)} m)` : "";
-  }
-  if (!chosen) return fail(`area ${slot.areaId} has no named complex to anchor home C`);
-  const next = clone(session.scenario);
-  next.homes = (next.homes || []).filter((h) => h.label !== "C");
-  next.homes.push({ label: "C", area: slot.areaId, complex_name: chosen.name });
-  next.money = next.money || {};
-  next.money.tenure = { ...(next.money.tenure || {}), C: "공공임대" };
-  next.money.home_c = {
-    complex_source: complex.source, complex_id: complex.id,
-    address: complex.address, pnu: complex.pnu,
-    unit_type: unit.unit_type, building_type: unit.building_type,
-    exclusive_area_m2: unit.exclusive_area_m2,
-    deposit_won: unit.deposit_won, monthly_rent_won: unit.monthly_rent_won,
-    anchored_area: slot.areaId, anchored_complex: chosen.name,
-  };
-  let parsed;
-  try {
-    parsed = parseScenario(next);
-  } catch (err) {
-    return fail(String((err && err.message) || err).slice(0, 300));
-  }
-  try {
-    resolveHome(area, { label: "C", area: slot.areaId, complex_name: chosen.name }, entry.router);
-  } catch (err) {
-    return fail(`home C anchor failed: ${String((err && err.message) || err).slice(0, 200)}`);
-  }
-  session.scenario = parsed;
-  return {
-    ok: true, home: { label: "C", area: slot.areaId, complex_name: chosen.name },
-    anchor_note: `C의 출입구는 ${how}의 출입구를 씁니다.`,
-    candidate: next.money.home_c,
-    notices: noticesFor(complex, snap.notices || []),
-    eligibility_note: ELIGIBILITY_NOTE,
-    next: "run_simulation(home=C)으로 30일 시뮬레이션을 실행하세요.",
-  };
 }
 
 // --- worth_it (stage 9b) ------------------------------------------------------------
@@ -707,8 +501,6 @@ async function worth_it(session, args) {
       jeonse: jeonseDeposit > 0 ? { deposit_won: jeonseDeposit } : null,
       wolse: wolseMonthly !== null && wolseMonthly !== undefined
         ? { deposit_won: wolseDeposit || 0, monthly_won: wolseMonthly } : null,
-      public: Number.isFinite(Number(args.public_deposit_won)) && Number.isFinite(Number(args.public_monthly_won))
-        ? { deposit_won: Number(args.public_deposit_won), monthly_won: Number(args.public_monthly_won) } : null,
       ownership_costs: costs,
       annual_income_won: Number(args.annual_income_won) > 0
         ? Number(args.annual_income_won) : net.household_monthly_net_won * 12,
@@ -763,7 +555,8 @@ async function jeonse_check(session, args) {
   } catch (err) {
     return fail(`cannot load area ${areaId}: ${String((err && err.message) || err).slice(0, 200)}`);
   }
-  if (!(area.complexes || []).some((c) => c.name === complexName)) {
+  if (!(area.complexes || []).some((c) => c.name === complexName)
+    && !matchesIgnoringSpaces((area.complexes || []).map((c) => c.name), complexName)) {
     return fail(`no complex named ${JSON.stringify(complexName)} in ${areaId} — call list_complexes`);
   }
   const rows = await needRtms(session, district).catch((err) => ({ __error: err }));
@@ -859,19 +652,9 @@ async function support_programs(session, args) {
     if (args[k] !== undefined && args[k] !== null && args[k] !== "") profile[k] = args[k];
   }
   const compared = compareAllSupport(doc, profile);
-  let rentals = null;
-  if (args.include_public_rental !== false) {
-    const rec = await recommend_public_rental(session, {
-      monthly_net_won: args.monthly_net_won,
-      target_area_m2: args.target_area_m2,
-      limit: 3,
-    });
-    rentals = rec.ok ? rec : { ok: false, error: rec.error };
-  }
   return {
     ok: true, profile,
     programs: compared.programs,
-    public_rentals: rentals,
     note: "조건을 한 줄씩 대조만 한다. 최종 판정(대상 여부)은 하지 않는다. 공고 원문에서 확인해 주세요.",
   };
 }
@@ -1096,7 +879,7 @@ export const MONEY_TOOL_DEFS = [
     parameters: { type: "object", additionalProperties: false,
       properties: {
         patch: { type: "object", additionalProperties: true,
-          description: "{members:{m1:{annual_salary_won?, monthly_net_won?}}, cash_won?, tenure?{A:매매/전세/월세/공공임대}, area_m2?{A:㎡}, assumptions?, burden_threshold_pct?}" },
+          description: "{members:{m1:{annual_salary_won?, monthly_net_won?}}, cash_won?, tenure?{A:매매/전세/월세}, area_m2?{A:㎡}, assumptions?, burden_threshold_pct?}" },
       } } } },
   { type: "function", function: { name: "estimate_net_pay",
     description: "Estimate monthly net pay from a gross annual salary with the documented payroll table (marked 추정), or resolve a scenario member's net (their typed monthly_net_won wins).",
@@ -1119,22 +902,6 @@ export const MONEY_TOOL_DEFS = [
         run: { type: "string" }, tenure: { type: "string" }, area_m2: { type: "number" },
         price_won: { type: "number" }, deposit_won: { type: "number" }, monthly_rent_won: { type: "number" },
       }, required: ["run"] } } },
-  { type: "function", function: { name: "recommend_public_rental",
-    description: "Public-rental candidates under the burden threshold, similar area, shortest commute to the work station. Each links notices; eligibility is for the notice text to decide.",
-    parameters: { type: "object", additionalProperties: false,
-      properties: {
-        target_area_m2: { type: "number" }, area_tol_m2: { type: "number" },
-        threshold_pct: { type: "number" }, monthly_net_won: { type: "number" },
-        work_station: { type: "string" }, member: { type: "string" },
-        limit: { type: "integer" },
-      } } } },
-  { type: "function", function: { name: "add_home_c",
-    description: "Add a public-rental candidate as home C (공공임대) when its parcel is inside a built area; else explains the area is not built yet.",
-    parameters: { type: "object", additionalProperties: false,
-      properties: {
-        complex_id: { type: "string" }, complex_source: { type: "string" },
-        unit_type: { type: "string" },
-      }, required: ["complex_id"] } } },
   { type: "function", function: { name: "worth_it",
     description: "Multi-year buy-vs-rent cost comparison for a stored run (horizon 5/10/20, customer picks): totals, interest, locked cash, opportunity cost, buy equity under customer-chosen price scenarios (default −2/0/+2 %/yr, 가정 시나리오), break-even years, DSR display. Numbers only — never a buy verdict.",
     parameters: { type: "object", additionalProperties: false,
@@ -1145,7 +912,6 @@ export const MONEY_TOOL_DEFS = [
         opportunity_rate_pct: { type: "number" },
         price_won: { type: "number" }, jeonse_won: { type: "number" },
         deposit_won: { type: "number" }, monthly_rent_won: { type: "number" },
-        public_deposit_won: { type: "number" }, public_monthly_won: { type: "number" },
         annual_income_won: { type: "number" },
         other_debt_service_annual_won: { type: "number" },
       }, required: ["run", "horizon_years"] } } },
@@ -1164,7 +930,7 @@ export const MONEY_TOOL_DEFS = [
         monthly_net_won: { type: "number" }, monthly_spent_won: { type: "number" },
       }, required: ["path", "deposit_won"] } } },
   { type: "function", function: { name: "support_programs",
-    description: "Policy loans and youth/newly-wed benefits: condition-by-condition comparison of the customer profile with published conditions, plus public-rental candidates. Never a final eligibility verdict.",
+    description: "Policy loans and youth/newly-wed benefits: condition-by-condition comparison of the customer profile with published conditions. Never a final eligibility verdict.",
     parameters: { type: "object", additionalProperties: false,
       properties: {
         age: { type: "number" }, household_type: { type: "string" },
@@ -1172,8 +938,6 @@ export const MONEY_TOOL_DEFS = [
         annual_income_won: { type: "number" }, assets_won: { type: "number" },
         owns_home: { type: "boolean" }, has_newborn: { type: "boolean" },
         deposit_won: { type: "number" }, price_won: { type: "number" },
-        monthly_net_won: { type: "number" }, target_area_m2: { type: "number" },
-        include_public_rental: { type: "boolean" },
       } } } },
   { type: "function", function: { name: "parse_listing",
     description: "Read a customer-pasted private listing text: deal type, asking values, area, floor, complex/address, maintenance. Only values that appear in the text are returned; missing ones come back as ask-back questions.",
@@ -1207,7 +971,6 @@ export { SUPPORT_PROFILE_KEYS };
 
 export const MONEY_HANDLERS = {
   set_money, estimate_net_pay, price_reference, living_cost,
-  recommend_public_rental, add_home_c,
   worth_it, jeonse_check, mock_deposit_loss, support_programs,
   parse_listing, check_listing, add_listing_c,
 };

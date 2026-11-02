@@ -38,8 +38,13 @@ function regionDirFor(homes) {
 
 async function loadRegion(homes) {
   const dir = regionDirFor(homes);
-  const region = {};
-  for (const [key, file] of [["network", "network.json"], ["congestion", "congestion.json"]]) {
+  // 41g: region-us ships no congestion file — the region dir decides,
+  // so US runs never request (404) data/region-us/congestion.json.
+  const files = dir === "region-us"
+    ? [["network", "network.json"]]
+    : [["network", "network.json"], ["congestion", "congestion.json"]];
+  const region = { congestion: null };
+  for (const [key, file] of files) {
     try {
       region[key] = await fetchJson(assetUrl(`/data/${dir}/${file}`));
     } catch {
