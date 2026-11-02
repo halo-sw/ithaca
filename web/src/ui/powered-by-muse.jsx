@@ -1,11 +1,26 @@
 // 28b: the "Powered by Muse" credit with the official Muse logo (docs/design.md §3.12).
+import { Text } from "@astryxdesign/core/Text";
 import { assetUrl } from "../paths.js";
+import { providerLabel } from "./provider-switch.js";
 
 export const MUSE_LOGO_PATH = "brand/muse-logo.png";
 
 export function museModelLabel(live) {
   if (live === null || live === undefined) return "연결 확인 중";
   return live ? "Muse Spark 1.3" : "규칙 모드";
+}
+
+// 41f: the small tag under each assistant reply naming the model
+// that answered it. Unknown/recorded models render nothing (the
+// recorded badge covers replays).
+export function ModelTag({ model }) {
+  const label = providerLabel(model);
+  if (!label) return null;
+  return (
+    <span className="ui-model-tag">
+      <Text type="supporting">{label}</Text>
+    </span>
+  );
 }
 
 export function PoweredByMuse({ size = "sm", live, showStatus = false }) {

@@ -104,7 +104,10 @@ import { chatUrl, simMomentUrl, tourUrl, withoutEmbed, saveTranscript, loadTrans
   clearTranscript, parseChatSearch } from "../chat/urls.js";
 import { recordingUrl, validateRecording, replaySchedule, replayRunPlan, RECORDINGS } from "../chat/recording.js";
 import { ruleTurnPlan } from "../chat/intent.js";
-import { postConsultStream, postDiary, postReportStream, loadScenario } from "./consult-client.js";
+import { postConsultStream, postDiary, postReportStream, loadScenario, basetenFallbackProvider } from "./consult-client.js";
+import { loadProviderChoice, saveProviderChoice, isValidProvider,
+  offerOpenWeights, providerLabel, openFallbackLine, recordedModelOf,
+  OPEN_MODEL_HINT } from "./provider-switch.js";
 import { shouldCallMuse, isNoKeyError, KEYLESS_LINE,
   getMuseLive, getMuseStatus, subscribeMuseLive, setMuseLive, refreshMuseLive } from "./muse-status.js";
 import { voiceSupported, voiceKeyReady } from "./voice.js";
@@ -1865,7 +1868,15 @@ export function ChatScreen() {
   const [error, setError] = useState("");
   // 13f: usage lives in the 설정 sheet's 모델 section (usage log).
   const [usageLog, setUsageLog] = useState(() => newUsageLog());
-  const [provider, setProvider] = useState("meta");
+  // 41f: the header model switch — the choice rides on every
+  // /api/consult call (chat, report, diary) and persists for the
+  // rest of the session (sessionStorage, never throws).
+  const [provider, setProviderRaw] = useState(() => loadProviderChoice());
+  const setProvider = (v) => {
+    if (!isValidProvider(v)) return;
+    setProviderRaw(v);
+    saveProviderChoice(v);
+  };
   const [view, setView] = useState("chat");
   // 26p: phones show the pane toggle (대화 / 지도·후보) on its own row
   // under the top bar; wider screens keep it inside the bar (extra).
@@ -2631,6 +2642,7 @@ export function ChatScreen() {
               content: LANG === "en"
                 ? `Finished living there. ${result.summary}`
                 : `다 살아 봤어요. ${result.summary}`,
+              model: provider,
               suggestions: ["출근길 보여 줘", "한 달에 얼마 들어?", "동네 걸어 보기"] });
           }).catch(() => {
             setMessages((prev) => prev.map((m) => (m.id === simId
@@ -2703,28 +2715,45 @@ export function ChatScreen() {
       work_open: workOpen, profile: st.profile || null, customer_text,
       ...(reportStatus === undefined ? {} : { report_status: reportStatus }) };
     try {
-      let byoKey = "";
-      try {
-        byoKey = loadByoKey(typeof sessionStorage !== "undefined" ? sessionStorage : null, provider);
-      } catch { /* no storage — server key path */ }
-      setLiveRows([]);
-      const out = await postConsultStream({ provider, messages: history, scenario: scen,
-        context: ctx, byoKey }, (ev) => {
-        if (ev.type === "tool_start") {
-          setLiveRows((prev) => [...prev, { name: ev.name, pending: true }]);
-        } else if (ev.type === "tool_end") {
-          setLiveRows((prev) => {
-            const next = [...prev];
-            for (let i = next.length - 1; i >= 0; i--) {
-              if (next[i].pending && next[i].name === ev.name) {
-                next[i] = { name: ev.name, ok: ev.ok, summary: ev.summary, pending: false };
-                break;
+      // BYOK keys are per provider, so each attempt loads its own.
+      const attempt = (prov) => {
+        let byoKey = "";
+        try {
+          byoKey = loadByoKey(typeof sessionStorage !== "undefined" ? sessionStorage : null, prov);
+        } catch { /* no storage — server key path */ }
+        setLiveRows([]);
+        return postConsultStream({ provider: prov, messages: history, scenario: scen,
+          context: ctx, byoKey }, (ev) => {
+          if (ev.type === "tool_start") {
+            setLiveRows((prev) => [...prev, { name: ev.name, pending: true }]);
+          } else if (ev.type === "tool_end") {
+            setLiveRows((prev) => {
+              const next = [...prev];
+              for (let i = next.length - 1; i >= 0; i--) {
+                if (next[i].pending && next[i].name === ev.name) {
+                  next[i] = { name: ev.name, ok: ev.ok, summary: ev.summary, pending: false };
+                  break;
+                }
               }
-            }
-            return next;
-          });
-        }
-      });
+              return next;
+            });
+          }
+        });
+      };
+      // 41f: a failed open-weights turn runs once more on Muse Spark
+      // 1.3 with one notice line. server_key_used never retries (41e).
+      let usedProvider = provider;
+      let out;
+      try {
+        out = await attempt(provider);
+      } catch (firstErr) {
+        const fallback = basetenFallbackProvider(provider, firstErr);
+        if (!fallback) throw firstErr;
+        pushMsg({ role: "assistant", kind: "text",
+          content: openFallbackLine(LANG), fromModel: false });
+        out = await attempt(fallback);
+        usedProvider = fallback;
+      }
       setLiveRows([]);
       const rows = { ...stateRef.current.toolRows };
       const callIds = [];
@@ -2752,7 +2781,7 @@ export function ChatScreen() {
       // stay translatable — only model-written text is fromModel.
       pushMsg({ role: "assistant", kind: "text", content: bubble.content || "",
         tool_calls: bubble.tool_calls, suggestions: [...suggestions],
-        fromModel: !out.fallback });
+        fromModel: !out.fallback, model: usedProvider });
       // 27g: the Muse path never ran ensureData, so the map stayed on its
       // placeholder after Muse found homes. Fill it now (no await — the
       // workOpen effect re-renders when it lands).
@@ -2806,13 +2835,13 @@ export function ChatScreen() {
       }
       // 13: per-turn usage into the 모델 panel log.
       setUsageLog((log) => recordTurn(log, {
-        provider, model: provider,
+        provider: usedProvider, model: usedProvider,
         input: (out.usage && out.usage.prompt_tokens) || 0,
         output: (out.usage && out.usage.completion_tokens) || 0,
         reasoning: (out.usage && out.usage.reasoning_tokens) || 0,
         latencyMs: out.latencyMs || 0,
       }));
-      setModelErrors((e) => ({ ...e, [provider]: null }));
+      setModelErrors((e) => ({ ...e, [usedProvider]: null }));
       setMuseFails(0);
     } catch (err) {
       setLiveRows([]);
@@ -3126,12 +3155,14 @@ export function ChatScreen() {
           if (doc.scenario) setScenario(doc.scenario);
           if (Array.isArray(doc.picks)) setPicks(doc.picks);
           const sched = replaySchedule(doc.messages);
+          // 41f: replays keep the model they were recorded with.
+          const replayModel = recordedModelOf(doc.meta && doc.meta.model);
           let t = 0;
           const timers = [];
           doc.messages.forEach((m, i) => {
             t += (sched[i] && sched[i].delayMs) || 1200;
             timers.push(setTimeout(() => {
-              pushMsg({ ...m });
+              pushMsg(replayModel && m && !m.model ? { ...m, model: replayModel } : { ...m });
               if (m && m.kind === "candidates" && doc.candidatesData) {
                 setCandidatesData(doc.candidatesData);
                 setWorkOpen(true);
@@ -3382,6 +3413,28 @@ export function ChatScreen() {
   const next = nextStepChips({ messages, picks, currency: nextCur });
   const nextShowReplay = replayChipVisible({ museFails, messages, replayId });
   const nextVisible = !busy && messages.length > 0 && !(replayId && replaying);
+  // 41f: the open-weights item shows only when the server holds
+  // a Baseten key. Wide screens switch in the header; phones (390 px)
+  // keep a compact label in the header and switch in the 모델 panel.
+  const openOffered = offerOpenWeights(getMuseStatus());
+  const openSwitchFull = (
+    <SegmentedControl label="모델 선택" value={provider} onChange={setProvider}
+      size="sm" title={OPEN_MODEL_HINT}>
+      <SegmentedControlItem value="meta" label="Muse Spark 1.3" />
+      <SegmentedControlItem value="baseten" label="Muse Spark Open · open weights" />
+    </SegmentedControl>
+  );
+  const modelSwitch = openOffered ? (phone ? (
+    <span className="ui-model-compact" title={OPEN_MODEL_HINT}>
+      <Text type="supporting">{providerLabel(provider)}</Text>
+    </span>
+  ) : openSwitchFull) : null;
+  const modelPanelSwitch = openOffered && phone ? (
+    <VStack gap={1}>
+      {openSwitchFull}
+      <Text type="supporting">{OPEN_MODEL_HINT}</Text>
+    </VStack>
+  ) : null;
   // 31f: scroll a candidate card into view (best-effort).
   function scrollToCandidateCard(id) {
     try {
@@ -3407,10 +3460,11 @@ export function ChatScreen() {
           <>
           <TopBar mode="chat" summary={summary}
             extra={tabsMount === "top" ? narrowTabs : null}
+            modelSwitch={modelSwitch}
             settings={{
               mode: "chat",
               model: { usageLog, serverKeys, errors: modelErrors },
-              modelExtra: IS_DEV ? (
+              modelExtra: modelPanelSwitch || (IS_DEV ? (
                 <DropdownMenu
                   button={{ label: provider === "meta" ? "Spark 1.3" : "Spark Open",
                     variant: "ghost", size: "sm" }}
@@ -3419,7 +3473,7 @@ export function ChatScreen() {
                     { label: "Spark 1.3 (Muse Spark 1.3)", onClick: () => setProvider("meta") },
                     { label: "Spark Open (Muse Spark Open)", onClick: () => setProvider("baseten") },
                   ]} />
-              ) : null,
+              ) : null),
               assumptions: { overrides,
                 onSet: (id, v) => setOverrides((o) => setOverride(o, id, v)),
                 onReset: (id) => setOverrides((o) => resetOverride(o, id)) },

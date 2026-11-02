@@ -28,7 +28,16 @@ function sessionHeaders() {
 
 function markServerKeyUsed(err, payload) {
   if (payload && payload.error === "server_key_used") err.code = "server_key_used";
+  else if (payload && payload.error === "open_limit") err.code = "open_limit";
   return err;
+}
+
+// 41f: a baseten turn that fails for any reason except the spent
+// server-key session is worth one retry on Muse Spark 1.3. Pure.
+export function basetenFallbackProvider(provider, err) {
+  if (provider !== "baseten") return null;
+  if (err && err.code === "server_key_used") return null;
+  return "meta";
 }
 
 // 27b2: NDJSON stream parser for the consult stream.

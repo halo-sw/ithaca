@@ -1,5 +1,6 @@
 # Stage 41f — Muse Spark Open runs live in the product (brief for Muse)
 
+> Parallel run: 41d (public-rental removal across chat.jsx, consult tools, money/support panels) runs at the same time in this tree. Re-read a shared file right before each edit and change only your own lines.
 Agent mode, rules in `AGENTS.md` (read the "Usage budget" section). Sandbox: no network, no keys. No sub-agents, no git, no todo list, no full test suite, no build. Stop when this part is done.
 
 This is the owner's brief 38a, renumbered to run **after 41e** (both edit `relay/handler.js` and `web/src/ui/chat.jsx`). 41e is already in the tree when you start: keep its session rule.

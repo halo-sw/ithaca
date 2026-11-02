@@ -174,7 +174,7 @@ export function SettingsContent({ settings, onClose }) {
   );
 }
 
-export function TopBar({ mode, summary, extra, settings }) {
+export function TopBar({ mode, summary, extra, settings, modelSwitch }) {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
   // 26w3: on phones the status badge shows the short label; the long
@@ -192,7 +192,14 @@ export function TopBar({ mode, summary, extra, settings }) {
       <div className="ui-bar-left">
         <span className="ui-bar-title"><IthacaLogo height={20} /></span>
         {mode === "chat" ? (
-          <PoweredByMuse size="sm" live={museLive} showStatus />
+          modelSwitch ? (
+            <>
+              <PoweredByMuse size="sm" />
+              {modelSwitch}
+            </>
+          ) : (
+            <PoweredByMuse size="sm" live={museLive} showStatus />
+          )
         ) : (
           <Button size="sm" variant="ghost" label="← 대화로"
             onClick={() => gotoMode("chat", mode)} />

@@ -112,6 +112,10 @@ export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(
   const consult10 = new Map();
   const consultDay = new Map();
   const consultGlobal = [];
+  // 41f: Muse Spark Open on the server key has its own global day
+  // bucket (150/day) so open-weights traffic never eats the main
+  // budget. BYOK baseten calls count here too.
+  const consultGlobalBaseten = [];
   // 41e: one server-key chat session per IP — the first session id
   // seen on the server key is remembered for 24 h; a different (or
   // missing) session id from the same IP is refused without a model
@@ -281,7 +285,7 @@ export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(
         ok: true,
         meta: { hasServerKey: Boolean(metaApiKey(env)) },
         voice: { hasServerKey: Boolean(metaApiKey(env)) },
-        baseten: { hasServerKey: false },
+        baseten: { hasServerKey: Boolean(env.BASETEN_API_KEY) },
         recorded: { hasServerKey: true },
         relay: true,
       }, cors);
@@ -338,10 +342,10 @@ export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(
         sendLimited(res, over, cors);
         return;
       }
-      // Peek at the provider so non-BYOK browsers stay on the recorded
-      // demo path: without the BYOK header only "meta" (or missing) is
-      // allowed. Buffer the body once and hand it to the handler parked
-      // on req.body so it is read exactly once.
+      // Peek at the provider first: the baseten day bucket below
+      // applies to every open-weights call (BYOK or server key).
+      // Buffer the body once and hand it to the handler parked on
+      // req.body so it is read exactly once.
       let provider;
       try {
         const raw = await readBody(req);
@@ -354,9 +358,26 @@ export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(
       } catch {
         provider = undefined;
       }
-      if (!byok && provider !== undefined && provider !== "meta") {
-        sendJson(res, 400, { ok: false, error: "provider" }, cors);
+      if (provider === "baseten"
+        && checkGlobal(consultGlobalBaseten, t, DAY_MS, 150) > 0) {
+        sendJson(res, 429, { ok: false, error: "open_limit" }, cors);
         return;
+      }
+      // 41f: without the BYOK header, "meta" (or missing) stays on the
+      // server key as before; "baseten" needs BASETEN_API_KEY on the
+      // server. Anything else is rejected.
+      if (!byok) {
+        if (provider === undefined || provider === "meta") {
+          /* server key path, allowed */
+        } else if (provider === "baseten") {
+          if (!env.BASETEN_API_KEY) {
+            sendJson(res, 400, { ok: false, error: "provider" }, cors);
+            return;
+          }
+        } else {
+          sendJson(res, 400, { ok: false, error: "provider" }, cors);
+          return;
+        }
       }
       corsHeaders(res, cors);
       return consultHandler(req, res);

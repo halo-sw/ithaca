@@ -16,6 +16,7 @@ import {
   ChatMessage, ChatMessageBubble, ChatMessageMetadata, ChatToolCalls,
 } from "@astryxdesign/core/Chat";
 import { store } from "./store.js";
+import { ModelTag } from "./powered-by-muse.jsx";
 import { citationsFor, toolActionKo, toolDurationKo } from "./agent-float.js";
 import { SOURCES, sourceById } from "../sources.js";
 import { LANG } from "../i18n/lang.js";
@@ -101,6 +102,7 @@ export function AssistantMsg({ msg, toolRows, lang = LANG }) {
           <Markdown>{msg.content}</Markdown>
         </ChatMessageBubble>
       )}
+      {msg.model ? (<ModelTag model={msg.model} />) : null}
       <ToolRows rows={rows} />
       <CiteRows tools={tools} toolCalls={msg.tool_calls || []}
         candidates={msg && msg.data && msg.data.result
