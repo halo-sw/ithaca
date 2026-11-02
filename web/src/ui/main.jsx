@@ -13,6 +13,7 @@ import "./ui.css";
 import { store } from "./store.js";
 import { App } from "./app.jsx";
 import { initI18n } from "../i18n/index.js";
+import { captureJudgeCode } from "../chat/judge-code.js";
 
 let mounted = false;
 
@@ -32,6 +33,7 @@ function FirstVisit() {
 export function mountUI() {
   if (mounted) return;
   mounted = true;
+  captureJudgeCode();
   initI18n();
   const el = document.getElementById("ui-root");
   if (!el) return;

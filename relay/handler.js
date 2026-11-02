@@ -99,6 +99,45 @@ function checkGlobal(global, t, windowMs, max) {
   return 0;
 }
 
+// 43a: judges carry a shared code (env JUDGE_CODES) so a room full of
+// judges behind one egress IP is never blocked by the one-session rule
+// or the per-IP buckets. Codes shorter than 12 chars are ignored; no
+// codes means the feature is off. The code never appears in a body,
+// a header or a log line.
+const JUDGE_HEADER = "x-ithaca-judge";
+
+function judgeCodes(env) {
+  const raw = env && env.JUDGE_CODES;
+  if (typeof raw !== "string") return [];
+  return raw.split(",").map((s) => s.trim()).filter((s) => s.length >= 12);
+}
+
+// Constant-time compare against each code: lengths first, then a byte
+// XOR loop with no early return inside the loop. A wrong or short code
+// counts as no code.
+function isJudge(req, codes) {
+  if (!Array.isArray(codes) || codes.length === 0) return false;
+  const raw = reqHeader(req, JUDGE_HEADER);
+  if (typeof raw !== "string") return false;
+  const given = raw.trim();
+  let ok = false;
+  for (const code of codes) {
+    if (given.length !== code.length) continue;
+    let diff = 0;
+    for (let i = 0; i < code.length; i++) diff |= given.charCodeAt(i) ^ code.charCodeAt(i);
+    if (diff === 0) ok = true;
+  }
+  return ok;
+}
+
+// 43a: server-key sessions allowed per IP (env SESSIONS_PER_IP, default
+// 1, clamped to 1–10). The per-IP consult day bucket scales with it.
+function sessionsPerIp(env) {
+  const n = env ? parseInt(env.SESSIONS_PER_IP, 10) : NaN;
+  if (!Number.isFinite(n)) return 1;
+  return Math.min(10, Math.max(1, n));
+}
+
 export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(), consultFactory = createConsultHandler, sessionStore } = {}) {
   const origins = allowedOrigins(env);
   // One consult handler per relay, not per request (it holds its caches).
@@ -113,6 +152,10 @@ export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(
   const consult10 = new Map();
   const consultDay = new Map();
   const consultGlobal = [];
+  // 43a: judge traffic skips the session rule and the per-IP buckets
+  // and counts against its own global day bucket instead.
+  const consultJudge = [];
+  const codes = judgeCodes(env);
   // 41f: Muse Spark Open on the server key has its own global day
   // bucket (150/day) so open-weights traffic never eats the main
   // budget. BYOK baseten calls count here too.
@@ -128,10 +171,11 @@ export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(
   const sharedSessions = sessionStore || memSessions;
 
   // True when a server-key request must be refused: the IP already
-  // spent its session on another (or an unknown) session id.
+  // spent its sessions on another (or an unknown) session id.
   // Requests without a session id never record — refused when the
   // IP already used one, allowed otherwise.
   async function serverKeySessionBlocked(client, session) {
+    const limit = sessionsPerIp(env);
     let active = sharedSessions;
     let recorded = null;
     try {
@@ -145,20 +189,23 @@ export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(
         return false;
       }
     }
-    if (recorded) return session !== recorded;
-    if (session) {
+    const list = Array.isArray(recorded) ? recorded : [];
+    if (list.includes(session)) return false;
+    if (session && list.length < limit) {
+      const next = list.concat([session]);
       try {
-        await active.set(client, session, 86400);
+        await active.set(client, next, 86400);
       } catch {
         console.warn("srv-session store set failed; using memory fallback");
         try {
-          await memSessions.set(client, session, 86400);
+          await memSessions.set(client, next, 86400);
         } catch {
           // Memory writes never throw; never block on store errors.
         }
       }
+      return false;
     }
-    return false;
+    return list.length > 0;
   }
   const tilesHour = new Map();
   // 32c: street-level photos (Mapillary) — the token stays server-side
@@ -236,7 +283,7 @@ export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(
       res.statusCode = 204;
       if (cors) res.setHeader("Access-Control-Allow-Origin", cors);
       res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-      res.setHeader("Access-Control-Allow-Headers", `content-type, ${BYOK_HEADER}, ${SESSION_HEADER}`);
+      res.setHeader("Access-Control-Allow-Headers", `content-type, ${BYOK_HEADER}, ${SESSION_HEADER}, ${JUDGE_HEADER}`);
       res.setHeader("Vary", "Origin");
       res.end();
       return;
@@ -301,11 +348,16 @@ export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(
         sendJson(res, 405, { ok: false, error: "method" }, cors);
         return;
       }
-      const over = Math.max(
-        checkBucket(voice10, client, t, 600000, 10),
-        checkBucket(voiceDay, client, t, DAY_MS, 40),
-        checkGlobal(voiceGlobal, t, DAY_MS, 300),
-      );
+      // 43a: a valid judge code skips the per-IP voice buckets;
+      // the global voice bucket still applies.
+      const judge = isJudge(req, codes);
+      const over = judge
+        ? checkGlobal(voiceGlobal, t, DAY_MS, 300)
+        : Math.max(
+          checkBucket(voice10, client, t, 600000, 10),
+          checkBucket(voiceDay, client, t, DAY_MS, 40),
+          checkGlobal(voiceGlobal, t, DAY_MS, 300),
+        );
       if (over > 0) {
         sendLimited(res, over, cors);
         return;
@@ -329,8 +381,12 @@ export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(
     if (path === "/api/consult") {
       // 41e: server key only — one chat session per IP. BYOK
       // requests keep their current buckets, unchecked here.
+      // 43a: a valid judge code skips the session rule and the
+      // per-IP buckets; it counts against the judge global bucket
+      // plus the public global cap instead.
       const byok = reqHeader(req, BYOK_HEADER);
-      if (!byok) {
+      const judge = isJudge(req, codes);
+      if (!byok && !judge) {
         const rawSession = reqHeader(req, SESSION_HEADER);
         const session = typeof rawSession === "string" ? rawSession.slice(0, 64) : "";
         if (await serverKeySessionBlocked(client, session)) {
@@ -338,11 +394,16 @@ export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(
           return;
         }
       }
-      const over = Math.max(
-        checkBucket(consult10, client, t, 600000, 20),
-        checkBucket(consultDay, client, t, DAY_MS, 100),
-        checkGlobal(consultGlobal, t, DAY_MS, 600),
-      );
+      const over = judge
+        ? Math.max(
+          checkGlobal(consultJudge, t, DAY_MS, 400),
+          checkGlobal(consultGlobal, t, DAY_MS, 600),
+        )
+        : Math.max(
+          checkBucket(consult10, client, t, 600000, 20),
+          checkBucket(consultDay, client, t, DAY_MS, 100 * sessionsPerIp(env)),
+          checkGlobal(consultGlobal, t, DAY_MS, 600),
+        );
       if (over > 0) {
         sendLimited(res, over, cors);
         return;

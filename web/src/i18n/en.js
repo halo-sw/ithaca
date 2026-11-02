@@ -540,6 +540,12 @@ const seedPhrases = {
   "멘로파크 Meta 본사로 출근해요. 두 명이고, 월세는 4,500달러 이하예요.": "I work at Meta HQ in Menlo Park. Two of us, rent up to $4,500 a month.",
   "내 모델 키 넣기": "Add my model key",
   "단지 이름": "complex name",
+  // 43b: empty US search — coverage note and chips.
+  "Meta 본사(1 Hacker Way)로 하기": "Use Meta HQ (1 Hacker Way)",
+  "출퇴근 없이 집 보기": "Show homes without a commute",
+  "서울 예시로 해 보기": "Try a Seoul example",
+  "Caltrain 축 · 멘로파크": "Caltrain corridor · Menlo Park",
+  "출퇴근 계산 안 됨": "commute not computed",
 };
 
 // 29c1b: "920m"/"1.3km" reads with a space in English ("920 m"/"1.3 km").
@@ -767,6 +773,13 @@ const usPatterns = [
   { ko: "월 ${0}", en: "${0}/mo" },
   { ko: "직장: {0}", en: "Workplace: {0}" },
   { ko: "{0}까지 자전거 {1}분({2}분 이내, 속도 가정 {3}km/h)", en: "bike to {0} {1} min (within {2} min, assumed {3} km/h)" },
+  // 43b: empty US search — coverage note, chips, profile line.
+  { ko: "미국은 Meta 본사(멘로파크)까지 출퇴근만 계산해요. {0}까지 시간은 아직 없어요.", en: "Ithaca computes US commutes to Meta HQ in Menlo Park only, so there are no commute minutes to {0} yet." },
+  { ko: "Caltrain 축 {0}–{1} 지역을 다뤄요. 가장 낮은 월세는 {2}({3}, Zillow ZIP 추정)라 예산 {4}보다 높아요.", en: "Ithaca covers {0} to {1} on Caltrain. The lowest rent there is {2}/mo ({3}, Zillow ZIP estimate), above your {4}." },
+  { ko: "미국은 Meta 본사(멘로파크)까지 출퇴근만 계산해요. 아래 출퇴근 시간은 {0}이 아니라 Meta 본사까지예요.", en: "Ithaca computes US commutes to Meta HQ in Menlo Park only. The commute times below are to Meta HQ, not to {0}." },
+  { ko: "${0:\\d+}까지 보기", en: "Show homes up to ${0}" },
+  { ko: "{0} · 출퇴근 계산 안 됨", en: "{0} · commute not computed" },
+  { ko: "이 지역 ZIP 대표 월세는 ${0:\\d+}부터예요 (Zillow 추정).", en: "Typical ZIP rent here starts at ${0}/mo (Zillow estimate)." },
 ];
 export const patterns = [ ...usPatterns,
   ...seedPatterns,

@@ -19,7 +19,7 @@ import { assetUrl } from "../paths.js";
 import { parseInterstationCsv } from "../transit/schedule.js";
 import { compare as compareRuns } from "../engine/simulate.js";
 import { regionsForNames, kindForName } from "../region-names.js";
-import { US_REGION_IDS } from "../places-us.js";
+import { US_REGION_IDS, findUsWorkplace } from "../places-us.js";
 import { fmtMoney, currencyOf } from "../money/currency.js";
 
 export const HOMES_SUMMARY_URL = assetUrl("/data/homes/summary.json");
@@ -509,6 +509,7 @@ export function fieldRows(profile) {
     const where = (w.resolved
       && (w.resolved.station || (w.resolved.place && w.resolved.place.name)))
       || w.text || "모름";
+    if (!w.resolved && cur === "USD") return `${where} · 출퇴근 계산 안 됨`;
     return `${where}${w.resolved ? "" : " (모름)"}`;
   });
   push("salaryAnnual", "연봉", (v) => {

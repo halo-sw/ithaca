@@ -12,18 +12,24 @@
 
 import { assetUrl, LIVE_API, apiUrl } from "../paths.js";
 import { SESSION_HEADER, getChatSessionId } from "../chat/session-id.js";
+import { judgeHeaders } from "../chat/judge-code.js";
 
 // 41e: one server-key chat session per IP — every /api/consult
 // request carries the tab's session id (BYOK requests too; the
 // relay enforces the rule on the server key only).
 function sessionHeaders() {
+  let headers = {};
   try {
     const id = getChatSessionId();
-    if (id) return { [SESSION_HEADER]: id };
+    if (id) headers = { [SESSION_HEADER]: id };
   } catch {
     /* no storage — the relay treats it as a new session */
   }
-  return {};
+  try {
+    return { ...headers, ...judgeHeaders() };
+  } catch {
+    return headers;
+  }
 }
 
 function markServerKeyUsed(err, payload) {
