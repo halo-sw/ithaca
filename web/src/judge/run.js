@@ -19,10 +19,18 @@
 // byte-identical.
 
 import { simulate, ENGINE_VERSION } from "../engine/simulate.js";
-import { dateOf, weekdayOf, WEEKDAYS, parseScenario } from "../engine/scenario.js";
+import { parseScenario } from "../engine/scenario.js";
 import { complete, providerConfig } from "./providers.js";
 import { buildPrompt, estimateTokens, COMPLETION_TOKENS_EST } from "./context.js";
 import { checkOutput, ruleReason } from "./guards.js";
+// 44b: the iterative household loop lives in the browser-safe
+// household.js; judgeHome keeps its API and delegates to it.
+import {
+  householdKeysOf, shellContext, defaultWeekend, entryToAnswer,
+  runHouseholdLoop,
+} from "./household.js";
+
+export { entryToAnswer };
 
 // Price per 1 M tokens: [input, cached input, output]. Baseten reports
 // tokens only (no USD estimate).
@@ -59,43 +67,8 @@ function clone(value) {
   return structuredClone(value);
 }
 
-// Household agent keys (h1, h2, …) in member order; background keys
-// never collide (b01, …).
-function householdKeysOf(members) {
-  return new Set(members.map((_, i) => `h${i + 1}`));
-}
-
-function agentIndex(key) {
-  const n = Number.parseInt(String(key).slice(1), 10);
-  return Number.isInteger(n) ? n - 1 : 0;
-}
-
-function slimTrip(t) {
-  return {
-    depart_min: t.depart_min, arrive_min: t.arrive_min, purpose: t.purpose,
-    from_label: (t.from && (t.from.label || t.from.id)) || "",
-    to_label: (t.to && (t.to.label || t.to.id)) || "",
-    minutes: t.minutes, distance_m: t.distance_m,
-  };
-}
-
-function shellContext({ scenario, run, shell, members, memory }) {
-  const idx = agentIndex(shell.agent);
-  const agent = run.agents.find((a) => a.key === shell.agent) || {};
-  const tripsToday = run.trips
-    .filter((t) => t.agent === shell.agent && t.day === shell.day && t.depart_min < shell.minute)
-    .map(slimTrip);
-  return {
-    member: members[idx] || { role: agent.role || "adult", preferences: "" },
-    agentLabel: agent.label || shell.agent,
-    date: dateOf(scenario.start_date, shell.day),
-    weekday: WEEKDAYS[weekdayOf(scenario.start_date, shell.day)],
-    minute: shell.minute,
-    tripsToday,
-    memory: (memory.get(shell.agent) || []).slice(-3),
-    shell,
-  };
-}
+// (householdKeysOf/shellContext now live in ./household.js; judgeHome
+// delegates to runHouseholdLoop.)
 
 // Judge one shell through the provider (or fail soft to the rule).
 // Returns the replay-style entry to fix for this id. ctx is the prompt
@@ -159,19 +132,8 @@ export async function judgeSingle({ provider, prompt, shell, ctx = null, usage, 
   };
 }
 
-function defaultWeekend(shell) {
-  if (shell.default_key === "home") return { chosen_key: "home", plan: [] };
-  return { chosen_key: shell.default_key, plan: [shell.default_key] };
-}
-
-export function entryToAnswer(entry) {
-  const answer = { chosen_key: entry.chosen_key, chosen_by: entry.chosen_by };
-  for (const k of ["plan", "reason_ko", "reason_en", "provider", "model",
-      "usage", "latency_ms", "fallback_cause", "rejected"]) {
-    if (entry[k] !== undefined) answer[k] = entry[k];
-  }
-  return answer;
-}
+// (defaultWeekend/entryToAnswer now live in ./household.js and are
+// re-exported above.)
 
 // Full judging pass for one home. judgeOne defaults to the live
 // provider path; tests inject a fake.
@@ -181,60 +143,15 @@ export async function judgeHome({
   region = null, destArea = null,
 }) {
   providerConfig(provider); // unknown provider throws before any work
-  const scenario = parseScenario(clone(scenarioRaw));
-  const members = scenario.household.members;
-  const household = householdKeysOf(members);
-  const lean = clone(scenarioRaw);
-  lean.background = 0; // household shells are identical either way
-  const fixed = new Map(); // id -> entry
-  const memory = new Map(); // agent -> [{day, minute, kind, chosen, reason_ko}]
   const usage = emptyUsage();
   const judge = judgeOne || ((args) => judgeSingle({ provider, fetchImpl, providerOpts, usage, ...args }));
-
-  // destArea rides every pass (lean, final, dry): decision shells carry
-  // minutes, so a missing destination graph would shift the lean
-  // timeline away from the final one.
-  const destOpts = destArea ? { destArea } : {};
-  for (;;) {
-    const pending = [];
-    const run = simulate(area, clone(lean), homeLabel, {
-      ...destOpts,
-      decide: (shell) => {
-        if (fixed.has(shell.id)) return entryToAnswer(fixed.get(shell.id));
-        if (!household.has(shell.agent)) {
-          return { chosen_key: shell.default_key, chosen_by: "rule" };
-        }
-        pending.push(shell);
-        return shell.kind === "weekend_plan"
-          ? { ...defaultWeekend(shell), chosen_by: "rule" }
-          : { chosen_key: shell.default_key, chosen_by: "rule" };
-      },
-    });
-    if (pending.length === 0) break;
-    const shell = pending[0];
-    const ctx = shellContext({ scenario, run, shell, members, memory });
-    const prompt = buildPrompt(ctx);
-    const entry = await judge({ prompt, shell, ctx });
-    fixed.set(shell.id, entry);
-    if (!memory.has(shell.agent)) memory.set(shell.agent, []);
-    memory.get(shell.agent).push({
-      day: shell.day, minute: shell.minute, kind: shell.kind,
-      chosen: entry.plan !== undefined
-        ? (entry.plan.length === 0 ? "home" : entry.plan.join("+"))
-        : entry.chosen_key,
-      reason_ko: entry.reason_ko,
-    });
-  }
-
-  // Final run: full background, household fixed, background by rule.
-  const finalRun = simulate(area, clone(scenarioRaw), homeLabel, {
-    ...(region ? { region } : {}),
-    ...destOpts,
-    decide: (shell) => {
-      if (fixed.has(shell.id)) return entryToAnswer(fixed.get(shell.id));
-      return { chosen_key: shell.default_key, chosen_by: "rule" };
-    },
+  // The iterative loop (member/day order, short memory, guards,
+  // deterministic replay) lives in ./household.js; usage and the
+  // per-kind counts keep the exact semantics they always had.
+  const { run: finalRun, fixed } = await runHouseholdLoop({
+    area, scenarioRaw, homeLabel, region, destArea, judgeOne: judge,
   });
+  const household = householdKeysOf(parseScenario(clone(scenarioRaw)).household.members);
   const byKind = {};
   for (const d of finalRun.decisions) {
     if (!household.has(d.agent)) continue;

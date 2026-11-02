@@ -152,6 +152,19 @@ export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(
   const consult10 = new Map();
   const consultDay = new Map();
   const consultGlobal = [];
+  // 44b: the live 30-day run judges one household branch per
+  // request, so 30 days need their own bounded budgets — separate
+  // from chat/voice so neither can starve the other. Per-IP
+  // 120/10 min + 1500/day, 3000/day global. Judge traffic skips the
+  // per-IP buckets with its own 1500/day plus the decision global;
+  // baseten decisions have their own 1500/day instead of eating the
+  // 150/day open-weights chat budget. Product budgets only — no
+  // external limit is touched.
+  const decision10 = new Map();
+  const decisionDay = new Map();
+  const decisionGlobal = [];
+  const decisionJudgeGlobal = [];
+  const basetenDecisionGlobal = [];
   // 43a: judge traffic skips the session rule and the per-IP buckets
   // and counts against its own global day bucket instead.
   const consultJudge = [];
@@ -386,6 +399,27 @@ export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(
       // plus the public global cap instead.
       const byok = reqHeader(req, BYOK_HEADER);
       const judge = isJudge(req, codes);
+      // 44b: buffer the body once BEFORE choosing a bucket, and park
+      // it on req.body so the consult handler reads it exactly once.
+      // The task picks the budget: decision branches use the decision
+      // buckets, everything else the chat buckets. A missing or
+      // unparseable body is not a decision. Bodies and keys are never
+      // logged.
+      let provider;
+      let isDecision = false;
+      try {
+        const raw = await readBody(req);
+        try {
+          const parsed = JSON.parse(raw);
+          provider = parsed && parsed.provider;
+          isDecision = !!parsed && parsed.task === "decision";
+        } catch {
+          provider = undefined;
+        }
+        req.body = raw;
+      } catch {
+        provider = undefined;
+      }
       if (!byok && !judge) {
         const rawSession = reqHeader(req, SESSION_HEADER);
         const session = typeof rawSession === "string" ? rawSession.slice(0, 64) : "";
@@ -394,40 +428,43 @@ export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(
           return;
         }
       }
-      const over = judge
-        ? Math.max(
-          checkGlobal(consultJudge, t, DAY_MS, 400),
-          checkGlobal(consultGlobal, t, DAY_MS, 600),
-        )
-        : Math.max(
-          checkBucket(consult10, client, t, 600000, 20),
-          checkBucket(consultDay, client, t, DAY_MS, 100 * sessionsPerIp(env)),
-          checkGlobal(consultGlobal, t, DAY_MS, 600),
-        );
+      const over = isDecision
+        ? (judge
+          ? Math.max(
+            checkGlobal(decisionJudgeGlobal, t, DAY_MS, 1500),
+            checkGlobal(decisionGlobal, t, DAY_MS, 3000),
+          )
+          : Math.max(
+            checkBucket(decision10, client, t, 600000, 120),
+            checkBucket(decisionDay, client, t, DAY_MS, 1500),
+            checkGlobal(decisionGlobal, t, DAY_MS, 3000),
+          ))
+        : judge
+          ? Math.max(
+            checkGlobal(consultJudge, t, DAY_MS, 400),
+            checkGlobal(consultGlobal, t, DAY_MS, 600),
+          )
+          : Math.max(
+            checkBucket(consult10, client, t, 600000, 20),
+            checkBucket(consultDay, client, t, DAY_MS, 100 * sessionsPerIp(env)),
+            checkGlobal(consultGlobal, t, DAY_MS, 600),
+          );
       if (over > 0) {
         sendLimited(res, over, cors);
         return;
       }
       // Peek at the provider first: the baseten day bucket below
       // applies to every open-weights call (BYOK or server key).
-      // Buffer the body once and hand it to the handler parked on
-      // req.body so it is read exactly once.
-      let provider;
-      try {
-        const raw = await readBody(req);
-        try {
-          provider = JSON.parse(raw).provider;
-        } catch {
-          provider = undefined;
+      // Decisions carry their own bounded baseten budget instead of
+      // consuming the chat one.
+      if (provider === "baseten") {
+        const basetenOver = isDecision
+          ? checkGlobal(basetenDecisionGlobal, t, DAY_MS, 1500)
+          : checkGlobal(consultGlobalBaseten, t, DAY_MS, 150);
+        if (basetenOver > 0) {
+          sendJson(res, 429, { ok: false, error: "open_limit" }, cors);
+          return;
         }
-        req.body = raw;
-      } catch {
-        provider = undefined;
-      }
-      if (provider === "baseten"
-        && checkGlobal(consultGlobalBaseten, t, DAY_MS, 150) > 0) {
-        sendJson(res, 429, { ok: false, error: "open_limit" }, cors);
-        return;
       }
       // 41f: without the BYOK header, "meta" (or missing) stays on the
       // server key as before; "baseten" needs BASETEN_API_KEY on the

@@ -240,28 +240,63 @@ function findMembers(text) {
   const one = ["혼자", "신입", "1인", "나 혼자", "자취"];
   // English cues (24b): word-bounded, case-insensitive, Korean first.
   const enTwo = /\b(?:couple|married|newlywed|my\s+(?:wife|husband|partner|spouse)|two of us|both work)\b/i.exec(text);
+  const enTwoWorkingParents = /\btwo\s+working\s+parents\b/i.exec(text);
   const enOne = /\b(?:alone|by myself|single|on my own|just me)\b/i.exec(text);
   const enChild = /\b(?:kid|kids|child|children|son|daughter|baby|toddler|elementary)\b/i.exec(text);
-  const members = [];
-  let evidence = null;
-  if (two.some((w) => text.includes(w)) || enTwo) {
-    evidence = two.some((w) => text.includes(w))
-      ? two.find((w) => text.includes(w))
-      : enTwo[0];
-    members.push({ role: "adult" }, { role: "adult" });
-  } else if (one.some((w) => text.includes(w)) || enOne) {
-    evidence = one.some((w) => text.includes(w))
-      ? one.find((w) => text.includes(w))
-      : enOne[0];
-    members.push({ role: "adult" });
-  }
-  if (child.some((w) => text.includes(w)) || enChild) {
-    const cw = child.some((w) => text.includes(w))
+  // 44a: explicit two-children counts (verbatim evidence preserved).
+  const koTwoChild = /(자녀|아이|아기|애기|어린이)\s*(두\s*명|2\s*명|둘)/.exec(text);
+  const enTwoChild = /\b(two|2)\s+(?:elementary-school\s+|elementary\s+|primary-school\s+|primary\s+school\s+)?(?:children|child|kids|kid)\b/i.exec(text);
+  // 44a: school only when explicitly stated — never inferred from role.
+  const schoolCue = /초등학생|초등학교/.test(text)
+    || /\belementary\b|primary-school|primary\s+school|school-age/i.test(text);
+  let childCount = 0;
+  let childEvidence = null;
+  if (koTwoChild) {
+    childCount = 2;
+    childEvidence = koTwoChild[0];
+  } else if (enTwoChild) {
+    childCount = 2;
+    childEvidence = enTwoChild[0];
+  } else if (child.some((w) => text.includes(w)) || enChild) {
+    childCount = 1;
+    childEvidence = child.some((w) => text.includes(w))
       ? child.find((w) => text.includes(w))
       : enChild[0];
-    evidence = evidence ? `${evidence}·${cw}` : cw;
+  }
+  const childSchool = childCount > 0 && schoolCue;
+  // 44a: a bare "family of four" never implies composition. Adults come
+  // only from explicit cues; a lone-parent word wins over the "두 명"
+  // inside a child count (혼자 아이 두 명 = 1 adult + 2 children).
+  const oneHit = one.some((w) => text.includes(w)) ? one.find((w) => text.includes(w))
+    : enOne ? enOne[0] : null;
+  const members = [];
+  let evidence = null;
+  let adultCount = 0;
+  if (oneHit) {
+    adultCount = 1;
+    evidence = oneHit;
+  } else if (enTwoWorkingParents) {
+    adultCount = 2;
+    evidence = enTwoWorkingParents[0];
+  } else {
+    const adultText = childEvidence && childCount === 2
+      ? text.replace(childEvidence, "")
+      : text;
+    const twoHit = two.some((w) => adultText.includes(w))
+      ? two.find((w) => adultText.includes(w)) : null;
+    const enTwoHit = /\b(?:couple|married|newlywed|my\s+(?:wife|husband|partner|spouse)|two of us|both work)\b/i.exec(adultText);
+    if (twoHit || enTwoHit) {
+      adultCount = 2;
+      evidence = twoHit || enTwoHit[0];
+    }
+  }
+  for (let a = 0; a < adultCount; a += 1) members.push({ role: "adult" });
+  if (childCount > 0) {
+    evidence = evidence ? `${evidence}·${childEvidence}` : childEvidence;
     if (members.length === 0) members.push({ role: "adult" });
-    members.push({ role: "child" });
+    for (let c = 0; c < childCount; c += 1) {
+      members.push(childSchool ? { role: "child", school: true } : { role: "child" });
+    }
   }
   // 38e: seniors living together (Korean first, then English).
   // Two-cues name the pair; single words add one each (deduped).
@@ -1305,7 +1340,9 @@ for (const [en, ko] of Object.entries({
 export function memberLabelEn(label) {
   if (typeof label !== "string" || !label) return label;
   if (MEMBER_LABEL_EN[label]) return MEMBER_LABEL_EN[label];
-  let m = /^함께 사는 사람 (\d+)$/.exec(label);
+  let m = /^아이 (\d+)$/.exec(label);
+  if (m) return `Your child ${m[1]}`;
+  m = /^함께 사는 사람 (\d+)$/.exec(label);
   if (m) return `Housemate ${m[1]}`;
   m = /^구성원 (\d+)$/.exec(label);
   if (m) return `Member ${m[1]}`;
@@ -1332,7 +1369,9 @@ export function memberLabelKo(label) {
   if (typeof label !== "string" || !label) return label;
   const hit = MEMBER_LABEL_KO[label.toLowerCase()];
   if (hit) return hit;
-  let m = /^housemate (\d+)$/i.exec(label);
+  let m = /^your child (\d+)$/i.exec(label);
+  if (m) return `아이 ${m[1]}`;
+  m = /^housemate (\d+)$/i.exec(label);
   if (m) return `함께 사는 사람 ${m[1]}`;
   m = /^member (\d+)$/i.exec(label);
   if (m) return `구성원 ${m[1]}`;
@@ -1434,6 +1473,9 @@ export function scenarioFromProfile(profile, homes, opts = {}) {
   // 29N3: set when a member rides Caltrain — the run's destination
   // area is the Meta HQ box (us-menlo).
   let usDestArea = null;
+  // 44a: siblings need distinct scenario labels (아이 1, 아이 2).
+  const childTotal = members.filter((mm) => ((mm && mm.role) || "adult") === "child").length;
+  let childSeen = 0;
   const membersOut = members.map((m, i) => {
     const wp = workplaceFor(i);
     const dest = wp && wp.resolved && wp.resolved.station ? wp.resolved.station : null;
@@ -1458,6 +1500,14 @@ export function scenarioFromProfile(profile, homes, opts = {}) {
     if ((m.role || "adult") === "child") {
       out.work = { type: "none" };
       out.schooldays = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+      // 44a: nearest school is a route proxy, not an enrollment assignment.
+      if (m.school === true) out.school = true;
+      if (childTotal > 1) {
+        childSeen += 1;
+        const explicit = typeof m.label === "string" && m.label
+          && !/^구성원 \d+$/.test(m.label);
+        if (!explicit) out.label = `아이 ${childSeen}`;
+      }
       return out;
     }
     // 38e: hybrid office days + pets (seniors/children returned above).

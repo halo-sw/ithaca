@@ -109,6 +109,63 @@ export async function postConsult({ provider, messages, scenario, context = null
   return payload;
 }
 
+// 44b: one guarded household branch decision. The worker asks once
+// per branch and the main thread answers through here; the server
+// judges exactly this context and returns the saved entry (model or
+// explicit rule_fallback). Failures — rate limits, auth, network,
+// timeouts — reject: they are never converted into a silent rule
+// success. The whole JSON body is read inside the timeout lifetime.
+export async function postDecision({ provider, context, byoKey = "" }) {
+  if (!LIVE_API) {
+    const err = new Error("상담 서버에 연결되어 있지 않아요");
+    err.code = "offline";
+    throw err;
+  }
+  const headers = { "Content-Type": "application/json", ...sessionHeaders() };
+  if (byoKey) headers["x-model-key"] = byoKey;
+  const started = (typeof performance !== "undefined" ? performance.now() : 0);
+  const wait = timeoutSignal(consultTimeoutMs(provider));
+  let r;
+  let payload = null;
+  try {
+    r = await fetch(apiUrl("/api/consult"), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ task: "decision", provider, context }),
+      signal: wait.signal,
+    });
+    payload = await r.json();
+  } catch (err) {
+    if (err && err.name === "AbortError") {
+      const timeout = new Error("Muse의 선택이 늦어져서 중단했어요");
+      timeout.code = "timeout";
+      timeout.httpStatus = 408;
+      throw timeout;
+    }
+    throw err;
+  } finally {
+    wait.done();
+  }
+  const latencyMs = (typeof performance !== "undefined" ? performance.now() : 0) - started;
+  if (!r.ok || !payload || payload.ok !== true) {
+    if (r.status === 429) {
+      const err = new Error("잠시 쉬었다가 다시 물어봐 주세요 (요청이 많아요)");
+      err.httpStatus = 429;
+      throw markServerKeyUsed(err, payload);
+    }
+    if (r.status === 401 || r.status === 403) {
+      const err = new Error((payload && payload.error) || `상담 서버 인증 오류 (HTTP ${r.status})`);
+      err.httpStatus = r.status;
+      throw err;
+    }
+    const err = new Error((payload && payload.error) || `상담 서버 오류 (HTTP ${r.status})`);
+    err.httpStatus = r.status;
+    throw err;
+  }
+  payload.latencyMs = Math.round(latencyMs);
+  return payload;
+}
+
 export async function postDiary({ provider, digests, lang = "ko", byoKey = "" }) {
   if (!LIVE_API) return { off: true };
   const headers = { "Content-Type": "application/json", ...sessionHeaders() };

@@ -100,7 +100,7 @@ import {
   profileSummary, missingChips, regionsForNames, simReadyFor,
   homeForScenario, complexNameForCandidate, stationNames,
   runGate, profileHomeKinds, regionsForCurrency, regionsForDoc,
-  usSearchActive,
+  usSearchActive, decisionProvenance, missingRouteHomes,
 } from "../chat/engine.js";
 import { fetchDataJson, fetchDataText } from "../data-fetch.js";
 import { buildCustomMoneyDoc, buildUsRentMoneyDoc, verifyHomeFor } from "../chat/custom-money.js";
@@ -110,7 +110,7 @@ import { chatUrl, simMomentUrl, tourUrl, withoutEmbed, saveTranscript, loadTrans
   clearTranscript, parseChatSearch } from "../chat/urls.js";
 import { recordingUrl, validateRecording, replaySchedule, replayRunPlan, RECORDINGS } from "../chat/recording.js";
 import { ruleTurnPlan, isRunRequest } from "../chat/intent.js";
-import { postConsultStream, postDiary, postReportStream, loadScenario, basetenFallbackProvider } from "./consult-client.js";
+import { postConsultStream, postDiary, postReportStream, loadScenario, basetenFallbackProvider, postDecision } from "./consult-client.js";
 import { loadProviderChoice, saveProviderChoice, isValidProvider,
   offerOpenWeights, providerLabel, openFallbackLine, recordedModelOf,
   OPEN_MODEL_HINT } from "./provider-switch.js";
@@ -1192,6 +1192,59 @@ export function plainRunError(message) {
   return "30일 살아 보기를 끝내지 못했어요. 다시 시도해 주세요.";
 }
 
+// 44b: household-decision display — real saved reasons only, never
+// invented. Counts come from the runs via decisionProvenance.
+function museProgressLine(m) {
+  const en = LANG === "en";
+  // 44b2: generated Korean member labels read English in en mode.
+  const rawWho = m.agentLabel || m.agent || "";
+  const who = en ? memberLabelEn(String(rawWho)) : rawWho;
+  const reason = en ? (m.reason_en || m.reason_ko) : (m.reason_ko || m.reason_en);
+  const head = en
+    ? `Muse is choosing · Home ${m.home} · Day ${m.day + 1} · ${who}`
+    : `Muse가 고르는 중 · ${m.home} · ${m.day + 1}일차 · ${who}`;
+  const counts = en
+    ? `choices ${m.completed} (Muse ${m.modelCount} · rules ${m.fallbackCount})`
+    : `선택 ${m.completed}개 (Muse ${m.modelCount} · 기본 ${m.fallbackCount})`;
+  return reason ? `${head} — ${counts} · “${reason}”` : `${head} — ${counts}`;
+}
+
+function decisionModeLine(data) {
+  const en = LANG === "en";
+  if (data.decisionMode !== "muse") {
+    return en ? "Rule-based simulation" : "규칙 기반 시뮬레이션";
+  }
+  const parts = (data.labels || []).map((l) => {
+    const p = (data.provenance && data.provenance[l]) || { model: 0, fallback: 0 };
+    return en ? `${l}: ${p.model} Muse, ${p.fallback} rule` : `${l} Muse ${p.model} · 기본 ${p.fallback}`;
+  });
+  return en ? `Muse choices — ${parts.join(" · ")}` : `Muse가 고른 선택 — ${parts.join(" · ")}`;
+}
+
+// 44b2: the row names the chosen option (shop name, Stay home),
+// never an internal key like s0/park. houseDecisions carries the
+// persisted option label; home stays language-aware at display time.
+export function decisionChoiceLabel(d) {
+  const en = LANG === "en";
+  const isHome = Array.isArray(d.plan) ? d.plan.length === 0 : d.chosen_key === "home";
+  if (isHome) return en ? "Stay home" : (d.chosen_label || "집");
+  return d.chosen_label || d.chosen_key || "";
+}
+
+export function decisionWhen(d) {
+  return LANG === "en"
+    ? `Day ${d.day + 1} ${hhmm(d.minute)}`
+    : `${d.day + 1}일차 ${hhmm(d.minute)}`;
+}
+
+function decisionPreviewText(d) {
+  const en = LANG === "en";
+  const reason = en ? (d.reason_en || d.reason_ko) : (d.reason_ko || d.reason_en);
+  const chosen = decisionChoiceLabel(d);
+  const src = d.chosen_by === "model" ? "Muse" : (en ? "rule" : "기본");
+  return reason ? `${chosen} — ${reason} · ${src}` : `${chosen} · ${src}`;
+}
+
 export function SimulationCard({ data, example, onRetry, onScene, onReportRetry, onDiaryRetry, canRetryDiary }) {
   if (!data) return null;
   if (data.status === "running") {
@@ -1208,6 +1261,11 @@ export function SimulationCard({ data, example, onRetry, onScene, onReportRetry,
           <Text type="supporting" hasTabularNumbers>
             {p.label ? `${p.label} 실행 중… (${p.done}/${p.total})` : "준비 중…"}
           </Text>
+          {p.muse && (
+            <Text type="supporting" hasTabularNumbers>
+              {museProgressLine(p.muse)}
+            </Text>
+          )}
         </VStack>
       </Card>
     );
@@ -1261,6 +1319,31 @@ export function SimulationCard({ data, example, onRetry, onScene, onReportRetry,
           같은 식구가 두 집에서 30일씩 살아 봤어요. 고르는 건 고객님 몫이에요.
         </Text>
         <ResultSummary data={data} />
+        {data.decisionMode && (
+          <Text type="supporting">{decisionModeLine(data)}</Text>
+        )}
+        {Array.isArray(data.houseDecisions) && data.houseDecisions.length > 0 && (
+          <details className="ui-section">
+            <summary className="ui-section-head">
+              {LANG === "en" ? "Household decisions" : "식구들의 선택"}
+            </summary>
+            <VStack gap={1}>
+              {data.houseDecisions.map((h) => (
+                <VStack gap={1} key={h.label}>
+                  {h.items.map((d, i) => (
+                    <SceneRowLink key={i} disc={h.label}
+                      when={decisionWhen(d)}
+                      text={decisionPreviewText(d)}
+                      url={personMomentUrl({ custom: data.customId, home: h.label,
+                        day: d.day + 1, minute: d.minute, follow: d.follow || 1, embed: true })}
+                      title={`${decisionWhen(d)} · ${h.label}`}
+                      onScene={onScene} noI18n={LANG === "en"} />
+                  ))}
+                </VStack>
+              ))}
+            </VStack>
+          </details>
+        )}
         {texts.length > 0 && (
           <VStack gap={2}>
             <span className="ui-result-sect">살아 보니</span>
@@ -3730,10 +3813,41 @@ export function ChatScreen() {
       const buildId = addToolRow({ name: "build_scenario", ok: true,
         summary: picked.map((p) => displayNameFor(p)).join(" · "), ms: sc.ms });
       const labels = picked.map((_, i) => "ABC"[i]);
-      const runner = createWorkerRunner(() => new Worker(new URL("../sim-worker.js", import.meta.url), { type: "module" }));
+      // 44b2: never generate a misleading month — a working adult
+      // whose station ride has no real minutes for a home stops here
+      // with a missing-route-data error, before any model choice call.
+      const missingRoutes = missingRouteHomes(scenValue, labels);
+      if (missingRoutes.length > 0) {
+        const missingHomes = [...new Set(missingRoutes.map((m) => m.home))].join("·");
+        throw new Error(LANG === "en"
+          ? `Missing route data for home ${missingHomes}: the rail timetable did not load. Try again shortly.`
+          : `출근길 시간이 확인되지 않은 집이 있어요(${missingHomes}). 노선 자료를 불러오지 못했으니 잠시 후 다시 시도해 주세요.`);
+      }
+      // 44b: real household choices when the model path is live
+      // (one guarded /api/consult call per branch, engine loop in
+      // the worker); keyless/offline stays an explicitly labelled
+      // rule run. Keys stay in main-thread headers, never in worker
+      // messages. A decision failure stops the run with an error
+      // card — the month is never filled by silent rules.
+      const museDecisions = LIVE_API && shouldCallMuse({ museLive: getMuseLive() });
+      const byoKeyForRun = (p) => {
+        try {
+          return loadByoKey(typeof sessionStorage !== "undefined" ? sessionStorage : null, p);
+        } catch { return ""; /* no storage — server key path */ }
+      };
+      let museProgress = null;
+      const runner = createWorkerRunner(() => new Worker(new URL("../sim-worker.js", import.meta.url), { type: "module" }),
+        museDecisions
+          ? { decisionMode: "muse",
+              decide: (context) => postDecision({ provider, context, byoKey: byoKeyForRun(provider) })
+                .then((out) => out.entry) }
+          : {});
       const { runs, compare, ms } = await runStep(
-        (s, l, onP) => runner(s, l, (pg) => setProgress(
-          { done: pg.done + 1, total: picked.length + 1, label: pg.label })),
+        (s, l, onP) => runner(s, l, (pg) => {
+          if (pg && pg.decision) museProgress = pg.decision;
+          setProgress({ done: pg.done + 1, total: picked.length + 1, label: pg.label,
+            ...(museProgress ? { muse: museProgress } : {}) });
+        }),
         scenValue, labels);
       // 41g: stamp the 30-day run's last-mile mode onto the picked
       // candidates so the pin and card headline use it.
@@ -3836,7 +3950,45 @@ export function ChatScreen() {
         ? (wp0.resolved.station
           || (wp0.resolved.place && wp0.resolved.place.name) || null)
         : (wp0 && wp0.text) || null;
+      // 44b: provenance counts read off the finished runs (never a
+      // rule run called a Muse run), plus the first real household
+      // decisions per home with their saved reasons — plain data, so
+      // the transcript reload carries them.
+      const decisionMode = museDecisions ? "muse" : "rule";
+      const provenance = decisionProvenance(runs, labels);
+      const houseDecisions = labels.map((l) => {
+        const run = runs[l];
+        const keys = ((run && run.agents) || [])
+          .filter((a) => a.household).map((a) => a.key);
+        const items = ((run && run.decisions) || [])
+          .filter((d) => String((d && d.agent) || "").startsWith("h"))
+          .slice(0, 3)
+          .map((d) => {
+            // 44b2: persist the chosen option's label (shop name, …)
+            // from the saved shell options — never a raw key.
+            const opts = Array.isArray(d.options) ? d.options : [];
+            const nameOf = (key) => {
+              const o = opts.find((x) => x && x.key === key);
+              return (o && typeof o.label === "string" && o.label) || null;
+            };
+            const chosen_label = Array.isArray(d.plan)
+              ? (d.plan.length === 0
+                ? (nameOf("home") || "")
+                : d.plan.map((k) => nameOf(k) || k).join("+"))
+              : (nameOf(d.chosen_key) || "");
+            return {
+              agent: d.agent, day: d.day, minute: d.minute, kind: d.kind,
+              chosen_key: d.chosen_key, chosen_label,
+              ...(d.plan !== undefined ? { plan: d.plan } : {}),
+              chosen_by: d.chosen_by,
+              reason_ko: d.reason_ko || "", reason_en: d.reason_en || "",
+              follow: keys.indexOf(d.agent) >= 0 ? keys.indexOf(d.agent) + 1 : 1,
+            };
+          });
+        return { label: l, items };
+      });
       const payload = { status: "done", compare, moments, labels, customId, personLog,
+        decisionMode, provenance, houseDecisions,
         start_date: (scenValue && scenValue.start_date) || "2026-11-02",
         ...(wpName ? { workplace: wpName } : {}),
         // 29M1: English reports and headers read Muse's registered home

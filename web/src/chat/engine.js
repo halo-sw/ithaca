@@ -18,6 +18,8 @@ import { DEFAULT_HOME_SORT, find_homes } from "../homes.js";
 import { assetUrl } from "../paths.js";
 import { parseInterstationCsv } from "../transit/schedule.js";
 import { compare as compareRuns } from "../engine/simulate.js";
+import { rideMinutesForHome } from "../engine/scenario.js";
+import { fetchDataText } from "../data-fetch.js";
 import { regionsForNames, kindForName } from "../region-names.js";
 import { US_REGION_IDS, findUsWorkplace } from "../places-us.js";
 import { fmtMoney, currencyOf } from "../money/currency.js";
@@ -318,7 +320,22 @@ export async function searchWithBoxes(fetchJson, profile, index, prelim, data = 
   });
 }
 
-export async function scenarioStep(fetchJson, profile, homes, data = {}) {
+export async function scenarioStep(fetchJson, profile, homes, data = {}, opts = {}) {
+  // 44b2: a stale cache (e.g. a first consultation that failed before
+  // the timetable/network loaded) must not strand the run with
+  // work.ride_minutes={} and a UI 0. Load what's missing once — never
+  // synthesize travel times, never replace a supplied timetable.
+  // Tests inject fetchText via opts; the browser falls back to the
+  // bundled fetch. US-only runs keep their own docs (untouched here).
+  const fetchText = opts.fetchText || data.fetchText || fetchDataText;
+  const wantKr = (homes || []).some((h) => h && typeof h.scene === "string"
+    && !h.scene.startsWith("us-"));
+  let network = data.network || null;
+  let schedule = data.schedule || null;
+  if (wantKr) {
+    if (!network && typeof fetchJson === "function") network = await loadNetwork(fetchJson);
+    if (!schedule && typeof fetchText === "function") schedule = await loadSchedule(fetchText);
+  }
   const areas = new Map();
   const cached = data.areas instanceof Map ? data.areas : null;
   for (const h of homes) {
@@ -331,9 +348,31 @@ export async function scenarioStep(fetchJson, profile, homes, data = {}) {
   }
   return timed(() => scenarioFromProfile(profile, homes, {
     areas,
-    network: data.network || null,
-    schedule: data.schedule || null,
+    network,
+    schedule,
   }));
+}
+
+// 44b2 (pure): working adults on a station_ride whose ride has no
+// finite minutes for a home. Same-station zeros derived correctly are
+// finite and pass; US Caltrain with real GTFS minutes passes;
+// seniors/children/no-commute/place commutes never flag. The UI stops
+// the run on a non-empty result instead of rendering a misleading
+// month — missing must never display as 0.
+export function missingRouteHomes(scenario, labels) {
+  const out = [];
+  const members = (scenario && scenario.household && scenario.household.members) || [];
+  for (const m of members) {
+    if (!m || m.role === "senior" || m.role === "child") continue;
+    const work = m.work;
+    if (!work || work.type !== "station_ride") continue;
+    for (const label of labels || []) {
+      if (!Number.isFinite(rideMinutesForHome(work, label))) {
+        out.push({ member: m.id || m.label || "", home: label });
+      }
+    }
+  }
+  return out;
 }
 
 // Scene-complex join for a candidate (same verbatim rule as the
@@ -412,7 +451,18 @@ export function homeForScenario(candidate, resolvedName) {
 
 // Browser worker runner (progress posts per home). Guarded: no Worker
 // outside the browser (tests inject their own runWorker).
-export function createWorkerRunner(makeWorkerOrUrl, { timeoutMs = 180000 } = {}) {
+// 44b: with {decisionMode:'muse', decide} the worker asks back once
+// per household branch ({decisionRequest:{requestId, context}}); the
+// main thread answers through decide(context) and the worker is told
+// via {decisionAnswer:{requestId, entry}} (or {decisionError} when the
+// callback fails, which stops the run — the month is never quietly
+// continued by rules). The timeout is an inactivity budget: every
+// progress post and every decision exchange re-arms it, so a healthy
+// long run is allowed but a stalled one terminates and rejects. Late
+// answers after settle are ignored. Without the options the contract
+// is exactly the old one.
+export function createWorkerRunner(makeWorkerOrUrl,
+    { timeoutMs = 180000, decisionMode = null, decide = null } = {}) {
   const makeWorker = typeof makeWorkerOrUrl === "function"
     ? makeWorkerOrUrl
     : () => new Worker(makeWorkerOrUrl, { type: "module" });
@@ -427,28 +477,99 @@ export function createWorkerRunner(makeWorkerOrUrl, { timeoutMs = 180000 } = {})
       reject(err);
       return;
     }
-    const timer = setTimeout(() => {
-      worker.terminate();
-      reject(new Error("sim worker timed out"));
-    }, timeoutMs);
+    let settled = false;
+    let timer = null;
+    const fail = (err) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      try {
+        worker.terminate();
+      } catch {
+        /* already gone */
+      }
+      reject(err);
+    };
+    const arm = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => fail(new Error("sim worker timed out")), timeoutMs);
+    };
+    arm();
     worker.onmessage = (e) => {
       const d = e.data || {};
+      if (d.decisionRequest) {
+        arm();
+        const { requestId, context } = d.decisionRequest || {};
+        Promise.resolve()
+          .then(() => {
+            if (typeof decide !== "function") throw new Error("no decision callback");
+            return decide(context);
+          })
+          .then(
+            (entry) => {
+              if (settled) return; // late answer to a dead run
+              arm();
+              worker.postMessage({ decisionAnswer: { requestId, entry } });
+            },
+            (err) => {
+              if (settled) return;
+              try {
+                worker.postMessage({ decisionError: {
+                  requestId, error: String((err && err.message) || err),
+                } });
+              } catch {
+                fail(err instanceof Error ? err : new Error(String(err)));
+              }
+              // The worker stops on the error and reports {ok:false};
+              // that post completes the rejection below.
+            },
+          );
+        return; // a decision exchange is never completion
+      }
       if (d.progress) {
+        arm();
         onProgress(d.progress);
         return;
       }
-      clearTimeout(timer);
-      worker.terminate();
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      try {
+        worker.terminate();
+      } catch {
+        /* already gone */
+      }
       if (d.ok) resolve(d.runs);
       else reject(new Error(d.error || "sim worker failed"));
     };
     worker.onerror = (err) => {
-      clearTimeout(timer);
-      worker.terminate();
-      reject(err);
+      fail(err);
     };
-    worker.postMessage({ scenarioInline, labels });
+    worker.postMessage({ scenarioInline, labels,
+      ...(decisionMode ? { decisionMode } : {}) });
   });
+}
+
+// 44b: per-home provenance counts read off finished runs (never
+// asserted — the runs are the source of truth). Household agents are
+// h1, h2, …; model = saved model choice, fallback = explicit guarded
+// rule_fallback, rule = plain rule branch.
+export function decisionProvenance(runs, labels) {
+  const out = {};
+  for (const l of labels || []) {
+    const decisions = (runs && runs[l] && runs[l].decisions) || [];
+    let model = 0;
+    let fallback = 0;
+    let rule = 0;
+    for (const d of decisions) {
+      if (!String((d && d.agent) || "").startsWith("h")) continue;
+      if (d.chosen_by === "model") model++;
+      else if (d.chosen_by === "rule_fallback") fallback++;
+      else rule++;
+    }
+    out[l] = { model, fallback, rule };
+  }
+  return out;
 }
 
 // runWorker(scenarioInline, labels, onProgress) runs the engine off the
