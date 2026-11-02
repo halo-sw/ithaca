@@ -2024,9 +2024,21 @@ button.ui-result-moment:hover { background: var(--ui-sunken); }
   cursor: pointer; }
 .ds-lp-byok-form { display: flex; flex-direction: column;
   gap: var(--ds-s-8); }
+.ds-lp-byok-row { display: flex; gap: var(--ds-s-8); align-items: center; }
+.ds-lp-byok-input { flex: 1 1 auto; min-width: 0; height: 44px;
+  box-sizing: border-box; border: 1px solid var(--ds-line);
+  border-radius: var(--ds-r-chip); background: var(--ds-surface);
+  padding: 0 var(--ds-s-16); font: inherit; color: var(--ds-ink-1); }
+.ds-lp-byok-input:focus-visible { outline: 2px solid var(--ds-action);
+  outline-offset: 2px; }
+.ds-lp-byok-row .ds-lp-btn { flex: none; }
 @media (max-width: 900px) {
   .ds-lp-trygrid { grid-template-columns: 1fr; }
   .ds-lp-trybtns--duo { grid-template-columns: 1fr; }
+  .ds-lp-trygroup { grid-template-rows: auto auto auto;
+    gap: var(--ds-s-8); }
+  .ds-lp-byok-row { flex-direction: column; align-items: stretch; }
+  .ds-lp-byok-row .ds-lp-btn { width: 100%; }
 }
 .ds-lp-btn { border-radius: var(--ds-r-pill); font-size: var(--ds-t-14);
   font-weight: var(--ds-w-medium); cursor: pointer; white-space: nowrap;

@@ -136,9 +136,11 @@ export function EntryHero({
                     onClick={() => setKeyProvider(p.value)}>{p.label}</button>
                 ))}
               </div>
-              <input type="password" className="ds-lp-byok-input" placeholder="모델 키 붙여넣기"
-                value={keyDraft} onChange={(e) => setKeyDraft(e.target.value)} aria-label="모델 키" />
-              <button type="button" className="ds-lp-btn ds-lp-btn--secondary" onClick={saveEntryKey}>키 저장</button>
+              <div className="ds-lp-byok-row">
+                <input type="password" className="ds-lp-byok-input" placeholder="모델 키 붙여넣기"
+                  value={keyDraft} onChange={(e) => setKeyDraft(e.target.value)} aria-label="모델 키" />
+                <button type="button" className="ds-lp-btn ds-lp-btn--secondary" onClick={saveEntryKey}>키 저장</button>
+              </div>
               <p className="ds-lp-judgecap">키는 이 탭에만 저장돼요</p>
               {keySaved && <p className="ds-lp-judgecap">키를 저장했어요. 다음 말부터 Muse가 답해요.</p>}
           </div>

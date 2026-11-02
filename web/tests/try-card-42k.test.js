@@ -107,3 +107,35 @@ describe("42k try grid CSS", () => {
     assert.ok(!heroSrc.includes("text-overflow"), "no text-overflow in entry hero");
   });
 });
+
+describe("42k2 try card on phones + key field CSS", () => {
+  it("under 900px the Muse group flows: no fixed row heights, no absolute positions", () => {
+    const at = css.indexOf(".ds-lp-trygroup");
+    assert.ok(at !== -1, "try group rule exists");
+    const mediaAt = css.indexOf("@media (max-width: 900px)", at);
+    assert.ok(mediaAt !== -1, "900px rule exists");
+    const narrow = css.slice(mediaAt, mediaAt + 1500);
+    const groupAt = narrow.indexOf(".ds-lp-trygroup");
+    assert.ok(groupAt !== -1, "try group covered at narrow width");
+    const groupRule = narrow.slice(groupAt, groupAt + 300);
+    assert.ok(!groupRule.includes("44px"), "no fixed row height on the group when narrow");
+    assert.ok(!groupRule.includes("absolute"), "no absolute position on the group when narrow");
+    assert.ok(groupRule.includes("var(--ds-s-8)"), "8px token gap when narrow");
+  });
+
+  it("key input has a field look: border and height", () => {
+    const at = css.indexOf(".ds-lp-byok-input");
+    assert.ok(at !== -1, "key input rule exists");
+    const rule = css.slice(at, at + 500);
+    assert.ok(rule.includes("border"), "input has a border");
+    assert.ok(rule.includes("44px"), "input is 44px tall");
+  });
+
+  it("key row: input grows beside a normal-width save button on wide, stacked under 900px", () => {
+    assert.ok(heroSrc.includes("ds-lp-byok-row"), "input and save button share a row");
+    const mediaAt = css.indexOf("@media (max-width: 900px)", css.indexOf(".ds-lp-byok-row"));
+    assert.ok(mediaAt !== -1, "900px rule exists");
+    const narrow = css.slice(mediaAt, mediaAt + 1500);
+    assert.ok(narrow.includes(".ds-lp-byok-row"), "key row covered at narrow width");
+  });
+});
