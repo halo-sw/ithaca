@@ -2,9 +2,9 @@
 
 <p align="center"><i>“We walk the odyssey. You just come home.”</i></p>
 
-<p align="center">In Korea, you often get one viewing and one afternoon to decide.<br>Ithaca lets an AI household modeled on your family live 30 days in each candidate home first, then shows which one fits your life.</p>
+<p align="center">In my Korean house hunt, short viewings made long-term decisions difficult.<br>Ithaca simulates your household’s routines for 30 days in each candidate home, so you can compare the differences before deciding.</p>
 
-<p align="center"><a href="https://github.com/halo-sw/ithaca/releases/download/demo-video/ithaca-demo.mp4"><img src="briefs/img/demo-video-thumb.jpg" width="720" alt="Demo video thumbnail: the 30-day result for a Pangyo couple (A 7 min, B 24 min one-way, report check passed on the first try) beside the 3D neighbourhood, with the caption Before you sign, an AI household lives 30 days in each home."></a><br><sub>▶ <a href="https://github.com/halo-sw/ithaca/releases/download/demo-video/ithaca-demo.mp4"><b>Demo video</b></a> (2:28, narrated, mp4) · Korea first: a couple working in Pangyo, a real Muse Spark 1.3 run · then Meta HQ in Menlo Park on Muse Spark Open · English UI · <a href="https://github.com/halo-sw/ithaca/releases/tag/demo-video">release page</a></sub></p>
+<p align="center"><a href="https://github.com/halo-sw/ithaca/releases/download/demo-video/ithaca-demo.mp4"><img src="briefs/img/demo-video-thumb.jpg" width="720" alt="Demo video thumbnail: the 30-day result for a Pangyo couple (A 7 min, B 24 min one-way, report check passed on the first try) beside the 3D neighbourhood, with the caption Before you sign, an AI household lives 30 days in each home."></a><br><sub>▶ <a href="https://github.com/halo-sw/ithaca/releases/download/demo-video/ithaca-demo.mp4"><b>Earlier demo — separate run</b></a> (2:28, narrated, mp4) · Korea first: a couple working in Pangyo, a real Muse Spark 1.3 run · then Meta HQ in Menlo Park on Muse Spark Open · English UI · <a href="https://github.com/halo-sw/ithaca/releases/tag/demo-video">release page</a></sub></p>
 
 <p align="center"><b>Built with Meta AI:</b> Meta Model API (<code>api.meta.ai</code>) · Muse Spark 1.3 · Muse Spark Open · Muse Code · Muse Voice</p>
 
@@ -35,6 +35,12 @@
   <a href="#more">More</a>
 </p>
 
+## Latest recorded evidence
+
+The **3 November revision** follows one Pangyo couple from input to report in saved run `cmvzm1bok85ad`: **4.8 vs 23.9 minutes one-way**, **₩509,790 vs ₩1,051,817/month including housing and commute**, and **134 actual Muse household choices with zero guard fallbacks**. The report passed on attempt 1. The larger transaction area band also costs more in this pair. A separate two-parent, two-child run is labeled as an extension; school-level/catchment matching is not yet supported.
+
+[Inputs, assumptions and exact evidence](docs/recording-v8.md) · [Machine-readable summary](docs/evidence/recording-v8.json). The new narrated cut is packaged locally; the public video above and gallery below are earlier, separately recorded examples. Live daily-choice wiring is included in the local revision; hosted deployment is not asserted here.
+
 ## What it is
 
 **Problem.** People commit to a home for years without ever having lived in it. A home is the largest purchase most people make, and it is chosen from a few photos and one viewing. This is not only a Korean problem.
@@ -46,7 +52,7 @@ Living 30 days in a simulation does not stop deposit fraud, which falls mostly o
 
 **Who it is for.** First-job workers renting their first place, couples about to marry, young families choosing between two homes, and new hires moving to a city they have never lived in, like a Meta engineer looking along the Caltrain corridor.
 
-**What Ithaca does.** Before you sign, an AI household modeled on your family lives **30 days in each of your two candidate homes**. Muse Spark makes the household's daily choices and explains each one. A deterministic engine counts every minute and every won. Then Ithaca shows what a listing never tells you: how many evenings you walk home after dark, how long the commute really takes, and what the month really costs. It shows, explains and lets you decide. It never decides for you.
+**What Ithaca does.** Before you sign, an AI household modeled on your family lives **30 days in each of your two candidate homes**. In live mode, Muse Spark chooses from bounded daily options and saves its reasons; fixed schedules and background residents remain rules. A deterministic engine counts every minute and every won. Then Ithaca shows what a listing never tells you: how many evenings you walk home after dark, estimated journey time and monthly costs under visible assumptions. It shows, explains and lets you decide. It never decides for you.
 
 **What we measured.**
 
@@ -66,7 +72,7 @@ Living 30 days in a simulation does not stop deposit fraud, which falls mostly o
 |---|---|---|---|
 | 1 | **Say it in your own words** | "맞벌이 예비부부, 판교 출근, 연봉 6천·5천, 모은 돈 2억, 7억 이하로 50㎡ 이상 집 사기" (a two-income engaged couple, Pangyo commute, salaries 60,000,000 won and 50,000,000 won, 200,000,000 won saved, buying a home of 50 m² or more for 700,000,000 won or less). The consult agent turns this into a household profile. Every value the customer said is marked "내가 말한 값", and every gap is marked "물어볼 값". | built (text and voice) |
 | 2 | **Get real candidate homes** | Candidates come from real transactions in 11 areas of south-east Seoul and Gyeonggi, with ride times from the operator's schedule. They appear on a map with the subway lines, the workplace and the commute minutes. | built |
-| 3 | **The household lives there for 30 days** | The household commutes, shops, walks in the park and visits clinics on the real walking graph, in both homes at once. Runs are paired over 10 seeds, so the gap between homes comes from the homes and not from chance. | built |
+| 3 | **The household lives there for 30 days** | The same household is simulated for 30 days in each home. In the latest live recording, Muse selects bounded daily options while code computes the consequences. Both homes share one seed. Multi-seed benchmarks are separate evaluations, not this recording. | built |
 | 4 | **The report is checked before you see it** | The agent's checklist and report are scored against a ground-truth checklist. Numbers must match the engine, and every sentence must cite a simulation event. A failed report goes back to the agent up to 3 times, then to the customer. Each try and its reason show in the chat while it runs. | built (scorer, claim checks, Muse judge, retry loop, on-screen timeline) |
 | 5 | **Compare with evidence** | Time, fatigue, money for buying (매매), deposit lease (전세) and monthly rent (월세), deposit-lease warning signs, support programmes, official safety and education figures, all weighted by the customer's own priorities. Each home gets a 0–100 **내 기준 점수**: a subjective score from the customer's own weights, with the formula one tap away. | built |
 
@@ -114,7 +120,7 @@ How one conversation runs, left to right. Blue boxes are Muse Spark; grey boxes 
 
 <p align="center"><img src="briefs/img/agent-workflow.png" width="100%" alt="Agent workflow, left to right: You (one sentence, Korean, English or voice) → Relay (keys stay on the server, 1 free session per IP) → Consult agent (Muse Spark 1.3 or Spark Open, up to 6 tool rounds a turn), which calls Tools (profile, homes, real deals, transit) → Guard (numbers only from tools; a failed answer is retried once) → 30 days in each of 2 homes (Muse picks each move, the engine counts minutes and won) → Report (Muse writes it through submit_report) → Check (code checks every number, the Muse judge every sentence; a failed report goes back up to 3 times) → You decide (A | B result, diary, 3D)."></p>
 
-Code: [relay](relay/handler.js) · [consult agent](web/src/consult/agent.js) · [tools](web/src/consult/tools.js) · [guard](web/src/consult/guards.js) · [30-day run](web/src/judge/run.js) · [report](web/src/consult/report.js) · [check](web/src/verify/compare.js). If Spark Open is busy, Spark 1.3 answers and the reply says so. Chart source: [docs/agent-workflow.mmd](docs/agent-workflow.mmd) (Mermaid).
+Code: [relay](relay/handler.js) · [consult agent](web/src/consult/agent.js) · [tools](web/src/consult/tools.js) · [guard](web/src/consult/guards.js) · [live household loop](web/src/judge/household.js) · [browser worker](web/src/sim-worker.js) · [report](web/src/consult/report.js) · [check](web/src/verify/compare.js). If Spark Open is busy, Spark 1.3 answers and the reply says so. Chart source: [docs/agent-workflow.mmd](docs/agent-workflow.mmd) (Mermaid).
 
 ## Built with Meta
 
@@ -162,6 +168,8 @@ Status: built and on screen (stages 16a–16b for the scorer and claim checks, 2
 How each check works, with the diagram: [docs/verification.md](docs/verification.md).
 
 ## Gallery
+
+**Earlier examples.** These screenshots are separate runs and do not supply the figures or decisions in the latest recording.
 
 <table>
   <tr>

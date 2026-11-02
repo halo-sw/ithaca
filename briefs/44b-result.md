@@ -15,6 +15,6 @@ Validation (2026-11-03):
 - `git diff --check` clean.
 - A live development-server decision returned `chosen_by:model`, Muse Spark1.3, a guarded shop choice and its reason. This smoke call is separate from presentation runs.
 
-Astryx doctor was run earlier against the build and reports existing test-file theme-import false positives plus an external-font verification warning. It flags test source strings mentioning the neutral theme without a CSS import, while src/astryx-themes.js imports the actual theme and font stylesheets. No application build is distributed as a deliverable; the video records the local development app. This is not claimed as a clean Astryx audit.
+Astryx doctor was also run on an exact copy of the production source (excluding test files): 19 passed, zero failures, three warnings. Warnings concern external font verification and existing legacy styles/components. The earlier build-folder audit falsely treated six test files' string literals as neutral-theme imports. No test files or application source were changed to suppress the check. Logs are kept with the video work files.
 
 Recording results belong in the final video evidence ledger after both real runs finish. Do not copy older rule-run or benchmark numbers into the new run.

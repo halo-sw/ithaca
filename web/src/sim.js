@@ -10,7 +10,7 @@ import { dateOf, weekdayOf } from "./engine/scenario.js";
 import { hhmm } from "./timeline.js";
 
 export const KOR_WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"];
-export const SPEEDS = [1, 10, 60]; // sim-min per 0.1 s at 1×
+export const SPEEDS = [0.1, 1, 10, 60]; // sim-min per 0.1 s at 1×
 export const SIM_TICK_S = 0.1; // seconds per sim-minute at 1×
 
 // 11월 2일(월) 07:42 · 1일차/30
