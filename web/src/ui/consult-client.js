@@ -11,6 +11,25 @@
 // stay off and the rule-based flow keeps working.
 
 import { assetUrl, LIVE_API, apiUrl } from "../paths.js";
+import { SESSION_HEADER, getChatSessionId } from "../chat/session-id.js";
+
+// 41e: one server-key chat session per IP — every /api/consult
+// request carries the tab's session id (BYOK requests too; the
+// relay enforces the rule on the server key only).
+function sessionHeaders() {
+  try {
+    const id = getChatSessionId();
+    if (id) return { [SESSION_HEADER]: id };
+  } catch {
+    /* no storage — the relay treats it as a new session */
+  }
+  return {};
+}
+
+function markServerKeyUsed(err, payload) {
+  if (payload && payload.error === "server_key_used") err.code = "server_key_used";
+  return err;
+}
 
 // 27b2: NDJSON stream parser for the consult stream.
 export function parseNdjson(buffer, chunk) {
@@ -31,7 +50,7 @@ export function parseNdjson(buffer, chunk) {
 
 export async function postConsult({ provider, messages, scenario, context = null, byoKey = "" }) {
   if (!LIVE_API) return { off: true, messages: [] };
-  const headers = { "Content-Type": "application/json" };
+  const headers = { "Content-Type": "application/json", ...sessionHeaders() };
   // 13: BYOK travels in a header to our proxy (dev server or relay) only.
   if (byoKey) headers["x-model-key"] = byoKey;
   const started = (typeof performance !== "undefined" ? performance.now() : 0);
@@ -51,7 +70,7 @@ export async function postConsult({ provider, messages, scenario, context = null
     if (r.status === 429) {
       const err = new Error("잠시 쉬었다가 다시 물어봐 주세요 (요청이 많아요)");
       err.httpStatus = 429;
-      throw err;
+      throw markServerKeyUsed(err, payload);
     }
     const err = new Error((payload && payload.error) || `상담 서버 오류 (HTTP ${r.status})`);
     err.httpStatus = r.status;
@@ -63,7 +82,7 @@ export async function postConsult({ provider, messages, scenario, context = null
 
 export async function postDiary({ provider, digests, lang = "ko", byoKey = "" }) {
   if (!LIVE_API) return { off: true };
-  const headers = { "Content-Type": "application/json" };
+  const headers = { "Content-Type": "application/json", ...sessionHeaders() };
   if (byoKey) headers["x-model-key"] = byoKey;
   const started = (typeof performance !== "undefined" ? performance.now() : 0);
   const r = await fetch(apiUrl("/api/consult"), {
@@ -82,7 +101,7 @@ export async function postDiary({ provider, digests, lang = "ko", byoKey = "" })
     if (r.status === 429) {
       const err = new Error("잠시 쉬었다가 다시 물어봐 주세요 (요청이 많아요)");
       err.httpStatus = 429;
-      throw err;
+      throw markServerKeyUsed(err, payload);
     }
     const err = new Error((payload && payload.error) || `상담 서버 오류 (HTTP ${r.status})`);
     err.httpStatus = r.status;
@@ -98,7 +117,7 @@ export async function postDiary({ provider, digests, lang = "ko", byoKey = "" })
 // with the done payload (without `type`) plus latencyMs.
 export async function postConsultStream({ provider, messages, scenario, context = null, byoKey = "" }, onEvent) {
   if (!LIVE_API) return { off: true, messages: [] };
-  const headers = { "Content-Type": "application/json" };
+  const headers = { "Content-Type": "application/json", ...sessionHeaders() };
   if (byoKey) headers["x-model-key"] = byoKey;
   const started = (typeof performance !== "undefined" ? performance.now() : 0);
   const r = await fetch(apiUrl("/api/consult"), {
@@ -117,11 +136,11 @@ export async function postConsultStream({ provider, messages, scenario, context 
     if (r.status === 429) {
       const err = new Error("잠시 쉬었다가 다시 물어봐 주세요 (요청이 많아요)");
       err.httpStatus = 429;
-      throw err;
+      throw markServerKeyUsed(err, payload);
     }
     const err = new Error((payload && payload.error) || `상담 서버 오류 (HTTP ${r.status})`);
     err.httpStatus = r.status;
-    throw err;
+    throw markServerKeyUsed(err, payload);
   }
   const reader = r.body.getReader();
   const decoder = new TextDecoder();
@@ -161,7 +180,7 @@ export async function postConsultStream({ provider, messages, scenario, context 
 // 29j3: report-step stream (attempt lines then a done line).
 export async function postReportStream({ provider, persona, labels, runs, homes, names, lang, byoKey = "" }, onEvent) {
   if (!LIVE_API) return { off: true };
-  const headers = { "Content-Type": "application/json" };
+  const headers = { "Content-Type": "application/json", ...sessionHeaders() };
   if (byoKey) headers["x-model-key"] = byoKey;
   const r = await fetch(apiUrl("/api/consult"), {
     method: "POST",
@@ -178,7 +197,7 @@ export async function postReportStream({ provider, persona, labels, runs, homes,
     }
     const err = new Error((payload && payload.error) || `상담 서버 오류 (HTTP ${r.status})`);
     err.httpStatus = r.status;
-    throw err;
+    throw markServerKeyUsed(err, payload);
   }
   const reader = r.body.getReader();
   const decoder = new TextDecoder();

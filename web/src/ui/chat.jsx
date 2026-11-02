@@ -56,6 +56,8 @@ import {
 import { selectPhotosForList } from "../places/select-photos.js";
 import { newUsageLog, recordTurn } from "../models/catalog.js";
 import { loadByoKey } from "../consult/byok.js";
+import { rotateChatSessionId } from "../chat/session-id.js";
+import { ModelPanel } from "./model-panel.jsx";
 import { buildChatMap, extractGreenRings } from "../chatmap.js";
 import { ChatMap } from "./chatmap.jsx";
 import { mapFilterChips, filterPatch } from "./map-filters.js";
@@ -1672,6 +1674,9 @@ const GREETING = [
 ].join("\n");
 
 const NO_KEY_NOTICE = "이 질문은 개발 서버 + 키에서 답해요 (기록된 화면에서는 물음에 답만 해요). 상황·후보·살아 보기는 키 없이도 돼요.";
+// 41e: the relay's server key serves one chat session per IP
+// (English via the i18n table).
+const SERVER_KEY_USED_LINE = "무료 체험 대화는 한 번만 쓸 수 있어요. 계속하려면 내 모델 키를 넣어 주세요.";
 const STATIC_OFF_LINE = "공개 사이트에서는 Muse와 대화하기가 꺼져 있어요 (키 보호). 조건 읽기·후보·30일 살아 보기는 그대로 돼요.";
 
 // --- ?agent=1 card for sim/tour screens (replaces the floating panel) ---------------------
@@ -1974,6 +1979,16 @@ export function ChatScreen() {
     if (keylessNoticedRef.current) return;
     keylessNoticedRef.current = true;
     pushMsg({ role: "system", kind: "system", content: KEYLESS_LINE });
+  };
+
+  // 41e: the IP's free server-key session is spent — said once, with
+  // the key panel inline. Never retried; the rule flow still answers.
+  const serverKeyUsedNoticedRef = useRef(false);
+  const [byokOpen, setByokOpen] = useState(false);
+  const noticeServerKeyUsedOnce = () => {
+    if (serverKeyUsedNoticedRef.current) return;
+    serverKeyUsedNoticedRef.current = true;
+    pushMsg({ role: "assistant", kind: "byok", content: SERVER_KEY_USED_LINE });
   };
 
   // --- data (loaded once, cached) ---
@@ -2801,6 +2816,16 @@ export function ChatScreen() {
       setMuseFails(0);
     } catch (err) {
       setLiveRows([]);
+      // 41e: the IP's free server-key session is spent — notice once
+      // with the key panel, never retry the model; rules still answer.
+      if (err && err.code === "server_key_used") {
+        setModelErrors((e) => ({ ...e, [provider]: {
+          httpStatus: err.httpStatus || null, message: String(err.message || err).slice(0, 200),
+        } }));
+        noticeServerKeyUsedOnce();
+        await structuredFlow(text);
+        return;
+      }
       // 30b: no server key is not slowness — same rules answer, said
       // once, and the session stays keyless (no 27j counter).
       if (isNoKeyError(err)) {
@@ -2996,6 +3021,7 @@ export function ChatScreen() {
     setReplayMeta(null);
     setReplaying(false);
     setMessages([]);
+    rotateChatSessionId();
     try {
       const u = new URL(window.location.href);
       u.searchParams.delete("replay");
@@ -3398,7 +3424,7 @@ export function ChatScreen() {
                 onSet: (id, v) => setOverrides((o) => setOverride(o, id, v)),
                 onReset: (id) => setOverrides((o) => resetOverride(o, id)) },
               onIntro: null,
-              onRestart: () => { clearTranscript(); window.location.href = appUrl(); },
+              onRestart: () => { rotateChatSessionId(); clearTranscript(); window.location.href = appUrl(); },
             }} />
           {tabsMount === "shell" ? narrowTabs : null}
           </>
@@ -3447,6 +3473,18 @@ export function ChatScreen() {
                       </ChatMessage>
                     ) : m.role === "system" ? (
                       <ChatSystemMessage>{m.content}</ChatSystemMessage>
+                    ) : m.kind === "byok" ? (
+                      <div className="ui-byok-notice">
+                        <ChatSystemMessage>{m.content}</ChatSystemMessage>
+                        <div className="ui-byok-row">
+                          <Button size="sm" variant="secondary" label="내 모델 키 넣기"
+                            onClick={() => setByokOpen((v) => !v)} />
+                        </div>
+                        {byokOpen && (
+                          <ModelPanel usageLog={usageLog} serverKeys={serverKeys}
+                            errors={modelErrors} onClose={() => setByokOpen(false)} />
+                        )}
+                      </div>
                     ) : m.kind === "text" ? (
                       <AssistantMsg msg={m} toolRows={toolRows} />
                     ) : (
