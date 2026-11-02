@@ -84,7 +84,7 @@ import { JeonseTab } from "./jeonse.jsx";
 import { WorthItTab } from "./worthit.jsx";
 import { SupportTab } from "./support.jsx";
 import { PasteCheck } from "./listings.jsx";
-import { HOME_SORTS, HOME_SORT_KO, HOME_SORT_SHORT_KO, applyKindPreference, usEmptyHint, displayNameFor } from "../homes.js";
+import { HOME_SORTS, HOME_SORT_KO, HOME_SORT_SHORT_KO, applyKindPreference, usEmptyHint, coverageSummary, coverageNote, displayNameFor } from "../homes.js";
 import { chipSourceIds } from "../sources.js";
 import { META_HQ_EXAMPLE, META_HQ_EXAMPLE_KO, US_REGION_IDS } from "../places-us.js";
 import { EXAMPLE_PROFILE_LABEL, noCommuteEntry, memberLabelEn } from "../profile.js";
@@ -507,8 +507,13 @@ export function budgetWonFor(profile, tenure) {
 
 export function CandidatesCard({ data, tenure, sort, onSort, onOpenWork, picks, onTogglePick,
     onPreview3D, onJeonse, onRun, onDetail, onHover, photoDeps, destName, example, highlightId,
-    budgetWon = null, onAsk = null }) {
+    budgetWon = null, onAsk = null, onCoverageChip = null }) {
   const candidates = (data && data.candidates) || [];
+  // 43b3: an empty US search shows the coverage note lines + chips.
+  const covNote = (data && data.coverage_note) || null;
+  const covLines = (covNote && Array.isArray(covNote.lines)) ? covNote.lines : [];
+  const covChips = (covNote && Array.isArray(covNote.chips)) ? covNote.chips : [];
+  const hasCovNote = covLines.length > 0;
   // 29h3: one ZIP rent stated once — shared by every card in this list.
   const shared = sharedZipRent(candidates, tenure);
   // 13: one photo per card at most — dedup across the whole list.
@@ -551,10 +556,21 @@ export function CandidatesCard({ data, tenure, sort, onSort, onOpenWork, picks, 
             <span data-no-i18n>{sharedRentNote(shared, { budgetWon, tenure, lang: currentLang() })}</span>
           </Text>
         )}
-        {candidates.length === 0 && (
+        {candidates.length === 0 && !hasCovNote && (
           <Text>조건에 맞는 집이 없어요. 예산·크기·지역을 조금 넓혀 보세요.</Text>
         )}
-        {candidates.length === 0 && data.emptyHint && (
+        {candidates.length === 0 && hasCovNote && covLines.map((line, i) => (
+          <Text key={i}>{line}</Text>
+        ))}
+        {candidates.length === 0 && hasCovNote && covChips.length > 0 && (
+          <HStack gap={1} wrap="wrap">
+            {covChips.map((chip) => (
+              <Button key={chip.id} size="sm" variant="secondary" label={chip.label}
+                onClick={() => onCoverageChip && onCoverageChip(chip.id)} />
+            ))}
+          </HStack>
+        )}
+        {candidates.length === 0 && !hasCovNote && data.emptyHint && (
           <Text type="supporting">{data.emptyHint}</Text>
         )}
         {candidates.length > 0 && (
@@ -1490,6 +1506,7 @@ export function CardMsg({ msg, handlers, toolRows, cardHi }) {
         )}
         {msg.kind === "candidates" && (
           <CandidatesCard data={data.result} tenure={data.tenure} sort={data.sort}
+            onCoverageChip={handlers.onCoverageChip}
             onSort={(s) => handlers.onSort(msg.id, s)}
             onOpenWork={handlers.onOpenWork}
             picks={handlers.picks} onTogglePick={handlers.onTogglePick}
@@ -3448,12 +3465,28 @@ export function ChatScreen() {
     const budget = profCur === "USD" && prof.monthlyMax
       ? Number(prof.monthlyMax.value) : null;
     const emptyHint = usEmptyHint((data.index && data.index.homes) || [], budget);
+    if (emptyHint) result = { ...result, emptyHint };
+    // 43b3: a USD search with no candidates carries the coverage note
+    // on the result (same rule as the server 43b2 path).
+    if (profCur === "USD" && result.candidates.length === 0) {
+      const coverage = coverageSummary({ usHomes: (data.index && data.index.homes) || [] });
+      const wps = (prof.workplaces && Array.isArray(prof.workplaces.value))
+        ? prof.workplaces.value : [];
+      const first = wps[0] || {};
+      const workplaceText = (first && first.text) || "";
+      const workplaceUnplaced = Boolean(first && first.text && !first.resolved && !first.noCommute);
+      const budgetUsd = prof.monthlyMax ? prof.monthlyMax.value : undefined;
+      const note = coverageNote({ coverage, budgetUsd, workplaceText, workplaceUnplaced });
+      const chips = (note.chips || []).map((chip) => (chip.id === "budget" && coverage.suggestUsd != null
+        ? { ...chip, value: coverage.suggestUsd } : chip));
+      result = { ...result, coverage_note: { ...note, chips } };
+    }
     // 29N2f: the network swap lives in the candidatesData effect —
     // setting the candidates is enough on every path.
     setCandidatesData({ result, tenure, sort });
     setWorkOpen(true);
     pushMsg({ role: "assistant", kind: "candidates", replace: true,
-      data: { result, tenure, sort, emptyHint }, example: stateRef.current.exampleId,
+      data: { result, tenure, sort }, example: stateRef.current.exampleId,
       tool_calls: [{ id: rowId, name: "find_homes" }] });
     return result.candidates.length;
   }
@@ -4703,10 +4736,34 @@ export function ChatScreen() {
       setModelErrors((e) => ({ ...e, [p]: null }));
     }
   };
+  // 43b3: coverage-note chips — each chip re-runs the search.
+  function handleCoverageChip(id) {
+    if (id === "meta") return handleTrayWorkplace("Meta HQ");
+    if (id === "nocommute") return handleTrayNoCommute();
+    if (id === "seoul") return handleExample();
+    if (id === "budget") {
+      const note = stateRef.current.candidatesData
+        && stateRef.current.candidatesData.result
+        && stateRef.current.candidatesData.result.coverage_note;
+      const chip = note && Array.isArray(note.chips)
+        ? note.chips.find((c) => c && c.id === "budget") : null;
+      const v = Number(chip && (chip.value ?? chip.suggestUsd));
+      if (Number.isFinite(v) && v > 0) {
+        const next = { ...(stateRef.current.profile || {}),
+          monthlyMax: { value: v, source: "customer" } };
+        profileRef.current = next;
+        setProfile(next);
+        store.set({ chatSummary: profileSummary(next) });
+        liveResearch(next);
+      }
+    }
+    return undefined;
+  }
   const handlers = {
     picks,
     intake, household, profile, exampleId,
     onChip: (field, starter) => setComposer(starter),
+    onCoverageChip: handleCoverageChip,
     onOpenWork: () => setWorkOpen(true),
     onScene: (s) => { setScene(s); setWorkOpen(true); setView("work"); },
     onSort: handleSort,
@@ -5446,6 +5503,16 @@ export function StageArea({ map, cardHi, onPinHover, onPinClick, onViewCard,
             onPinHover={onPinHover} onPinClick={onPinClick} onViewCard={onViewCard}
             picks={picks} onTogglePick={onTogglePick}
             hasFilters={chips.length > 0} hideLegend={!hasCandidates} />
+        ) : (profile && profile.currency && profile.currency.value === "USD" ? (
+          <div style={chips.length > 0 ? { padding: 16, paddingTop: 64 } : { padding: 16 }}>
+            <Card padding={3}>
+              <VStack gap={1}>
+                <Heading level={4}>Caltrain 축 · 멘로파크</Heading>
+                <Text type="supporting">대화에서 조건을 말하면 후보 지역이 여기에 표시돼요.</Text>
+                <Text type="supporting">{coverageSummary({}).usAreas.join(" · ")}</Text>
+              </VStack>
+            </Card>
+          </div>
         ) : (
           <div style={chips.length > 0 ? { padding: 16, paddingTop: 64 } : { padding: 16 }}>
             <Card padding={3}>
@@ -5456,7 +5523,7 @@ export function StageArea({ map, cardHi, onPinHover, onPinClick, onViewCard,
               </VStack>
             </Card>
           </div>
-        )}
+        ))}
       </div>
     </section>
   );
