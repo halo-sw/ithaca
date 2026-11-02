@@ -107,7 +107,7 @@ import { newCustomId, saveCustomRun, loadCustomRun } from "../chat/idb.js";
 import { chatUrl, simMomentUrl, tourUrl, withoutEmbed, saveTranscript, loadTranscript,
   clearTranscript, parseChatSearch } from "../chat/urls.js";
 import { recordingUrl, validateRecording, replaySchedule, replayRunPlan, RECORDINGS } from "../chat/recording.js";
-import { ruleTurnPlan } from "../chat/intent.js";
+import { ruleTurnPlan, isRunRequest } from "../chat/intent.js";
 import { postConsultStream, postDiary, postReportStream, loadScenario, basetenFallbackProvider } from "./consult-client.js";
 import { loadProviderChoice, saveProviderChoice, isValidProvider,
   offerOpenWeights, providerLabel, openFallbackLine, recordedModelOf,
@@ -1561,6 +1561,17 @@ export function answeredSince(countNow, countBefore) {
   return countNow > countBefore;
 }
 
+// 42d: the 42a guard counted every non-user message — a replaced
+// hidden card (profile/candidates/simulation with replace:true) or
+// a system/byok notice looked like an answer, so free questions
+// after a run stayed silent. Only a visible new assistant bubble
+// counts; the caller then pushes the fallback line.
+export function countsAsVisibleReply(msg) {
+  if (!msg || msg.role !== "assistant") return false;
+  if (msg.replace) return false;
+  return msg.kind === "text";
+}
+
 // 27j: the rules path always answers — fallback line when nothing else replied.
 export function localNoAnswerLine(text) {
   const t = String(text || "");
@@ -1872,6 +1883,418 @@ export function afterRunChipReply(text, { messages = [], picks = [], candidates 
   return { tab: "money", line: en
     ? "See the Money tab for the details."
     : "내가 내는 돈 탭에서 볼 수 있어요." };
+}
+
+// 42d: free questions after a 30-day run get rule answers, with or
+// without Muse. Every number comes from the latest done run payload
+// (personLog, lifeEvents, compare, moneyDoc, moments) — never
+// invented. Questions the rules cannot answer get the Muse fallback
+// line (the 42b alert stays pinned on screen).
+export const AFTER_RUN_MUSE_FALLBACK = "이 질문은 Muse가 답해요. 위 알림에서 키를 넣으면 이어서 답해요.";
+export const AFTER_RUN_MUSE_FALLBACK_EN = "Muse answers this one. Add your key in the notice above and I'll continue.";
+
+const AFTER_RUN_NO_LATE_KO = "30일 동안 밤 10시 넘어 들어온 날은 없었어요.";
+const AFTER_RUN_NO_LATE_EN = "Nobody came home after 10 p.m. during the 30 days.";
+
+const SPOUSE_RE_42D = /(배우자|아내|남편|신랑|신부|짝꿍|파트너|예비|spouse|wife|husband|partner)/i;
+const ME_Q_RE_42D = /(나|저|본인|내가|제가)[^가-힣]{0,30}(뭐\s*했|뭘\s*했|어떻게)|\b(me|myself)\b[^.]{0,60}\b(did|do)\b/i;
+const WEEKEND_RE_42D = /(주말|토요일|일요일|weekend|saturday|sunday)/i;
+const LATE_RE_42D = /(밤\s*\d+\s*시|늦게|늦은\s*귀가|야근|밤늦게|late|after\s*10|past\s*10|midnight|overtime)/i;
+const CROWD_RE_42D = /(붐벼|붐비|혼잡|사람\s*많|북적|꽉\s*차|앉을|서서|crowd|packed|standing|seat)/i;
+const BETTER_RE_42D = /(어디가|어딜|어느\s*집|둘\s*중|양쪽\s*중|추천|나아|나을|better|recommend|which one|choose)/i;
+const LOAN_RE_42D = /(대출|한\s*달에|한달|관리비|loan|monthly|maintenance|repayment|mortgage)/i;
+const JEONSE_RE_42D = /(전세|jeonse|deposit)/i;
+const PLACES_RE_42D = /(공원|마트|편의|병원|약국|학교|초등|중학교|고등학교|유치원|학원|도서관|park|mart|grocery|store|school|hospital|clinic|library)/i;
+const SCHOOL_RE_42D = /(학교|초등|중학교|고등학교|유치원|학원|school|kindergarten)/i;
+const PICK_VERB_RE_42D = /(담아|담고|골라|찜|save|pick|add)/i;
+
+function afterRunLabels(sim) {
+  return Array.isArray(sim.labels) && sim.labels.length > 0
+    ? sim.labels : Object.keys((sim && sim.personLog) || {});
+}
+
+function afterRunName(sim, label, lang) {
+  const raw = String(((sim.names || {})[label] ?? label));
+  return lang === "en" && /[가-힣]/.test(raw) ? homeNameEn(raw) : raw;
+}
+
+// Every entry of one home's person log, tagged with its day and person.
+function personLogEntries(log) {
+  const out = [];
+  const people = (log && log.people) || [];
+  for (const d of (log && log.days) || []) {
+    for (const p of people) {
+      const list = d && d.entries && d.entries[p.key];
+      for (const e of list || []) out.push({ day: d.day, person: p, ...(e || {}) });
+    }
+  }
+  out.sort((a, b) => (a.day - b.day) || ((a.minute ?? 0) - (b.minute ?? 0)));
+  return out;
+}
+
+function lateOfEntries(entries) {
+  const seen = new Set();
+  const out = [];
+  for (const e of entries || []) {
+    const late = /늦은 귀가|late return/i.test(String(e.text || ""))
+      || ((e.minute ?? 0) >= 22 * 60 && e.kind === "home");
+    if (!late || !Number.isFinite(e.day) || !Number.isFinite(e.minute)) continue;
+    const key = `${e.day}@${Math.round(e.minute)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(e);
+  }
+  return out;
+}
+
+function rideMatches(entries, re) {
+  const out = [];
+  for (const e of entries || []) {
+    const m = String(e.text || "").match(re);
+    if (m) out.push({ day: e.day, min: Number(m[1] ?? m[2]) });
+  }
+  return out;
+}
+
+function weekdayPattern(log, key) {
+  const counts = new Map();
+  for (const d of (log && log.days) || []) {
+    const s = d && d.summary && d.summary[key];
+    if (!s) continue;
+    counts.set(s, (counts.get(s) || 0) + 1);
+  }
+  let best = null;
+  let bestN = 0;
+  for (const [s, n] of counts) {
+    if (n > bestN) { bestN = n; best = s; }
+  }
+  return best;
+}
+
+const OUTING_KINDS_42D = new Set(["errand", "park", "other"]);
+
+function outingsOf(entries, n = 3) {
+  return (entries || []).filter((e) => OUTING_KINDS_42D.has(e.kind)).slice(0, n);
+}
+
+function outingBit(e, lang) {
+  const txt = String(e.text || "").trim().split("\n")[0];
+  return `${e.day}일차 ${txt}`;
+}
+
+function personForQuestion(people, text) {
+  const list = Array.isArray(people) ? people : [];
+  if (list.length === 0) return null;
+  if (SPOUSE_RE_42D.test(text)) {
+    return list.find((p) => SPOUSE_RE_42D.test(`${p.label || ""} ${p.role || ""} ${p.key || ""}`))
+      || list[1] || list[0];
+  }
+  if (ME_Q_RE_42D.test(text)) return list[0];
+  return null;
+}
+
+// "3번 집이랑도 비교해 줘" after a run: keep A and B, add candidate
+// N, and run the 3-home stay. Null when it is not such a request.
+export function isCompareAddRequest(text) {
+  const s = String(text || "");
+  return /(비교|compare)/i.test(s) && /(\d|번|#|추가|add|with|and)/i.test(s);
+}
+
+function compareAddTarget(text, { picks = [], candidates = [] } = {}) {
+  if (!isCompareAddRequest(text)) return null;
+  const m = String(text).match(/(\d+)\s*번|#(\d+)|home\s*(\d+)|(\d+)\s*번?\s*집/i);
+  const n = m ? Number(m[1] || m[2] || m[3] || m[4]) : null;
+  const list = Array.isArray(candidates) ? candidates : [];
+  if (!Number.isFinite(n) || n < 1 || n > list.length) return null;
+  const id = list[n - 1] && list[n - 1].id;
+  if (!id) return null;
+  const keep = (Array.isArray(picks) ? picks : []).filter((x) => list.some((c) => c && c.id === x));
+  const ids = [...keep];
+  if (!ids.includes(id)) ids.push(id);
+  if (ids.length < 2) return null;
+  return { ids: ids.slice(0, 3), added: list[n - 1] };
+}
+
+function lateLineFor(sim, lang) {
+  const en = lang === "en";
+  const labels = afterRunLabels(sim);
+  const parts = [];
+  for (const l of labels) {
+    const lates = lateOfEntries(personLogEntries((sim.personLog || {})[l])).slice(0, 4);
+    if (lates.length === 0) continue;
+    const nm = afterRunName(sim, l, lang);
+    const days = lates.map((e) => (en ? `day ${e.day} at ${hhmm(e.minute)}` : `${e.day}일차 ${hhmm(e.minute)}`));
+    parts.push(en ? `${l} ${nm}: ${days.join(", ")}` : `${l} ${nm}: ${days.join(", ")}에 늦게 들어왔어요`);
+  }
+  if (parts.length === 0) return en ? AFTER_RUN_NO_LATE_EN : AFTER_RUN_NO_LATE_KO;
+  return en
+    ? `Late returns after 10 p.m. — ${parts.join("; ")}.`
+    : `밤 10시 넘어 들어온 날 — ${parts.join("; ")}.`;
+}
+
+function crowdLineFor(sim, lang) {
+  const en = lang === "en";
+  const labels = afterRunLabels(sim);
+  const seated = {};
+  for (const row of sim.lifeEvents || []) {
+    if (row && row.kind === "seated") {
+      labels.forEach((l, i) => { seated[l] = row[i === 0 ? "a" : "b"] || null; });
+    }
+  }
+  const parts = [];
+  for (const l of labels) {
+    const stands = rideMatches(personLogEntries((sim.personLog || {})[l]), /서서 (\d+)분|standing (\d+) min/i);
+    const nm = afterRunName(sim, l, lang);
+    const top = stands.reduce((a, b) => (!a || b.min > a.min ? b : a), null);
+    const seat = seated[l];
+    const seatBit = seat && Number.isFinite(Number(seat.measured)) && Number(seat.measured) > 0
+      ? (en ? `, seated ${seat.seated}/${seat.measured} days`
+        : `, 앉아서 간 날 ${seat.seated}/${seat.measured}일(실측 혼잡도 기준)`)
+      : "";
+    parts.push(stands.length === 0 && !seatBit
+      ? (en ? `${l} ${nm}: no standing rides` : `${l} ${nm}: 서서 간 출근은 없었어요`)
+      : (en ? `${l} ${nm}: standing ${stands.length} rides${top ? ` (longest day ${top.day}, ${top.min} min)` : ""}${seatBit}`
+        : `${l} ${nm}: 서서 간 출근 ${stands.length}번${top ? `(가장 오래 ${top.day}일차 ${top.min}분)` : ""}${seatBit}`));
+  }
+  return en ? `Crowding — ${parts.join("; ")}.` : `혼잡 — ${parts.join("; ")}.`;
+}
+
+function betterLineFor(sim, lang) {
+  const en = lang === "en";
+  const labels = afterRunLabels(sim);
+  const oneWay = (sim.compare && sim.compare.one_way) || {};
+  const commute = labels.map((l) => {
+    const v = Number(oneWay[l]);
+    const nm = afterRunName(sim, l, lang);
+    return en ? `${l} ${nm} ${Number.isFinite(v) ? `${Math.round(v)} min` : "–"}`
+      : `${l} ${nm} ${Number.isFinite(v) ? fmtMinutes(v) : "–"}`;
+  });
+  const money = labels.map((l) => {
+    const mh = sim.moneyDoc ? monthlyHousingOf(sim.moneyDoc, l, 30) : null;
+    const nm = afterRunName(sim, l, lang);
+    const amt = mh && !mh.missing
+      ? (en ? fmtMoney(mh.monthly, "KRW", { lang: "en" }) : fmtWon(mh.monthly)) : "–";
+    return `${l} ${nm} ${amt}`;
+  });
+  return en
+    ? `Commute one-way: ${commute.join(", ")}. Monthly housing: ${money.join(", ")}. The choice is yours.`
+    : `출근 편도는 ${commute.join(", ")}, 월 주거비는 ${money.join(", ")}이에요. 고르는 건 고객님 몫이에요.`;
+}
+
+function loanLineFor(sim, lang) {
+  const en = lang === "en";
+  const labels = afterRunLabels(sim);
+  const parts = [];
+  for (const l of labels) {
+    const mh = sim.moneyDoc ? monthlyHousingOf(sim.moneyDoc, l, 30) : null;
+    if (!mh || mh.missing) continue;
+    const nm = afterRunName(sim, l, lang);
+    const hd = mh.housingDoc || {};
+    const loan = Number(hd.loan_won);
+    const money = (v) => (en ? fmtMoney(v, "KRW", { lang: "en" }) : fmtWon(v));
+    const moneyM = (v) => (en ? fmtMoney(v, "KRW", { lang: "en" }) : fmtWon(v, { monthly: true }));
+    const loanBit = Number.isFinite(loan) && loan > 0
+      ? (en ? `loan ${money(loan)}`
+        : `대출 ${fmtWonLump(loan)}${hd.rate_pct ? `(이자율 ${hd.rate_pct}%${hd.years ? ` ${hd.years}년` : ""})` : ""}`)
+      : (en ? "no loan" : "대출 없음");
+    parts.push(en
+      ? `${l} ${nm}: ${loanBit}, repayment ${moneyM(hd.monthly_won ?? mh.parts.housing)}, maintenance ${moneyM(mh.maintenanceWon)}, transit ${moneyM(mh.transitWon)}, total ${moneyM(mh.monthly)}`
+      : `${l} ${nm}: ${loanBit}, 매달 갚는 돈 ${moneyM(hd.monthly_won ?? mh.parts.housing)}, 관리비 ${moneyM(mh.maintenanceWon)}, 교통비 ${moneyM(mh.transitWon)}, 합계 ${moneyM(mh.monthly)}`);
+  }
+  if (parts.length === 0) {
+    return en ? "See the Money tab for the details." : "내가 내는 돈 탭에서 볼 수 있어요.";
+  }
+  return en ? `Monthly cost — ${parts.join("; ")}.` : `한 달 돈 — ${parts.join("; ")}.`;
+}
+
+function nearbyLineFor(sim, candidates, text, lang) {
+  const en = lang === "en";
+  const schoolQ = SCHOOL_RE_42D.test(text);
+  const items = [];
+  for (const c of candidates || []) {
+    const pools = [...(c.places || []), ...(c.schools || []), ...(c.nearby || []), ...(c.pois || [])];
+    for (const p of pools) {
+      if (!p) continue;
+      const name = p.name || p.title;
+      const walk = p.walk_minutes ?? p.walkMin ?? p.minutes ?? p.walk;
+      if (!name || !Number.isFinite(Number(walk))) continue;
+      const kind = `${p.kind || p.category || ""} ${name}`;
+      if (schoolQ && !/(학교|초등|중학|고등|유치원|학원|school|kindergarten)/i.test(kind)) continue;
+      items.push({ name: String(name), walk: Math.round(Number(walk)) });
+    }
+  }
+  if (items.length > 0) {
+    items.sort((a, b) => a.walk - b.walk);
+    const top = items.slice(0, 3).map((x) => (en ? `${x.name} ${x.walk} min on foot` : `${x.name} 걸어서 ${x.walk}분`));
+    return { line: en ? `Nearby: ${top.join(", ")}.` : `가까운 곳은 ${top.join(", ")}이에요.` };
+  }
+  return { scene: { panel: "tour", home: "A" },
+    line: en ? "Opened the neighborhood 3D on the right. Muse lists the nearby places once you add a key."
+      : "동네 3D를 열었어요. 가까운 장소 목록은 Muse가 찾아 줘요." };
+}
+
+// 42d: rule answers for free questions after a run — an extension of
+// the 42a chip replies to full sentences (Korean and English).
+// Returns { scene, tab, pick, run, line } like afterRunChipReply, or
+// null when there is no done run (or the turn belongs to the
+// pick/run flow). Unknown questions get the Muse fallback line.
+export function afterRunAnswer(text, { messages = [], picks = [], candidates = [], lang = currentLang() } = {}) {
+  const t = String(text || "").trim();
+  const chip = afterRunChipReply(t, { messages, picks, candidates, lang });
+  if (chip) return chip;
+  const sim = latestDoneSim(messages);
+  if (!sim) return null;
+  const en = lang === "en";
+  const add = compareAddTarget(t, { picks, candidates });
+  if (add) {
+    const nm = (c) => String((c && (c.name || c.id)) || "");
+    const labelOf = (id) => {
+      const i = add.ids.indexOf(id);
+      return i >= 0 ? "ABC"[i] : "";
+    };
+    const names = add.ids.map((id) => {
+      const c = (candidates || []).find((x) => x && x.id === id);
+      return `${labelOf(id)} ${en && /[가-힣]/.test(nm(c)) ? homeNameEn(nm(c)) : nm(c)}`;
+    });
+    const addedNm = en && /[가-힣]/.test(nm(add.added)) ? homeNameEn(nm(add.added)) : nm(add.added);
+    return { pick: add.ids, run: add.ids,
+      line: en ? `Added ${addedNm} — running the 30-day stay in ${names.join(", ")}.`
+        : `${nm(add.added)}을 담아 ${names.join(", ")} 세 집으로 살아 볼게요.` };
+  }
+  // Typed picks and runs stay on the rule flow, never the fallback.
+  if (isRunRequest(t) || PICK_VERB_RE_42D.test(t)) return null;
+  if (SPOUSE_RE_42D.test(t) || ME_Q_RE_42D.test(t)) {
+    const labels = afterRunLabels(sim);
+    const log = (sim.personLog || {})[labels[0]] || {};
+    const who = personForQuestion(log.people || [], t) || (log.people || [])[0];
+    if (!who) return { line: en ? AFTER_RUN_MUSE_FALLBACK_EN : AFTER_RUN_MUSE_FALLBACK };
+    const all = personLogEntries(log).filter((e) => e.person && e.person.key === who.key);
+    const pattern = weekdayPattern(log, who.key);
+    const outs = outingsOf(all, 3);
+    const whoName = en && /[가-힣]/.test(String(who.label || "")) ? homeNameEn(String(who.label)) : String(who.label || who.key);
+    const head = en ? `${whoName}: usually ${pattern || "–"}.`
+      : `${whoName}님은 평일에 주로 ${pattern || "기록 그대로"} 지냈어요.`;
+    const tail = outs.length === 0
+      ? (en ? "No outings in the log." : "외출 기록은 없었어요.")
+      : (en ? `Outings: ${outs.map((e) => `day ${e.day} ${String(e.text || "").trim().split("\n")[0]}`).join(", ")}.`
+        : `주말 외출은 ${outs.map((e) => outingBit(e, lang)).join(", ")}에 있었어요.`);
+    const first = outs[0] || all.find((e) => Number.isFinite(e.minute));
+    const scene = first && Number.isFinite(first.day)
+      ? { panel: "result", home: labels[0], day: first.day,
+        ...(Number.isFinite(first.minute) ? { time: hhmm(first.minute) } : {}) }
+      : { panel: "result", home: labels[0] };
+    return { scene, line: `${head} ${tail}` };
+  }
+  if (WEEKEND_RE_42D.test(t)) {
+    const labels = afterRunLabels(sim);
+    const log = (sim.personLog || {})[labels[0]] || {};
+    const bits = [];
+    for (const p of log.people || []) {
+      const outs = outingsOf(personLogEntries(log).filter((e) => e.person && e.person.key === p.key), 2);
+      const nm = en && /[가-힣]/.test(String(p.label || "")) ? homeNameEn(String(p.label)) : String(p.label || p.key);
+      bits.push(outs.length === 0
+        ? (en ? `${nm}: no outings` : `${nm}: 외출 기록 없음`)
+        : (en ? `${nm}: ${outs.map((e) => `day ${e.day} ${String(e.text || "").trim().split("\n")[0]}`).join(", ")}`
+          : `${nm}: ${outs.map((e) => outingBit(e, lang)).join(", ")}`));
+    }
+    const firstOut = outingsOf(personLogEntries(log), 1)[0];
+    const scene = firstOut && Number.isFinite(firstOut.day)
+      ? { panel: "result", home: labels[0], day: firstOut.day,
+        ...(Number.isFinite(firstOut.minute) ? { time: hhmm(firstOut.minute) } : {}) }
+      : { panel: "result", home: labels[0] };
+    return { scene,
+      line: bits.length > 0
+        ? (en ? `Weekends — ${bits.join("; ")}.` : `주말에는 ${bits.join(" · ")} 이렇게 지냈어요.`)
+        : (en ? AFTER_RUN_MUSE_FALLBACK_EN : AFTER_RUN_MUSE_FALLBACK) };
+  }
+  if (LATE_RE_42D.test(t)) return { line: lateLineFor(sim, lang) };
+  const homeM = t.match(/([ABC])\s*집?\s*출근길|([ABC])\s*집?\s*출근|commute[^\n]{0,30}\b([ABC])\b|\b([ABC])\b[^\n]{0,30}commute|home\s*([ABC])/i);
+  const homeLetter = homeM ? (homeM[1] || homeM[2] || homeM[3] || homeM[4] || homeM[5]).toUpperCase() : null;
+  if (homeLetter && afterRunLabels(sim).includes(homeLetter)) {
+    const nm = afterRunName(sim, homeLetter, lang);
+    const v = Number((sim.compare && sim.compare.one_way || {})[homeLetter]);
+    return { scene: { panel: "commute", home: homeLetter },
+      line: en ? `${homeLetter} ${nm}: ${Number.isFinite(v) ? `${Math.round(v)} min` : "–"} one-way on average. Showing the commute on the right.`
+        : `${homeLetter} ${nm} 출근 편도 평균 ${Number.isFinite(v) ? fmtMinutes(v) : "–"}이에요. 오른쪽에서 출근길을 보여 드려요.` };
+  }
+  if (CROWD_RE_42D.test(t)) return { line: crowdLineFor(sim, lang) };
+  if (BETTER_RE_42D.test(t)) return { line: betterLineFor(sim, lang) };
+  if (LOAN_RE_42D.test(t)) return { tab: "money", line: loanLineFor(sim, lang) };
+  if (JEONSE_RE_42D.test(t)) {
+    return { tab: "jeonse",
+      line: en ? "Opened the deposit-lease tab. Check the deposit, loan interest, and risk list there."
+        : "전세 탭을 열었어요. 보증금·대출 이자·위험 체크를 한 번에 보세요." };
+  }
+  if (PLACES_RE_42D.test(t)) return nearbyLineFor(sim, candidates, t, lang);
+  return { line: en ? AFTER_RUN_MUSE_FALLBACK_EN : AFTER_RUN_MUSE_FALLBACK };
+}
+
+// 42d: compact run summary (≤ 3 KB) so Muse can answer stay
+// questions from numbers — per home one-way avg/max day, crowding,
+// monthly lines and loan; per person weekday pattern, outings,
+// late returns, longest day. Sent as context.run_summary.
+export function runSummaryFor(payload) {
+  const sim = payload || {};
+  const labels = Array.isArray(sim.labels) && sim.labels.length > 0
+    ? sim.labels : Object.keys(sim.personLog || {});
+  const oneWay = (sim.compare && sim.compare.one_way) || {};
+  const lines = [];
+  for (const l of labels) {
+    const log = (sim.personLog || {})[l];
+    const entries = log ? personLogEntries(log) : [];
+    const rides = rideMatches(entries, /지하철 (\d+)분|subway (\d+) min/i);
+    const top = rides.reduce((a, b) => (!a || b.min > a.min ? b : a), null);
+    const stands = rideMatches(entries, /서서 (\d+)분|standing (\d+) min/i);
+    const lates = lateOfEntries(entries);
+    const avg = Number(oneWay[l]);
+    const mh = sim.moneyDoc ? monthlyHousingOf(sim.moneyDoc, l, 30) : null;
+    const hd = (mh && mh.housingDoc) || {};
+    const bits = [`출근 편도 평균 ${Number.isFinite(avg) ? `${Math.round(avg)}분` : "–"}`];
+    if (top) bits.push(`가장 오래 ${top.day}일차 ${top.min}분`);
+    if (stands.length > 0) {
+      const sTop = stands.reduce((a, b) => (!a || b.min > a.min ? b : a), stands[0]);
+      bits.push(`서서 ${stands.length}번(최대 ${sTop.day}일차 ${sTop.min}분)`);
+    }
+    if (mh && !mh.missing) {
+      bits.push(`월 상환 ${fmtWon(hd.monthly_won ?? mh.parts.housing, { monthly: true })}·관리비 ${fmtWon(mh.maintenanceWon, { monthly: true })}·교통비 ${fmtWon(mh.transitWon, { monthly: true })}·합계 ${fmtWon(mh.monthly, { monthly: true })}`);
+      if (Number.isFinite(Number(hd.loan_won))) bits.push(`대출 ${fmtWonLump(hd.loan_won)}`);
+    }
+    if (lates.length > 0) bits.push(`늦은 귀가 ${lates.length}번(최근 ${lates[lates.length - 1].day}일차 ${hhmm(lates[lates.length - 1].minute)})`);
+    lines.push(`${l} ${((sim.names || {})[l] || l)}: ${bits.join("; ")}.`);
+  }
+  const firstLog = (sim.personLog || {})[labels[0]];
+  for (const p of (firstLog && firstLog.people) || []) {
+    const mine = personLogEntries(firstLog).filter((e) => e.person && e.person.key === p.key);
+    const pattern = weekdayPattern(firstLog, p.key);
+    const outs = outingsOf(mine, 3).map((e) => `${e.day}일차 ${String(e.text || "").trim().split("\n")[0]}`);
+    const lates = lateOfEntries(mine).slice(0, 3).map((e) => `${e.day}일차 ${hhmm(e.minute)}`);
+    const spanByDay = new Map();
+    for (const e of mine) {
+      if (!Number.isFinite(e.day) || !Number.isFinite(e.minute)) continue;
+      const end = Number.isFinite(e.end_minute) ? e.end_minute : e.minute;
+      const cur = spanByDay.get(e.day) || { from: e.minute, to: end };
+      cur.from = Math.min(cur.from, e.minute);
+      cur.to = Math.max(cur.to, end);
+      spanByDay.set(e.day, cur);
+    }
+    let longest = null;
+    for (const [day, s] of spanByDay) {
+      if (!longest || (s.to - s.from) > (longest.to - longest.from)) longest = { day, ...s };
+    }
+    lines.push(`${p.label || p.key}: 평일 ${pattern || "–"}; 외출 ${outs.length > 0 ? outs.join(", ") : "없음"}; 늦은 귀가 ${lates.length > 0 ? lates.join(", ") : "없음"}; 가장 긴 날 ${longest ? `${longest.day}일차` : "–"}.`);
+  }
+  // Cap at 3 KB (drop trailing lines first).
+  while (lines.length > 1) {
+    let bytes = -1;
+    try {
+      bytes = new TextEncoder().encode(lines.join("\n")).length;
+    } catch {
+      bytes = lines.join("\n").length * 3;
+    }
+    if (bytes <= 3072) break;
+    lines.pop();
+  }
+  return lines.join("\n");
 }
 
 // 42a2: the thread messages behind an after-run chip answer — the
@@ -2309,7 +2732,7 @@ export function ChatScreen() {
   // candidates / simulation always show the latest state).
   const pushMsg = (msg) => {
     const id = msg.id || nextId();
-    if (msg.role !== "user") replyCountRef.current += 1;
+    if (countsAsVisibleReply(msg)) replyCountRef.current += 1;
     // 42b: assistant text without an explicit fromModel did not come
     // from the model (rule flow, recorded replay keeps its own flag).
     const stamped = (msg.role === "assistant" && msg.fromModel === undefined && !msg.recorded)
@@ -2430,9 +2853,18 @@ export function ChatScreen() {
     const onScreenEarly = (((stateRef.current.candidatesData || {}).result || {})
       .candidates) || [];
     {
-      const chip = afterRunChipReply(text, { messages: stateRef.current.messages,
+      const chip = afterRunAnswer(text, { messages: stateRef.current.messages,
         picks: stateRef.current.picks, candidates: onScreenEarly, lang: currentLang() });
       if (chip) {
+        if (chip.pick) {
+          setPicks(chip.pick);
+          stateRef.current.picks = chip.pick;
+        }
+        if (chip.run) {
+          for (const m of afterRunChipTurn(chip)) pushMsg(m);
+          await handleRun(chip.run);
+          return;
+        }
         if (chip.scene) {
           const res = sceneForEffect(chip.scene, { picks: stateRef.current.picks,
             candidates: onScreenEarly,
@@ -3133,7 +3565,10 @@ export function ChatScreen() {
       .map((m) => m.content).slice(-6), text];
     // 29j3: Muse sees whether the comparison report is verified.
     const reportStatus = latestReportStatus(st.messages);
+    // 42d: Muse answers stay questions from the run's own numbers.
+    const runSummary = runSummaryFor(latestDoneSim(st.messages));
     const ctx = { ...agentContext(store.getState()), lang: LANG,
+      ...(runSummary ? { run_summary: runSummary } : {}),
       // 29M1: English turns tell Muse the names the screen already shows.
       ...(LANG === "en" ? { names_en: homeNamesEnSnapshot() } : {}),
       candidates: liveCands,
@@ -3236,7 +3671,9 @@ export function ChatScreen() {
           } catch { /* not JSON — ignore */ }
         }
       }
+      const picksBeforeIds = [...(stateRef.current.picks || [])];
       let lastPickIds = null;
+      let sawRunAction = false;
       for (const eff of uiEffects(out.uiActions || [],
         { candidateIds, pickCount: stateRef.current.picks.length })) {
         if (eff.type === "work") setWorkOpen(true);
@@ -3246,7 +3683,7 @@ export function ChatScreen() {
           lastPickIds = eff.ids;
           stateRef.current.picks = eff.ids;
         }
-        else if (eff.type === "run") await handleRun(lastPickIds);
+        else if (eff.type === "run") { sawRunAction = true; await handleRun(lastPickIds); }
         else if (eff.type === "say") {
           pushMsg({ role: "assistant", kind: "text", content: eff.text,
             fromModel: !out.fallback });
@@ -3259,6 +3696,12 @@ export function ChatScreen() {
               content: "비교 리포트를 검증하는 중이에요. 통과하면 결과를 열게요." });
           } else store.set({ pendingScene: eff });
         }
+      }
+      // 42d: Muse picked a third home to answer a compare request
+      // after a run — the 3-home stay follows in the same turn.
+      if (!sawRunAction && isCompareAddRequest(text) && lastPickIds
+        && lastPickIds.length > picksBeforeIds.length && lastPickIds.length >= 2) {
+        await handleRun(lastPickIds);
       }
       // 13: per-turn usage into the 모델 panel log.
       setUsageLog((log) => recordTurn(log, {

@@ -460,6 +460,12 @@ export function formatAgentContext(ctx) {
       : ctx.report_status === "fail" ? "실패" : ctx.report_status;
     line += ` 비교 리포트 검증: ${word}.`;
   }
+  // 42d: the stay summary travels with the turn so stay questions are
+  // answered from run_summary first, quoting its numbers, without
+  // extra tool calls.
+  if (ctx.run_summary) {
+    line += ` 살아 보기 요약: ${ctx.run_summary} 살아 보기 질문은 이 요약의 숫자를 그대로 인용해 먼저 답하고, 추가 도구는 부르지 않는다.`;
+  }
   return line;
 }
 
