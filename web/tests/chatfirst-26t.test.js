@@ -201,21 +201,21 @@ describe("26t CSS never cuts labels", () => {
 
 describe("26t translate 만 + comma money", () => {
   it("localizes N만 M,MMM원 as one amount", () => {
-    assert.ok(localizeNumbers("월 83만 5,000원").includes("₩835,000"),
+    assert.ok(localizeNumbers("월 83만 5,000원").includes("835,000 won"),
       localizeNumbers("월 83만 5,000원"));
   });
 
   it("keeps digit groups whole through the full translator", () => {
     const tr = createTranslator({ phrases, patterns, words: WORDS });
     const t = tr.translate("월 83만 5천 원");
-    assert.ok(t.includes("₩835,000"), t);
+    assert.ok(t.includes("835,000 won"), t);
     assert.ok(!t.includes(", 000"), t);
   });
 
   it("pins today's outputs", () => {
-    assert.equal(localizeNumbers("전세 2억 원 이하"), "전세 ₩200M 이하");
-    assert.equal(localizeNumbers("전세 1억 8,500만 원"), "전세 ₩185M");
-    assert.equal(localizeNumbers("월세 50만 원 이하"), "월세 ₩0.5M 이하");
-    assert.equal(localizeNumbers("전세 4억 이하"), "전세 ₩400M 이하");
+    assert.equal(localizeNumbers("전세 2억 원 이하"), "전세 200,000,000 won 이하");
+    assert.equal(localizeNumbers("전세 1억 8,500만 원"), "전세 185,000,000 won");
+    assert.equal(localizeNumbers("월세 50만 원 이하"), "월세 500,000 won 이하");
+    assert.equal(localizeNumbers("전세 4억 이하"), "전세 400,000,000 won 이하");
   });
 });

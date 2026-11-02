@@ -228,12 +228,24 @@ function lotNameEn(s) {
   return `${romanizeName(head)} (${lot})`;
 }
 
-export function romanizeName(name) {
-  const s = String(name).trim();
-  const lot = lotNameEn(s);
-  if (lot != null) return lot;
-  return s.split(/\s+/).filter(Boolean).map((w) => {
+// 41a: a hyphen between Hangul parts keeps no space on either side
+// ("빌딩-에벤에셀" → "Building-Ebenesel"). Only Hangul-bearing words
+// split — already-English hyphen forms keep today's reading.
+function romanizeHyphen(w) {
+  if (!w.includes("-") || w === "-" || !/[가-힣]/.test(w)) return romanizeWordCore(w);
+  return w.split(/(-)/g).map((p) =>
+    (p === "-" || p === "" ? p : romanizeWordCore(p))).join("");
+}
+
+function romanizeWordCore(w) {
     if (Object.hasOwn(NAMES, w)) return NAMES[w];
+    // 41a: a trailing digits+차 reads " Phase N" ("오피스텔2차" →
+    // "Officetel Phase 2"); digits+단지 reads " Complex N"
+    // ("휴먼시아41단지" → "Humansia Complex 41").
+    const cha = /^(.*?)(\d+)차$/.exec(w);
+    if (cha && cha[1] !== "") return `${romanizeWordCore(cha[1])} Phase ${cha[2]}`;
+    const danji = /^(.*?)(\d+)단지$/.exec(w);
+    if (danji && danji[1] !== "") return `${romanizeWordCore(danji[1])} Complex ${danji[2]}`;
     // Station: the word minus a trailing 역 is an official English name.
     const bare = (w.endsWith("역") && w.length > 1) ? w.slice(0, -1) : w;
     const isStn = bare !== w;
@@ -256,5 +268,11 @@ export function romanizeName(name) {
     }
     // Name pieces: loanwords and type words read as English.
     return namePieces(w).join(" ");
-  }).join(" ");
+}
+
+export function romanizeName(name) {
+  const s = String(name).trim();
+  const lot = lotNameEn(s);
+  if (lot != null) return lot;
+  return s.split(/\s+/).filter(Boolean).map(romanizeHyphen).join(" ");
 }
