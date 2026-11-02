@@ -311,13 +311,25 @@ async function find_homes(session, args) {
     const budgetUsd = profile && profile.monthlyMax ? profile.monthlyMax.value : undefined;
     coverage_note = coverageNote({ coverage, budgetUsd, workplaceText, workplaceUnplaced });
   }
+  // 43b6: an unplaced workplace with candidates says whose commute it is.
+  if (!usEmpty && isUsProfile(profile, effRegions) && final.candidates.length > 0) {
+    const wps = (profile && profile.workplaces && Array.isArray(profile.workplaces.value))
+      ? profile.workplaces.value : [];
+    const first = wps[0] || {};
+    const workplaceUnplaced = Boolean(first && first.text && !first.resolved && !first.noCommute);
+    if (workplaceUnplaced) {
+      coverage = coverageSummary({ usHomes: (index && index.homes) || [] });
+      const budgetUsd = profile && profile.monthlyMax ? profile.monthlyMax.value : undefined;
+      coverage_note = coverageNote({ coverage, budgetUsd, workplaceText: (first && first.text) || "", workplaceUnplaced, hasCandidates: true });
+    }
+  }
   return {
     ok: true,
     profile_used: clone(profile),
     ...final,
     ...(regionsIgnored.length > 0 ? { regions_ignored: [...regionsIgnored] } : {}),
     asked_for: { regions: effRegions || "all", kind: kind || "all" },
-    ...(usEmpty ? { coverage, coverage_note } : {}),
+    ...(coverage_note ? { coverage, coverage_note } : {}),
     next: final.candidates.length > 0
       ? "show 3–6 candidates with numbers + source badges; the customer picks 2 (or 3), then build_scenario"
       : (usEmpty

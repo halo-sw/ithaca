@@ -58,13 +58,13 @@ describe("43b5 chip sentences parse", () => {
   });
 });
 
-describe("43b5 handleCoverageChip sends turns", () => {
-  it("budget/meta/nocommute go through send, not liveResearch or the tray handlers", () => {
+describe("43b6 handleCoverageChip branches on dataRef", () => {
+  it("sends via send when rule data not loaded", () => {
     const body = handlerBody();
     assert.ok(body.includes("send("), "sends a chat turn");
-    assert.ok(!body.includes("liveResearch"), "no liveResearch");
-    assert.ok(!body.includes("handleTrayWorkplace"), "no handleTrayWorkplace");
-    assert.ok(!body.includes("handleTrayNoCommute"), "no handleTrayNoCommute");
+    assert.ok(body.includes("dataRef.current"), "branches on rule data");
+    const guard = body.indexOf("dataRef.current");
+    assert.ok(guard !== -1 && body.indexOf("send(", guard) !== -1, "send sits in not-loaded branch");
   });
 
   it("seoul still uses handleExample", () => {

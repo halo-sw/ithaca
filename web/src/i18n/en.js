@@ -776,6 +776,7 @@ const usPatterns = [
   // 43b: empty US search — coverage note, chips, profile line.
   { ko: "미국은 Meta 본사(멘로파크)까지 출퇴근만 계산해요. {0}까지 시간은 아직 없어요.", en: "Ithaca computes US commutes to Meta HQ in Menlo Park only, so there are no commute minutes to {0} yet." },
   { ko: "Caltrain 축 {0}–{1} 지역을 다뤄요. 가장 낮은 월세는 {2}({3}, Zillow ZIP 추정)라 예산 {4}보다 높아요.", en: "Ithaca covers {0} to {1} on Caltrain. The lowest rent there is {2}/mo ({3}, Zillow ZIP estimate), above your {4}." },
+  { ko: "미국은 Meta 본사(멘로파크)까지 출퇴근만 계산해요. 아래 출퇴근 시간은 {0}이 아니라 Meta 본사까지예요.", en: "Ithaca computes US commutes to Meta HQ in Menlo Park only. The commute times below are to Meta HQ, not to {0}." },
   { ko: "${0:\\d+}까지 보기", en: "Show homes up to ${0}" },
   { ko: "{0} · 출퇴근 계산 안 됨", en: "{0} · commute not computed" },
   { ko: "이 지역 ZIP 대표 월세는 ${0:\\d+}부터예요 (Zillow 추정).", en: "Typical ZIP rent here starts at ${0}/mo (Zillow estimate)." },

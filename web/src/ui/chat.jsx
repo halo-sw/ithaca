@@ -570,6 +570,17 @@ export function CandidatesCard({ data, tenure, sort, onSort, onOpenWork, picks, 
             ))}
           </HStack>
         )}
+        {candidates.length > 0 && hasCovNote && covLines.map((line, i) => (
+          <Text key={i}>{line}</Text>
+        ))}
+        {candidates.length > 0 && hasCovNote && covChips.length > 0 && (
+          <HStack gap={1} wrap="wrap">
+            {covChips.map((chip) => (
+              <Button key={chip.id} size="sm" variant="secondary" label={chip.label}
+                onClick={() => onCoverageChip && onCoverageChip(chip.id)} />
+            ))}
+          </HStack>
+        )}
         {candidates.length === 0 && !hasCovNote && data.emptyHint && (
           <Text type="supporting">{data.emptyHint}</Text>
         )}
@@ -3466,17 +3477,19 @@ export function ChatScreen() {
       ? Number(prof.monthlyMax.value) : null;
     const emptyHint = usEmptyHint((data.index && data.index.homes) || [], budget);
     if (emptyHint) result = { ...result, emptyHint };
+    // 43b6: a USD search whose workplace is unplaced carries the coverage
+    // note even with candidates (43b3 empty case kept as it is).
+    const wps43b6 = (prof.workplaces && Array.isArray(prof.workplaces.value))
+      ? prof.workplaces.value : [];
+    const first43b6 = wps43b6[0] || {};
+    const workplaceText43b6 = (first43b6 && first43b6.text) || "";
+    const workplaceUnplaced43b6 = Boolean(first43b6 && first43b6.text && !first43b6.resolved && !first43b6.noCommute);
     // 43b3: a USD search with no candidates carries the coverage note
     // on the result (same rule as the server 43b2 path).
-    if (profCur === "USD" && result.candidates.length === 0) {
+    if (profCur === "USD" && (result.candidates.length === 0 || workplaceUnplaced43b6)) {
       const coverage = coverageSummary({ usHomes: (data.index && data.index.homes) || [] });
-      const wps = (prof.workplaces && Array.isArray(prof.workplaces.value))
-        ? prof.workplaces.value : [];
-      const first = wps[0] || {};
-      const workplaceText = (first && first.text) || "";
-      const workplaceUnplaced = Boolean(first && first.text && !first.resolved && !first.noCommute);
       const budgetUsd = prof.monthlyMax ? prof.monthlyMax.value : undefined;
-      const note = coverageNote({ coverage, budgetUsd, workplaceText, workplaceUnplaced });
+      const note = coverageNote({ coverage, budgetUsd, workplaceText: workplaceText43b6, workplaceUnplaced: workplaceUnplaced43b6, hasCandidates: result.candidates.length > 0 });
       result = { ...result, coverage, coverage_note: note };
     }
     // 29N2f: the network swap lives in the candidatesData effect —
@@ -4734,12 +4747,34 @@ export function ChatScreen() {
       setModelErrors((e) => ({ ...e, [p]: null }));
     }
   };
-  // 43b5: coverage-note chips send a normal chat turn through send —
-  // liveResearch needs loaded rule-flow data, which a Muse session
-  // may not have, so the turn lets Muse or the rule flow re-search.
+  // 43b6: coverage-note chips by mode — with loaded rule-flow data
+  // (dataRef.current) use the direct path (43b3 behaviour); otherwise
+  // keep the 43b5 send turn so a Muse session still re-searches.
   function handleCoverageChip(id) {
     if (id === "seoul") return handleExample();
     const en = LANG === "en";
+    if (dataRef.current) {
+      if (id === "meta") return handleTrayWorkplace("Meta HQ");
+      if (id === "nocommute") return handleTrayNoCommute();
+      if (id === "budget") {
+        const res = stateRef.current.candidatesData
+          && stateRef.current.candidatesData.result;
+        const note = res && res.coverage_note;
+        const chip = note && Array.isArray(note.chips)
+          ? note.chips.find((c) => c && c.id === "budget") : null;
+        const coverage = res && res.coverage;
+        const v = Number((chip && (chip.value ?? chip.suggestUsd)) ?? (coverage && coverage.suggestUsd));
+        if (Number.isFinite(v) && v > 0) {
+          const next = { ...(stateRef.current.profile || {}),
+            monthlyMax: { value: v, text: fmtMoney(v, "USD"), source: "customer" } };
+          profileRef.current = next;
+          setProfile(next);
+          store.set({ chatSummary: profileSummary(next) });
+          return liveResearch(next);
+        }
+      }
+      return undefined;
+    }
     if (id === "meta") return send(en ? "My workplace is Meta HQ in Menlo Park." : "직장은 멘로파크 Meta 본사예요.");
     if (id === "nocommute") return send(en ? "I don't commute. Show homes without a commute." : "출근 안 해요.");
     if (id === "budget") {

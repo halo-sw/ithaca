@@ -109,13 +109,18 @@ export function coverageSummary({ usHomes, budgetUsd } = {}) {
 
 // 43b2: pure empty-case reply from coverage facts (Korean source strings;
 // the app translates them). Workplace line first; seoul chip closes.
-export function coverageNote({ coverage, budgetUsd, workplaceText, workplaceUnplaced } = {}) {
+export function coverageNote({ coverage, budgetUsd, workplaceText, workplaceUnplaced, hasCandidates } = {}) {
   const lines = [];
   const chips = [];
   if (workplaceUnplaced) {
-    lines.push(`미국은 Meta 본사(멘로파크)까지 출퇴근만 계산해요. ${workplaceText}까지 시간은 아직 없어요.`);
+    if (hasCandidates) {
+      lines.push(`미국은 Meta 본사(멘로파크)까지 출퇴근만 계산해요. 아래 출퇴근 시간은 ${workplaceText}이 아니라 Meta 본사까지예요.`);
+    } else {
+      lines.push(`미국은 Meta 본사(멘로파크)까지 출퇴근만 계산해요. ${workplaceText}까지 시간은 아직 없어요.`);
+    }
     chips.push({ id: "meta", label: "Meta 본사(1 Hacker Way)로 하기" });
     chips.push({ id: "nocommute", label: "출퇴근 없이 집 보기" });
+    if (hasCandidates) return { lines, chips };
   }
   const cov = coverage || {};
   const min = Number(cov.minMonthlyUsd);
