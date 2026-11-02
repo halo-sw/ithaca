@@ -103,6 +103,30 @@
 
 지금 다루는 곳: 서울 성동 · 송파 · 강남 · 강동 · 위례, 판교 · 성남 · 정자 · 분당 · 미금 · 수지, 그리고 미국 멘로파크예요.
 
+## 에이전트 흐름
+
+대화 한 번이 왼쪽에서 오른쪽으로 이렇게 흘러요. 파란 칸은 Muse Spark, 회색 칸은 코드예요. 점선은 검사에서 걸려 다시 돌려보내는 길이에요.
+
+```mermaid
+flowchart LR
+  U(["<b>고객</b><br/>한 문장<br/>한국어 · 영어 · 음성"]) --> R["<b>중계 서버</b><br/>키는 서버에만<br/>IP당 무료 세션 1회"]
+  R --> A["<b>상담 에이전트</b><br/>Spark 1.3 또는<br/>Spark Open<br/>한 턴 도구 6회까지"]
+  A <--> T[("<b>도구</b><br/>조건 읽기 · 집 찾기<br/>실거래 · 교통")]
+  A --> G["<b>가드</b><br/>숫자는 도구<br/>결과에서만"]
+  G -. "한 번 다시" .-> A
+  G --> L["<b>두 집 × 30일</b><br/>Muse가 매 이동 결정<br/>엔진이 분 · 원 계산"]
+  L --> P["<b>리포트</b><br/>Muse가 작성<br/>submit_report"]
+  P --> C["<b>검증</b><br/>코드: 숫자<br/>판정: 문장"]
+  C -. "최대 3번" .-> P
+  C --> O(["<b>고객이 결정</b><br/>A | B · 일기 · 3D"])
+  classDef muse fill:#eef3ff,stroke:#3d63dd,color:#111;
+  classDef code fill:#f4f4f2,stroke:#777,color:#111;
+  class A,L,P muse
+  class R,T,G,C code
+```
+
+코드: [중계 서버](relay/handler.js) · [상담 에이전트](web/src/consult/agent.js) · [도구](web/src/consult/tools.js) · [가드](web/src/consult/guards.js) · [30일 살아 보기](web/src/judge/run.js) · [리포트](web/src/consult/report.js) · [검증](web/src/verify/compare.js). Spark Open이 바쁘면 Spark 1.3이 대신 답하고, 답에 그렇게 표시돼요.
+
 ## Meta로 만들었어요
 
 모델마다 맡은 일이 하나씩이고, 숫자는 모델이 만들지 않아요. Meta API 주소와 키는 [`web/src/judge/providers.js`](web/src/judge/providers.js) 한 곳에서 정해요. 호출은 OpenAI 방식 chat completions를 `fetch`로 하고, 키는 서버 환경 변수에서만 읽어요([`.env.example`](.env.example) 참고).
