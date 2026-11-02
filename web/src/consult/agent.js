@@ -463,8 +463,11 @@ export function formatAgentContext(ctx) {
   // 42d: the stay summary travels with the turn so stay questions are
   // answered from run_summary first, quoting its numbers, without
   // extra tool calls.
+  // 42e: stay / money / crowding questions are answered in 2–3
+  // sentences quoting the summary numbers — never by sending the
+  // customer to the cards instead of answering.
   if (ctx.run_summary) {
-    line += ` 살아 보기 요약: ${ctx.run_summary} 살아 보기 질문은 이 요약의 숫자를 그대로 인용해 먼저 답하고, 추가 도구는 부르지 않는다.`;
+    line += ` 살아 보기 요약: ${ctx.run_summary} 살아 보기·돈·혼잡 질문에는 이 요약의 숫자를 그대로 인용해 2~3문장으로 먼저 답하고, 카드나 탭에서 확인하라는 말로 대신하지 않는다. 추가 도구는 부르지 않는다.`;
   }
   return line;
 }

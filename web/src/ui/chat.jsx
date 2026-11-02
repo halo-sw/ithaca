@@ -88,6 +88,7 @@ import { chipSourceIds } from "../sources.js";
 import { META_HQ_EXAMPLE, META_HQ_EXAMPLE_KO, US_REGION_IDS } from "../places-us.js";
 import { EXAMPLE_PROFILE_LABEL, noCommuteEntry } from "../profile.js";
 import { outingsFor, hhmm } from "../timeline.js";
+import { weekdayOf } from "../engine/scenario.js";
 import { runDigest } from "../diary/digest.js";
 import {
   extractStep, searchStep, searchWithBoxes, scenarioStep, runStep,
@@ -1913,6 +1914,27 @@ function afterRunLabels(sim) {
     ? sim.labels : Object.keys((sim && sim.personLog) || {});
 }
 
+// 42e: per-home peak boarding congestion (highest household-member
+// peak per run, from the runs' fatigue roll-ups) — stamped onto
+// compare.peak_congestion next to compare.one_way. Null when the run
+// carries no congestion numbers, never invented.
+export function peakCongestionByLabel(runsByLabel) {
+  const out = {};
+  for (const [l, run] of Object.entries(runsByLabel || {})) {
+    let best = null;
+    const agents = Array.isArray(run && run.agents) ? run.agents : [];
+    const pm = (run && run.totals && run.totals.per_member) || {};
+    for (const a of agents) {
+      if (!a || !a.household) continue;
+      const p = pm[a.key] && pm[a.key].fatigue && pm[a.key].fatigue.peak_congestion;
+      const pct = p ? Number(p.pct) : NaN;
+      if (Number.isFinite(pct) && (best === null || pct > best)) best = pct;
+    }
+    out[l] = best === null ? null : Math.round(best);
+  }
+  return out;
+}
+
 function afterRunName(sim, label, lang) {
   const raw = String(((sim.names || {})[label] ?? label));
   return lang === "en" && /[가-힣]/.test(raw) ? homeNameEn(raw) : raw;
@@ -1980,6 +2002,88 @@ function outingsOf(entries, n = 3) {
 function outingBit(e, lang) {
   const txt = String(e.text || "").trim().split("\n")[0];
   return `${e.day}일차 ${txt}`;
+}
+
+// 42e: the run calendar — the same one the day strip uses
+// (`M월 d일(요일) · N일차/30`, sim.js formatClock). Person-log days are
+// 1-based, so day N reads weekdayOf(start_date, N - 1). The start is
+// always a Monday (scenario default 2026-11-02); a payload carrying its
+// own start_date (or scenario) wins. Never assume day 1 = Saturday.
+const RUN_START_FALLBACK = "2026-11-02";
+export function simStartDate(sim) {
+  const s = (sim && (sim.start_date
+    || (sim.scenario && sim.scenario.start_date))) || "";
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : RUN_START_FALLBACK;
+}
+function isWeekendPersonDay(sim, personDay) {
+  return weekdayOf(simStartDate(sim), Number(personDay) - 1) >= 5;
+}
+function isWeekdayPersonDay(sim, personDay) {
+  return weekdayOf(simStartDate(sim), Number(personDay) - 1) < 5;
+}
+function weekendEntriesOf(sim, entries) {
+  return (entries || []).filter((e) => isWeekendPersonDay(sim, e.day));
+}
+function weekdayEntriesOf(sim, entries) {
+  return (entries || []).filter((e) => isWeekdayPersonDay(sim, e.day));
+}
+
+function medianMinute(nums) {
+  const xs = (nums || []).filter((n) => Number.isFinite(n)).sort((a, b) => a - b);
+  if (xs.length === 0) return null;
+  const mid = Math.floor(xs.length / 2);
+  return xs.length % 2 === 1 ? xs[mid] : Math.round((xs[mid - 1] + xs[mid]) / 2);
+}
+
+const OUT_COMMUTE_RE = /집에서 출발|left home/i;
+const BACK_HOME_RE = /집 도착|arrived home|늦은 귀가|late return/i;
+const CLINIC_RE_42E = /진료|clinic|약국|병원|hospital/i;
+
+// 42e: the weekday pattern line off the person's own workday records.
+// Commuter (leave-home entries on weekdays): median leave / arrive-work
+// / arrive-home clocks. Non-commuter: weekday errand + clinic counts.
+// Times and counts come only from the records — never invented.
+export function weekdayHeadFor(log, key, sim, lang = "ko") {
+  const en = lang === "en";
+  const mine = weekdayEntriesOf(sim,
+    personLogEntries(log).filter((e) => e.person && e.person.key === key));
+  const outs = mine.filter((e) => (e.kind === "subway" || e.kind === "walk")
+    && OUT_COMMUTE_RE.test(String(e.text || "")));
+  if (outs.length > 0) {
+    const dep = medianMinute(outs.map((e) => e.minute));
+    const arr = medianMinute(outs.map((e) => (
+      Number.isFinite(e.end_minute) ? e.end_minute : e.minute)));
+    const backs = mine.filter((e) => BACK_HOME_RE.test(String(e.text || "")));
+    const home = backs.length > 0
+      ? medianMinute(backs.map((e) => (
+        Number.isFinite(e.end_minute) ? e.end_minute : e.minute)))
+      : null;
+    if (dep === null || arr === null) return null;
+    if (en) {
+      return home === null
+        ? `On weekdays you usually left around ${hhmm(dep)} and arrived at work around ${hhmm(arr)}.`
+        : `On weekdays you usually left around ${hhmm(dep)}, arrived at work around ${hhmm(arr)}, and got home around ${hhmm(home)}.`;
+    }
+    const wp = sim && sim.workplace ? `${sim.workplace} ` : "";
+    return home === null
+      ? `평일에는 ${hhmm(dep)}쯤 나가서 ${wp}회사에 ${hhmm(arr)}쯤 도착했어요.`
+      : `평일에는 ${hhmm(dep)}쯤 나가서 ${wp}회사에 ${hhmm(arr)}쯤 도착하고, ${hhmm(home)}쯤 집에 왔어요.`;
+  }
+  const errands = mine.filter((e) => e.kind === "errand").length;
+  const clinics = mine.filter((e) => e.kind === "other"
+    && CLINIC_RE_42E.test(String(e.text || ""))).length;
+  if (en) {
+    if (errands === 0 && clinics === 0) return "On weekdays you mostly stayed home.";
+    const bits = [];
+    if (errands > 0) bits.push(`${errands} grocery trip${errands > 1 ? "s" : ""}`);
+    if (clinics > 0) bits.push(`${clinics} clinic visit${clinics > 1 ? "s" : ""}`);
+    return `On weekdays you mostly stayed home, with ${bits.join(" and ")}.`;
+  }
+  if (errands === 0 && clinics === 0) return "평일에는 주로 집에 있었어요.";
+  const bits = [];
+  if (errands > 0) bits.push(`장보기 ${errands}번`);
+  if (clinics > 0) bits.push(`진료 ${clinics}번`);
+  return `평일에는 주로 집에 있었고, ${bits.join("·")} 다녀왔어요.`;
 }
 
 function personForQuestion(people, text) {
@@ -2169,13 +2273,16 @@ export function afterRunAnswer(text, { messages = [], picks = [], candidates = [
     const who = personForQuestion(log.people || [], t) || (log.people || [])[0];
     if (!who) return { line: en ? AFTER_RUN_MUSE_FALLBACK_EN : AFTER_RUN_MUSE_FALLBACK };
     const all = personLogEntries(log).filter((e) => e.person && e.person.key === who.key);
-    const pattern = weekdayPattern(log, who.key);
-    const outs = outingsOf(all, 3);
+    // 42e: the head is the weekday pattern off the workday records
+    // (commuter clocks, else errand/clinic counts); outs are weekend
+    // days off the run calendar — never a Tuesday called 주말.
+    const headBit = weekdayHeadFor(log, who.key, sim, lang) || (en ? "–" : "기록 그대로");
+    const outs = outingsOf(weekendEntriesOf(sim, all), 3);
     const whoName = en && /[가-힣]/.test(String(who.label || "")) ? homeNameEn(String(who.label)) : String(who.label || who.key);
-    const head = en ? `${whoName}: usually ${pattern || "–"}.`
-      : `${whoName}님은 평일에 주로 ${pattern || "기록 그대로"} 지냈어요.`;
+    const head = en ? `${whoName}: ${headBit}`
+      : `${whoName}님은 ${headBit}`;
     const tail = outs.length === 0
-      ? (en ? "No outings in the log." : "외출 기록은 없었어요.")
+      ? (en ? "No weekend outings in the log." : "주말 외출 기록은 없었어요.")
       : (en ? `Outings: ${outs.map((e) => `day ${e.day} ${String(e.text || "").trim().split("\n")[0]}`).join(", ")}.`
         : `주말 외출은 ${outs.map((e) => outingBit(e, lang)).join(", ")}에 있었어요.`);
     const first = outs[0] || all.find((e) => Number.isFinite(e.minute));
@@ -2190,14 +2297,17 @@ export function afterRunAnswer(text, { messages = [], picks = [], candidates = [
     const log = (sim.personLog || {})[labels[0]] || {};
     const bits = [];
     for (const p of log.people || []) {
-      const outs = outingsOf(personLogEntries(log).filter((e) => e.person && e.person.key === p.key), 2);
+      // 42e: weekend days off the run calendar (Sat/Sun), so a
+      // Tuesday outing is never reported as 주말.
+      const outs = outingsOf(weekendEntriesOf(sim,
+        personLogEntries(log).filter((e) => e.person && e.person.key === p.key)), 2);
       const nm = en && /[가-힣]/.test(String(p.label || "")) ? homeNameEn(String(p.label)) : String(p.label || p.key);
       bits.push(outs.length === 0
         ? (en ? `${nm}: no outings` : `${nm}: 외출 기록 없음`)
         : (en ? `${nm}: ${outs.map((e) => `day ${e.day} ${String(e.text || "").trim().split("\n")[0]}`).join(", ")}`
           : `${nm}: ${outs.map((e) => outingBit(e, lang)).join(", ")}`));
     }
-    const firstOut = outingsOf(personLogEntries(log), 1)[0];
+    const firstOut = outingsOf(weekendEntriesOf(sim, personLogEntries(log)), 1)[0];
     const scene = firstOut && Number.isFinite(firstOut.day)
       ? { panel: "result", home: labels[0], day: firstOut.day,
         ...(Number.isFinite(firstOut.minute) ? { time: hhmm(firstOut.minute) } : {}) }
@@ -2229,6 +2339,19 @@ export function afterRunAnswer(text, { messages = [], picks = [], candidates = [
   return { line: en ? AFTER_RUN_MUSE_FALLBACK_EN : AFTER_RUN_MUSE_FALLBACK };
 }
 
+// 42e: a Muse turn that ended in the generic fallback (out.fallback)
+// still answers when the rule flow has a real answer for the text —
+// the rule line marked, never the Muse fallback line itself. Pure.
+export function ruleAnswerForMuseFallback(text, out, ctx = {}) {
+  if (!out || !out.fallback) return null;
+  const lang = ctx.lang || "ko";
+  const r = afterRunAnswer(text, ctx);
+  if (!r || !r.line) return null;
+  if (r.line === AFTER_RUN_MUSE_FALLBACK || r.line === AFTER_RUN_MUSE_FALLBACK_EN) return null;
+  const mark = lang === "en" ? "answered by rule." : "규칙으로 답했어요.";
+  return { ...r, line: `${r.line} (${mark})` };
+}
+
 // 42d: compact run summary (≤ 3 KB) so Muse can answer stay
 // questions from numbers — per home one-way avg/max day, crowding,
 // monthly lines and loan; per person weekday pattern, outings,
@@ -2253,8 +2376,15 @@ export function runSummaryFor(payload) {
     if (top) bits.push(`가장 오래 ${top.day}일차 ${top.min}분`);
     if (stands.length > 0) {
       const sTop = stands.reduce((a, b) => (!a || b.min > a.min ? b : a), stands[0]);
-      bits.push(`서서 ${stands.length}번(최대 ${sTop.day}일차 ${sTop.min}분)`);
+      // 42e: crowded minutes standing — the total, not just the count.
+      const sSum = stands.reduce((a, b) => a + (Number.isFinite(b.min) ? b.min : 0), 0);
+      bits.push(`서서 ${stands.length}번(합계 ${sSum}분·최대 ${sTop.day}일차 ${sTop.min}분)`);
     }
+    // 42e: peak boarding congestion per home, stamped onto
+    // compare.peak_congestion at run time (from the runs' fatigue).
+    const peak = sim.compare && sim.compare.peak_congestion
+      ? Number(sim.compare.peak_congestion[l]) : NaN;
+    if (Number.isFinite(peak)) bits.push(`혼잡 최대 ${Math.round(peak)}%`);
     if (mh && !mh.missing) {
       bits.push(`월 상환 ${fmtWon(hd.monthly_won ?? mh.parts.housing, { monthly: true })}·관리비 ${fmtWon(mh.maintenanceWon, { monthly: true })}·교통비 ${fmtWon(mh.transitWon, { monthly: true })}·합계 ${fmtWon(mh.monthly, { monthly: true })}`);
       if (Number.isFinite(Number(hd.loan_won))) bits.push(`대출 ${fmtWonLump(hd.loan_won)}`);
@@ -3414,6 +3544,10 @@ export function ChatScreen() {
       // result card, share card and compare table all read this.
       compare.one_way = oneWayByLabel(
         Object.fromEntries(labels.map((l) => [l, runs[l]])));
+      // 42e: crowding travels with the comparison (Muse reads it off
+      // the stay summary instead of deflecting to the cards).
+      compare.peak_congestion = peakCongestionByLabel(
+        Object.fromEntries(labels.map((l) => [l, runs[l]])));
       let extraLine = "";
       if (labels.length > 2) {
         const third = runs[labels[2]];
@@ -3426,7 +3560,18 @@ export function ChatScreen() {
       // rest of the run (built in code, so it is there even when the
       // diary could not be written).
       const personLog = homePersonLogs(runs, labels, { lang: LANG === "en" ? "en" : "ko" });
+      // 42e: the run calendar start and the workplace name ride along
+      // so the rule answers read weekdays and the commute line off data.
+      const wp0 = st.profile && st.profile.workplaces
+        && Array.isArray(st.profile.workplaces.value)
+        ? st.profile.workplaces.value[0] : null;
+      const wpName = wp0 && wp0.resolved
+        ? (wp0.resolved.station
+          || (wp0.resolved.place && wp0.resolved.place.name) || null)
+        : (wp0 && wp0.text) || null;
       const payload = { status: "done", compare, moments, labels, customId, personLog,
+        start_date: (scenValue && scenValue.start_date) || "2026-11-02",
+        ...(wpName ? { workplace: wpName } : {}),
         // 29M1: English reports and headers read Muse's registered home
         // names; unregistered names stay on the Korean display.
         names: Object.fromEntries(picked.map((p, i) => [labels[i], reportNameFor(p)])),
@@ -3633,7 +3778,26 @@ export function ChatScreen() {
           pushMsg({ role: "system", kind: "system", content: m.content });
         }
       }
+      // 42e: a Muse turn that ends in the generic fallback hides a
+      // good rule answer — resolve it first so the turn shows the rule
+      // answer instead (marked).
+      const fallbackRule = out.fallback ? ruleAnswerForMuseFallback(text, out, {
+        messages: stateRef.current.messages, picks: stateRef.current.picks,
+        candidates: liveCands, lang: LANG }) : null;
+      if (fallbackRule) {
+        if (fallbackRule.scene) {
+          const res = sceneForEffect(fallbackRule.scene, { picks: stateRef.current.picks,
+            candidates: liveCands,
+            latestRun: latestDoneRun(stateRef.current.messages) });
+          if (res && res.url) {
+            setScene({ url: res.url, title: res.title });
+            setWorkOpen(true);
+          }
+        }
+        if (fallbackRule.tab) store.set({ compareOpen: true, compareTab: fallbackRule.tab });
+      }
       const bubble = turnBubble(out);
+      if (fallbackRule) bubble.content = fallbackRule.line;
       absorbHomeNamesEn(out, bubble && bubble.content, liveCands);
       // 29h2: cards first, then Muse's words — the turn ends on the
       // next move, never on a wall of cards.

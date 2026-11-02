@@ -584,6 +584,40 @@ function workplaceStationOf(hit) {
   return null;
 }
 
+// 42e: an explicitly shared workplace ("둘 다 판교에서 일하는",
+// "both working in Pangyo") belongs to every working adult — never to
+// member 0 alone. True only with a shared word on the hit (Korean) or
+// right before its evidence (English "both/together" precedes the
+// workplace); a bare "같이 살고" elsewhere never counts. Pure.
+const SHARED_WORK_KO_RE = /(둘\s*다|같이|함께)/;
+const SHARED_WORK_EN_RE = /\b(both|together)\b/i;
+function sharedWorkplaceHit(src, hit) {
+  if (!hit) return false;
+  if (SHARED_WORK_KO_RE.test(`${hit.evidence || ""} ${hit.text || ""}`)) return true;
+  const ev = hit.evidence ? String(hit.evidence) : "";
+  const at = ev ? String(src || "").indexOf(ev) : -1;
+  const near = at >= 0
+    ? String(src).slice(Math.max(0, at - 16), at + ev.length + 16)
+    : String(src || "");
+  return SHARED_WORK_EN_RE.test(near);
+}
+
+// Adult member indices a shared workplace expands to (children and
+// seniors never commute). The current sentence wins; else the kept
+// profile members. Pure.
+function sharedWorkplaceMembers(membersHit, profile) {
+  const list = (membersHit && Array.isArray(membersHit.members) && membersHit.members)
+    || (profile && profile.members && Array.isArray(profile.members.value)
+      && profile.members.value)
+    || [];
+  const out = [];
+  list.forEach((m, i) => {
+    const r = (m && m.role) || "adult";
+    if (r !== "child" && r !== "senior") out.push(i);
+  });
+  return out;
+}
+
 function stripPersonWords(clause) {
   const t = String(clause || "")
     .replace(/(남편은|남편이|아내는|아내가|와이프는|신랑은|배우자는|저는|나는|제가)/g, " ")
@@ -594,8 +628,9 @@ function stripPersonWords(clause) {
   return t.replace(/(은|는|이|가|을|를|에서|으로|로|에|의)$/, "").trim();
 }
 
-// 39a: every member's workplace, member-ordered so workplaces[i] is
-// member i's (scenarioFromProfile reads workplaces[i] || workplaces[0]).
+// 39a: every member's workplace, member-ordered so the entry with
+// .member === i is member i's (scenarioFromProfile looks it up by
+// member id, falling back to the shared/first entry).
 // Clauses split on `,` `.` `그리고` `고 `; a person word pins the
 // clause to a member, and a work verb at the end of the sentence
 // covers the earlier clauses. Pure.
@@ -1024,29 +1059,43 @@ export function extract_profile(text, current = null, opts = {}) {
   if (petsHit && profile.pets.value === null) {
     set("pets", petsHit.value, petsHit.evidence, "함께 사는 동물");
   }
-  if (workHits.length === 1) {
-    const workHit = workHits[0];
+  // 42e: one explicitly shared hit ("둘 다 판교", "both working in
+  // Pangyo") becomes one entry per working adult, so the second adult
+  // never loses the commute downstream.
+  let hits = workHits;
+  if (workHits.length === 1 && sharedWorkplaceHit(src, workHits[0])) {
+    const adults = sharedWorkplaceMembers(membersHit, profile);
+    if (adults.length >= 2) {
+      hits = adults.map((i) => ({ ...workHits[0], member: i }));
+    }
+  }
+  if (hits.length === 1) {
+    const workHit = hits[0];
     if (workHit.resolved && workHit.resolved.place) {
       const p = workHit.resolved.place;
       set("workplaces",
-        [{ member: 0, text: workHit.evidence,
+        [{ member: workHit.member || 0, text: workHit.evidence,
           resolved: { place: { id: p.id, name: p.name, lon: p.lon, lat: p.lat },
             region: workHit.resolved.region || US_REGION_ID } }],
         workHit.evidence, `직장: ${p.name}`);
     } else {
       const workplaces = [{
-        member: 0, text: workHit.text,
+        member: workHit.member || 0, text: workHit.text,
         resolved: workHit.resolved ? { station: workHit.resolved } : null,
       }];
       set("workplaces", workplaces, workHit.evidence,
         workHit.resolved ? `직장 근처역: ${workHit.resolved}` : "우리 자료에 없는 곳(모름)");
     }
-  } else if (workHits.length > 1) {
+  } else if (hits.length > 1) {
     // 39a: one entry per member, evidence joined by ` · ` in text
     // order so every part stays a verbatim slice for the guard.
-    const ordered = [...workHits].sort((a, b) => src.indexOf(a.evidence) - src.indexOf(b.evidence));
-    const ev = ordered.map((h) => h.evidence).join(" · ");
-    const workplaces = workHits.map((h) => {
+    // 42e: a shared hit duplicated per adult keeps its single
+    // evidence (and one workplace name) — still verbatim, never doubled.
+    const ordered = [...hits].sort((a, b) => src.indexOf(a.evidence) - src.indexOf(b.evidence));
+    const ev = ordered.every((h) => h.evidence === ordered[0].evidence)
+      ? ordered[0].evidence
+      : ordered.map((h) => h.evidence).join(" · ");
+    const workplaces = hits.map((h) => {
       if (h.resolved && h.resolved.place) {
         const p = h.resolved.place;
         return { member: h.member, text: h.evidence,
@@ -1060,7 +1109,7 @@ export function extract_profile(text, current = null, opts = {}) {
     for (const w of workplaces) {
       const name = w.resolved && (w.resolved.station
         || (w.resolved.place && w.resolved.place.name));
-      if (name) named.push(name);
+      if (name && !named.includes(name)) named.push(name);
     }
     set("workplaces", workplaces, ev,
       named.length > 0 ? `직장 근처역: ${named.join("·")}` : "우리 자료에 없는 곳(모름)");
@@ -1335,9 +1384,18 @@ export function scenarioFromProfile(profile, homes, opts = {}) {
 
   // 26d: members with a resolved place commute without a station —
   // only station_ride members need the home station walk times.
+  // 42e: look the workplace up by member id (entries carry .member),
+  // falling back to the shared/first entry — positional indexing alone
+  // strands a member whenever the array order shifts.
+  const workplaceFor = (idx) => {
+    if (!Array.isArray(workplaces) || workplaces.length === 0) return null;
+    return workplaces.find((w) => w && w.member === idx)
+      || workplaces.find((w) => w && (w.member === 0 || w.member === undefined))
+      || workplaces[0] || null;
+  };
   const needsStation = members.some((m, i) => {
     if ((m.role || "adult") === "child") return false;
-    const wp = workplaces[i] || workplaces[0] || null;
+    const wp = workplaceFor(i);
     const place = wp && wp.resolved && wp.resolved.place;
     return !(place && Number.isFinite(place.lon) && Number.isFinite(place.lat));
   });
@@ -1377,7 +1435,7 @@ export function scenarioFromProfile(profile, homes, opts = {}) {
   // area is the Meta HQ box (us-menlo).
   let usDestArea = null;
   const membersOut = members.map((m, i) => {
-    const wp = workplaces[i] || workplaces[0] || null;
+    const wp = workplaceFor(i);
     const dest = wp && wp.resolved && wp.resolved.station ? wp.resolved.station : null;
     const out = {
       id: `m${i + 1}`,
