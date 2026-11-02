@@ -25,6 +25,7 @@ import { parseScenario } from "../engine/scenario.js";
 // chat shares them); re-exported here so tool imports keep working.
 import { REGION_NAME_ALIASES, regionsForNames, kindForName } from "../region-names.js";
 import { US_REGION_IDS } from "../places-us.js";
+import { coverageSummary, coverageNote } from "../homes.js";
 
 export { REGION_NAME_ALIASES, regionsForNames, kindForName };
 
@@ -297,15 +298,31 @@ async function find_homes(session, args) {
     (final.candidates || [])
       .filter((c) => c && typeof c.id === "string" && typeof c.name === "string")
       .map((c) => [c.id, c.name]));
+  const usEmpty = isUsProfile(profile, effRegions) && final.candidates.length === 0;
+  let coverage;
+  let coverage_note;
+  if (usEmpty) {
+    coverage = coverageSummary({ usHomes: (index && index.homes) || [] });
+    const wps = (profile && profile.workplaces && Array.isArray(profile.workplaces.value))
+      ? profile.workplaces.value : [];
+    const first = wps[0] || {};
+    const workplaceText = (first && first.text) || "";
+    const workplaceUnplaced = Boolean(first && first.text && !first.resolved && !first.noCommute);
+    const budgetUsd = profile && profile.monthlyMax ? profile.monthlyMax.value : undefined;
+    coverage_note = coverageNote({ coverage, budgetUsd, workplaceText, workplaceUnplaced });
+  }
   return {
     ok: true,
     profile_used: clone(profile),
     ...final,
     ...(regionsIgnored.length > 0 ? { regions_ignored: [...regionsIgnored] } : {}),
     asked_for: { regions: effRegions || "all", kind: kind || "all" },
+    ...(usEmpty ? { coverage, coverage_note } : {}),
     next: final.candidates.length > 0
       ? "show 3–6 candidates with numbers + source badges; the customer picks 2 (or 3), then build_scenario"
-      : "no candidates under these conditions — loosen budget/size/regions with the customer",
+      : (usEmpty
+        ? "say why in one or two sentences using coverage_note lines and coverage numbers only, then mention the chips"
+        : "no candidates under these conditions — loosen budget/size/regions with the customer"),
   };
 }
 

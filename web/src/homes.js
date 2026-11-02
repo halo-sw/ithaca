@@ -21,6 +21,7 @@ import { photosNear, PHOTOS_DISCLAIMER } from "./places/photos.js";
 import { nearestStationByWalk } from "./walkgraph.js";
 import { fmtMoney } from "./money/currency.js";
 import { usAreaLabel } from "./region-names.js";
+import { US_REGION_IDS, findUsWorkplace } from "./places-us.js";
 import { currentLang } from "./i18n/lang.js";
 
 export const HOME_SORTS = ["areas", "commute", "monthly", "deals", "priority"];
@@ -79,6 +80,55 @@ export function usEmptyHint(homes, budget) {
   }
   if (min === null) return "";
   return `이 지역 ZIP 대표 월세는 ${fmtMoney(min, "USD")}부터예요 (Zillow 추정).`;
+}
+
+// 43b: US coverage facts from data (pure). usAreas is the corridor in
+// US_REGION_IDS order; minMonthlyUsd the cheapest loaded US ZIP rent
+// with its area; suggestUsd the next $100 up.
+export function coverageSummary({ usHomes, budgetUsd } = {}) {
+  void budgetUsd;
+  const usAreas = US_REGION_IDS
+    .map((id) => usAreaLabel(id, "en")).filter(Boolean);
+  let min = null;
+  let minHome = null;
+  for (const h of usHomes || []) {
+    if (!h || (h.currency !== "USD" && h.country !== "US")) continue;
+    const med = usMonthlyMedian(h);
+    if (med === null) continue;
+    if (min === null || med < min) { min = med; minHome = h; }
+  }
+  return {
+    usAreas,
+    commuteTo: "Meta HQ (1 Hacker Way)",
+    minMonthlyUsd: min,
+    minMonthlyArea: minHome
+      ? (usAreaLabel(minHome.region, "en") || minHome.region || null) : null,
+    suggestUsd: min === null ? null : Math.floor(min / 100) * 100 + 100,
+  };
+}
+
+// 43b2: pure empty-case reply from coverage facts (Korean source strings;
+// the app translates them). Workplace line first; seoul chip closes.
+export function coverageNote({ coverage, budgetUsd, workplaceText, workplaceUnplaced } = {}) {
+  const lines = [];
+  const chips = [];
+  if (workplaceUnplaced) {
+    lines.push(`미국은 Meta 본사(멘로파크)까지 출퇴근만 계산해요. ${workplaceText}까지 시간은 아직 없어요.`);
+    chips.push({ id: "meta", label: "Meta 본사(1 Hacker Way)로 하기" });
+    chips.push({ id: "nocommute", label: "출퇴근 없이 집 보기" });
+  }
+  const cov = coverage || {};
+  const min = Number(cov.minMonthlyUsd);
+  const budget = Number(budgetUsd);
+  if (Number.isFinite(budget) && Number.isFinite(min) && min > budget) {
+    const areas = Array.isArray(cov.usAreas) ? cov.usAreas : [];
+    const first = areas[0];
+    const last = areas[areas.length - 1];
+    lines.push(`Caltrain 축 ${first}–${last} 지역을 다뤄요. 가장 낮은 월세는 ${fmtMoney(min, "USD")}(${cov.minMonthlyArea}, Zillow ZIP 추정)라 예산 ${fmtMoney(budget, "USD")}보다 높아요.`);
+    chips.push({ id: "budget", label: `${fmtMoney(cov.suggestUsd, "USD")}까지 보기` });
+  }
+  if (lines.length > 0) chips.push({ id: "seoul", label: "서울 예시로 해 보기" });
+  return { lines, chips };
 }
 
 const TENURE_BUCKET = { jeonse: "jeonse", wolse: "wolse", trade: "trade" };
