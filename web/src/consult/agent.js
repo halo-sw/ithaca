@@ -14,14 +14,16 @@ import {
 export function chatToolDefs() {
   return TOOL_DEFS.filter((t) => t.function.name !== "submit_report");
 }
-import { checkConsultReply, numbersOnlyAnswer, actionConfirmation, isMostlyKorean } from "./guards.js";
+import { checkConsultReply, numbersOnlyAnswer, actionConfirmation, isMostlyKorean, cleanupEnglishAnswer, roundToolMinutes } from "./guards.js";
 import { isRunRequest } from "../chat/intent.js";
+import { homeNameEn } from "../i18n/home-names.js";
+import { romanizeName } from "../i18n/romanize.js";
 
 // 26u: English-mode anchor. Sent once up front and re-sent as the last
 // message before the final completion so it sits after the tool results
 // (Korean tool output otherwise drags the model back to Korean).
 export const ENGLISH_NOTE =
-  "The customer reads English. Answer in plain English. Korean place and station names: romanized, with the Korean once in parentheses, e.g. Gangnam Stn (강남역). US places, streets and Meta HQ are already English: write them as they are, never with Korean. Write money for Korean homes as won with full digits and commas, e.g. ₩260,000,000, or as ₩260M; US rents in dollars as given, e.g. $4,261/mo. Every rule above still applies. The default is buying a home: unless the customer says jeonse, wolse or public rental, search for buying and ask the price ceiling and the savings for the purchase. Split buying money into one-off purchase costs and monthly costs (loan repayment plus maintenance), and never judge loan eligibility. Compare candidates as one home per neighbourhood with the workplace fixed (find_homes default sort 'areas'): name each option as origin-to-workplace with minutes, e.g. 'Jamsil → Pangyo 41 min / Gangnam → Pangyo 25 min / Migeum → Pangyo 12 min'; never list only homes right next to the workplace. Without a customer commute cap, use 60 minutes and say so. When a home has name_en, write exactly that name, with the Korean once in parentheses. US commute via Caltrain is a timetable-based estimate; the Meta shuttle is an assumption, never a fact. Never romanise a Korean generic word (장보기, 공원); use the English word.";
+  "The customer reads English. Answer in plain English. Never write Korean (Hangul) characters in an English answer. Korean station names are written as the tools give them in English (e.g. Gangnam Stn); never add the Korean in parentheses. US places, streets and Meta HQ are already English: write them as they are, never with Korean. Write money for Korean homes in Korean won always as full digits with commas and the word won, e.g. 260,000,000 won; never with ₩, never with M/K abbreviations for won; US rents in dollars as given, e.g. $4,261/mo. Tenure words in English answers: \"deposit lease\" for 전세, \"monthly rent\" for 월세, \"buy\" for 매매; never write \"jeonse\" or \"wolse\" in an answer (the customer may still type \"jeonse\"; that is fine). Every rule above still applies. The default is buying a home: unless the customer asks for a deposit lease or monthly rent, search for buying and ask the price ceiling and the savings for the purchase. Split buying money into one-off purchase costs and monthly costs (loan repayment plus maintenance), and never judge loan eligibility. Compare candidates as one home per neighbourhood with the workplace fixed (find_homes default sort 'areas'): name each option as origin-to-workplace with minutes, e.g. 'Jamsil → Pangyo 41 min / Gangnam → Pangyo 25 min / Migeum → Pangyo 12 min'; never list only homes right next to the workplace. Without a customer commute cap, use 60 minutes and say so. A home is always called by its name_en, exactly. US commute via Caltrain is a timetable-based estimate; the Meta shuttle is an assumption, never a fact. Never romanise a Korean generic word (장보기, 공원); use the English word.";
 const ENGLISH_RETRY_NOTE =
   "Your last answer was in Korean. Rewrite it in plain English with the same facts and numbers.";
 
@@ -243,6 +245,57 @@ function attachNameEn(value, namesEn) {
     const en = namesEn[String(nm).trim()];
     if (en) c.name_en = en;
   });
+}
+
+// 41b: homeNameEn without throwing (storage/romanizer edge cases fall
+// back to "" so the LLM naming call stays gated but the turn survives).
+function safeHomeNameEn(ko) {
+  try {
+    const v = homeNameEn(ko);
+    return typeof v === "string" ? v.trim().replace(/\s+/g, " ") : "";
+  } catch {
+    return "";
+  }
+}
+
+const STATION_EN_KEYS = new Set(["station", "station_name"]);
+const HANGUL_RE = /[가-힣]/;
+
+// 41b: deterministic English seeds for one tool result: every Korean
+// home name maps to its homeNameEn (same function the card uses). Pure
+// and synchronous — no naming call involved.
+export function englishNameSeeds(result) {
+  const out = {};
+  for (const ko of koreanCandidateNames(result)) {
+    const det = safeHomeNameEn(ko);
+    if (det) out[ko] = det;
+  }
+  return out;
+}
+
+// 41b: station names in tool results for English sessions carry
+// station_en next to each Korean station field the model reads.
+export function stampStationEn(value) {
+  const visit = (v) => {
+    if (Array.isArray(v)) {
+      v.forEach(visit);
+      return;
+    }
+    if (!v || typeof v !== "object") return;
+    for (const k of Object.keys(v)) {
+      const val = v[k];
+      if (STATION_EN_KEYS.has(k) && typeof val === "string"
+        && HANGUL_RE.test(val) && typeof v[`${k}_en`] !== "string") {
+        const base = val.trim().replace(/역$/, "");
+        try {
+          v[`${k}_en`] = romanizeName(`${base}역`);
+        } catch { /* keep the turn working */ }
+      }
+      visit(val);
+    }
+  };
+  visit(value);
+  return value;
 }
 
 function parseHomeNamesJson(text) {
@@ -470,11 +523,26 @@ export async function runTurn(opts) {
   const namesEnSupported = !!(context && context.names_en
     && typeof context.names_en === "object");
   async function ensureHomeNamesEn(result) {
+    // 41b: English sessions read the deterministic card name first —
+    // seed namesEn from homeNameEn (same function the card uses) for
+    // every Korean name this result carries, before any naming call.
+    if (isEnglish) {
+      const seeds = englishNameSeeds(result);
+      for (const [ko, det] of Object.entries(seeds)) {
+        if (!namesEn[ko]) {
+          namesEn[ko] = det;
+          HOME_NAMES_CACHE.set(ko, det);
+        }
+      }
+      try { stampStationEn(result); } catch { /* keep the turn working */ }
+    }
     const known = {};
     for (const [k, v] of HOME_NAMES_CACHE) known[k] = v;
     Object.assign(known, namesEn);
+    // 41b: the LLM naming call may only fill a name whose homeNameEn
+    // is empty (the answer then matches the card exactly).
     const fresh = koreanCandidateNames(result)
-      .filter((ko) => !known[ko]).slice(0, 30);
+      .filter((ko) => !known[ko] && !safeHomeNameEn(ko)).slice(0, 30);
     if (fresh.length === 0 || !namesEnSupported) {
       attachNameEn(result, known);
       return;
@@ -535,8 +603,26 @@ export async function runTurn(opts) {
   let rounds = 0;
 
   // 29a11: scrub internal home ids from an accepted final text.
-  const cleanFinal = (text) => replaceInternalIds(
-    text, nameByIdFromResults(toolResults), isEnglish ? "en" : "ko");
+  // 41b: English finals also pass the deterministic English cleanup
+  // (Hangul parens, tenure words, won forms) with this turn's names.
+  const cleanFinal = (text) => {
+    const scrubbed = replaceInternalIds(
+      text, nameByIdFromResults(toolResults), isEnglish ? "en" : "ko");
+    if (!isEnglish) return scrubbed;
+    return cleanupEnglishAnswer(scrubbed, {
+      lang: "en",
+      names: { ...namesEn },
+      commuteMinutes: toolResults.some(hasMinutesUnit),
+    });
+  };
+  function hasMinutesUnit(r) {
+    try {
+      return !!((r && r.compare && Array.isArray(r.compare.metrics)
+        && r.compare.metrics.some((m) => m && m.unit === "minutes")));
+    } catch {
+      return false;
+    }
+  }
   // 29a7: one English rewrite of an accepted reply ("same facts and
   // numbers"). Returns the split reply plus its guard verdict; callers
   // keep the retry text when it passes, never the first Korean reply.
@@ -711,9 +797,13 @@ export async function runTurn(opts) {
     for (const c of calls) {
       const t0 = Date.now();
       emit({ type: "tool_start", name: c.name, target: shortJson(c.args || {}, 80) });
-      const result = c.args_parse_error
+      let result = c.args_parse_error
         ? { ok: false, error: "tool arguments are not valid JSON" }
         : await callTool(session, c.name, c.args || {});
+      // 41b: minute values reach the model rounded (never float noise).
+      try {
+        result = roundToolMinutes(result);
+      } catch { /* keep the raw result on rounding errors */ }
       const ms = Date.now() - t0;
       // 29M1: English sessions resolve home names before the model
       // writes its reply, and stamp name_en on the candidates it reads.

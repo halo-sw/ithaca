@@ -87,6 +87,85 @@ export function isMostlyKorean(text) {
 const round1 = (n) => Math.round(n * 10) / 10;
 const round2 = (n) => Math.round(n * 100) / 100;
 
+const CLEAN_HANGUL_PAREN_RE = /\([^()]*[가-힣][^()]*\)/g;
+
+function fmtFullWon(n) {
+  return `${Math.round(n).toLocaleString("en-US")} won`;
+}
+
+// 41b: deterministic English answer cleanup. English only — Korean
+// answers (lang !== "en") are returned unchanged. Strips Hangul
+// parentheticals, swaps known Korean home names for their name_en,
+// writes tenure words in English and Korean won as full digits + won.
+export function cleanupEnglishAnswer(text, opts = {}) {
+  const lang = (opts && opts.lang) || "en";
+  let s = String(text ?? "");
+  if (lang !== "en") return s;
+  const names = (opts && opts.names && typeof opts.names === "object")
+    ? opts.names : {};
+  const keys = Object.keys(names)
+    .filter((k) => typeof k === "string" && k !== ""
+      && typeof names[k] === "string" && names[k] !== "")
+    .sort((a, b) => b.length - a.length);
+  for (const ko of keys) {
+    if (s.includes(ko)) s = s.split(ko).join(names[ko]);
+  }
+  s = s.replace(CLEAN_HANGUL_PAREN_RE, "");
+  s = s.replace(/\bJeonse\b/g, "Deposit lease")
+    .replace(/\bjeonse\b/g, "deposit lease")
+    .replace(/\bWolse\b/g, "Monthly rent")
+    .replace(/\bwolse\b/g, "monthly rent");
+  s = s.replace(/₩\s*(\d+(?:\.\d+)?)\s*M\b/g,
+    (_, n) => fmtFullWon(parseFloat(n) * 1e6));
+  s = s.replace(/₩\s*(\d+(?:\.\d+)?)\s*K\b/g,
+    (_, n) => fmtFullWon(parseFloat(n) * 1e3));
+  s = s.replace(/(\d+(?:\.\d+)?)\s*M\s*(won|원)\b/g,
+    (_, n) => fmtFullWon(parseFloat(n) * 1e6));
+  s = s.replace(/₩\s*(\d[\d,]*)/g, (_, d) => `${d} won`);
+  s = s.replace(/(\d[\d,]*)\s*원/g, (_, d) => `${d} won`);
+  if (opts && opts.commuteMinutes) {
+    s = s.replace(/(average one-way commute is\s+)(\d+(?:\.\d+)?)(?!\s*min)/i,
+      (_, head, n) => `${head}${n} min`);
+  }
+  s = s.replace(/[ \t]{2,}/g, " ").replace(/\s+([.,])/g, "$1");
+  return s;
+}
+
+const MINUTE_KEY_RE = /minut/i;
+
+// 41b: round every minute value in consult tool results to one decimal
+// (whole minutes stay whole) before the model sees them — never float
+// noise. Covers minute-named keys (minutes, minutes_total,
+// ride_minutes, commute_minutes, walk_minutes, crowded_min) and
+// compare-metric numbers whose unit is minutes.
+export function roundToolMinutes(result) {
+  if (!result || typeof result !== "object") return result;
+  const visit = (v) => {
+    if (Array.isArray(v)) {
+      for (let i = 0; i < v.length; i++) {
+        if (typeof v[i] === "number" && Number.isFinite(v[i])) continue;
+        visit(v[i]);
+      }
+      return;
+    }
+    if (!v || typeof v !== "object") return;
+    const minutesUnit = v.unit === "minutes";
+    for (const k of Object.keys(v)) {
+      const val = v[k];
+      if (typeof val === "number" && Number.isFinite(val)
+        && (MINUTE_KEY_RE.test(k) || k === "crowded_min"
+          || (minutesUnit && (k === "a" || k === "b"
+            || k === "delta_b_minus_a" || k === "value")))) {
+        v[k] = Math.round(val * 10) / 10;
+      } else {
+        visit(val);
+      }
+    }
+  };
+  visit(result);
+  return result;
+}
+
 function addVariants(out, n) {
   if (!Number.isFinite(n)) return;
   // Compare deltas can be negative while citations drop the sign
@@ -624,7 +703,7 @@ export function numbersOnlyAnswer(toolResults, opts = {}) {
     assumed: en ? "assumed" : "가정값",
     total: en ? "total" : "합계",
     purchase: en ? "purchase" : "매매",
-    jeonse: en ? "jeonse" : "전세",
+    jeonse: en ? "deposit lease" : "전세",
     deals: en ? "deals" : "건",
     realDeals: en ? "real deals" : "실거래",
     home: en ? "home" : "홈",

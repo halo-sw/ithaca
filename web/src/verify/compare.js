@@ -212,7 +212,7 @@ export function reportDigest({ runs, labels, homes, persona, groundTruth, names 
               const last = parts_ko[parts_ko.length - 1];
               const particle = (last === "공과금" || last === "대출 상환") ? "을" : "를";
               meaning_ko = parts_ko.length ? `${parts_ko.join("·")}${particle} 더한 한 달 금액 (전세는 월세 없음)` : "집에 드는 한 달 금액 (전세는 월세 없음)";
-              meaning_en = parts_en.length ? `${parts_en.join(" plus ")} for one month (jeonse has no rent)` : "monthly housing cost (jeonse has no rent)";
+              meaning_en = parts_en.length ? `${parts_en.join(" plus ")} for one month (a deposit lease has no rent)` : "monthly housing cost (a deposit lease has no rent)";
             } else if (tenure === "wolse" || tenure === "public") {
               const parts_ko = [];
               const parts_en = [];

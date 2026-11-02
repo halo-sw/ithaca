@@ -55,8 +55,9 @@ describe("26y3 English note: no Korean for US places", () => {
     assert.ok(ENGLISH_NOTE.includes("US places, streets and Meta HQ are already English: write them as they are, never with Korean."));
   });
 
-  it("ENGLISH_NOTE keeps the Korean example and the dollar example", () => {
-    assert.ok(ENGLISH_NOTE.includes("(강남역)"));
+  it("ENGLISH_NOTE keeps the dollar example and never adds Korean", () => {
+    assert.ok(!ENGLISH_NOTE.includes("(강남역)"));
+    assert.ok(!ENGLISH_NOTE.includes("with the Korean once in parentheses"));
     assert.ok(ENGLISH_NOTE.includes("$4,261/mo"));
   });
 });

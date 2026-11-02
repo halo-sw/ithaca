@@ -87,6 +87,15 @@ function fail(message) {
   return { ok: false, error: String(message).slice(0, 500) };
 }
 
+// 41b: complex-name retry ignoring spaces (and "·"), so a model
+// spelling with spaces still finds the stored spaceless name.
+export function matchesIgnoringSpaces(storedNames, want) {
+  const norm = (s) => String(s || "").replace(/[\s·]+/g, "");
+  const w = norm(want);
+  if (!w) return false;
+  return (storedNames || []).some((n) => norm(n) === w);
+}
+
 function needRun(session, id) {
   const hit = session.cache.runs.get(String(id));
   if (!hit) throw new Error(`unknown run ${JSON.stringify(id)} — call run_simulation first`);
@@ -210,7 +219,8 @@ async function price_reference(session, args) {
   } catch (err) {
     return fail(`cannot load area ${areaId}: ${String((err && err.message) || err).slice(0, 200)}`);
   }
-  if (!(area.complexes || []).some((c) => c.name === complexName)) {
+  if (!(area.complexes || []).some((c) => c.name === complexName)
+    && !matchesIgnoringSpaces((area.complexes || []).map((c) => c.name), complexName)) {
     return fail(`no complex named ${JSON.stringify(complexName)} in ${areaId} — call list_complexes`);
   }
   const rows = await needRtms(session, district).catch((err) => ({ __error: err }));
@@ -763,7 +773,8 @@ async function jeonse_check(session, args) {
   } catch (err) {
     return fail(`cannot load area ${areaId}: ${String((err && err.message) || err).slice(0, 200)}`);
   }
-  if (!(area.complexes || []).some((c) => c.name === complexName)) {
+  if (!(area.complexes || []).some((c) => c.name === complexName)
+    && !matchesIgnoringSpaces((area.complexes || []).map((c) => c.name), complexName)) {
     return fail(`no complex named ${JSON.stringify(complexName)} in ${areaId} — call list_complexes`);
   }
   const rows = await needRtms(session, district).catch((err) => ({ __error: err }));
