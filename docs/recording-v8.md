@@ -29,7 +29,7 @@ At A / Day 1 / 17:54, choice `h1:d0:1074:shop_choice:00` selected **No Brand** f
 
 This is the model’s explanation under the scenario, not evidence that a real person has that preference. Muse selects the bounded options; code checks the returned key and computes the resulting paths, times and costs. Work/school schedules and background residents retain rules. The browser worker saves accepted choices for identical replay. Provider outages stop the live request rather than silently claiming model success; guard fallback records retain their labels.
 
-The report **passed on attempt 1**. Its 100% coverage is the verifier’s coverage of supported checks, not field accuracy; unsupported items are excluded. Numeric claims are recomputed from the run, and a separate Muse call judges cited evidence. No controlled rejection test or different household’s result is included in the main story.
+The report **passed on attempt 1**. Its 100% coverage is the verifier’s coverage of supported checks, not field accuracy; unsupported items are excluded. Numeric claims are recomputed from the run, and a separate Muse call judges cited evidence. No controlled rejection test or different household’s result is included in the main story. The current semantic checker does not block a pass on a judge-call exception; individual judge completion is not exposed in the captured report response. The video reports the observed UI outcome without treating it as proof of field accuracy.
 
 ## Separate four-person extension
 

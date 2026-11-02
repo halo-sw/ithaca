@@ -1152,6 +1152,8 @@
     "Report first-pass success covers supported consistency checks; unsupported noise/daylight and other items are excluded. It does not establish real-world accuracy.",
     "Family school routes are nearest-POI proxies, not enrollment assignments; school-level and catchment matching are not implemented. The saved routes use secondary-school POIs despite elementary-school input.",
     "Household options are chosen by live Muse; fixed work/school schedules and background residents remain rules. A reason is the model’s explanation, not evidence of a real person’s preference.",
-    "Screen recording replays the same saved runs; model waits and playback are edited for pacing. Presentation voice is separately synthesized, not Muse Voice output."
-  ]
+    "Screen recording replays the same saved runs; model waits and playback are edited for pacing. Presentation voice is separately synthesized, not Muse Voice output.",
+    "The current report checker does not make a judge-call exception block a pass. The UI outcome is preserved, but per-call semantic judge completion is not independently exposed in this captured response."
+  ],
+  "playback_commit": "c57dc04"
 }
