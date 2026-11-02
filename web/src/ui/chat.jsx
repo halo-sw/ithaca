@@ -718,7 +718,7 @@ function NoAnswerAlert({ text, onHide, providerChoice, onProviderChoice,
             <SegmentedControlItem key={p.value} value={p.value} label={p.label} />
           ))}
         </SegmentedControl>
-        <HStack gap={1} vAlign="center">
+        <HStack gap={1} vAlign="center" wrap="wrap" className="ui-noanswer-keyrow">
           <input className="ui-keyinput" type="password" placeholder="모델 키 붙여넣기"
             value={draft} onChange={(e) => onDraft(e.target.value)} aria-label="모델 키" />
           <Button size="sm" variant="secondary" label="키 저장" onClick={onSave} />
@@ -1889,8 +1889,10 @@ export function afterRunChipReply(text, { messages = [], picks = [], candidates 
 // 42d: free questions after a 30-day run get rule answers, with or
 // without Muse. Every number comes from the latest done run payload
 // (personLog, lifeEvents, compare, moneyDoc, moments) — never
-// invented. Questions the rules cannot answer get the Muse fallback
-// line (the 42b alert stays pinned on screen).
+// invented. afterRunAnswer returns null for text the rules cannot
+// answer; the Muse fallback line below is used only by the non-Muse
+// turn guard when nothing visible was added (the 42b alert stays
+// pinned on screen).
 export const AFTER_RUN_MUSE_FALLBACK = "이 질문은 Muse가 답해요. 위 알림에서 키를 넣으면 이어서 답해요.";
 export const AFTER_RUN_MUSE_FALLBACK_EN = "Muse answers this one. Add your key in the notice above and I'll continue.";
 
@@ -2240,8 +2242,10 @@ function nearbyLineFor(sim, candidates, text, lang) {
 // 42d: rule answers for free questions after a run — an extension of
 // the 42a chip replies to full sentences (Korean and English).
 // Returns { scene, tab, pick, run, line } like afterRunChipReply, or
-// null when there is no done run (or the turn belongs to the
-// pick/run flow). Unknown questions get the Muse fallback line.
+// null when there is no done run, the turn belongs to the pick/run
+// flow, or the text is not an after-run question. Unknown text
+// returns null so the caller falls through to the rule flow — the
+// Muse fallback line lives only in the non-Muse turn guard.
 export function afterRunAnswer(text, { messages = [], picks = [], candidates = [], lang = currentLang() } = {}) {
   const t = String(text || "").trim();
   const chip = afterRunChipReply(t, { messages, picks, candidates, lang });
@@ -2271,7 +2275,8 @@ export function afterRunAnswer(text, { messages = [], picks = [], candidates = [
     const labels = afterRunLabels(sim);
     const log = (sim.personLog || {})[labels[0]] || {};
     const who = personForQuestion(log.people || [], t) || (log.people || [])[0];
-    if (!who) return { line: en ? AFTER_RUN_MUSE_FALLBACK_EN : AFTER_RUN_MUSE_FALLBACK };
+    // 42f: no person in the log, no real answer — back to the rule flow.
+    if (!who) return null;
     const all = personLogEntries(log).filter((e) => e.person && e.person.key === who.key);
     // 42e: the head is the weekday pattern off the workday records
     // (commuter clocks, else errand/clinic counts); outs are weekend
@@ -2312,10 +2317,10 @@ export function afterRunAnswer(text, { messages = [], picks = [], candidates = [
       ? { panel: "result", home: labels[0], day: firstOut.day,
         ...(Number.isFinite(firstOut.minute) ? { time: hhmm(firstOut.minute) } : {}) }
       : { panel: "result", home: labels[0] };
+    // 42f: no people, no real answer — back to the rule flow.
+    if (bits.length === 0) return null;
     return { scene,
-      line: bits.length > 0
-        ? (en ? `Weekends — ${bits.join("; ")}.` : `주말에는 ${bits.join(" · ")} 이렇게 지냈어요.`)
-        : (en ? AFTER_RUN_MUSE_FALLBACK_EN : AFTER_RUN_MUSE_FALLBACK) };
+      line: en ? `Weekends — ${bits.join("; ")}.` : `주말에는 ${bits.join(" · ")} 이렇게 지냈어요.` };
   }
   if (LATE_RE_42D.test(t)) return { line: lateLineFor(sim, lang) };
   const homeM = t.match(/([ABC])\s*집?\s*출근길|([ABC])\s*집?\s*출근|commute[^\n]{0,30}\b([ABC])\b|\b([ABC])\b[^\n]{0,30}commute|home\s*([ABC])/i);
@@ -2336,7 +2341,18 @@ export function afterRunAnswer(text, { messages = [], picks = [], candidates = [
         : "전세 탭을 열었어요. 보증금·대출 이자·위험 체크를 한 번에 보세요." };
   }
   if (PLACES_RE_42D.test(t)) return nearbyLineFor(sim, candidates, t, lang);
-  return { line: en ? AFTER_RUN_MUSE_FALLBACK_EN : AFTER_RUN_MUSE_FALLBACK };
+  // 42f: not an after-run question — the caller runs the rule flow.
+  return null;
+}
+
+// 42f: the non-Muse turn guard's line — after a done run the Muse
+// fallback invites a key in the pinned alert; otherwise the generic
+// rule line. Pure.
+export function nonMuseNoReplyLine(text, { messages = [], lang = currentLang() } = {}) {
+  if (latestDoneSim(messages)) {
+    return lang === "en" ? AFTER_RUN_MUSE_FALLBACK_EN : AFTER_RUN_MUSE_FALLBACK;
+  }
+  return localNoAnswerLine(text);
 }
 
 // 42e: a Muse turn that ended in the generic fallback (out.fallback)
@@ -4006,10 +4022,14 @@ export function ChatScreen() {
         await structuredFlow(content);
       }
       // 27j: the rules path always answers — fallback line when nothing replied.
+      // 42f: after a done run the line is the Muse fallback (key invite),
+      // otherwise the generic rule line.
       if (routeTurn({ live: shouldCallMuse({ museLive }), museFails }) !== "agent") {
         const answered = answeredSince(replyCountRef.current, repliesBefore);
         if (!answered) {
-          pushMsg({ role: "assistant", kind: "text", content: localNoAnswerLine(content) });
+          pushMsg({ role: "assistant", kind: "text",
+            content: nonMuseNoReplyLine(content,
+              { messages: stateRef.current.messages, lang: currentLang() }) });
         }
       }
     } catch (err) {

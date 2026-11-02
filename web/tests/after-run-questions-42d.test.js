@@ -189,9 +189,9 @@ describe("42d after-run questions (Korean)", () => {
     assert.equal(r.line, "30일 동안 밤 10시 넘어 들어온 날은 없었어요.");
   });
 
-  it("unknown question: the Muse fallback line", () => {
+  it("unknown question: 42f null so the rule flow runs", () => {
     const r = answer("내일 날씨 어때?", thread());
-    assert.equal(r.line, Chat.AFTER_RUN_MUSE_FALLBACK);
+    assert.equal(r, null);
   });
 
   it("picked-only compare request never drops to one home", () => {
@@ -276,9 +276,9 @@ describe("42d after-run questions (English)", () => {
     assert.ok(r.line.includes("680,000 won") && r.line.includes("900,000 won"), r.line);
   });
 
-  it("unknown: English Muse fallback", () => {
+  it("unknown: 42f null so the rule flow runs", () => {
     const r = answer("How is the weather tomorrow?", thread(), "en");
-    assert.equal(r.line, Chat.AFTER_RUN_MUSE_FALLBACK_EN);
+    assert.equal(r, null);
   });
 });
 

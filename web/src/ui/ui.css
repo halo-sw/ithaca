@@ -845,6 +845,12 @@ body.printing-share #share-print { display: block !important; padding: var(--ui-
    button never shrinks, at every viewport width. */
 .ui-textstep > .ui-keyinput { flex: 1 1 auto; min-width: 0; }
 .ui-textstep button { flex: none; }
+/* 42f: the no-answer key row wraps under the input on narrow threads —
+   the input shrinks, the save button keeps its full label. */
+.ui-noanswer-key { min-width: 0; }
+.ui-noanswer-keyrow { flex-wrap: wrap; }
+.ui-noanswer-keyrow > .ui-keyinput { flex: 1 1 12rem; min-width: 0; }
+.ui-noanswer-keyrow button { flex: none; max-width: none; }
 .ui-src-row { padding: var(--ds-s-12) 0; border-top: 1px solid var(--ui-border); }
 .ui-src-row > * + * { margin-top: var(--ds-s-4); }
 
