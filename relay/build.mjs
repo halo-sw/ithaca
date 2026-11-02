@@ -15,6 +15,7 @@ await esbuild.build({
   platform: "node",
   format: "esm",
   target: "node20",
+  external: ["@vercel/functions"],
   banner: {
     js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);",
   },
@@ -22,7 +23,7 @@ await esbuild.build({
 
 await writeFile(
   new URL("./dist/package.json", import.meta.url),
-  JSON.stringify({ type: "module", private: true }, null, 2) + "\n",
+  JSON.stringify({ type: "module", private: true, dependencies: { "@vercel/functions": "^3" } }, null, 2) + "\n",
 );
 
 await writeFile(

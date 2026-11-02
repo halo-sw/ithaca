@@ -14,6 +14,7 @@ import { createConsultHandler, httpReadText, readBody } from "../web/src/consult
 import { VOICE_MAX_BYTES, createTranscribeHandler } from "../web/src/consult/voice.js";
 import { BYOK_HEADER } from "../web/src/consult/byok.js";
 import { SESSION_HEADER } from "../web/src/chat/session-id.js";
+import { createSessionStore } from "./session-store.js";
 // Model endpoints this relay calls with the server key: Meta (META_API_BASE) for chat and voice; Baseten (BASETEN_API_BASE) only with a browser-supplied key.
 export { META_API_BASE, BASETEN_API_BASE } from "../web/src/judge/providers.js";
 import { metaApiKey } from "../web/src/judge/providers.js";
@@ -98,7 +99,7 @@ function checkGlobal(global, t, windowMs, max) {
   return 0;
 }
 
-export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(), consultFactory = createConsultHandler } = {}) {
+export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(), consultFactory = createConsultHandler, sessionStore } = {}) {
   const origins = allowedOrigins(env);
   // One consult handler per relay, not per request (it holds its caches).
   const consultHandler = consultFactory({
@@ -120,38 +121,42 @@ export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(
   // seen on the server key is remembered for 24 h; a different (or
   // missing) session id from the same IP is refused without a model
   // call. BYOK requests (x-model-key) skip this rule entirely.
-  const serverKeyUse = new Map();
-  const SERVER_KEY_SESSION_TTL_MS = 86400000;
-  const SERVER_KEY_SESSION_MAX = 10000;
+  // 41k: the record lives in sessionStore so the rule holds across
+  // relay instances (Vercel Runtime Cache); the per-relay in-memory
+  // store is the default and the fallback when the shared store fails.
+  const memSessions = createSessionStore({ now });
+  const sharedSessions = sessionStore || memSessions;
 
   // True when a server-key request must be refused: the IP already
   // spent its session on another (or an unknown) session id.
   // Requests without a session id never record — refused when the
   // IP already used one, allowed otherwise.
-  function serverKeySessionBlocked(client, session, t) {
-    const rec = serverKeyUse.get(client);
-    if (rec) {
-      if (t - rec.t >= SERVER_KEY_SESSION_TTL_MS) {
-        serverKeyUse.delete(client);
-      } else if (session !== rec.session) {
-        return true;
-      } else {
+  async function serverKeySessionBlocked(client, session) {
+    let active = sharedSessions;
+    let recorded = null;
+    try {
+      recorded = await active.get(client);
+    } catch {
+      console.warn("srv-session store get failed; using memory fallback");
+      active = memSessions;
+      try {
+        recorded = await active.get(client);
+      } catch {
         return false;
       }
     }
+    if (recorded) return session !== recorded;
     if (session) {
-      if (serverKeyUse.size >= SERVER_KEY_SESSION_MAX) {
-        for (const [key, value] of serverKeyUse) {
-          if (t - value.t >= SERVER_KEY_SESSION_TTL_MS) serverKeyUse.delete(key);
-          if (serverKeyUse.size < SERVER_KEY_SESSION_MAX) break;
-        }
-        while (serverKeyUse.size >= SERVER_KEY_SESSION_MAX) {
-          const oldest = serverKeyUse.keys().next();
-          if (oldest.done) break;
-          serverKeyUse.delete(oldest.value);
+      try {
+        await active.set(client, session, 86400);
+      } catch {
+        console.warn("srv-session store set failed; using memory fallback");
+        try {
+          await memSessions.set(client, session, 86400);
+        } catch {
+          // Memory writes never throw; never block on store errors.
         }
       }
-      serverKeyUse.set(client, { session, t });
     }
     return false;
   }
@@ -328,7 +333,7 @@ export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(
       if (!byok) {
         const rawSession = reqHeader(req, SESSION_HEADER);
         const session = typeof rawSession === "string" ? rawSession.slice(0, 64) : "";
-        if (serverKeySessionBlocked(client, session, t)) {
+        if (await serverKeySessionBlocked(client, session)) {
           sendJson(res, 429, { ok: false, error: "server_key_used", byok: true }, cors);
           return;
         }
