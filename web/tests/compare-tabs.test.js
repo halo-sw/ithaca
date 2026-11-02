@@ -30,10 +30,10 @@ describe("compare tab groups", () => {
     assert.deepEqual(tabsInGroup("compare"), ["compare", "priorities", "quality", "criteria"]);
     assert.deepEqual(tabsInGroup("money"), ["money", "worthit"]);
     assert.deepEqual(tabsInGroup("safety"), ["safety", "jeonse", "support"]);
-    assert.deepEqual(tabsInGroup("listings"), ["listings", "listings-public"]);
+    assert.deepEqual(tabsInGroup("listings"), ["listings"]);
     assert.equal(groupForTab("money"), "money");
     assert.equal(groupForTab("jeonse"), "safety");
-    assert.equal(groupForTab("listings-public"), "listings");
+    assert.equal(groupForTab("listings"), "listings");
   });
 
   it("keeps every old ?tab= id working", () => {
@@ -41,7 +41,7 @@ describe("compare tab groups", () => {
         "safety", "jeonse", "support", "listings", "criteria"]) {
       assert.equal(resolveTabId(id), id, id);
     }
-    assert.equal(resolveTabId("listings-public"), "listings-public");
+    assert.equal(resolveTabId("listings-public"), "");
     assert.equal(resolveTabId("nope"), "");
     assert.equal(resolveTabId(""), "");
     assert.equal(resolveTabId(null), "");
@@ -56,7 +56,6 @@ describe("compare tab groups", () => {
     assert.equal(labelForTab("priorities"), "내 기준");
     assert.equal(labelForTab("criteria"), "기준");
     assert.equal(labelForTab("listings"), "내가 본 매물");
-    assert.equal(labelForTab("listings-public"), "공공 공고");
   });
 
   it("never truncates labels in CSS and wraps Korean at spaces", () => {

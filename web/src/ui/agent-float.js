@@ -18,7 +18,7 @@ export const TAB_KO = {
   compare: "A·B 비교", priorities: "내 기준으로 보기", money: "생활비",
   worthit: "살 만한가?", quality: "삶의 질", safety: "안전·교육",
   jeonse: "전세 점검", support: "지원 제도", criteria: "계산 기준",
-  listings: "매물", "listings-public": "공공 공고",
+  listings: "매물",
 };
 
 const hhmm = (m) => {
@@ -85,13 +85,13 @@ export const TOOL_ACTION_KO = {
   get_education: "학교·학원 보기", define_term: "쉬운 말 풀이",
   set_view: "화면 옮기기", set_money: "돈 조건 바꾸기",
   estimate_net_pay: "실수령액 계산", price_reference: "실거래가 확인",
-  living_cost: "생활비 계산", recommend_public_rental: "공공임대 찾기",
+  living_cost: "생활비 계산",
   add_home_c: "C로 추가", worth_it: "살 만한가 계산",
   jeonse_check: "전세 점검", mock_deposit_loss: "만약에 보기",
   support_programs: "도움 제도 비교", parse_listing: "매물 읽기",
   check_listing: "매물 확인", add_listing_c: "매물 C로 추가",
   extract_profile: "상황 읽기", find_homes: "집 후보 찾기",
-  find_public_rentals: "공공임대 찾기", build_scenario: "시나리오 만들기",
+  build_scenario: "시나리오 만들기",
   open_panel: "화면 열기", pick_homes: "찜하기",
   start_life_run: "30일 살아 보기 맡기기",
 };
@@ -115,13 +115,13 @@ export const TOOL_ACTION_EN = {
   get_education: "Viewing schools", define_term: "Explaining simply",
   set_view: "Moving the view", set_money: "Updating money conditions",
   estimate_net_pay: "Calculating take-home pay", price_reference: "Checking actual prices",
-  living_cost: "Calculating living costs", recommend_public_rental: "Finding public rentals",
+  living_cost: "Calculating living costs",
   add_home_c: "Adding as C", worth_it: "Checking value for money",
   jeonse_check: "Checking the deposit", mock_deposit_loss: "Running a what-if",
   support_programs: "Comparing support programmes", parse_listing: "Reading the listing",
   check_listing: "Checking the listing", add_listing_c: "Adding listing as C",
   extract_profile: "Reading your situation", find_homes: "Finding homes",
-  find_public_rentals: "Finding public rentals", build_scenario: "Building a scenario",
+  build_scenario: "Building a scenario",
   open_panel: "Opening a view", pick_homes: "Saving picks",
   start_life_run: "Starting the 30-day preview",
 };
@@ -168,12 +168,6 @@ const CITATIONS = {
   get_journey: [{ title: "서울교통공사 지하철혼잡도정보", url: null }],
   get_fatigue: [{ title: "서울교통공사 지하철혼잡도정보", url: null }],
   get_safety: [{ title: "경찰청 범죄 발생 지역별 통계 (2025년)", url: null }],
-  recommend_public_rental: [
-    { title: "LH·마이홈 (공공주택 데이터 API)", url: "https://public-housing-map.vercel.app/api/v1" },
-  ],
-  add_home_c: [
-    { title: "LH·마이홈 (공공주택 데이터 API)", url: "https://public-housing-map.vercel.app/api/v1" },
-  ],
   support_programs: [
     { title: "주택도시기금", url: "https://nhuf.molit.go.kr" },
     { title: "LH·마이홈 (공공주택 데이터 API)", url: "https://public-housing-map.vercel.app/api/v1" },
@@ -196,9 +190,6 @@ const CITATIONS = {
   list_complexes: [{ title: "GIS건물통합정보", url: "https://www.vworld.kr" }],
   list_stations: [{ title: "OpenStreetMap", url: "https://www.openstreetmap.org/copyright" }],
   find_homes: [{ title: "국토교통부 실거래가 공개시스템", url: "https://rt.molit.go.kr" }],
-  find_public_rentals: [
-    { title: "LH·마이홈 (공공주택 데이터 API)", url: "https://public-housing-map.vercel.app/api/v1" },
-  ],
   build_scenario: [
     { title: "OpenStreetMap", url: "https://www.openstreetmap.org/copyright" },
     { title: "GIS건물통합정보", url: "https://www.vworld.kr" },
@@ -230,7 +221,16 @@ const US_CITATIONS = {
   get_education: ["osm-us"],
 };
 
-export function isUsToolContext(toolCalls) {
+export function isUsToolContext(toolCalls, opts = {}) {
+  // 41g: the active US session counts even when this turn's tool args
+  // carry no USD ids (later turns cite US sources, never MOLIT).
+  if (opts && (opts.usSession === true || opts.currency === "USD")) return true;
+  const prof = opts && opts.profile;
+  const cur = prof && (prof.currency === "USD"
+    || (prof.currency && prof.currency.value === "USD"));
+  if (cur) return true;
+  const region = opts && (opts.region || opts.regionId);
+  if (typeof region === "string" && region.indexOf("us-") === 0) return true;
   for (const c of toolCalls || []) {
     const args = (c && c.args) || {};
     if (args.profile && args.profile.currency === "USD") return true;
@@ -246,7 +246,7 @@ export function isUsToolContext(toolCalls) {
 export function citationsFor(toolNames = [], opts = {}) {
   const candidates = opts && opts.candidates;
   const toolCalls = opts && opts.toolCalls;
-  if (isUsHomeList(candidates) || isUsToolContext(toolCalls)) {
+  if (isUsHomeList(candidates) || isUsToolContext(toolCalls, opts)) {
     const seen = new Set();
     const out = [];
     for (const name of toolNames || []) {

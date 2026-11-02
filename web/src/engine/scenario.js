@@ -474,7 +474,7 @@ export function readExplicit(raw) {
   return out;
 }
 
-export const TENURE_KINDS = ["매매", "전세", "월세", "공공임대"];
+export const TENURE_KINDS = ["매매", "전세", "월세"];
 
 export const DEFAULT_MONEY_ASSUMPTIONS = {
   loan_rate_pct: criterionDefault("C-money-fixed", "loan_rate_pct"),

@@ -82,10 +82,22 @@ function usWorkRow(work, workName) {
   };
 }
 
+// 41g: the work line headlines the minutes of the mode the 30-day
+// run uses for that home (candidate.runMode once the run stamps it,
+// else the estimate mode); the other mode stays second.
+function usWorkLine(work, runMode = null) {
+  const mode = runMode === "walk" || runMode === "bike" ? runMode : work.mode;
+  const bike = Math.round(work.bike_minutes);
+  const walk = Math.round(work.walk_minutes);
+  const first = mode === "walk" ? `걷기 ${walk}분` : `자전거 ${bike}분`;
+  const second = mode === "walk" ? `자전거 ${bike}분` : `걷기 ${walk}분`;
+  return `${first} · ${second}`;
+}
+
 export function commuteShortLine(candidate, destName) {
   const c = candidate.commute;
   if (!c) return { text: "출퇴근 정보를 확인 중이에요", source: "unknown" };
-  if (c.work) return { text: usWorkLine(c.work), source: "estimate" };
+  if (c.work) return { text: usWorkLine(c.work, candidate.runMode || candidate.run_mode || null), source: "estimate" };
   if (candidate.commute_ko && candidate.commute_ko.includes(SAME_STATION_KO)) {
     return { text: SAME_STATION_KO, source: "official" };
   }

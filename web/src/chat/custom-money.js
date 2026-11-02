@@ -133,7 +133,7 @@ export function leisureTripsFromRun(run) {
 }
 
 const PROFILE_TENURE_KO = { jeonse: "전세", wolse: "월세", trade: "매매",
-  public: "공공임대", undecided: "전세" };
+  undecided: "전세" };
 
 // Profile money fields → householdMonthlyNet inputs (member ids m1…).
 export function moneyMembersFromProfile(profile, members) {
@@ -233,10 +233,6 @@ export function buildCustomMoneyDoc({ scenario, runs, picked, profile,
     const reference = referenceFromCandidate(cand, areaM2);
     const byTenure = {};
     for (const tenure of TENURES) {
-      if (tenure === "공공임대") {
-        byTenure[tenure] = null;
-        continue;
-      }
       const { inputs } = priceInputsFromCandidate(cand, tenure);
       const hasPrice = [inputs.price_won, inputs.deposit_won, inputs.monthly_rent_won]
         .some((n) => Number.isFinite(n));
@@ -413,7 +409,7 @@ export function verifyHomeFor(moneyDoc, label) {
   if (!tenureWord) return {};
   const monthly = entry.by_tenure?.[tenureWord]?.housing?.monthly_won;
   if (!Number.isFinite(monthly)) return {};
-  const tenureKey = { 매매: "trade", 전세: "jeonse", 월세: "wolse", 공공임대: "public" }[tenureWord] || tenureWord;
+  const tenureKey = { 매매: "trade", 전세: "jeonse", 월세: "wolse" }[tenureWord] || tenureWord;
   const out = { monthly_won: monthly, tenure: tenureKey };
   const maint = moneyDoc.assumptions?.maintenance_won_month;
   if (Number.isFinite(maint)) out.maintenance_won_month = maint;

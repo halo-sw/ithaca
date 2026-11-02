@@ -16,7 +16,7 @@ import { fmtWon, fmtPct } from "../money/format.js";
 import { worthItComparison, applyOwnershipCosts, breakevenLabel,
   WORTHIT_HORIZONS, WORTHIT_DEFAULT_SCENARIOS, LENDER_NOTE } from "../money/worthit.js";
 
-const TENURE_COLORS = { "매매": "#b25a33", "전세": "#4a7ba7", "월세": "#7ba05b", "공공임대": "#9b7bb8" };
+const TENURE_COLORS = { "매매": "#b25a33", "전세": "#4a7ba7", "월세": "#7ba05b" };
 
 function SrcBadge({ source }) {
   return <SourceBadge source={source} />;
@@ -46,7 +46,7 @@ function NetChart({ result }) {
         values: [y0, ...buy.yearly_by_scenario[g].map((r) => r.net_won)] });
     }
   }
-  for (const name of ["전세", "월세", "공공임대"]) {
+  for (const name of ["전세", "월세"]) {
     const t = result.tenures[name];
     if (t) {
       lines.push({ key: name, color: TENURE_COLORS[name], dash: "",
@@ -140,7 +140,6 @@ export function WorthItTab({ state }) {
   let error = "";
   try {
     const costsTable = doc.assumptions9b && doc.assumptions9b["ownership-costs"];
-    const pub = h.by_tenure && h.by_tenure["공공임대"];
     result = worthItComparison({
       horizon_years: horizon,
       cash_won: doc.cash_won,
@@ -152,9 +151,6 @@ export function WorthItTab({ state }) {
       jeonse: ref.jeonse.deposit.median > 0 ? { deposit_won: ref.jeonse.deposit.median } : null,
       wolse: ref.wolse.monthly.median !== null && ref.wolse.monthly.median !== undefined
         ? { deposit_won: ref.wolse.deposit.median || 0, monthly_won: ref.wolse.monthly.median } : null,
-      public: pub && pub.price_inputs
-        && Number.isFinite(pub.price_inputs.deposit_won) && Number.isFinite(pub.price_inputs.monthly_rent_won)
-        ? { deposit_won: pub.price_inputs.deposit_won, monthly_won: pub.price_inputs.monthly_rent_won } : null,
       ownership_costs: costsTable ? applyOwnershipCosts(costsTable, "KR") : null,
       annual_income_won: (doc.household_monthly_net_won || 0) * 12,
     });
@@ -272,7 +268,7 @@ export function WorthItTab({ state }) {
         )}
         <MetadataListItem label="30일 살아 보기에서 집값과 생활비를 내고 남는 돈">
           <Text type="supporting" hasTabularNumbers>
-            {(["매매", "전세", "월세", "공공임대"]).map((t) => {
+            {(["매매", "전세", "월세"]).map((t) => {
               const sel = h.by_tenure && h.by_tenure[t];
               return `${t} ${sel ? fmtWon(sel.remaining_won, { monthly: true }) : "–"}`;
             }).join(" · ")}

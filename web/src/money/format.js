@@ -142,14 +142,13 @@ export function fmtArea(m2) {
   return `${Math.round(v * 100) / 100} ㎡`;
 }
 
-// Source badges stay short: 그래프 (walk graph), 실거래 (RTMS), 공공임대
-// (public-housing API), 가정값 (user assumption), 추정 (payroll estimate).
+// Source badges stay short: 그래프 (walk graph), 실거래 (RTMS),
+// 가정값 (user assumption), 추정 (payroll estimate).
 export const SOURCE_BADGE = {
   graph: "그래프",
   scenario: "가정값",
   user_input: "가정값",
   rtms: "실거래",
-  housing_api: "공공임대",
   payroll_estimate: "추정",
   police: "경찰청",
   "graph+scenario": "그래프+가정",

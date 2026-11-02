@@ -1,6 +1,7 @@
 // Stage 27d: Muse writes "my diary" from the record digest; code checks every line.
 
 import { findInventedNumbers } from "../judge/guards.js";
+import { lowerMidSentenceMemberLabels } from "../profile.js";
 
 export const DIARY_PROMPT = [
   "너는 이 집들에서 각각 30일을 살아 본 '나'다. 아래 기록(facts)만 보고 쓴다.",
@@ -156,12 +157,73 @@ function keptLines(parsed, digests) {
   return out;
 }
 
+// 41g: Spark Open (provider "baseten") spends 4–5k reasoning tokens
+// per call — the diary path leaves room after reasoning, waits
+// longer, and retries once, like the agent turn.
+export const DIARY_MAX_TOKENS = { meta: 8000, baseten: 12000 };
+export const DIARY_TIMEOUT_MS = { meta: 60000, baseten: 180000 };
+
+export function diaryCallBudget(provider) {
+  const baseten = provider === "baseten";
+  return {
+    maxTokens: baseten ? DIARY_MAX_TOKENS.baseten : DIARY_MAX_TOKENS.meta,
+    timeoutMs: baseten ? DIARY_TIMEOUT_MS.baseten : DIARY_TIMEOUT_MS.meta,
+  };
+}
+
+// A leading "Muse " is the UI badge's word, never the summary's —
+// strip it when the model echoes it.
+export function cleanDiarySummary(summary) {
+  return lowerMidSentenceMemberLabels(
+    String(summary || "").replace(/^(Muse|뮤즈)\s+/, ""));
+}
+
+// The rule diary: lines straight off the same facts (short fact texts
+// pass checkDiary by construction), never an empty diary.
+export function ruleDiary(digests, lang = "ko") {
+  const lines = [];
+  for (const d of digests || []) {
+    const home = d && d.label;
+    if (typeof home !== "string") continue;
+    const short = (d.facts || []).filter((f) => f && typeof f.id === "string"
+      && typeof f.text_ko === "string" && f.text_ko.length > 0 && f.text_ko.length <= 80);
+    short.sort((a, b) => (a.day - b.day) || (a.minute - b.minute));
+    const n = Math.min(short.length, 5);
+    for (let i = 0; i < n; i++) {
+      const pick = short[Math.floor((i * short.length) / n)];
+      if (lines.some((l) => l.home === home && l.id === pick.id)) continue;
+      lines.push({ home, id: pick.id, text: pick.text_ko });
+    }
+  }
+  const parsed = { summary: fallbackSummary(digests, lang), lines };
+  const checked = checkDiary(parsed, digests);
+  const kept = keptLines(parsed, digests);
+  return {
+    ok: true,
+    summary: cleanDiarySummary(parsed.summary),
+    lines: kept,
+    check: { total: kept.length, passed: kept.length,
+      retried: 0, dropped: 0, summary_fallback: true, rule: true,
+      failures: checked.failures.length },
+    usage: {},
+  };
+}
+
 export async function writeDiary({ complete, provider, digests, lang = "ko" }) {
   const baseMessages = [
     { role: "system", content: diaryPrompt(lang) },
     { role: "user", content: JSON.stringify(digests) },
   ];
-  const first = await complete({ provider, messages: baseMessages, maxTokens: 8000 });
+  const budget = diaryCallBudget(provider);
+  const attempt = async (messages) => {
+    try {
+      return await complete({ provider, messages,
+        maxTokens: budget.maxTokens, timeoutMs: budget.timeoutMs });
+    } catch {
+      return null;
+    }
+  };
+  const first = await attempt(baseMessages);
   const firstContent = (first && first.message && first.message.content) || "";
   let parsed;
   try {
@@ -178,14 +240,10 @@ export async function writeDiary({ complete, provider, digests, lang = "ko" }) {
     retried = 1;
     const notes = checked.failures.map((f) => `줄 ${f.index + 1}: ${f.reason_ko.replace(/^줄 \d+: /, "")}`);
     if (!checked.summaryOk) notes.push("요약: 기록의 숫자만 쓰고 판단 표현(추천/계약/낫다)을 빼주세요.");
-    const retry = await complete({
-      provider,
-      messages: [...baseMessages,
-        { role: "assistant", content: currentContent },
-        { role: "user", content: `고쳐 써주세요.\n${notes.map((n) => `${n}`).join("\n")}` }],
-      maxTokens: 8000,
-    });
-    usage = (retry && retry.usage) || usage;
+    const retry = await attempt([...baseMessages,
+      { role: "assistant", content: currentContent },
+      { role: "user", content: `고쳐 써주세요.\n${notes.map((n) => `${n}`).join("\n")}` }]);
+    if (retry) usage = (retry && retry.usage) || usage;
     const retryContent = (retry && retry.message && retry.message.content) || "";
     try {
       current = parseDiaryJson(retryContent);
@@ -203,10 +261,16 @@ export async function writeDiary({ complete, provider, digests, lang = "ko" }) {
     summary = fallbackSummary(digests, lang);
     summary_fallback = true;
   }
+  if (lines.length === 0) {
+    // Still nothing usable after the retry: hand back the rule diary
+    // built from the same facts, never an empty diary.
+    const fallback = ruleDiary(digests, lang);
+    return { ...fallback, check: { ...fallback.check, retried } };
+  }
   const total = lines.length + dropped;
   return {
     ok: true,
-    summary,
+    summary: cleanDiarySummary(summary),
     lines,
     check: { total, passed: lines.length, retried, dropped, summary_fallback },
     usage,

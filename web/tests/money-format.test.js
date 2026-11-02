@@ -35,7 +35,7 @@ describe("money format", () => {
     assert.equal(fmtArea(59.97), "59.97 ㎡");
     assert.equal(badgeFor("graph"), "그래프");
     assert.equal(badgeFor("rtms"), "실거래");
-    assert.equal(badgeFor("housing_api"), "공공임대");
+    assert.equal(badgeFor("housing_api"), "housing_api");
     assert.equal(badgeFor("scenario"), "가정값");
     assert.equal(badgeFor("payroll_estimate"), "추정");
   });

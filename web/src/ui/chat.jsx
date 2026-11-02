@@ -58,7 +58,7 @@ import { newUsageLog, recordTurn } from "../models/catalog.js";
 import { loadByoKey } from "../consult/byok.js";
 import { rotateChatSessionId } from "../chat/session-id.js";
 import { ModelPanel } from "./model-panel.jsx";
-import { buildChatMap, extractGreenRings } from "../chatmap.js";
+import { buildChatMap, extractGreenRings, runCommuteModeOf } from "../chatmap.js";
 import { ChatMap } from "./chatmap.jsx";
 import { mapFilterChips, filterPatch } from "./map-filters.js";
 import { defaultOverrides, setOverride, resetOverride,
@@ -81,7 +81,7 @@ import { SupportTab } from "./support.jsx";
 import { PasteCheck } from "./listings.jsx";
 import { HOME_SORTS, HOME_SORT_KO, HOME_SORT_SHORT_KO, applyKindPreference, usEmptyHint, displayNameFor } from "../homes.js";
 import { chipSourceIds } from "../sources.js";
-import { META_HQ_EXAMPLE, US_REGION_IDS } from "../places-us.js";
+import { META_HQ_EXAMPLE, META_HQ_EXAMPLE_KO, US_REGION_IDS } from "../places-us.js";
 import { EXAMPLE_PROFILE_LABEL, noCommuteEntry } from "../profile.js";
 import { outingsFor, hhmm } from "../timeline.js";
 import { runDigest } from "../diary/digest.js";
@@ -1387,12 +1387,12 @@ export function CardMsg({ msg, handlers, toolRows, cardHi }) {
         )}
       </ChatMessageBubble>
       <ToolRows rows={rows} />
-      <CiteRows tools={tools} sourceIds={chipIds} toolCalls={msg.tool_calls || []} />
+      <CiteRows tools={tools} sourceIds={chipIds} toolCalls={msg.tool_calls || []} usSession={currencyOf(handlers.profile) === "USD"} />
     </ChatMessage>
   );
 }
 
-const CHAT_CHIPS = ["매물 글 붙여 넣기", "공공임대 찾기", "도움 제도 보여줘"];
+const CHAT_CHIPS = ["매물 글 붙여 넣기", "도움 제도 보여줘"];
 
 // 26e: USD customers get sort chips instead of the Korean-only ones.
 // They map to find_homes sorts (HOME_SORTS): commute / monthly.
@@ -1668,7 +1668,7 @@ export function ThreadList({ children }) {
   );
 }
 
-const US_NO_JEONSE_SUPPORT = "미국 자료에는 전세·공공임대·지원 제도 정보가 없어요.";
+const US_NO_JEONSE_SUPPORT = "미국 자료에는 전세·지원 제도 정보가 없어요.";
 
 const GREETING = [
   "안녕하세요! 집 찾기를 도와드려요.",
@@ -2389,29 +2389,42 @@ export function ChatScreen() {
     }
     setMessages((prev) => prev.map((m) => (m.id === simId
       ? { ...m, data: { ...m.data, report: { status: "checking", persona, attempts: [] } } } : m)));
-    let byoKey = "";
-    try {
-      byoKey = loadByoKey(typeof sessionStorage !== "undefined" ? sessionStorage : null, provider);
-    } catch { /* no storage — server key path */ }
-    try {
-      const done = await postReportStream({ provider, persona, labels,
-        runs: slim, homes, names, lang: LANG, byoKey }, (ev) => {
-        if (ev && ev.type === "attempt") {
-          setMessages((prev) => prev.map((m) => {
-            if (m.id !== simId || !m.data || !m.data.report
-              || m.data.report.status !== "checking") return m;
-            return { ...m,
-              data: { ...m.data,
-                report: { ...m.data.report,
-                  attempts: [...m.data.report.attempts, ev] } } };
-          }));
-        }
-      });
+    const keyFor = (p) => {
+      try {
+        return loadByoKey(typeof sessionStorage !== "undefined" ? sessionStorage : null, p);
+      } catch { return ""; /* no storage — server key path */ }
+    };
+    const onAttempt = (ev) => {
+      if (ev && ev.type === "attempt") {
+        setMessages((prev) => prev.map((m) => {
+          if (m.id !== simId || !m.data || !m.data.report
+            || m.data.report.status !== "checking") return m;
+          return { ...m,
+            data: { ...m.data,
+              report: { ...m.data.report,
+                attempts: [...m.data.report.attempts, ev] } } };
+        }));
+      }
+    };
+    const attemptReport = (provider) => postReportStream({ provider, persona, labels,
+      runs: slim, homes, names, lang: LANG, byoKey: keyFor(provider) }, onAttempt);
+    const applyDone = (done) => {
       setMessages((prev) => prev.map((m) => (m.id === simId
         ? { ...m, data: { ...m.data, report: { ...done, persona, attempts: done.attempts } } } : m)));
       if (done && done.status === "handoff") {
         pushMsg({ role: "assistant", kind: "handoff",
           data: { question_ko: done.handoff.question_ko, simId } });
+      }
+    };
+    try {
+      // 41g: a failed open-weights check runs once more on Muse Spark
+      // 1.3, like the chat turn (41f basetenFallbackProvider).
+      try {
+        applyDone(await attemptReport(provider));
+      } catch (firstErr) {
+        const fallback = basetenFallbackProvider(provider, firstErr);
+        if (!fallback) throw firstErr;
+        applyDone(await attemptReport(fallback));
       }
     } catch {
       setMessages((prev) => prev.map((m) => {
@@ -2517,6 +2530,13 @@ export function ChatScreen() {
         (s, l, onP) => runner(s, l, (pg) => setProgress(
           { done: pg.done + 1, total: picked.length + 1, label: pg.label })),
         scenValue, labels);
+      // 41g: stamp the 30-day run's last-mile mode onto the picked
+      // candidates so the pin and card headline use it.
+      labels.forEach((l, i) => {
+        const m = runCommuteModeOf(runs[l]);
+        const c = picked[i];
+        if (m && c && c.commute && c.commute.work) c.runMode = m;
+      });
       const runId = addToolRow({ name: "run_simulation", ok: true,
         summary: `${noCommute ? "출근 없이 · " : ""}30일 · ${labels.join("·")}`, ms });
       const cmpId = addToolRow({ name: "compare", ok: true,
@@ -2632,7 +2652,15 @@ export function ChatScreen() {
           const digests = labels.map((l) => runDigest(runs[l], l, { name: (payload.names || {})[l] || "", lang: currentLang() }));
           setMessages((prev) => prev.map((m) => (m.id === simId
             ? { ...m, data: { ...m.data, diary: { status: "writing" } } } : m)));
-          postDiary({ provider, digests, lang: LANG }).then((result) => {
+          // 41g: a failed open-weights diary runs once more on Muse
+          // Spark 1.3, like the chat turn (41f basetenFallbackProvider).
+          let diaryProvider = provider;
+          postDiary({ provider, digests, lang: LANG }).catch((firstErr) => {
+            const fallback = basetenFallbackProvider(provider, firstErr);
+            if (!fallback) throw firstErr;
+            diaryProvider = fallback;
+            return postDiary({ provider: fallback, digests, lang: LANG });
+          }).then((result) => {
             setMessages((prev) => prev.map((m) => (m.id === simId
               ? { ...m, data: { ...m.data, diary: { status: "done", ...result } } } : m)));
             // 26t: the prefix is deterministic; only a model-written
@@ -2642,7 +2670,7 @@ export function ChatScreen() {
               content: LANG === "en"
                 ? `Finished living there. ${result.summary}`
                 : `다 살아 봤어요. ${result.summary}`,
-              model: provider,
+              model: diaryProvider,
               suggestions: ["출근길 보여 줘", "한 달에 얼마 들어?", "동네 걸어 보기"] });
           }).catch(() => {
             setMessages((prev) => prev.map((m) => (m.id === simId
@@ -2940,15 +2968,6 @@ export function ChatScreen() {
         pushMsg({ role: "assistant", kind: "text",
           content: "매물 확인은 개발 서버 + 키에서 실거래와 대조해요. 글 읽기는 ’매물 글 붙여 넣기’에서 바로 돼요." });
         pushMsg({ role: "assistant", kind: "listing", data: {} });
-      } else if (/공공임대/.test(content)) {
-        // 26e: USD runs have no jeonse/public/support data — one line,
-        // never the tabs.
-        const usd = stateRef.current.profile
-          && stateRef.current.profile.currency
-          && stateRef.current.profile.currency.value === "USD";
-        if (usd) {
-          pushMsg({ role: "assistant", kind: "text", content: US_NO_JEONSE_SUPPORT });
-        } else pushMsg({ role: "assistant", kind: "text", content: NO_KEY_NOTICE });
       } else if (/전세 점검/.test(content)) {
         const usd = stateRef.current.profile
           && stateRef.current.profile.currency
@@ -2994,8 +3013,6 @@ export function ChatScreen() {
     if (chip === "매물 글 붙여 넣기") {
       pushMsg({ role: "user", kind: "text", content: chip });
       pushMsg({ role: "assistant", kind: "listing", data: {} });
-    } else if (chip === "공공임대 찾기") {
-      send("공공임대 찾기");
     } else if (chip === "도움 제도 보여줘") {
       send("도움 제도 보여줘");
     } else if (chip === "Meta HQ까지 가까운 순") {
@@ -3540,7 +3557,7 @@ export function ChatScreen() {
                         )}
                       </div>
                     ) : m.kind === "text" ? (
-                      <AssistantMsg msg={m} toolRows={toolRows} />
+                      <AssistantMsg msg={m} toolRows={toolRows} usSession={currencyOf(profile) === "USD"} />
                     ) : (
                       <CardMsg msg={m} handlers={handlers} toolRows={toolRows} cardHi={cardHi} />
                     )}
@@ -3673,6 +3690,9 @@ export const EMPTY_STARTERS = [
 
 const EMPTY_FIND_TEXT = "판교 출근, 모은 돈 1억, 4억 이하 매매로 혼자 살 집 찾아 줘";
 const META_HQ_TEXT = META_HQ_EXAMPLE;
+// 41g: the Korean starter sends the Korean prompt so the Korean screen
+// gets Korean answers; English keeps the English prompt.
+const META_HQ_TEXT_KO = META_HQ_EXAMPLE_KO;
 
 // 26w: an example card sends its prompt as the first message, the same
 // path as typing it (exported for the no-DOM test).
@@ -3751,7 +3771,7 @@ export function ChatEmpty({ onSend, onListing, onExample, replayId }) {
     else if (id === "replay") {
       try { window.location.href = appUrl("?replay=" + (LANG === "en" ? "menlo-month" : "seoul-couple")); } catch { /* keep the thread as it is */ }
     }
-    else if (id === "metahq") { if (onSend) onSend(META_HQ_TEXT); }
+    else if (id === "metahq") { if (onSend) onSend(LANG === "en" ? META_HQ_TEXT : META_HQ_TEXT_KO); }
     else if (id === "seoul") { if (onExample) onExample(); }
   };
   return (

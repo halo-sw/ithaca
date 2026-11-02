@@ -150,12 +150,4 @@ describe("26y find_homes (US)", () => {
     assert.equal(calls.filter(([, rel]) => rel === "homes/us-menlo.json").length, 1);
   });
 
-  it("fails US public rentals honestly (Korean data only)", async () => {
-    const us = extract_profile(META_SENTENCE);
-    const snap = { fetched_at: "2026-10-28", complexes: [], notices: [] };
-    const out = await callTool(session({ loadHousing: async () => snap }),
-      "find_public_rentals", { profile: us.profile });
-    assert.equal(out.ok, false);
-    assert.match(out.error, /Korean regions only/);
-  });
 });

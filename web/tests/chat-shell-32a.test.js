@@ -147,7 +147,7 @@ describe("32a SSR chat shell", () => {
       onSend: noop, onAction: noop, onReplay: noop });
     assert.equal(el.type, ChatComposerDrawer);
     assert.equal(el.props.label, "이어서 해 볼 것");
-    assert.equal(el.props.count, 3, "three fallback chips");
+    assert.equal(el.props.count, 2, "two fallback chips");
     const html = renderToString(el);
     assert.ok(html.includes("이어서 해 볼 것"), "drawer label renders");
     assert.ok(html.includes("매물 글 붙여 넣기"), "chips wrap inside the drawer");

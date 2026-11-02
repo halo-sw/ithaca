@@ -58,7 +58,7 @@ describe("27f walkthrough fixes", () => {
   });
 
   it("sources carry the 27f wording", () => {
-    assert.ok(diarySrc.includes("maxTokens: 8000"));
+    assert.ok(diarySrc.includes("DIARY_MAX_TOKENS"));
     assert.ok(!diarySrc.includes("maxTokens: 2000"));
     assert.ok(!chatSrc.includes("지도 아래 ‘이 집들로 30일 살아 보기’를 눌러 주세요"));
     const prompt = String(SYSTEM_PROMPT);

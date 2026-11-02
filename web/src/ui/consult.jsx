@@ -47,16 +47,17 @@ export function shortSourceName(fullName) {
   return (s && (s.short || s.name)) || fullName;
 }
 
-export function CiteRows({ tools, sourceIds = null, candidates = null, toolCalls = null }) {
+export function CiteRows({ tools, sourceIds = null, candidates = null, toolCalls = null, usSession = null }) {
   // 26k: sourceIds overrides the tool citations (USD candidates/runs
   // cite the US entries from sources.js); null keeps the old mapping.
   // 29a4: chips show the short name (sources.js `short`) with the full
   // name in `title`, and never truncate.
   // 29a7b: an all-US find_homes list cites Zillow ZORI + OSM, never MOLIT.
+  // 41g: an active US session cites US sources on every turn, never MOLIT.
   const fromIds = (Array.isArray(sourceIds) ? sourceIds : [])
     .map((id) => sourceById(id)).filter(Boolean)
     .map((s) => ({ short: s.short || s.name, title: s.name, url: s.url }));
-  const cites = fromIds.length > 0 ? fromIds : citationsFor(tools || [], { candidates, toolCalls })
+  const cites = fromIds.length > 0 ? fromIds : citationsFor(tools || [], { candidates, toolCalls, usSession })
     .map((c) => ({ short: shortSourceName(c.title), title: c.title, url: c.url }));
   if (cites.length === 0) return null;
   // 32a: the sources line is a message metadata footer — each source
@@ -85,7 +86,7 @@ export function CiteRows({ tools, sourceIds = null, candidates = null, toolCalls
 // carry data-no-i18n so the DOM translator does not re-translate Muse's
 // own English (which may hold Korean names in parentheses). Rule-mode
 // fallback replies and UI labels stay translatable.
-export function AssistantMsg({ msg, toolRows, lang = LANG }) {
+export function AssistantMsg({ msg, toolRows, lang = LANG, usSession = null }) {
   const rows = (msg.tool_calls || []).map((c) => toolRows[c.id]).filter(Boolean);
   const tools = (msg.tool_calls || []).map((c) => c.name);
   if (!msg.content && rows.length === 0) return null;
@@ -106,7 +107,8 @@ export function AssistantMsg({ msg, toolRows, lang = LANG }) {
       <ToolRows rows={rows} />
       <CiteRows tools={tools} toolCalls={msg.tool_calls || []}
         candidates={msg && msg.data && msg.data.result
-          ? msg.data.result.candidates || null : null} />
+          ? msg.data.result.candidates || null : null}
+        usSession={usSession} />
     </ChatMessage>
   );
 }

@@ -17,6 +17,12 @@ export const US_REGION_IDS = [
 export const META_HQ_EXAMPLE =
   "I work at Meta HQ in Menlo Park. Two of us, rent up to $4,500 a month.";
 
+// 41g: the Korean landing button sends this, so the Korean screen gets
+// Korean answers. Same profile as META_HQ_EXAMPLE (Meta HQ, 2 people,
+// rent ≤ $4,500/mo).
+export const META_HQ_EXAMPLE_KO =
+  "멘로파크 Meta 본사로 출근해요. 두 명이고, 월세는 4,500달러 이하예요.";
+
 export const US_WORKPLACES = [
   {
     id: "meta-hq",

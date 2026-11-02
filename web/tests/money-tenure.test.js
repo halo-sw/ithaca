@@ -57,14 +57,6 @@ describe("tenure costs (worked examples)", () => {
     assert.ok(r.disclaimers.includes(TRADE_TAX_NOTE));
   });
 
-  it("public rental: API deposit + monthly as-is", () => {
-    const r = tenureCost({ tenure: "공공임대", deposit_won: 89000000, monthly_rent_won: 350000,
-      cash_won: 100000000, loan_rate_pct: 4, loan_years: 30, source: "housing_api" });
-    assert.equal(r.monthly_won, 350000);
-    assert.equal(r.upfront_won, 89000000);
-    assert.equal(r.source, "housing_api");
-  });
-
   it("rejects unknown tenures", () => {
     assert.throws(() => tenureCost({ tenure: "lease" }), /unknown/);
   });

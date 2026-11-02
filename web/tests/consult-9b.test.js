@@ -184,29 +184,13 @@ describe("support_programs tool", () => {
     assert.ok(beotimmok.rows.every((row) => typeof row.note === "string" && row.note));
     const fresh = await callTool(s, "support_programs", { include_public_rental: false });
     assert.ok(fresh.programs.every((p) => p.rows.every((row) => row.result === "확인 필요")));
-    assert.equal(r.public_rentals, null);
+    assert.equal("public_rentals" in r, false);
     const blob = JSON.stringify(r);
     for (const word of ["대상입니다", "대상자", "신청 가능", "지원 가능", "받을 수 있", "자격"]) {
       assert.ok(!blob.includes(word), `leaked ${word}`);
     }
   });
 
-  it("reuses the stage-6 public-rental recommend", async () => {
-    const { normalizeSnapshot } = await import("../src/money/housing.js");
-    const snapDoc = { fetched_at: "2026-10-01T00:00:00Z",
-      complexes: [{ source: "lh", id: "c1", name: "N", address: "경기 성남시 분당구 돌마로 1",
-        pnu: "no-such-pnu", latitude: 37.3, longitude: 127.1,
-        unit_types: [{ unit_type: "51", building_type: "아파트", exclusive_area_m2: 51,
-          deposit_won: 5000000, monthly_rent_won: 200000 }] }],
-      notices: [] };
-    const s = session9b({ loadHousing: async () => normalizeSnapshot(snapDoc) });
-    await callTool(s, "set_money", { patch: { members: { m1: { monthly_net_won: 4000000 } } } });
-    const r = await callTool(s, "support_programs", { target_area_m2: 55 });
-    assert.equal(r.ok, true);
-    assert.equal(r.public_rentals.ok, true);
-    assert.equal(r.public_rentals.total, 1);
-    assert.match(r.public_rentals.candidates[0].eligibility_note, /공고 원문/);
-  });
 });
 
 describe("stage 9b guards", () => {

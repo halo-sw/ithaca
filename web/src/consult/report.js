@@ -3,6 +3,7 @@
 // then the judge model checks whether the cited records support each
 // judge sentence.
 
+import { lowerMidSentenceMemberLabels } from "../profile.js";
 import { reportDigest, runComparisonLoop } from "../verify/compare.js";
 import { UNSUPPORTED_PERSONA_KO } from "../verify/loop.js";
 import { parseDiaryJson } from "./diary.js";
@@ -30,6 +31,7 @@ export const REPORT_PROMPT = [
 
 export const REPORT_PROMPT_EN =
   "Write every sentence and its text_ko field in plain English. "
+  + "A member label after the first reads lowercase (your partner). "
   + "The digest, homes, item ids, numbers and every other rule above stay the same. "
   + "Use a plain, friendly voice, one point per sentence, short; never pad "
   + "a sentence to a length. Write numbers with "
@@ -107,6 +109,20 @@ function assistantEntry(message) {
   return { role: "assistant", content: (message && message.content) || "" };
 }
 
+// 41g: Spark Open (provider "baseten") spends 4–5k reasoning tokens
+// per call — the report path leaves room after reasoning, waits
+// longer, and retries a slow call once, like the agent turn.
+export const REPORT_MAX_TOKENS = { meta: 8000, baseten: 12000 };
+export const REPORT_TIMEOUT_MS = { meta: 60000, baseten: 180000 };
+
+export function reportCallBudget(provider) {
+  const baseten = provider === "baseten";
+  return {
+    maxTokens: baseten ? REPORT_MAX_TOKENS.baseten : REPORT_MAX_TOKENS.meta,
+    timeoutMs: baseten ? REPORT_TIMEOUT_MS.baseten : REPORT_TIMEOUT_MS.meta,
+  };
+}
+
 export async function writeReport({ call, provider, runs, labels, homes,
   names = {}, persona, groundTruth, lang = "ko", onAttempt = null }) {
   const digest = reportDigest({ runs, labels, homes, persona, groundTruth, names, lang });
@@ -114,6 +130,7 @@ export async function writeReport({ call, provider, runs, labels, homes,
     return { ok: true, status: "unsupported", reason_ko: UNSUPPORTED_PERSONA_KO,
       attempts: [], report: null, handoff: null };
   }
+  const budget = reportCallBudget(provider);
   const usage = { prompt_tokens: 0, completion_tokens: 0, calls: 0 };
   const takeUsage = (res) => {
     const u = (res && res.usage) || {};
@@ -121,19 +138,30 @@ export async function writeReport({ call, provider, runs, labels, homes,
     usage.completion_tokens += u.completion_tokens || 0;
     usage.calls++;
   };
+  // One retry on a thrown (slow/timeout) call — a single Spark Open
+  // timeout never fails the check by itself.
+  const callOnce = async (payload) => {
+    try {
+      return await call({ provider, timeoutMs: budget.timeoutMs,
+        maxTokens: budget.maxTokens, ...payload });
+    } catch {
+      return await call({ provider, timeoutMs: budget.timeoutMs,
+        maxTokens: budget.maxTokens, ...payload });
+    }
+  };
   const messages = [
     { role: "system", content: reportPrompt(lang) },
     { role: "user", content: JSON.stringify(digest) },
   ];
   const tools = [SUBMIT_REPORT_DEF];
-  let first = await call({ provider, messages: [...messages], tools, maxTokens: 8000 });
+  let first = await callOnce({ messages: [...messages], tools });
   takeUsage(first);
   let assistantMessage = (first && first.message) || { content: "", tool_calls: [] };
   let args = toolArgsOf(assistantMessage);
   if (!args) {
     messages.push({ role: "assistant", content: assistantMessage.content || "" });
     messages.push({ role: "user", content: "submit_report 도구로만 답해 주세요." });
-    const retry = await call({ provider, messages: [...messages], tools, maxTokens: 8000 });
+    const retry = await callOnce({ messages: [...messages], tools });
     takeUsage(retry);
     assistantMessage = (retry && retry.message) || { content: "", tool_calls: [] };
     args = toolArgsOf(assistantMessage) || { sentences: [] };
@@ -157,6 +185,14 @@ export async function writeReport({ call, provider, runs, labels, homes,
   const session = { report: { runs, labels, homes, persona, groundTruth,
     judge, revise, onAttempt }, context: null };
   const out = await callTool(session, "submit_report", args);
+  // 41g: a member label after the first reads lowercase mid-sentence.
+  if (out && out.report && Array.isArray(out.report.sentences)) {
+    for (const s of out.report.sentences) {
+      if (s && typeof s.text_ko === "string") {
+        s.text_ko = lowerMidSentenceMemberLabels(s.text_ko);
+      }
+    }
+  }
   return { ok: true, status: out.status, report: out.report,
     attempts: out.attempts, handoff: out.handoff, result: out.result, usage };
 }

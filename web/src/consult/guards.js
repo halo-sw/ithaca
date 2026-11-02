@@ -754,10 +754,6 @@ export function numbersOnlyAnswer(toolResults, opts = {}) {
         const t = c.tenures[0] || {};
         lines.push(`- ${c.name}(${c.kind} ${t.bucket_center_m2 || "?"}㎡): 중간 ${fmtWon(t.median_won)} (${dealCount(t.deals || 0)}, ${L.realDeals}) · ${c.commute_ko || ""}`);
       }
-    } else if (Array.isArray(r.candidates)) {
-      for (const c of r.candidates.slice(0, 5)) {
-        lines.push(`- ${c.address}: ${c.exclusive_area_m2}㎡ 보증금 ${fmtWon(c.deposit_won)} / 월 ${fmtWon(c.monthly_rent_won)}${c.commute_minutes !== null ? `, 통근 ${fmtMinutes(c.commute_minutes)}` : ""} (공공임대)`);
-      }
     } else if (r.household_monthly_net_preview) {
       const p = r.household_monthly_net_preview;
       lines.push(`- 가구 실수령 합계: ${fmtWon(p.household_monthly_net_won, { monthly: true })}`);

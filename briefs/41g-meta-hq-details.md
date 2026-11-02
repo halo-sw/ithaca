@@ -1,5 +1,6 @@
 # Stage 41g — Meta HQ scenario details (brief for Muse)
 
+> Parallel run: 41d2 (public-rental removal in consult/*, chat.jsx, money/support/listings, agent-float labels) runs at the same time in this tree. Re-read a shared file right before each edit and change only your own lines. If tests fail to load because of `NO_PUBLIC_RENTAL_NOTE`, that is 41d2's half-done work: wait-and-rerun once, then report.
 Agent mode, rules in `AGENTS.md`. No sub-agents, no git, no todo list, no full suite. First edit in your first tool call. Runs after 41f. Do not edit `web/src/i18n/*` (the orchestrator adds English rows).
 
 ## Why

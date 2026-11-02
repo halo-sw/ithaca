@@ -59,69 +59,7 @@ describe("money tools", () => {
     assert.equal(mem.estimated, false);
   });
 
-  it("living_cost runs the timeline with explicit prices (fixture run)", async () => {
-    const s = moneySession({ loadPayroll: realTable });
-    await callTool(s, "set_money", { patch: {
-      members: { m1: { monthly_net_won: 4000000 }, m2: { monthly_net_won: 0 } },
-      cash_won: 200000000, tenure: { A: "전세" },
-    } });
-    // m2 net 0 is falsy for memberMonthlyNet input check (>0 required),
-    // so reset m2 to empty and give m1 only: household = 4M.
-    await callTool(s, "set_money", { patch: { members: { m2: {} } } });
-    const run = await callTool(s, "run_simulation", { home: "A" });
-    assert.equal(run.ok, true);
-    const id = run.run_ids.A;
-    const lc = await callTool(s, "living_cost", {
-      run: id, tenure: "전세", price_won: 980000000,
-    });
-    assert.equal(lc.ok, true);
-    assert.equal(lc.monthly_net_won, 4000000);
-    // 7.8억 loan with the 5억 cap: interest on 5억, 2.8억 shortfall.
-    assert.equal(lc.housing.monthly_won, Math.ceil(500000000 * 0.04 / 12));
-    assert.equal(lc.housing.loan_won, 780000000);
-    assert.equal(lc.housing.loan_shortfall_won, 280000000);
-    assert.equal(lc.housing.flags.loan_shortfall, true);
-    assert.ok(lc.timeline.counts.commute_legs > 0);
-    assert.equal(lc.timeline.daily_balance_won.length, 7);
-    assert.match(lc.formatted.burden, /%/);
-    assert.ok(lc.housing.disclaimers.some((d) => d.includes("빌릴 수 있는지")));
-  });
-
-  it("recommend/add_home_c work on a fixture snapshot", async () => {
-    const snapDoc = {
-      fetched_at: "2026-10-28T00:00:00+09:00",
-      complexes: [
-        { source: "lh-complexes", id: "c1", name: "n", address: "서울특별시 송파구 마천동 1",
-          pnu: "1171010100100440000", unit_types: [
-            { unit_type: "51", building_type: "아파트", exclusive_area_m2: "51.5",
-              deposit_won: "50000000", monthly_rent_won: "300000" },
-          ] },
-      ],
-      notices: [
-        { source: "lh-notices", id: "n1", title: "마천동 모집", announced_at: "2026.10.01",
-          address: "서울특별시 송파구 마천동", source_url: "https://apply.lh.or.kr/x" },
-      ],
-    };
-    const { normalizeSnapshot } = await import("../src/money/housing.js");
-    const s = moneySession({
-      loadPayroll: realTable,
-      loadHousing: async () => normalizeSnapshot(snapDoc),
-    });
-    await callTool(s, "set_money", { patch: { members: { m1: { monthly_net_won: 4000000 } } } });
-    const rec = await callTool(s, "recommend_public_rental", {
-      target_area_m2: 55, threshold_pct: 30,
-    });
-    assert.equal(rec.ok, true);
-    assert.equal(rec.total, 1);
-    assert.equal(rec.candidates[0].notices.length, 1);
-    assert.match(rec.candidates[0].eligibility_note, /공고 원문/);
-    // Fixture area has no such PNU: honest "not built yet" failure.
-    const add = await callTool(s, "add_home_c", { complex_id: "c1", unit_type: "51" });
-    assert.equal(add.ok, false);
-    assert.match(add.error, /지역 생성 후/);
-  });
-
-  it("price_reference matches real rows (real data)", async (t) => {
+it("price_reference matches real rows (real data)", async (t) => {
     let area;
     try {
       const dir = join(REPO, "data", "build", "songpa-jamsil");

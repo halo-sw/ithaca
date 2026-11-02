@@ -41,7 +41,7 @@ export function personaTitleFor(scenarioName) {
 const SRC_KO = {
   graph: "걸어서 잰 시간", rtms: "실거래", scenario: "가정값",
   payroll_estimate: "추정", user_input: "고객 입력", police: "경찰청",
-  register: "관청 자료", housing_api: "공공임대", mixed: "섞임",
+  register: "관청 자료", housing_api: "관청 자료", mixed: "섞임",
   customer_listing: "붙여넣은 매물", run: "30일 살아 보기",
 };
 
@@ -277,7 +277,7 @@ export function buildMethodNote({ money = null, compare = null } = {}) {
   if (money && !money.error) {
     lines.push("돈은 국토교통부 실거래가 중간값과 고객님이 말한 상황으로 계산했어요.");
   }
-  lines.push("치안·공공임대 내용은 경찰청·공공임대 공식 자료를 바탕으로 했어요.");
+  lines.push("치안 내용은 경찰청 공식 자료를 바탕으로 했어요.");
   lines.push("붐빔에 실측 표시가 없으면 가정값이에요.");
   lines.push("(낮음)은 금액·시간이 작은 쪽을 가리킬 뿐, 좋다는 뜻이 아니에요.");
   return lines;

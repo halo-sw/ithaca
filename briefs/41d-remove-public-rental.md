@@ -1,5 +1,6 @@
 # Stage 41d — remove public rental from the service (brief for Muse)
 
+> Parallel run: 41f (Spark Open model switch: relay/handler.js, powered-by-muse.jsx, the provider state in chat.jsx) runs at the same time in this tree. Re-read a shared file right before each edit and change only your own lines.
 Agent mode, rules in `AGENTS.md`. No sub-agents, no git, no todo list, no full suite. First edit in your first tool call. Runs after 41a/41b/41c/41e are committed.
 
 ## Why

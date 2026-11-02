@@ -225,7 +225,7 @@ export const TOOL_DEFS = [
         run: str("Optional run id from run_simulation for the child's school route."),
       }, required: ["area"] } } },
   { type: "function", function: { name: "define_term",
-    description: "Plain-Korean definition of a housing term, shared with the UI glossary (전세, 월세, 매매, 전세가율, LTV, DSR, 확정일자, 전입신고, 전세보증보험, 공공임대, 주거비 부담률, 혼잡도, 등기부등본).",
+    description: "Plain-Korean definition of a housing term, shared with the UI glossary (전세, 월세, 매매, 전세가율, LTV, DSR, 확정일자, 전입신고, 전세보증보험, 주거비 부담률, 혼잡도, 등기부등본).",
     parameters: { type: "object", additionalProperties: false,
       properties: {
         term: str("The term to define."),

@@ -31,7 +31,7 @@ describe("demo tour step machine", () => {
   it("covers the briefed arc in order with one caption line each", () => {
     assert.deepEqual(DEMO_TOUR_STEPS.map((s) => s.id), [
       "persona", "commute-walk", "ride", "arrive", "home-b",
-      "money", "jeonse", "listing", "public", "agent", "share",
+      "money", "jeonse", "listing", "agent", "share",
     ]);
     for (const s of DEMO_TOUR_STEPS) {
       assert.ok(s.caption && !s.caption.includes("\n"), s.id);
@@ -50,7 +50,6 @@ describe("demo tour step machine", () => {
     assert.equal(by.money.tab, "money");
     assert.equal(by.jeonse.tab, "money");
     assert.equal(by.listing.fill, "example");
-    assert.equal(by.public.sub, "public");
     assert.equal(by.agent.ask, "switch");
     assert.equal(by.share.share, "1");
   });
@@ -58,21 +57,21 @@ describe("demo tour step machine", () => {
   it("parses ?tour=demo&step= and clamps", () => {
     assert.equal(tourStepFromSearch("?mode=sim"), null);
     assert.equal(tourStepFromSearch("?tour=demo").index, 0);
-    assert.equal(tourStepFromSearch("?tour=demo&step=9").step.id, "agent");
-    assert.equal(tourStepFromSearch("?tour=demo&step=99").index, DEMO_TOUR_STEPS.length - 1);
+    assert.equal(tourStepFromSearch("?tour=demo&step=8").step.id, "agent");
+    assert.equal(tourStepFromSearch("?tour=demo&step=89").index, DEMO_TOUR_STEPS.length - 1);
     assert.equal(tourStepFromSearch("?tour=demo&step=-3").index, 0);
     assert.equal(tourStepFromSearch("?tour=demo&step=nope").index, 0);
   });
 
   it("builds step URLs keeping scenario, and a skip URL dropping tour keys", () => {
-    const url = tourStepUrl(9, "?mode=sim&scenario=demo-two-homes&tab=money&step=2");
+    const url = tourStepUrl(8, "?mode=sim&scenario=demo-two-homes&tab=money&step=2");
     const q = new URLSearchParams(url.slice(2));
     assert.equal(q.get("tour"), "demo");
-    assert.equal(q.get("step"), "9");
+    assert.equal(q.get("step"), "8");
     assert.equal(q.get("ask"), "switch");
     assert.equal(q.get("scenario"), "demo-two-homes");
     assert.equal(q.get("tab"), null);
-    const skip = tourSkipUrl("?mode=sim&scenario=demo-two-homes&tour=demo&step=9&ask=switch");
+    const skip = tourSkipUrl("?mode=sim&scenario=demo-two-homes&tour=demo&step=8&ask=switch");
     const qs = new URLSearchParams(skip.slice(2));
     assert.equal(qs.get("tour"), null);
     assert.equal(qs.get("ask"), null);

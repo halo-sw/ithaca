@@ -56,15 +56,6 @@ export const SOURCES = [
     mustNot: "공식 통계처럼 인용하면 안 돼요. 계약일 기준이라 발표 통계와 다를 수 있어요.",
   },
   {
-    id: "public-rentals",
-    name: "공공주택 데이터 API (LH·마이홈)",
-    use: "공공임대 단지·평면·공고. 실패하면 스냅샷(2026-10-28)으로 보여줘요.",
-    licence: "제공처 이용약관 (API 키는 서버에만)",
-    version: "스냅샷 2026-10-28 · /api/v1은 2026-10-29부터 404 확인",
-    url: "https://public-housing-map.vercel.app/api/v1",
-    mustNot: "키를 브라우저나 깃에 올리면 안 돼요.",
-  },
-  {
     id: "police-safety",
     name: "경찰청 범죄 발생 지역별 통계 (2025년)",
     use: "시군구별 범죄 발생 건수 표시. 합산 점수·등급은 매기지 않아요.",
@@ -236,7 +227,6 @@ export function miniCreditFor(feature) {
     rtms: "실거래: 국토교통부",
     walk: "도보: OSM 그래프",
     ride: "운행시간: 서울교통공사",
-    rentals: "공공임대: LH·마이홈",
     safety: "범죄 통계: 경찰청",
     congestion: "혼잡도: 서울교통공사",
     fare: "운임: 국토교통부 (2025-06-28 시행)",
