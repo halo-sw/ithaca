@@ -76,6 +76,7 @@ import { monthlyHousingOf } from "../money/monthly.js";
 import { myScore, priorityValues } from "../priorities.js";
 import { pickMoments } from "../engine/moments.js";
 import { lifeEvents, lifeEventLines } from "../engine/life-events.js";
+import { homePersonLogs } from "../diary/person-log.js";
 import { oneWayByLabel, oneWayDelta, oneWaySentence } from "../verify/numbers.js";
 import { ShareDialog } from "./share.jsx";
 import { JeonseTab } from "./jeonse.jsx";
@@ -786,6 +787,80 @@ export function DiarySection({ diary, customId, onScene, onRetry, canRetry = tru
   );
 }
 
+// 42c: one moment row's "3D에서 보기" URL inside the 30일 기록 log.
+// The day is the customer-facing 1-based day; follow is the 1-based
+// person index in the log's people.
+export function personMomentUrl({ custom = null, home = "A", day = 1, minute = 0, follow = 1 } = {}) {
+  return simMomentUrl({ custom, home, day, t: hhmm(minute), follow, embed: true });
+}
+
+// 42c: 30일 기록 — the per-person day log, collapsed by default.
+// Home tabs (A·B), person tabs (나·배우자… from the log labels),
+// then 30 day rows; a row expands to its entries, each with a ›
+// that opens the moment on the right stage. Built in code, so it
+// reads even when the diary could not be written.
+export function PersonLogSection({ personLog, labels, customId, onScene }) {
+  const homes = labels && labels.length > 0 ? labels : Object.keys(personLog || {});
+  const [home, setHome] = useState(homes[0]);
+  const [person, setPerson] = useState(null);
+  const [openDay, setOpenDay] = useState(null);
+  if (!personLog || !personLog[home]) return null;
+  const log = personLog[home];
+  const people = log.people || [];
+  if (people.length === 0) return null;
+  const personKey = person && people.some((p) => p.key === person) ? person : people[0].key;
+  const en = LANG === "en";
+  return (
+    <VStack gap={2}>
+      <details className="ui-section" data-testid="section-personlog">
+        <summary className="ui-section-head">{en ? "30-day log" : "30일 기록"}</summary>
+        <div className="ui-section-body">
+          <VStack gap={2}>
+            <SegmentedControl label={en ? "Home" : "집"} value={home} onChange={(v) => { setHome(v); setOpenDay(null); }}>
+              {homes.filter((h) => personLog[h]).map((h) => (
+                <SegmentedControlItem key={h} value={h} label={h} />
+              ))}
+            </SegmentedControl>
+            <SegmentedControl label={en ? "Person" : "식구"} value={personKey} onChange={setPerson}>
+              {people.map((p) => (
+                <SegmentedControlItem key={p.key} value={p.key} label={p.label || p.key} />
+              ))}
+            </SegmentedControl>
+            {(log.days || []).map((d) => {
+              const list = (d.entries && d.entries[personKey]) || [];
+              const summ = (d.summary && d.summary[personKey]) || "";
+              const open = openDay === d.day;
+              return (
+                <details key={d.day} data-testid={`personlog-day-${d.day}`}{...(open ? { open: true } : null)}>
+                  <summary className="ui-section-head"
+                    onClick={(e) => { e.preventDefault(); setOpenDay(open ? null : d.day); }}>
+                    {`${d.day}일차 · ${summ || (en ? "no records" : "기록 없음")}`}
+                  </summary>
+                  <div className="ui-section-body">
+                    <VStack gap={1}>
+                      {list.map((e, i) => {
+                        const pi = people.findIndex((p) => p.key === personKey);
+                        return (
+                          <SceneRowLink key={i} disc={home} when={`${d.day}일차 ${hhmm(e.minute)}`}
+                            text={e.text}
+                            url={personMomentUrl({ custom: customId, home, day: d.day,
+                              minute: e.minute, follow: pi + 1 })}
+                            title={`${d.day}일차 ${hhmm(e.minute)} · ${home}`}
+                            onScene={onScene} noI18n={en} />
+                        );
+                      })}
+                    </VStack>
+                  </div>
+                </details>
+              );
+            })}
+          </VStack>
+        </div>
+      </details>
+    </VStack>
+  );
+}
+
 // 29j3: the verified comparison on screen. report is the sim message's
 // data.report ({ status, persona, attempts, report, handoff, result }).
 export const PERSONA_KO = { remote_worker: "재택근무",
@@ -1174,6 +1249,10 @@ export function SimulationCard({ data, example, onRetry, onScene, onReportRetry,
               );
             })}
           </VStack>
+        )}
+        {data.personLog && (
+          <PersonLogSection personLog={data.personLog} labels={labels}
+            customId={data.customId} onScene={onScene} />
         )}
         <ReportCheck report={data.report} names={names} onRetry={onReportRetry} />
         <DiarySection diary={data.diary} customId={data.customId} onScene={onScene}
@@ -2911,7 +2990,11 @@ export function ChatScreen() {
           + `30일 동안 ${Math.round(hh.walk_minutes || 0)}분 걷고, `
           + `하루 평균 피곤한 정도 ${Math.round((hh.fatigue_avg_30d || 0) * 10) / 10} — 3D에서 보기로 하루를 보세요.`;
       }
-      const payload = { status: "done", compare, moments, labels, customId,
+      // 42c: the per-person 30-day log rides in the payload like the
+      // rest of the run (built in code, so it is there even when the
+      // diary could not be written).
+      const personLog = homePersonLogs(runs, labels, { lang: LANG === "en" ? "en" : "ko" });
+      const payload = { status: "done", compare, moments, labels, customId, personLog,
         // 29M1: English reports and headers read Muse's registered home
         // names; unregistered names stay on the Korean display.
         names: Object.fromEntries(picked.map((p, i) => [labels[i], reportNameFor(p)])),

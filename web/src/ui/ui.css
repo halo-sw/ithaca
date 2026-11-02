@@ -1463,6 +1463,25 @@ button.ui-tag:hover { color: var(--ui-ink); }
   flex: none; white-space: nowrap; max-width: none; overflow: visible;
 }
 .ui-today-foot { display: flex; flex-direction: column; gap: var(--ui-s4); }
+/* ---------- 42c: 기록 — the written day log under the strips. In flow
+   below the bar (never over it); a bottom sheet on narrow screens. */
+.ui-record { display: flex; flex-direction: column; max-height: 30vh; overflow: auto;
+  border-top: 1px solid var(--ui-border); padding-top: var(--ui-s8); }
+.ui-record-row {
+  display: flex; gap: var(--ui-s8); align-items: center; width: 100%;
+  font-family: var(--ui-font); font-size: var(--ui-t14); color: var(--ui-ink);
+  background: none; border: none; border-radius: var(--ui-r-chip);
+  padding: var(--ui-s4) var(--ui-s8); cursor: pointer; text-align: left;
+}
+.ui-record-row:hover { background: var(--ui-sunken); }
+.ui-record-now { background: var(--ui-sunken); font-weight: var(--ui-w600); }
+.ui-record-time { font-size: var(--ui-t12); color: var(--ui-ink2); font-variant-numeric: tabular-nums; flex: none; }
+.ui-record-text { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.ui-record-go { flex: none; color: var(--ui-ink2); }
+@media (max-width: 640px) {
+  .ui-simbar .ui-record { max-height: 34vh; }
+  .ui-simbar { left: 12px; right: 12px; width: auto; max-width: none; }
+}
 
 /* ---------- 13f2: one-row timeline (≤64px, stage only) ---------- */
 .ui-bar13f2 { display: flex; flex-direction: column; gap: var(--ui-s8); }

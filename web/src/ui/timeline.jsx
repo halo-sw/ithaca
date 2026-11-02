@@ -23,6 +23,7 @@ import {
   activityLabel, activityLabelEn, segmentTitle, stripFrac, stripMinute, hhmm,
   stepIndexAt, navFromOutings, outingIndexAt,
 } from "../timeline.js";
+import { getDayPersonEntries, currentEntryIndex } from "../diary/person-log.js";
 
 const act = (name, ...args) => store.act(name, ...args);
 
@@ -273,12 +274,46 @@ function PauseGlyph() {
   );
 }
 
+// 42c: 기록 — the followed person's written log for the day, from
+// the same person-log builder the chat card reads. Pure over the log;
+// the bar wires day/person/minute. Never covers the bar: it renders
+// in flow below the strips (bottom sheet on narrow screens).
+export function RecordPanel({ log, day, personKey, minute, onJump }) {
+  const entries = getDayPersonEntries(log, day, personKey);
+  const at = currentEntryIndex(entries, minute);
+  const lang = currentLang();
+  return (
+    <div className="ui-record" data-testid="record-panel">
+      {entries.length === 0
+        ? <Text type="supporting">{lang === "en" ? "No records" : "기록 없음"}</Text>
+        : entries.map((e, i) => (
+          <button key={i} type="button" data-current={i === at}
+            className={i === at ? "ui-record-row ui-record-now" : "ui-record-row"}
+            onClick={() => onJump && onJump(e.minute)}
+            aria-label={`${hhmm(e.minute)} ${e.text}${i === at ? (lang === "en" ? " (now)" : " (지금)") : ""}`}>
+            <span className="ui-record-time">{hhmm(e.minute)}</span>
+            <span className="ui-record-text" {...(lang === "en" ? { "data-no-i18n": true } : null)}>{e.text}</span>
+            <span className="ui-record-go" aria-hidden="true">›</span>
+          </button>
+        ))}
+    </div>
+  );
+}
+
+export function recordPersonKey(state) {
+  const people = (state && state.personLog && state.personLog.people) || [];
+  if (people.length === 0) return null;
+  const fi = Number(state.follow) > 0 ? Number(state.follow) - 1 : 0;
+  return people[Math.min(fi, people.length - 1)].key;
+}
+
 export function TimelineBar({ state, compact = true, defaultMenuOpen = false }) {
   const { clock } = state;
   const minute = Math.floor(clock.minute);
   const day = clock.day;
   const [menuOpen, setMenuOpen] = useState(defaultMenuOpen);
   const [showMonth, setShowMonth] = useState(!compact);
+  const [showRecord, setShowRecord] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -330,6 +365,8 @@ export function TimelineBar({ state, compact = true, defaultMenuOpen = false }) 
                 onPressedChange={() => act("toggleStripCompare")} />
               <ToggleButton size="sm" label="30일 보기" isPressed={showMonth}
                 onPressedChange={() => setShowMonth(!showMonth)} />
+              <ToggleButton size="sm" label={currentLang() === "en" ? "Log" : "기록"} isPressed={showRecord}
+                onPressedChange={() => setShowRecord(!showRecord)} />
               <SegControl label="따라가기" value={String(state.follow)}
                 onChange={(v) => act("setFollow", Number(v))}
                 items={state.followOptions} />
@@ -349,6 +386,10 @@ export function TimelineBar({ state, compact = true, defaultMenuOpen = false }) 
             <MonthStrip days={state.monthStrip} selected={day}
               onDay={(d) => act("setDay", d)} />
           </div>
+          {showRecord && state.personLog && (
+            <RecordPanel log={state.personLog} day={day + 1}
+              personKey={recordPersonKey(state)} minute={minute} onJump={jump} />
+          )}
         </div>
       </Card>
     </div>
