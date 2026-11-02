@@ -87,9 +87,9 @@ import { PasteCheck } from "./listings.jsx";
 import { HOME_SORTS, HOME_SORT_KO, HOME_SORT_SHORT_KO, applyKindPreference, usEmptyHint, displayNameFor } from "../homes.js";
 import { chipSourceIds } from "../sources.js";
 import { META_HQ_EXAMPLE, META_HQ_EXAMPLE_KO, US_REGION_IDS } from "../places-us.js";
-import { EXAMPLE_PROFILE_LABEL, noCommuteEntry } from "../profile.js";
+import { EXAMPLE_PROFILE_LABEL, noCommuteEntry, memberLabelEn } from "../profile.js";
 import { outingsFor, hhmm } from "../timeline.js";
-import { weekdayOf } from "../engine/scenario.js";
+import { weekdayOf, WEEKDAYS } from "../engine/scenario.js";
 import { runDigest } from "../diary/digest.js";
 import {
   extractStep, searchStep, searchWithBoxes, scenarioStep, runStep,
@@ -1917,8 +1917,12 @@ const WEEKEND_RE_42D = /(주말|토요일|일요일|weekend|saturday|sunday)/i;
 const LATE_RE_42D = /(밤\s*\d+\s*시|늦게|늦은\s*귀가|야근|밤늦게|late|after\s*10|past\s*10|midnight|overtime)/i;
 const CROWD_RE_42D = /(붐벼|붐비|혼잡|사람\s*많|북적|꽉\s*차|앉을|서서|crowd|packed|standing|seat)/i;
 const BETTER_RE_42D = /(어디가|어딜|어느\s*집|둘\s*중|양쪽\s*중|추천|나아|나을|better|recommend|which one|choose)/i;
-const LOAN_RE_42D = /(대출|한\s*달에|한달|관리비|loan|monthly|maintenance|repayment|mortgage)/i;
-const JEONSE_RE_42D = /(전세|jeonse|deposit)/i;
+// 42j: English money intents (how much a month, monthly cost, rent,
+// utilities, pay a month, total) in both regions; 보증금 counts as a
+// deposit question in Korean too. Bare 월세 stays out: "월세 낮은 순"
+// is a sort chip, never a money question.
+const LOAN_RE_42D = /(대출|한\s*달|관리비|loan|mortgage|repayment|maintenance|monthly|\brent\b|\butilit\w*|pay a month|\btotal\b|how much)/i;
+const JEONSE_RE_42D = /(전세|보증금|jeonse|deposit)/i;
 const PLACES_RE_42D = /(공원|마트|편의|병원|약국|학교|초등|중학교|고등학교|유치원|학원|도서관|park|mart|grocery|store|school|hospital|clinic|library)/i;
 const SCHOOL_RE_42D = /(학교|초등|중학교|고등학교|유치원|학원|school|kindergarten)/i;
 const PICK_VERB_RE_42D = /(담아|담고|골라|찜|save|pick|add)/i;
@@ -2057,8 +2061,11 @@ const CLINIC_RE_42E = /진료|clinic|약국|병원|hospital/i;
 // Commuter (leave-home entries on weekdays): median leave / arrive-work
 // / arrive-home clocks. Non-commuter: weekday errand + clinic counts.
 // Times and counts come only from the records — never invented.
-export function weekdayHeadFor(log, key, sim, lang = "ko") {
+export function weekdayHeadFor(log, key, sim, lang = "ko", whoLabel = null) {
   const en = lang === "en";
+  // 42j: the English subject is the member label from the profile
+  // (You / Your partner), never a romanized Korean word.
+  const subj = en ? memberLabelEn(String(whoLabel || "나")) : null;
   const mine = weekdayEntriesOf(sim,
     personLogEntries(log).filter((e) => e.person && e.person.key === key));
   const outs = mine.filter((e) => (e.kind === "subway" || e.kind === "walk")
@@ -2074,9 +2081,10 @@ export function weekdayHeadFor(log, key, sim, lang = "ko") {
       : null;
     if (dep === null || arr === null) return null;
     if (en) {
+      const homeVerb = subj === "You" ? "were home" : "was home";
       return home === null
-        ? `On weekdays you usually left around ${hhmm(dep)} and arrived at work around ${hhmm(arr)}.`
-        : `On weekdays you usually left around ${hhmm(dep)}, arrived at work around ${hhmm(arr)}, and got home around ${hhmm(home)}.`;
+        ? `${subj} usually left around ${hhmm(dep)} and got to work around ${hhmm(arr)}.`
+        : `${subj} usually left around ${hhmm(dep)}, got to work around ${hhmm(arr)} and ${homeVerb} around ${hhmm(home)}.`;
     }
     const wp = sim && sim.workplace ? `${sim.workplace} ` : "";
     return home === null
@@ -2087,11 +2095,11 @@ export function weekdayHeadFor(log, key, sim, lang = "ko") {
   const clinics = mine.filter((e) => e.kind === "other"
     && CLINIC_RE_42E.test(String(e.text || ""))).length;
   if (en) {
-    if (errands === 0 && clinics === 0) return "On weekdays you mostly stayed home.";
+    if (errands === 0 && clinics === 0) return `${subj} mostly stayed home.`;
     const bits = [];
     if (errands > 0) bits.push(`${errands} grocery trip${errands > 1 ? "s" : ""}`);
     if (clinics > 0) bits.push(`${clinics} clinic visit${clinics > 1 ? "s" : ""}`);
-    return `On weekdays you mostly stayed home, with ${bits.join(" and ")}.`;
+    return `${subj} mostly stayed home, with ${bits.join(" and ")}.`;
   }
   if (errands === 0 && clinics === 0) return "평일에는 주로 집에 있었어요.";
   const bits = [];
@@ -2125,7 +2133,10 @@ export function isCompareAddRequest(text) {
 // with limit 12). afterRunAnswer still returns null for these.
 export function isMoreCandidatesRequest(text) {
   const s = String(text || "").trim();
-  return /^(다른 후보 더 보여\s*줘|더 보여\s*줘|다른 집 더( 보여\s*줘?)?|show more homes)$/i.test(s);
+  if (/^(다른 후보 더 보여\s*줘|더 보여\s*줘|다른 집 더( 보여\s*줘?)?)$/.test(s)) return true;
+  // 42j: the English UI teaches "Show me more candidates" — accept it
+  // plus counts and trailing punctuation, never the fallback.
+  return /^show( me)?( \d+)? more (homes|candidates|places)( please)?[.\s!]*$/i.test(s);
 }
 
 // 42i: the visible reply after a typed more-candidates re-run — the
@@ -2206,16 +2217,53 @@ function betterLineFor(sim, lang) {
     return en ? `${l} ${nm} ${Number.isFinite(v) ? `${Math.round(v)} min` : "–"}`
       : `${l} ${nm} ${Number.isFinite(v) ? fmtMinutes(v) : "–"}`;
   });
+  // 42j: amounts in the home's currency — USD for US runs.
+  const usdBetter = sim.moneyDoc && sim.moneyDoc.currency === "USD";
   const money = labels.map((l) => {
     const mh = sim.moneyDoc ? monthlyHousingOf(sim.moneyDoc, l, 30) : null;
     const nm = afterRunName(sim, l, lang);
     const amt = mh && !mh.missing
-      ? (en ? fmtMoney(mh.monthly, "KRW", { lang: "en" }) : fmtWon(mh.monthly)) : "–";
+      ? (usdBetter ? fmtMoney(mh.monthly, "USD")
+        : en ? fmtMoney(mh.monthly, "KRW", { lang: "en" }) : fmtWon(mh.monthly)) : "–";
     return `${l} ${nm} ${amt}`;
   });
   return en
     ? `Commute one-way: ${commute.join(", ")}. Monthly housing: ${money.join(", ")}. The choice is yours.`
     : `출근 편도는 ${commute.join(", ")}, 월 주거비는 ${money.join(", ")}이에요. 고르는 건 고객님 몫이에요.`;
+}
+
+// 42j: the US money answer off the run's own numbers — rent $X/mo,
+// the run's commute minutes (Caltrain fare / shuttle dollars are not
+// modelled, said plainly), total. Utilities are not in the listing
+// data, said plainly. No invented numbers.
+function usMoneyLineFor(sim, lang) {
+  const en = lang === "en";
+  const labels = afterRunLabels(sim);
+  const oneWay = (sim.compare && sim.compare.one_way) || {};
+  const parts = labels.map((l) => {
+    const mh = sim.moneyDoc ? monthlyHousingOf(sim.moneyDoc, l, 30) : null;
+    const nm = afterRunName(sim, l, lang);
+    const rent = mh && !mh.missing ? fmtMoney(mh.monthly, "USD") : null;
+    const w = Number(oneWay[l]);
+    if (en) {
+      const rentBit = rent ? `rent ${rent}/mo` : "rent –";
+      const cmBit = Number.isFinite(w)
+        ? `commute ${Math.round(w)} min one-way (Caltrain/shuttle fare isn't in the run data)`
+        : "commute –";
+      const totBit = rent ? `total ${rent}/mo` : "total –";
+      return `${l} ${nm}: ${rentBit}, ${cmBit}, ${totBit}`;
+    }
+    const rentBit = rent ? `월세 ${fmtMoney(mh.monthly, "USD", { monthly: true })}` : "월세 –";
+    const cmBit = Number.isFinite(w)
+      ? `출근 편도 ${Math.round(w)}분(칼트레인·셔틀 요금은 자료에 없어요)`
+      : "출근 –";
+    const totBit = rent ? `합계 ${fmtMoney(mh.monthly, "USD", { monthly: true })}` : "합계 –";
+    return `${l} ${nm}: ${rentBit}, ${cmBit}, ${totBit}`;
+  });
+  const tail = en
+    ? "Utilities aren't in the listing data, so they're not in the total."
+    : "유틸리티(관리비)는 매물 자료에 없어서 합계에 들어 있지 않아요.";
+  return en ? `Monthly cost — ${parts.join("; ")}. ${tail}` : `한 달 돈 — ${parts.join("; ")}. ${tail}`;
 }
 
 function loanLineFor(sim, lang) {
@@ -2228,8 +2276,12 @@ function loanLineFor(sim, lang) {
     const nm = afterRunName(sim, l, lang);
     const hd = mh.housingDoc || {};
     const loan = Number(hd.loan_won);
-    const money = (v) => (en ? fmtMoney(v, "KRW", { lang: "en" }) : fmtWon(v));
-    const moneyM = (v) => (en ? fmtMoney(v, "KRW", { lang: "en" }) : fmtWon(v, { monthly: true }));
+    // 42j: amounts in the home's currency — USD for US runs.
+    const usdLoan = sim.moneyDoc && sim.moneyDoc.currency === "USD";
+    const money = (v) => (usdLoan ? fmtMoney(v, "USD")
+      : en ? fmtMoney(v, "KRW", { lang: "en" }) : fmtWon(v));
+    const moneyM = (v) => (usdLoan ? fmtMoney(v, "USD")
+      : en ? fmtMoney(v, "KRW", { lang: "en" }) : fmtWon(v, { monthly: true }));
     const loanBit = Number.isFinite(loan) && loan > 0
       ? (en ? `loan ${money(loan)}`
         : `대출 ${fmtWonLump(loan)}${hd.rate_pct ? `(이자율 ${hd.rate_pct}%${hd.years ? ` ${hd.years}년` : ""})` : ""}`)
@@ -2326,11 +2378,12 @@ export function afterRunAnswer(text, { messages = [], picks = [], candidates = [
     // 42e: the head is the weekday pattern off the workday records
     // (commuter clocks, else errand/clinic counts); outs are weekend
     // days off the run calendar — never a Tuesday called 주말.
-    const headBit = weekdayHeadFor(log, who.key, sim, lang) || (en ? "–" : "기록 그대로");
+    // 42j: weekdayHeadFor already carries the translated member label
+    // (You / Your partner) in English — no "나:"/"Baeuja:" prefix.
+    const headBit = weekdayHeadFor(log, who.key, sim, lang, who.label) || (en ? "–" : "기록 그대로");
     const outs = outingsOf(weekendEntriesOf(sim, all), 3);
-    const whoName = en && /[가-힣]/.test(String(who.label || "")) ? homeNameEn(String(who.label)) : String(who.label || who.key);
-    const head = en ? `${whoName}: ${headBit}`
-      : `${whoName}님은 ${headBit}`;
+    const head = en ? headBit
+      : `${String(who.label || who.key)}님은 ${headBit}`;
     const tail = outs.length === 0
       ? (en ? "No weekend outings in the log." : "주말 외출 기록은 없었어요.")
       : (en ? `Outings: ${outs.map((e) => `day ${e.day} ${String(e.text || "").trim().split("\n")[0]}`).join(", ")}.`
@@ -2351,7 +2404,8 @@ export function afterRunAnswer(text, { messages = [], picks = [], candidates = [
       // Tuesday outing is never reported as 주말.
       const outs = outingsOf(weekendEntriesOf(sim,
         personLogEntries(log).filter((e) => e.person && e.person.key === p.key)), 2);
-      const nm = en && /[가-힣]/.test(String(p.label || "")) ? homeNameEn(String(p.label)) : String(p.label || p.key);
+      // 42j: member labels translate (You / Your partner), never romanize.
+      const nm = en ? memberLabelEn(String(p.label || p.key)) : String(p.label || p.key);
       bits.push(outs.length === 0
         ? (en ? `${nm}: no outings` : `${nm}: 외출 기록 없음`)
         : (en ? `${nm}: ${outs.map((e) => `day ${e.day} ${String(e.text || "").trim().split("\n")[0]}`).join(", ")}`
@@ -2379,8 +2433,18 @@ export function afterRunAnswer(text, { messages = [], picks = [], candidates = [
   }
   if (CROWD_RE_42D.test(t)) return { line: crowdLineFor(sim, lang) };
   if (BETTER_RE_42D.test(t)) return { line: betterLineFor(sim, lang) };
-  if (LOAN_RE_42D.test(t)) return { tab: "money", line: loanLineFor(sim, lang) };
+  if (LOAN_RE_42D.test(t)) {
+    // 42j: US rentals answer from the run's own rent numbers.
+    if (sim.moneyDoc && sim.moneyDoc.currency === "USD") return { tab: "money", line: usMoneyLineFor(sim, lang) };
+    return { tab: "money", line: loanLineFor(sim, lang) };
+  }
   if (JEONSE_RE_42D.test(t)) {
+    // 42j: US homes are monthly rentals — no jeonse tab, plain words.
+    if (sim.moneyDoc && sim.moneyDoc.currency === "USD") {
+      return { line: en
+        ? "These are monthly rentals; the Korean jeonse deposit doesn't apply. The listings don't include a security deposit amount."
+        : "미국 집은 월세라 전세 보증금이 없어요. 매물 자료에 보증금 금액은 없어요." };
+    }
     return { tab: "jeonse",
       line: en ? "Opened the deposit-lease tab. Check the deposit, loan interest, and risk list there."
         : "전세 탭을 열었어요. 보증금·대출 이자·위험 체크를 한 번에 보세요." };
@@ -2444,8 +2508,23 @@ export function preMuseCompareAdd(text, { messages = [], picks = [], candidates 
 // questions from numbers — per home one-way avg/max day, crowding,
 // monthly lines and loan; per person weekday pattern, outings,
 // late returns, longest day. Sent as context.run_summary.
-export function runSummaryFor(payload) {
+// 42j: calendar-day tags with weekday names (6일차(토) / day 6 (Sat))
+// off the run calendar — never a Tuesday called weekend.
+const DOW_KO_42J = ["월", "화", "수", "목", "금", "토", "일"];
+function dayTag42j(day, sim, lang) {
+  const wd = weekdayOf(simStartDate(sim), Number(day) - 1);
+  return lang === "en" ? `day ${day} (${(WEEKDAYS[wd] || "?")})` : `${day}일차(${(DOW_KO_42J[wd] || "?")})`;
+}
+
+export function runSummaryFor(payload, lang = currentLang()) {
   const sim = payload || {};
+  const en = lang === "en";
+  // 42j: amounts in the home's currency — USD for US runs.
+  const usdSum = sim.moneyDoc && sim.moneyDoc.currency === "USD";
+  const amtM = (v) => (usdSum ? fmtMoney(v, "USD")
+    : en ? fmtMoney(v, "KRW", { lang: "en" }) : fmtWon(v, { monthly: true }));
+  const amtL = (v) => (usdSum ? fmtMoney(v, "USD")
+    : en ? fmtMoney(v, "KRW", { lang: "en" }) : fmtWonLump(v));
   const labels = Array.isArray(sim.labels) && sim.labels.length > 0
     ? sim.labels : Object.keys(sim.personLog || {});
   const oneWay = (sim.compare && sim.compare.one_way) || {};
@@ -2460,46 +2539,73 @@ export function runSummaryFor(payload) {
     const avg = Number(oneWay[l]);
     const mh = sim.moneyDoc ? monthlyHousingOf(sim.moneyDoc, l, 30) : null;
     const hd = (mh && mh.housingDoc) || {};
-    const bits = [`출근 편도 평균 ${Number.isFinite(avg) ? `${Math.round(avg)}분` : "–"}`];
-    if (top) bits.push(`가장 오래 ${top.day}일차 ${top.min}분`);
+    // 42j: English summary for English UI; amounts in the home's currency.
+    const bits = en
+      ? [`avg one-way ${Number.isFinite(avg) ? `${Math.round(avg)} min` : "–"}`]
+      : [`출근 편도 평균 ${Number.isFinite(avg) ? `${Math.round(avg)}분` : "–"}`];
+    if (top) bits.push(en ? `longest day ${top.day} ${top.min} min` : `가장 오래 ${top.day}일차 ${top.min}분`);
     if (stands.length > 0) {
       const sTop = stands.reduce((a, b) => (!a || b.min > a.min ? b : a), stands[0]);
       // 42e: crowded minutes standing — the total, not just the count.
       const sSum = stands.reduce((a, b) => a + (Number.isFinite(b.min) ? b.min : 0), 0);
-      bits.push(`서서 ${stands.length}번(합계 ${sSum}분·최대 ${sTop.day}일차 ${sTop.min}분)`);
+      bits.push(en ? `standing ${stands.length} rides (total ${sSum} min, max ${dayTag42j(sTop.day, sim, lang)} ${sTop.min} min)`
+        : `서서 ${stands.length}번(합계 ${sSum}분·최대 ${sTop.day}일차 ${sTop.min}분)`);
     }
     // 42e: peak boarding congestion per home, stamped onto
     // compare.peak_congestion at run time (from the runs' fatigue).
     const peak = sim.compare && sim.compare.peak_congestion
       ? Number(sim.compare.peak_congestion[l]) : NaN;
-    if (Number.isFinite(peak)) bits.push(`혼잡 최대 ${Math.round(peak)}%`);
+    if (Number.isFinite(peak)) bits.push(en ? `peak congestion ${Math.round(peak)}%` : `혼잡 최대 ${Math.round(peak)}%`);
     if (mh && !mh.missing) {
-      bits.push(`월 상환 ${fmtWon(hd.monthly_won ?? mh.parts.housing, { monthly: true })}·관리비 ${fmtWon(mh.maintenanceWon, { monthly: true })}·교통비 ${fmtWon(mh.transitWon, { monthly: true })}·합계 ${fmtWon(mh.monthly, { monthly: true })}`);
-      if (Number.isFinite(Number(hd.loan_won))) bits.push(`대출 ${fmtWonLump(hd.loan_won)}`);
+      if (usdSum) {
+        bits.push(en ? `rent ${amtM(mh.parts.housing)}/mo · total ${amtM(mh.monthly)}/mo (no maintenance/transit data)`
+          : `월세 ${amtM(mh.parts.housing)}·합계 ${amtM(mh.monthly)}(관리비·교통비 자료 없음)`);
+      } else {
+        bits.push(en ? `repayment ${amtM(hd.monthly_won ?? mh.parts.housing)} · maintenance ${amtM(mh.maintenanceWon)} · transit ${amtM(mh.transitWon)} · total ${amtM(mh.monthly)}`
+          : `월 상환 ${amtM(hd.monthly_won ?? mh.parts.housing)}·관리비 ${amtM(mh.maintenanceWon)}·교통비 ${amtM(mh.transitWon)}·합계 ${amtM(mh.monthly)}`);
+        if (Number.isFinite(Number(hd.loan_won))) bits.push(en ? `loan ${amtL(hd.loan_won)}` : `대출 ${amtL(hd.loan_won)}`);
+      }
     }
-    if (lates.length > 0) bits.push(`늦은 귀가 ${lates.length}번(최근 ${lates[lates.length - 1].day}일차 ${hhmm(lates[lates.length - 1].minute)})`);
-    lines.push(`${l} ${((sim.names || {})[l] || l)}: ${bits.join("; ")}.`);
+    if (lates.length > 0) {
+      const last = lates[lates.length - 1];
+      bits.push(en ? `late returns ${lates.length} (latest ${dayTag42j(last.day, sim, lang)} ${hhmm(last.minute)})`
+        : `늦은 귀가 ${lates.length}번(최근 ${dayTag42j(last.day, sim, lang)} ${hhmm(last.minute)})`);
+    }
+    // 42j: home names read as the cards show them (English via homeNameEn).
+    lines.push(`${l} ${afterRunName(sim, l, lang)}: ${bits.join("; ")}.`);
   }
-  const firstLog = (sim.personLog || {})[labels[0]];
-  for (const p of (firstLog && firstLog.people) || []) {
-    const mine = personLogEntries(firstLog).filter((e) => e.person && e.person.key === p.key);
-    const pattern = weekdayPattern(firstLog, p.key);
-    const outs = outingsOf(mine, 3).map((e) => `${e.day}일차 ${String(e.text || "").trim().split("\n")[0]}`);
-    const lates = lateOfEntries(mine).slice(0, 3).map((e) => `${e.day}일차 ${hhmm(e.minute)}`);
-    const spanByDay = new Map();
-    for (const e of mine) {
-      if (!Number.isFinite(e.day) || !Number.isFinite(e.minute)) continue;
-      const end = Number.isFinite(e.end_minute) ? e.end_minute : e.minute;
-      const cur = spanByDay.get(e.day) || { from: e.minute, to: end };
-      cur.from = Math.min(cur.from, e.minute);
-      cur.to = Math.max(cur.to, end);
-      spanByDay.set(e.day, cur);
+  // 42j: per home and per member — the weekday pattern off the workday
+  // records (the same data as the 42e pattern line, never the raw day
+  // summaries) and weekend outings by calendar day.
+  for (const l of labels) {
+    const hlog = (sim.personLog || {})[l];
+    for (const p of (hlog && hlog.people) || []) {
+      const mine = personLogEntries(hlog).filter((e) => e.person && e.person.key === p.key);
+      const head = weekdayHeadFor(hlog, p.key, sim, lang, p.label) || "–";
+      const outs = outingsOf(weekendEntriesOf(sim, mine), 3)
+        .map((e) => `${dayTag42j(e.day, sim, lang)} ${String(e.text || "").trim().split("\n")[0]}`);
+      const lates = lateOfEntries(mine).slice(0, 3)
+        .map((e) => `${dayTag42j(e.day, sim, lang)} ${hhmm(e.minute)}`);
+      const spanByDay = new Map();
+      for (const e of mine) {
+        if (!Number.isFinite(e.day) || !Number.isFinite(e.minute)) continue;
+        const end = Number.isFinite(e.end_minute) ? e.end_minute : e.minute;
+        const cur = spanByDay.get(e.day) || { from: e.minute, to: end };
+        cur.from = Math.min(cur.from, e.minute);
+        cur.to = Math.max(cur.to, end);
+        spanByDay.set(e.day, cur);
+      }
+      let longest = null;
+      for (const [day, s] of spanByDay) {
+        if (!longest || (s.to - s.from) > (longest.to - longest.from)) longest = { day, ...s };
+      }
+      if (en) {
+        lines.push(`${l} ${head}; weekend outings: ${outs.length > 0 ? outs.join(", ") : "none"}; late returns: ${lates.length > 0 ? lates.join(", ") : "none"}; longest day: ${longest ? dayTag42j(longest.day, sim, lang) : "–"}.`);
+      } else {
+        const whoNm = p.label || p.key;
+        lines.push(`${l} ${whoNm}: ${head}; 외출 ${outs.length > 0 ? outs.join(", ") : "없음"}; 늦은 귀가 ${lates.length > 0 ? lates.join(", ") : "없음"}; 가장 긴 날 ${longest ? dayTag42j(longest.day, sim, lang) : "–"}.`);
+      }
     }
-    let longest = null;
-    for (const [day, s] of spanByDay) {
-      if (!longest || (s.to - s.from) > (longest.to - longest.from)) longest = { day, ...s };
-    }
-    lines.push(`${p.label || p.key}: 평일 ${pattern || "–"}; 외출 ${outs.length > 0 ? outs.join(", ") : "없음"}; 늦은 귀가 ${lates.length > 0 ? lates.join(", ") : "없음"}; 가장 긴 날 ${longest ? `${longest.day}일차` : "–"}.`);
   }
   // Cap at 3 KB (drop trailing lines first).
   while (lines.length > 1) {
@@ -3110,7 +3216,10 @@ export function ChatScreen() {
     if (isMoreCandidatesRequest(text)) {
       const stMore = stateRef.current;
       if (stMore.profile && profileHasValues(stMore.profile)) {
-        const dataMore = await ensureData(null);
+        // 42j: the re-run needs the stored profile's regions — a US
+        // profile means the corridor set, never the Korean default.
+        const moreRegions = currencyOf(stMore.profile) === "USD" ? [...US_REGION_IDS] : null;
+        const dataMore = await ensureData(moreRegions);
         if (dataMore) {
           const nMore = await runSearch(stMore.profile, dataMore,
             { sort: (stMore.candidatesData && stMore.candidatesData.sort) || "commute",
