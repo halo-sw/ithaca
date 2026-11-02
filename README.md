@@ -103,6 +103,30 @@ The live chat shares a daily Muse limit. When it runs out, or the relay is down,
 
 Covered today: Seoul 성동 · 송파 · 강남 · 강동 · 위례 and 판교 · 성남 · 정자 · 분당 · 미금 · 수지, plus Menlo Park in the US.
 
+## Agent workflow
+
+How one conversation runs, left to right. Blue boxes are Muse Spark; grey boxes are code. Dotted arrows are the checks sending work back.
+
+```mermaid
+flowchart LR
+  U(["<b>You</b><br/>one sentence<br/>KO · EN · voice"]) --> R["<b>Relay</b><br/>keys on server<br/>1 free session/IP"]
+  R --> A["<b>Consult agent</b><br/>Spark 1.3 or<br/>Spark Open<br/>≤ 6 tool rounds"]
+  A <--> T[("<b>Tools</b><br/>profile · homes<br/>real deals · transit")]
+  A --> G["<b>Guard</b><br/>numbers only<br/>from tools"]
+  G -. "retry once" .-> A
+  G --> L["<b>30 days × 2 homes</b><br/>Muse picks each move<br/>engine counts min · won"]
+  L --> P["<b>Report</b><br/>Muse writes<br/>submit_report"]
+  P --> C["<b>Check</b><br/>code: numbers<br/>judge: sentences"]
+  C -. "fail ≤ 3×" .-> P
+  C --> O(["<b>You decide</b><br/>A | B · diary · 3D"])
+  classDef muse fill:#eef3ff,stroke:#3d63dd,color:#111;
+  classDef code fill:#f4f4f2,stroke:#777,color:#111;
+  class A,L,P muse
+  class R,T,G,C code
+```
+
+Code: [relay](relay/handler.js) · [consult agent](web/src/consult/agent.js) · [tools](web/src/consult/tools.js) · [guard](web/src/consult/guards.js) · [30-day run](web/src/judge/run.js) · [report](web/src/consult/report.js) · [check](web/src/verify/compare.js). If Spark Open is busy, Spark 1.3 answers and the reply says so.
+
 ## Built with Meta
 
 Each model has one job, and numbers never come from a model. The Meta API base URL and key are defined once, in [`web/src/judge/providers.js`](web/src/judge/providers.js). Calls use OpenAI-style chat completions over `fetch`, and keys come from the server environment only (see [`.env.example`](.env.example)).
