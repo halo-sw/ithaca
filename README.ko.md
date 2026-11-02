@@ -115,14 +115,16 @@
 
 모델마다 맡은 일이 하나씩이고, 숫자는 모델이 만들지 않아요. Meta API 주소와 키는 [`web/src/judge/providers.js`](web/src/judge/providers.js) 한 곳에서 정해요. 호출은 OpenAI 방식 chat completions를 `fetch`로 하고, 키는 서버 환경 변수에서만 읽어요([`.env.example`](.env.example) 참고).
 
-| 모델 | 엔드포인트 | 여기서 하는 일 | 코드 | 증거 |
-|---|---|---|---|---|
-| <img src="web/public/brand/muse-logo.png" width="18" alt=""> **Muse Spark 1.3** (`muse-spark-1.3`) | `https://api.meta.ai/v1` | 가구의 일상 선택과 이유, 도구를 부르는 상담 에이전트 | [`judge/run.js`](web/src/judge/run.js) → [`providers.js`](web/src/judge/providers.js) `complete`, [`consult/agent.js`](web/src/consult/agent.js) → `completeWithTools` | [실제 호출 3건](docs/evidence/muse-spark-1.3-2026-10-31.json), [기록된 판단 154개](scenarios/decisions/compare-1029/) |
-| <img src="web/public/brand/muse-logo.png" width="18" alt=""> **판정자 Muse Spark 1.3** | `https://api.meta.ai/v1` | 보고서 문장을 그 문장이 인용한 시뮬레이션 기록과 나란히 읽고, 뒷받침되는지 이유와 함께 답해요. 글을 쓴 호출과는 따로 불러요 | [`consult/report.js`](web/src/consult/report.js) `makeJudge` → [`verify/compare.js`](web/src/verify/compare.js) | [검증](docs/verification.ko.md) |
-| <img src="web/public/brand/muse-logo.png" width="18" alt=""> **Muse Spark Open** (`meta-models/muse-spark-open-1026`) | `https://inference.baseten.co/v1` (Baseten) | 제품 안에서 바로 실행(상단 모델 전환: Muse Spark 1.3 | Muse Spark Open) + 같은 가구 판단 오프라인 비교 `--provider baseten` | 같은 모듈 | [실제 호출 3건](docs/evidence/muse-spark-open-2026-10-31.json), Spark 1.3과 139곳 중 120곳 같은 선택 |
-| <img src="web/public/brand/muse-logo.png" width="18" alt=""> **Muse Code** (`muse-spark-1.3` 에이전트 모드) | Muse Code CLI | 단계별 지시서를 받아 이 저장소의 제품 코드와 테스트를 모두 작성 | — | [`briefs/`](briefs/) (단계마다 지시서 + 결과) |
-| <img src="web/public/brand/muse-logo.png" width="18" alt=""> **Muse Voice Transcribe 1.0** (`muse-voice-transcribe-1.0`) | `https://api.meta.ai/v1/asr/transcribe` | 대화창에서 글 대신 말로 입력(한국어·영어 자동 인식). 받아 적은 글은 입력창에 들어가고 고객이 확인한 뒤 보내요 | 중계 서버 `/api/voice/transcribe`를 거쳐 [`consult/voice.js`](web/src/consult/voice.js) | — |
-| SAM 3.1 | — | 매물 사진에서 창문 면적 | *준비 중* | — |
+| 모델 | 여기서 하는 일 | 코드 · 증거 |
+|---|---|---|
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark 1.3** | 도구를 부르는 상담 에이전트, 가구의 일상 선택과 이유 | [`agent.js`](web/src/consult/agent.js) · [`run.js`](web/src/judge/run.js) · [실제 호출 3건](docs/evidence/muse-spark-1.3-2026-10-31.json) · [판단 154개](scenarios/decisions/compare-1029/) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **판정자 Spark 1.3** | 리포트 문장을 인용한 기록과 대조, 글 쓴 호출과 따로 | [`report.js`](web/src/consult/report.js) · [`compare.js`](web/src/verify/compare.js) · [검증](docs/verification.ko.md) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark Open** | 상단 모델 전환으로 대화에서 바로 실행, 1.3과 139곳 중 120곳 같은 선택 | [`providers.js`](web/src/judge/providers.js) · [실제 호출 3건](docs/evidence/muse-spark-open-2026-10-31.json) · [비교](docs/model-comparison.ko.md) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Code** | 단계별 지시서로 제품 코드와 테스트를 모두 작성 | [`briefs/`](briefs/) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Voice Transcribe 1.0** | 글 대신 말로 입력(한국어·영어) | [`voice.js`](web/src/consult/voice.js) |
+| SAM 3.1 | 매물 사진에서 창문 면적 | *준비 중* |
+
+엔드포인트: Meta `https://api.meta.ai/v1` (`muse-spark-1.3`, `muse-voice-transcribe-1.0`) · Baseten `https://inference.baseten.co/v1` (`meta-models/muse-spark-open-1026`).
 
 서버 키는 `META_API_KEY`에서 읽어요(`MODEL_API_KEY`도 대신 쓸 수 있어요). 기본 주소는 [`providers.js`](web/src/judge/providers.js)의 상수 `META_API_BASE`, `BASETEN_API_BASE`이고, [`relay/handler.js`](relay/handler.js)도 같은 상수를 내보내요.
 

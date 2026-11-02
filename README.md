@@ -115,14 +115,16 @@ Code: [relay](relay/handler.js) · [consult agent](web/src/consult/agent.js) · 
 
 Each model has one job, and numbers never come from a model. The Meta API base URL and key are defined once, in [`web/src/judge/providers.js`](web/src/judge/providers.js). Calls use OpenAI-style chat completions over `fetch`, and keys come from the server environment only (see [`.env.example`](.env.example)).
 
-| Model | Endpoint | What it does here | Code | Evidence |
-|---|---|---|---|---|
-| <img src="web/public/brand/muse-logo.png" width="18" alt=""> **Muse Spark 1.3** (`muse-spark-1.3`) | `https://api.meta.ai/v1` | The household's everyday choices with reasons; the consult agent with tool calls | [`judge/run.js`](web/src/judge/run.js) → [`providers.js`](web/src/judge/providers.js) `complete`; [`consult/agent.js`](web/src/consult/agent.js) → `completeWithTools` | [3 real calls](docs/evidence/muse-spark-1.3-2026-10-31.json), [154 recorded decisions](scenarios/decisions/compare-1029/) |
-| <img src="web/public/brand/muse-logo.png" width="18" alt=""> **Muse Spark 1.3 as a judge** | `https://api.meta.ai/v1` | Reads each report sentence next to the simulation records it cites and answers supported or not, with a reason; a separate call from the writer | [`consult/report.js`](web/src/consult/report.js) `makeJudge` → [`verify/compare.js`](web/src/verify/compare.js) | [Verification](docs/verification.md) |
-| <img src="web/public/brand/muse-logo.png" width="18" alt=""> **Muse Spark Open** (`meta-models/muse-spark-open-1026`) | `https://inference.baseten.co/v1` (Baseten) | Live in the product (header switch: Muse Spark 1.3 | Muse Spark Open) + the same household decisions offline, `--provider baseten` | same module | [3 real calls](docs/evidence/muse-spark-open-2026-10-31.json), 120 of 139 same choices as Spark 1.3 |
-| <img src="web/public/brand/muse-logo.png" width="18" alt=""> **Muse Code** (agent mode on `muse-spark-1.3`) | Muse Code CLI | Wrote every line of product code and every test in this repository from stage briefs | — | [`briefs/`](briefs/) (brief + result per stage) |
-| <img src="web/public/brand/muse-logo.png" width="18" alt=""> **Muse Voice Transcribe 1.0** (`muse-voice-transcribe-1.0`) | `https://api.meta.ai/v1/asr/transcribe` | Speak instead of typing in the chat (Korean and English, detected automatically); the transcript goes into the box for the customer to check | [`consult/voice.js`](web/src/consult/voice.js) via the relay `/api/voice/transcribe` | — |
-| SAM 3.1 | — | Window area from listing photos | *coming soon* | — |
+| Model | Job here | Code · evidence |
+|---|---|---|
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark 1.3** | Consult agent with tool calls; the household's daily choices, with reasons | [`agent.js`](web/src/consult/agent.js) · [`run.js`](web/src/judge/run.js) · [3 real calls](docs/evidence/muse-spark-1.3-2026-10-31.json) · [154 decisions](scenarios/decisions/compare-1029/) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Spark 1.3 as judge** | Checks each report sentence against the records it cites; a separate call | [`report.js`](web/src/consult/report.js) · [`compare.js`](web/src/verify/compare.js) · [Verification](docs/verification.md) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark Open** | Live in the chat via the header switch; same choice as 1.3 at 120 of 139 decisions | [`providers.js`](web/src/judge/providers.js) · [3 real calls](docs/evidence/muse-spark-open-2026-10-31.json) · [Comparison](docs/model-comparison.md) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Code** | Wrote all product code and tests from the stage briefs | [`briefs/`](briefs/) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Voice Transcribe 1.0** | Speak instead of typing (Korean, English) | [`voice.js`](web/src/consult/voice.js) |
+| SAM 3.1 | Window area from listing photos | *coming soon* |
+
+Endpoints: Meta `https://api.meta.ai/v1` (`muse-spark-1.3`, `muse-voice-transcribe-1.0`) · Baseten `https://inference.baseten.co/v1` (`meta-models/muse-spark-open-1026`).
 
 The server key is read from `META_API_KEY` (`MODEL_API_KEY` still works as a fallback); the base URLs are named constants, `META_API_BASE` and `BASETEN_API_BASE`, in [`providers.js`](web/src/judge/providers.js) and re-exported by [`relay/handler.js`](relay/handler.js).
 
