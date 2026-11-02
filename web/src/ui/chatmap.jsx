@@ -12,7 +12,7 @@ import { fitMapView, fitInsetFromChrome, freeAreaOf, layoutMapPills, layoutStati
   stationNameWidthPx, stationLabelName, placeWorkplacePill,
   shortWorkplaceLabel, haversineKm,
   tagSizePx, tagLines, tagPriceLine, tagFontPx, clusterSizePx, mapTenuresMixed,
-  layoutChatStage,
+  layoutChatStage, zoomStageFit,
   MAP_COLORS, MAP_FIT_MARGIN, BASEMAP_MUTE } from "../chatmap.js";
 import { basemapApiBase, basemapTileUrl, basemapTiles, basemapUnderlayTiles, basemapProvider,
   viewTransform, zoomAt } from "../basemap.js";
@@ -514,16 +514,38 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
       w: sz.w, h: sz.h, alt: { w: shortSz.w, h: shortSz.h },
       rank: p.picked ? 1 : 2, pin: p });
   });
+  // 42a: tags follow the map — the layout runs in the zoomed
+  // screen space (zoom/pan applied to the fit before layout), so
+  // every home tag, the group card and the work marker sit on their
+  // pin's current projected point. Sizes stay constant in px; at
+  // zoom 1 the override equals the base fit, so the output is
+  // unchanged. The fit/regroup resolve once at zoom 1 (no refit
+  // while zoomed, groups fixed inside layoutChatStage).
+  const T = viewTransform({ ...vt, cx: W / 2, cy: H / 2 });
+  const zoomOn = (Number(vt.zoom) || 1) !== 1
+    || Number(vt.panX || 0) !== 0 || Number(vt.panY || 0) !== 0;
+  const baseFitForZoom = zoomOn
+    ? fitMapView(focus, W, H, MAP_FIT_MARGIN, basePad) : null;
   const stage = layoutChatStage({ focus, specs, W, H,
     pad: basePad, obstacles: chromeObstacles,
     tenure: m.tenure, lang, compact, sharedRent: !!shared,
-    mixedTenure, allowRefit: (Number(vt.zoom) || 1) <= 1 });
+    mixedTenure, allowRefit: !zoomOn,
+    ...(zoomOn ? { fitOverride: zoomStageFit(baseFitForZoom, T) } : {}) });
   const fit = stage.fit;
   const laid = stage.laid;
   const { midLat } = fit;
-  const T = viewTransform({ ...vt, cx: W / 2, cy: H / 2 });
-  const toXYz = (lon, lat) => T.apply(fit.toXY(lon, lat));
-  const toLonLatZ = (x, y) => fit.toLonLat(...T.invert([x, y]));
+  // 42a: laid boxes are already in the zoomed screen space while
+  // zoomed, so toXYz is the fit itself; at zoom 1 it applies T
+  // (the identity), exactly as before.
+  const toXYz = zoomOn ? ((lon, lat) => fit.toXY(lon, lat))
+    : ((lon, lat) => T.apply(fit.toXY(lon, lat)));
+  const toLonLatZ = zoomOn ? ((x, y) => fit.toLonLat(x, y))
+    : ((x, y) => fit.toLonLat(...T.invert([x, y])));
+  // 42a: a tag whose pin left the frame hides (margin for the tag).
+  const inFrameZ = (lon, lat) => {
+    const [x, y] = toXYz(lon, lat);
+    return x >= -96 && y >= -96 && x <= W + 96 && y <= H + 96;
+  };
   // 31h: my-location — the fix is read once per click and never
   // stored (no state outside this component, no URL, no network,
   // no log). The extent is the map's current lon/lat corners.
@@ -551,7 +573,8 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
         }
         setYou({ x: r.x, y: r.y });
         // Centre the fix, keeping the current zoom.
-        const [bx, by] = fit.toXY(lon, lat);
+        // 42a: the pan math resolves in the unzoomed fit space.
+        const [bx, by] = (zoomOn && baseFitForZoom ? baseFitForZoom : fit).toXY(lon, lat);
         setVt((v) => {
           const z = Number(v.zoom) || 1;
           return { ...v, panX: -(bx - W / 2) * z, panY: -(by - H / 2) * z };
@@ -1117,7 +1140,8 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
           // 31k: pills stay in the fixed order — never re-sorted by
           // hover. The highlighted pin's outline is re-drawn as a
           // separate non-interactive copy in the top layer below.
-          const visible = tagOrder.filter((p) => !clustered.has(keyOf(p)));
+          // 42a: tags whose pin left the frame hide.
+          const visible = tagOrder.filter((p) => !clustered.has(keyOf(p)) && inFrameZ(p.lon, p.lat));
           const hiPin = visible.find((p) => cardHi === `home:${p.id}`)
             || visible.find((p) => p.id === selectedId) || null;
           return (

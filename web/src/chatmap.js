@@ -1468,8 +1468,25 @@ export function refitViewForBoxes(fit, boxes, anchors, W, H, pad, margin = MAP_F
 // (pin carries n/picked/letter/candidate/commuteMin for card rows).
 // Returns { fit, laid, cards } — cards maps a group id to
 // { header, rows: [{ id, text, picked }], members, rowH, headerH }.
+// 42a: lay the tags out in the zoomed screen space — pass a fit whose
+// toXY already applies the zoom/pan (see zoomStageFit), with allowRefit
+// off while zoomed. Tag sizes stay constant in px; at zoom 1 the
+// override equals the base fit, so the output is unchanged. The
+// regroup (fixedGroups) always resolves on the unzoomed pin fit, so no
+// regroup re-runs per wheel tick.
+export function zoomStageFit(baseFit, T) {
+  const t = T && typeof T.apply === "function" ? T : { apply: ([x, y]) => [x, y] };
+  const inv = T && typeof T.invert === "function" ? T : null;
+  return { ...baseFit,
+    toXY: (lon, lat) => t.apply(baseFit.toXY(lon, lat)),
+    toLonLat: inv
+      ? (x, y) => baseFit.toLonLat(...inv.invert([x, y]))
+      : baseFit.toLonLat,
+    midLat: baseFit.midLat, metersPerPx: baseFit.metersPerPx };
+}
 export function layoutChatStage({ focus, specs, W, H, pad, obstacles,
-  tenure, lang, compact, sharedRent, mixedTenure, allowRefit = true }) {
+  tenure, lang, compact, sharedRent, mixedTenure, allowRefit = true,
+  fitOverride = null }) {
   const w = Math.max(1, Number(W) || 1);
   const h = Math.max(1, Number(H) || 1);
   const free = freeAreaOf(w, h, pad);
@@ -1731,7 +1748,7 @@ export function layoutChatStage({ focus, specs, W, H, pad, obstacles,
     }
     return { laid, cards };
   };
-  let fit = fitMapView(focus, w, h, MAP_FIT_MARGIN, pad);
+  let fit = fitOverride || fitMapView(focus, w, h, MAP_FIT_MARGIN, pad);
   let out = pass(fit);
   // 29M2b: refit while a laid-out box leaves the free area (at most
   // two refits — three passes). Every refit keeps the anchor
