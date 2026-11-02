@@ -1,273 +1,251 @@
 {
-  "_note": "Draft v3.0 (narrated, buying) (2026-11-01). English UI, the Seoul couple buys a home near Pangyo (real Muse Spark 1.3 run on the dev server). The orchestrator writes and the user approves the words; Muse builds the scenes from this file and never rewrites the copy. Times in seconds at 30 fps. `asset` paths are under video/public/. {stat:key} reads data/stats.json; a null stat drops the whole line.",
-  "fps": 30,
-  "width": 1920,
-  "height": 1080,
-  "scenes": [
+ "_note": "Final v4.0 (2026-11-02). English UI. Korea first (Seoul couple buying near Pangyo, real Muse Spark 1.3 run on the production build), then Meta HQ in Menlo Park on Muse Spark Open with the header switch. Numbers in the words come from those two recordings only. The orchestrator writes the words; Muse never rewrites the copy. Times in seconds at 30 fps; `asset` paths are under video/public/; {stat:key} reads data/stats.json.",
+ "fps": 30,
+ "width": 1920,
+ "height": 1080,
+ "scenes": [
+  {
+   "id": "open",
+   "duration": 6.5,
+   "kind": "title",
+   "image": "brand/ithaca-banner.png",
+   "lines_en": [
+    "A house viewing gives you thirty minutes.",
+    "The decision stays with you for years."
+   ],
+   "lines_ko": [],
+   "start": 0.0
+  },
+  {
+   "id": "story",
+   "duration": 20.5,
+   "kind": "title",
+   "lines_en": [
+    "I'm Halo. My partner and I are looking for our first home.",
+    "How long is the walk home at night? Is the morning train full? What does a month really cost?",
+    "I could look at a home for thirty minutes. I couldn't live in it before I signed."
+   ],
+   "lines_ko": [],
+   "start": 6.5
+  },
+  {
+   "id": "problem",
+   "duration": 11,
+   "kind": "stats",
+   "caption_en": "Korea's riskiest decision falls on the youngest.",
+   "rows_en": [
+    "About {stat:jeonse_fraud_victims_2030_pct}% of deposit-fraud victims are in their 20s and 30s",
+    "Source: {stat:jeonse_fraud_source}"
+   ],
+   "start": 27.0
+  },
+  {
+   "id": "idea",
+   "duration": 6,
+   "kind": "screen",
+   "asset": "clips/30-korea-en.mp4",
+   "clip_from": 122,
+   "caption_en": "Before you sign, an AI household lives 30 days in each home.",
+   "start": 38.0
+  },
+  {
+   "id": "demo1",
+   "duration": 19.5,
+   "kind": "screen",
+   "asset": "clips/30-korea-en.mp4",
+   "clip_from": 8,
+   "playback_rate": 1.35,
+   "caption_en": "Korea first: a couple working in Pangyo says it in plain words. Muse Spark calls real tools.",
+   "callouts": [
     {
-      "id": "hook",
-      "duration": 11,
-      "kind": "title",
-      "lines_en": [
-        "In Seoul, buying a home takes your savings and a large loan, often decided after one short viewing.",
-        "What if you could live there first?"
-      ],
-      "lines_ko": [],
-      "start": 0.0
-    },
-    {
-      "id": "pitch",
-      "duration": 8.5,
-      "kind": "title",
-      "image": "brand/ithaca-banner.png",
-      "lines_en": [
-        "An AI household lives 30 days in the homes you pick, before you buy."
-      ],
-      "lines_ko": [],
-      "start": 11.0
-    },
-    {
-      "id": "ask",
-      "duration": 16.5,
-      "kind": "screen",
-      "asset": "clips/20-buy-en.mp4",
-      "clip_from": 0,
-      "playback_rate": 1.6,
-      "caption_en": "A couple working in Pangyo says it in plain words. Muse Spark 1.3 reads it and calls real tools.",
-      "zooms": [
-        {
-          "at": 0.5,
-          "until": 6.0,
-          "rect": [
-            0.15,
-            0.05,
-            0.7,
-            0.45
-          ]
-        }
-      ],
-      "callouts": [
-        {
-          "at": 6.5,
-          "text_en": "Salaries ₩60M + ₩50M · ₩200M saved · buy for ₩700M or less"
-        }
-      ],
-      "start": 19.5
-    },
-    {
-      "id": "candidates",
-      "duration": 9.5,
-      "kind": "screen",
-      "asset": "clips/20-buy-en.mp4",
-      "clip_from": 27,
-      "caption_en": "Candidates from the government's real purchase records, one per neighbourhood, with the commute to Pangyo.",
-      "zooms": [
-        {
-          "at": 1.0,
-          "until": 9.0,
-          "rect": [
-            0.5,
-            0.05,
-            0.42,
-            0.8
-          ]
-        }
-      ],
-      "callouts": [
-        {
-          "at": 1.5,
-          "text_en": "Price = median of real purchase deals"
-        }
-      ],
-      "start": 36.0
-    },
-    {
-      "id": "live",
-      "duration": 10.5,
-      "kind": "screen",
-      "asset": "clips/20-buy-en.mp4",
-      "clip_from": 47,
-      "caption_en": "Pick two. Muse lives 30 days in each home: the same household, the same seed.",
-      "callouts": [
-        {
-          "at": 7,
-          "text_en": "No ranking, no winner"
-        }
-      ],
-      "start": 45.5
-    },
-    {
-      "id": "days",
-      "duration": 12,
-      "kind": "screen",
-      "asset": "clips/21-3d-ride-en.mp4",
-      "clip_from": 0.3,
-      "playback_rate": 0.5,
-      "caption_en": "Every trip, minute by minute: real walking paths, subway timetables, measured crowding.",
-      "zooms": [
-        {
-          "at": 6.5,
-          "until": 11.5,
-          "rect": [
-            0.68,
-            0.08,
-            0.32,
-            0.45
-          ]
-        }
-      ],
-      "callouts": [
-        {
-          "at": 1,
-          "text_en": "Recorded month: Songpa → Pangyo on four lines"
-        },
-        {
-          "at": 6,
-          "text_en": "Measured or assumed: every leg says which"
-        }
-      ],
-      "start": 56.0
-    },
-    {
-      "id": "results",
-      "duration": 11,
-      "kind": "screen",
-      "asset": "clips/20-buy-en.mp4",
-      "clip_from": 58,
-      "caption_en": "After 30 days: the cost to buy, what you pay each month, and the real commute.",
-      "zooms": [
-        {
-          "at": 1,
-          "until": 10.5,
-          "rect": [
-            0.0,
-            0.03,
-            0.37,
-            0.62
-          ]
-        }
-      ],
-      "callouts": [
-        {
-          "at": 4,
-          "text_en": "A score on your own criteria, never a verdict"
-        }
-      ],
-      "start": 68.0
-    },
-    {
-      "id": "pay",
-      "duration": 13.5,
-      "kind": "screen",
-      "asset": "clips/20-buy-en.mp4",
-      "clip_from": 84,
-      "playback_rate": 1.1,
-      "caption_en": "What you pay, line by line, each with the law it comes from.",
-      "zooms": [
-        {
-          "at": 0.5,
-          "until": 6.0,
-          "rect": [
-            0.0,
-            0.03,
-            0.37,
-            0.62
-          ]
-        },
-        {
-          "at": 6.5,
-          "until": 13.0,
-          "rect": [
-            0.0,
-            0.36,
-            0.37,
-            0.62
-          ]
-        }
-      ],
-      "callouts": [
-        {
-          "at": 1,
-          "text_en": "Loan payment each month · taxes and agent fee once"
-        }
-      ],
-      "start": 79.0
-    },
-    {
-      "id": "verify",
-      "duration": 14,
-      "kind": "screen",
-      "asset": "clips/20-buy-en.mp4",
-      "clip_from": 99,
-      "playback_rate": 1.3,
-      "caption_en": "Muse writes the report, code re-checks every number, and each moment opens the minute it came from.",
-      "zooms": [
-        {
-          "at": 0.5,
-          "until": 5.0,
-          "rect": [
-            0.0,
-            0.03,
-            0.37,
-            0.62
-          ]
-        }
-      ],
-      "callouts": [
-        {
-          "at": 1,
-          "text_en": "Report check: passed on the first try"
-        },
-        {
-          "at": 8,
-          "text_en": "Day 1, 08:00, in 3D"
-        }
-      ],
-      "start": 92.5
-    },
-    {
-      "id": "meta",
-      "duration": 18.0,
-      "kind": "stats",
-      "caption_en": "Built with Meta AI.",
-      "table_en": [
-        [
-          "Muse Spark 1.3",
-          "Talks with you, calls the tools, and makes the household's everyday choices with reasons"
-        ],
-        [
-          "Spark 1.3 as judge",
-          "Checks every sentence of the report against the record"
-        ],
-        [
-          "Muse Spark Open",
-          "Same choice at {stat:spark_open_same} of {stat:spark_open_shared} shared decisions ({stat:spark_open_same_pct}%)"
-        ],
-        [
-          "Muse Code",
-          "Wrote every line of product code and every test from the stage briefs"
-        ],
-        [
-          "Muse Voice",
-          "Say it instead of typing it"
-        ]
-      ],
-      "start": 106.5
-    },
-    {
-      "id": "end",
-      "duration": 8,
-      "kind": "title",
-      "image": "brand/ithaca-banner.png",
-      "lines_en": [
-        "We walk the odyssey. You just come home."
-      ],
-      "lines_ko": [],
-      "footers": [
-        "{stat:site_url}",
-        "{stat:repo_url}"
-      ],
-      "start": 124.5
+     "at": 13,
+     "text_en": "Prices = median of real purchase deals, in full won"
     }
-  ]
+   ],
+   "start": 44.0
+  },
+  {
+   "id": "demo2a",
+   "duration": 9,
+   "kind": "screen",
+   "asset": "clips/30-korea-en.mp4",
+   "clip_from": 50,
+   "playback_rate": 1.6,
+   "caption_en": "Pick two. The same household lives the same month in both homes.",
+   "start": 63.5
+  },
+  {
+   "id": "demo2b",
+   "duration": 6,
+   "kind": "screen",
+   "asset": "clips/30-korea-en.mp4",
+   "clip_from": 124,
+   "caption_en": "Every trip, minute by minute, in a 3D model of the real neighbourhood.",
+   "start": 72.5
+  },
+  {
+   "id": "demo3",
+   "duration": 12,
+   "kind": "screen",
+   "asset": "clips/30-korea-en.mp4",
+   "clip_from": 64,
+   "caption_en": "What the listing doesn't say: 7 min vs 24 min to work; walking home after dark 10 vs 36 times a month.",
+   "zooms": [
+    {
+     "at": 0.5,
+     "until": 11,
+     "rect": [
+      0.0,
+      0.03,
+      0.4,
+      0.6
+     ]
+    }
+   ],
+   "callouts": [
+    {
+     "at": 1,
+     "text_en": "Example listing text: “5 min to the station”"
+    },
+    {
+     "at": 6,
+     "text_en": "After living it: 7 min vs 24 min one-way"
+    }
+   ],
+   "start": 78.5
+  },
+  {
+   "id": "demo3b",
+   "kind": "screen",
+   "asset": "clips/30-korea-en.mp4",
+   "duration": 7,
+   "clip_from": 82.05,
+   "playback_rate": 0.1,
+   "caption_en": "Ithaca never picks for you. It shows you, and you decide.",
+   "zooms": [
+    {
+     "at": 0.3,
+     "until": 6.8,
+     "rect": [
+      0.0,
+      0.3,
+      0.4,
+      0.6
+     ]
+    }
+   ],
+   "callouts": [
+    {
+     "at": 0.5,
+     "text_en": "Only living there tells you"
+    }
+   ],
+   "start": 90.5
+  },
+  {
+   "id": "trust",
+   "duration": 9.5,
+   "kind": "screen",
+   "asset": "clips/30-korea-en.mp4",
+   "clip_from": 100,
+   "playback_rate": 1,
+   "caption_en": "Code re-checks every number; a separate Muse judge rejects unsupported sentences.",
+   "zooms": [
+    {
+     "at": 0.5,
+     "until": 9,
+     "rect": [
+      0.0,
+      0.3,
+      0.4,
+      0.6
+     ]
+    }
+   ],
+   "callouts": [
+    {
+     "at": 2,
+     "text_en": "Report check: passed on the first try"
+    }
+   ],
+   "start": 97.5
+  },
+  {
+   "id": "metaa",
+   "duration": 13,
+   "kind": "screen",
+   "asset": "clips/31-meta-en.mp4",
+   "clip_from": 8,
+   "playback_rate": 1.2,
+   "caption_en": "We also built it for Meta HQ in Menlo Park, and you can switch to Muse Spark Open.",
+   "zooms": [
+    {
+     "at": 0.5,
+     "until": 4.5,
+     "rect": [
+      0.0,
+      0.0,
+      0.5,
+      0.3
+     ]
+    }
+   ],
+   "callouts": [
+    {
+     "at": 1,
+     "text_en": "Muse Spark 1.3 | Muse Spark Open (open weights)"
+    }
+   ],
+   "start": 107.0
+  },
+  {
+   "id": "metab",
+   "duration": 9,
+   "kind": "screen",
+   "asset": "clips/31-meta-en.mp4",
+   "clip_from": 108,
+   "caption_en": "Caltrain timetables, ZIP-level rent, the same 30 days. Every reply says which model answered.",
+   "start": 120.0
+  },
+  {
+   "id": "built",
+   "duration": 11,
+   "kind": "stats",
+   "caption_en": "Built with Meta AI.",
+   "table_en": [
+    [
+     "Muse Spark 1.3",
+     "Talks with you, calls the tools, and makes the household's everyday choices with reasons"
+    ],
+    [
+     "Spark 1.3 as judge",
+     "Checks every sentence of the report against the record"
+    ],
+    [
+     "Muse Spark Open",
+     "Live in the product; same choice at {stat:spark_open_same} of {stat:spark_open_shared} shared decisions ({stat:spark_open_same_pct}%)"
+    ],
+    [
+     "Muse Code",
+     "Wrote all product code and tests from the stage briefs, since Oct 28"
+    ]
+   ],
+   "start": 129.0
+  },
+  {
+   "id": "close",
+   "duration": 8,
+   "kind": "title",
+   "image": "brand/ithaca-banner.png",
+   "lines_en": [
+    "We're still looking for our home. This time, we'll live there first."
+   ],
+   "lines_ko": [],
+   "footers": [
+    "{stat:site_url}",
+    "{stat:repo_url}"
+   ],
+   "start": 140.0
+  }
+ ]
 }

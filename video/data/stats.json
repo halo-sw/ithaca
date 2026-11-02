@@ -1,6 +1,6 @@
 {
   "_note": "Numbers shown in the video. Filled and checked by the orchestrator from the repo, logs and official sources. A null value is not shown on screen (the scene drops that line). Muse never edits this file.",
-  "built_from": "2026-11-01",
+  "built_from": "2026-11-02",
   "repo_url": "github.com/halo-sw/ithaca",
   "site_url": "halo-sw.github.io/ithaca",
   "stage_briefs": null,
@@ -19,6 +19,6 @@
   "regions": null,
   "station_boxes": null,
   "spark_open_judgments": 154,
-  "jeonse_fraud_victims_2030_pct": null,
-  "jeonse_fraud_source": null
+  "jeonse_fraud_victims_2030_pct": 75,
+  "jeonse_fraud_source": "Ministry of Land data, reported by Hankyung, 2025-03-10"
 }

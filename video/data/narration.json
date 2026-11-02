@@ -1,13 +1,13 @@
 {
- "hook": "In Seoul, buying a home takes your savings and a large loan, and the choice is often made after one short viewing. What if you could live there first?",
- "pitch": "Ithaca is a pre-living agent. An AI household lives thirty days in the homes you pick, before you buy.",
- "ask": "Here, a couple who both work in Pangyo type their situation in English: two salaries, two hundred million won saved, a home under seven hundred million. Muse Spark one point three reads it, and calls real tools.",
- "candidates": "The candidates come from the government's real purchase records, one per neighbourhood, each with the door-to-door commute to Pangyo.",
- "live": "Pick two. Muse lives thirty days in each home, with the same household and the same random seed. There's no ranking, and no winner.",
- "days": "Every trip is simulated minute by minute: real walking paths, subway timetables, and measured crowding. Each leg says whether it's measured or assumed.",
- "results": "After thirty days, you see the cost to buy, what you pay every month, and the real commute: seven minutes from one home, twenty-five from the other.",
- "pay": "Every won is itemised: the loan payment each month, and the acquisition tax, local education tax, rural development tax and agent fee, each with the law it comes from.",
- "verify": "Muse writes the report. Code re-checks every number, and every moment opens the three-D view at the minute it happened.",
- "meta": "Ithaca is built with Meta AI. Muse Spark one point three talks with you and makes the household's choices. Spark Open made the same choice in eighty-six percent of shared decisions. And Muse Code wrote every line of product code.",
- "end": "We walk the odyssey. You just come home."
+ "open": "A house viewing gives you thirty minutes. The decision stays with you for years.",
+ "story": "I'm Halo. My partner and I are looking for our first home. Every listing looked fine in the photos. But I kept wondering: how long is the walk home at night? Is the morning train full? What does a month really cost? I could look at a home for thirty minutes. I couldn't live in it before I signed.",
+ "problem": "In Korea, about three in four victims of deposit fraud are in their twenties and thirties. The people with the least experience carry the biggest risk.",
+ "idea": "So before you sign, an AI household lives thirty days in each home.",
+ "demo1": "Here, a couple who both work in Pangyo say it in plain words: two salaries, two hundred million won saved, a home under seven hundred million. Muse Spark reads it and calls real tools: real purchase records, prices in won, and the door-to-door commute for each home.",
+ "demo2a": "Pick two homes, and the same household lives the same month in both. Muse decides each day: when to leave, walk or ride, the park or the store, and says why. The engine counts every minute and every won.",
+ "demo3": "A listing might say five minutes to the station. Living there showed more: one home is seven minutes from work, the other twenty-four. From one station they walk home after dark ten times a month, from the other, thirty-six. Ithaca never picks for you. It shows you, and you decide.",
+ "trust": "Before you see the report, code re-checks every number, and a separate Muse judge rejects any sentence the record does not support.",
+ "metaa": "We also built it for Meta HQ in Menlo Park: Caltrain timetables, ZIP-level rent, the same thirty days. Switch the model to Muse Spark Open, the open-weights model, and the month runs again. If it's busy, Muse Spark one point three steps in, and every reply says which model answered.",
+ "built": "Muse Spark talks and decides. A Muse judge checks the report. And Muse Code wrote every line of product code, starting October twenty-eighth.",
+ "close": "We're still looking for our home. This time, we'll live there first."
 }
