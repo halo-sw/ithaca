@@ -1763,6 +1763,17 @@ export function conjParticle(name) {
   if (!Number.isFinite(code) || code < 0xac00 || code > 0xd7a3) return "";
   return (code - 0xac00) % 28 === 0 ? "와" : "과";
 }
+// 42h: object particle from the name's last Hangul syllable
+// (closed syllable → 을, open → 를). A last char that is not a
+// Hangul syllable (digit, Latin, bracket) leaves it unknowable → ""
+// and the caller uses the no-particle `… 담아` form.
+export function objParticle(name) {
+  const s = String(name || "");
+  if (s.length === 0) return "";
+  const code = s.charCodeAt(s.length - 1);
+  if (!Number.isFinite(code) || code < 0xac00 || code > 0xd7a3) return "";
+  return (code - 0xac00) % 28 === 0 ? "를" : "을";
+}
 // `${label} ${name}` with the right topic particle — or the
 // no-particle `A {name}: …` form when it is unknowable.
 export function topicClause(label, name, tail) {
@@ -2102,9 +2113,19 @@ function personForQuestion(people, text) {
 
 // "3번 집이랑도 비교해 줘" after a run: keep A and B, add candidate
 // N, and run the 3-home stay. Null when it is not such a request.
+// 42h: "N번도 같이 살아 봐 줘" / "add home N to the comparison" are
+// the same action — a map number plus 비교/살아봐 (or compare/live).
 export function isCompareAddRequest(text) {
   const s = String(text || "");
-  return /(비교|compare)/i.test(s) && /(\d|번|#|추가|add|with|and)/i.test(s);
+  if (!/(\d+\s*번|#\d+|home\s*\d+|\d+\s*번?\s*집)/i.test(s)) return false;
+  return /(비교|compare|살아\s*봐|살아봐|live|stay)/i.test(s);
+}
+// 42h: typed "more candidates" — the same handler as the candidate
+// card's "다른 후보 N곳 더 보기" button (rule path re-runs the search
+// with limit 12). afterRunAnswer still returns null for these.
+export function isMoreCandidatesRequest(text) {
+  const s = String(text || "").trim();
+  return /^(다른 후보 더 보여\s*줘|더 보여\s*줘|다른 집 더( 보여\s*줘?)?|show more homes)$/i.test(s);
 }
 
 function compareAddTarget(text, { picks = [], candidates = [] } = {}) {
@@ -2266,9 +2287,10 @@ export function afterRunAnswer(text, { messages = [], picks = [], candidates = [
       return `${labelOf(id)} ${en && /[가-힣]/.test(nm(c)) ? homeNameEn(nm(c)) : nm(c)}`;
     });
     const addedNm = en && /[가-힣]/.test(nm(add.added)) ? homeNameEn(nm(add.added)) : nm(add.added);
+    const op = en ? "" : objParticle(nm(add.added));
     return { pick: add.ids, run: add.ids,
       line: en ? `Added ${addedNm} — running the 30-day stay in ${names.join(", ")}.`
-        : `${nm(add.added)}을 담아 ${names.join(", ")} 세 집으로 살아 볼게요.` };
+        : `${nm(add.added)}${op} 담아 ${names.join(", ")} 세 집으로 살아 볼게요.` };
   }
   // Typed picks and runs stay on the rule flow, never the fallback.
   if (isRunRequest(t) || PICK_VERB_RE_42D.test(t)) return null;
@@ -2358,15 +2380,42 @@ export function nonMuseNoReplyLine(text, { messages = [], lang = currentLang() }
 
 // 42e: a Muse turn that ended in the generic fallback (out.fallback)
 // still answers when the rule flow has a real answer for the text —
-// the rule line marked, never the Muse fallback line itself. Pure.
+// the rule line itself, never the Muse fallback line itself. Pure.
+// 42h: no inline rule-mark suffix on the line — the bubble's meta
+// line (fromModel: false) already says it.
 export function ruleAnswerForMuseFallback(text, out, ctx = {}) {
   if (!out || !out.fallback) return null;
-  const lang = ctx.lang || "ko";
   const r = afterRunAnswer(text, ctx);
   if (!r || !r.line) return null;
+  if (r.pick || r.run) return null;
   if (r.line === AFTER_RUN_MUSE_FALLBACK || r.line === AFTER_RUN_MUSE_FALLBACK_EN) return null;
-  const mark = lang === "en" ? "answered by rule." : "규칙으로 답했어요.";
-  return { ...r, line: `${r.line} (${mark})` };
+  return { ...r };
+}
+// 42h: numbers always land — after a Muse turn, when afterRunAnswer
+// recognises a stay intent with data (money/loan/관리비, crowding,
+// late return, person/weekend activity, a home's commute) but Muse's
+// visible text carries no digit, the caller pushes this rule answer
+// as one extra bubble right after Muse's (meta says 규칙으로
+// 답했어요; tab/scene apply only when Muse opened none). Pure:
+// null when Muse already gave a number, or for anything that is not
+// a data-backed stay answer (actions, unknown text). No inline mark.
+export function ruleAnswerForDigitlessMuse(text, museText, ctx = {}) {
+  if (/\d/.test(String(museText || ""))) return null;
+  const r = afterRunAnswer(text, ctx);
+  if (!r || !r.line) return null;
+  if (r.pick || r.run) return null;
+  return { ...r };
+}
+// 42h: compare-add is an action, not a question — after a done run,
+// "N번 집이랑도 비교해 줘" adds candidate N to the picks (keeping A
+// and B) and runs the 3-home stay. The Muse path calls this before
+// the Muse call (Muse is never asked); the rule path already answers
+// it first via afterRunAnswer in structuredFlow. Pure.
+export function preMuseCompareAdd(text, { messages = [], picks = [], candidates = [], lang = currentLang() } = {}) {
+  if (!latestDoneSim(messages)) return null;
+  const r = afterRunAnswer(text, { messages, picks, candidates, lang });
+  if (!r || !r.pick || !r.run) return null;
+  return r;
 }
 
 // 42d: compact run summary (≤ 3 KB) so Muse can answer stay
@@ -3032,6 +3081,22 @@ export function ChatScreen() {
         return;
       }
     }
+    // 42h: typed "more candidates" (isMoreCandidatesRequest) calls
+    // the same handler as the card's "다른 후보 N곳 더 보기" button —
+    // a re-run of the stored profile with limit 12, no Muse, no
+    // extract. afterRunAnswer already returned null for it (42f).
+    if (isMoreCandidatesRequest(text)) {
+      const stMore = stateRef.current;
+      if (stMore.profile && profileHasValues(stMore.profile)) {
+        const dataMore = await ensureData(null);
+        if (dataMore) {
+          await runSearch(stMore.profile, dataMore,
+            { sort: (stMore.candidatesData && stMore.candidatesData.sort) || "commute",
+              limit: 12 });
+          return;
+        }
+      }
+    }
     // 30c: typed picks/runs while candidates are on screen — the same
     // state the Pick buttons and tray run button use, no
     // extract_profile, no profile change.
@@ -3215,8 +3280,10 @@ export function ChatScreen() {
   const lastSearchRef = useRef("");
   // 29N2a: "show more" ("다른 후보 더 보여 줘") re-runs with limit
   // 12 — the corridor first page spreads, the longer list stays pure.
+  // 42h: every typed more-candidates variant (isMoreCandidatesRequest)
+  // takes the same limit as the card button.
   function searchLimitFor(t) {
-    return String(t || "").trim() === "다른 후보 더 보여 줘" ? 12 : 6;
+    return isMoreCandidatesRequest(t) ? 12 : 6;
   }
   async function runSearch(prof, data, { sort, limit = 6 }) {
     lastSearchRef.current = profileSummary(prof);
@@ -3695,6 +3762,25 @@ export function ChatScreen() {
       }
     };
     const st = stateRef.current;
+    // 42h: compare-add is an action, not a question — after a done
+    // run "N번 집이랑도 비교해 줘" adds candidate N (keeping A and B)
+    // and runs the 3-home stay here, before the Muse call. Muse is
+    // not asked. (The rule path already answers it first via
+    // afterRunAnswer in structuredFlow.)
+    {
+      const preCands = (((st.candidatesData || {}).result || {}).candidates) || [];
+      const preAdd = preMuseCompareAdd(text, { messages: st.messages,
+        picks: st.picks, candidates: preCands, lang: LANG });
+      if (preAdd) {
+        if (preAdd.pick) {
+          setPicks(preAdd.pick);
+          stateRef.current.picks = preAdd.pick;
+        }
+        for (const m of afterRunChipTurn(preAdd)) pushMsg(m);
+        if (preAdd.run) await handleRun(preAdd.run);
+        return;
+      }
+    }
     let scen = st.scenario;
     if (!scen) {
       try {
@@ -3824,6 +3910,38 @@ export function ChatScreen() {
       pushMsg({ role: "assistant", kind: "text", content: bubble.content || "",
         tool_calls: bubble.tool_calls, suggestions: [...suggestions],
         fromModel: !out.fallback, model: usedProvider });
+      // 42h: numbers always land — when afterRunAnswer recognises a
+      // stay intent with data but Muse's visible text carries no
+      // digit, the rule answer follows as one extra bubble (its meta
+      // line says 규칙으로 답했어요; tab/scene apply only when Muse
+      // opened none). No fromModel stamp, so the meta shows; no
+      // inline suffix on the line.
+      {
+        const supplement = (!fallbackRule && !out.fallback)
+          ? ruleAnswerForDigitlessMuse(text, bubble.content, {
+            messages: stateRef.current.messages, picks: stateRef.current.picks,
+            candidates: liveCands, lang: LANG }) : null;
+        const museOpenedPanel = Array.isArray(out.uiActions)
+          && out.uiActions.some((a) => a && a.action === "panel");
+        if (supplement) {
+          let say = supplement.line;
+          if (!museOpenedPanel) {
+            if (supplement.scene) {
+              const res = sceneForEffect(supplement.scene, { picks: stateRef.current.picks,
+                candidates: liveCands,
+                latestRun: latestDoneRun(stateRef.current.messages) });
+              if (res && res.url) {
+                setScene({ url: res.url, title: res.title });
+                setWorkOpen(true);
+              } else if (res && res.say) {
+                say = res.say;
+              }
+            }
+            if (supplement.tab) store.set({ compareOpen: true, compareTab: supplement.tab });
+          }
+          for (const m of afterRunChipTurn({ line: say })) pushMsg(m);
+        }
+      }
       // 27g: the Muse path never ran ensureData, so the map stayed on its
       // placeholder after Muse found homes. Fill it now (no await — the
       // workOpen effect re-renders when it lands).

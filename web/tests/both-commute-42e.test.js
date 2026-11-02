@@ -273,14 +273,15 @@ describe("42e crowding in the summary + the agent context", () => {
 });
 
 describe("42e a Muse fallback turn still shows the rule answer", () => {
-  it("loan question: rule amounts marked 규칙으로 답했어요", () => {
+  it("loan question: rule amounts, no inline mark (meta says it)", () => {
     const { messages, picks, candidates } = thread();
     const r = Chat.ruleAnswerForMuseFallback("대출은 얼마나 받아야 해?",
       { fallback: true }, { messages, picks, candidates, lang: "ko" });
     assert.ok(r, "rule answer");
     assert.equal(r.tab, "money");
     assert.ok(r.line.includes("8,000만"), r.line);
-    assert.ok(r.line.includes("규칙으로 답했어요"), r.line);
+    assert.ok(!r.line.includes("(규칙으로 답했어요"), r.line);
+    assert.ok(!r.line.includes("(answered by rules"), r.line);
   });
 
   it("no rule answer without a fallback, or without a rule match", () => {
