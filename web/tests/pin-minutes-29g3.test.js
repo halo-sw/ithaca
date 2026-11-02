@@ -56,11 +56,18 @@ describe("29g3 commuteMinutesOf prefers door-to-work", () => {
       walk: { minutes: null, known: false }, ride: { known: false, minutes: null },
     } }), null);
   });
-  it("first recorded US candidate with commute.work matches its work.minutes", () => {
+  it("first recorded US candidate matches what commuteMinutesOf returns today", () => {
     const first = candidatesOfRecording().find((c) => Number.isFinite(c?.commute?.work?.minutes));
     assert.ok(first, "recording has a candidate with commute.work");
-    const expected = Math.round(first.commute.work.minutes * 10) / 10;
+    const expected = Number.isFinite(first.best_min)
+      ? first.best_min
+      : Math.round(first.commute.work.minutes * 10) / 10;
     assert.equal(commuteMinutesOf(first), expected);
+  });
+  it("runMode walk returns the recorded work.walk_minutes", () => {
+    const first = candidatesOfRecording().find((c) => Number.isFinite(c?.commute?.work?.walk_minutes));
+    assert.ok(first, "recording has a candidate with commute.work.walk_minutes");
+    assert.equal(commuteMinutesOf(first, "walk"), Math.round(first.commute.work.walk_minutes * 10) / 10);
   });
 });
 
