@@ -98,8 +98,26 @@ export function sharedLegendNote(shared, lang) {
 const TENURE_EN_WORD = { jeonse: "jeonse",
   wolse: "monthly", monthly: "monthly", sale: "sale", maemae: "sale" };
 
-function legendFor(lang, shared, mixed, tenure, provider) {
+function legendFor(lang, shared, mixed, tenure, provider, hasWorkplace = true) {
   const vworld = provider !== "usgs";
+  // 41l: "출근 시간" names a real commute — with no known workplace
+  // the legend names the station walk instead.
+  if (hasWorkplace === false) {
+    if (lang === "en") {
+      const tail = vworld ? " · Ⓐ Ⓑ picked · ■ work · ━ subway" : " · Ⓐ Ⓑ picked · ■ work";
+      if (shared) return `No.·area / walk to station${tail}`;
+      if (!mixed && TENURE_EN_WORD[tenure]) return `No.·area / ${TENURE_EN_WORD[tenure]} / walk to station${tail}`;
+      return `No.·area / price / walk to station${tail}`;
+    }
+    if (shared) {
+      return vworld
+        ? "번호·면적 / 역까지 도보 · Ⓐ Ⓑ 담은 집 · ■ 회사 · ━ 지하철"
+        : "번호·면적 / 역까지 도보 · Ⓐ Ⓑ 담은 집 · ■ 회사";
+    }
+    return vworld
+      ? "번호·면적 / 가격 / 역까지 도보 · Ⓐ Ⓑ 담은 집 · ■ 회사 · ━ 지하철"
+      : "번호·면적 / 가격 / 역까지 도보 · Ⓐ Ⓑ 담은 집 · ■ 회사";
+  }
   if (lang === "en") {
     const tail = vworld ? " · Ⓐ Ⓑ picked · ■ work · ━ subway" : " · Ⓐ Ⓑ picked · ■ work";
     if (shared) return `No.·area / commute${tail}`;
@@ -120,17 +138,21 @@ function legendFor(lang, shared, mixed, tenure, provider) {
 // nowrap element, so the legend wraps only between items (never
 // `■ 회사 · —` / `지하철` inside one item). Split on the spaced
 // separator; the items themselves never contain it.
-export function legendItems(lang, shared, mixed, tenure, provider) {
-  return legendFor(lang, shared, mixed, tenure, provider).split(" · ");
+export function legendItems(lang, shared, mixed, tenure, provider, hasWorkplace = true) {
+  return legendFor(lang, shared, mixed, tenure, provider, hasWorkplace).split(" · ");
 }
 
-export function pinAriaLabel(p, short, lang) {
+export function pinAriaLabel(p, short, lang, hasWorkplace = true) {
+  // 41l: without a known workplace the minutes are the station walk.
+  const walkBit = hasWorkplace === false;
   if (lang === "en") {
     const parts = [`Candidate ${p.n}: ${displayNameFor(p.candidate)}`];
     if (short) parts.push(short);
     if (p.commuteMin !== null && p.commuteMin !== undefined
       && Number.isFinite(Number(p.commuteMin))) {
-      parts.push(`${Math.round(p.commuteMin)} min commute`);
+      parts.push(walkBit
+        ? `${Math.round(p.commuteMin)} min walk to station`
+        : `${Math.round(p.commuteMin)} min commute`);
     }
     return parts.join(" · ");
   }
@@ -138,7 +160,9 @@ export function pinAriaLabel(p, short, lang) {
   if (short) parts.push(short);
   if (p.commuteMin !== null && p.commuteMin !== undefined
     && Number.isFinite(Number(p.commuteMin))) {
-    parts.push(`출근 ${Math.round(p.commuteMin)}분`);
+    parts.push(walkBit
+      ? `역까지 걸어서 ${Math.round(p.commuteMin)}분`
+      : `출근 ${Math.round(p.commuteMin)}분`);
   }
   return parts.join(" · ");
 }
@@ -353,7 +377,8 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
       let tagHM = 0;
       for (const p of ((map && map.pins) || [])) {
         try {
-          const s = tagSizePx(p, map.tenure, langM, { compact: compactM, sharedRent: !!shared });
+          const s = tagSizePx(p, map.tenure, langM, { compact: compactM, sharedRent: !!shared,
+            hasWorkplace: !!(map && map.workPin) });
           if (s && s.h > tagHM) tagHM = s.h;
         } catch { /* keep the tallest so far */ }
       }
@@ -404,6 +429,9 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
   }, [W, H]);
   const m = map || {};
   const pins = m.pins || [];
+  // 41l: 출근 labels need a real door-to-door commute — without a
+  // known workplace the minutes are the station walk.
+  const hasWork = !!m.workPin;
   // 29N2h: layout identity per pin position — key-less pins fall
   // back to id::region::index so each keeps its own tag.
   const pinKeys = new Map(pins.map((p, i) => [p, pinKeyOf(p, i)]));
@@ -474,9 +502,10 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
     // rendering-language lines, in the phone size when narrow.
     // 31m: the compact form (header + price, no commute line) rides
     // along as alt for crowded stages.
-    const sz = tagSizePx(p, m.tenure, lang, { compact, sharedRent: !!shared, mixedTenure });
+    const sz = tagSizePx(p, m.tenure, lang, { compact, sharedRent: !!shared, mixedTenure,
+      hasWorkplace: hasWork });
     const shortSz = tagSizePx(p, m.tenure, lang,
-      { compact, short: true, sharedRent: !!shared, mixedTenure });
+      { compact, short: true, sharedRent: !!shared, mixedTenure, hasWorkplace: hasWork });
     // 29N2f: layout identity is the pin key (id + region +
     // candidate index), so old data with ids repeated across areas
     // still lays out one tag per home. Card hover/click below keep
@@ -735,7 +764,7 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
   const pinButtonProps = (p, short) => ({
     role: "button",
     tabIndex: 0,
-    "aria-label": pinAriaLabel(p, short, lang),
+    "aria-label": pinAriaLabel(p, short, lang, hasWork),
     onMouseEnter: () => onPinHover && onPinHover(`home:${p.id}`),
     onMouseLeave: () => onPinHover && onPinHover(null),
     onFocus: () => onPinHover && onPinHover(`home:${p.id}`),
@@ -1062,9 +1091,10 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
             // line (the aria-label still names the minutes).
             const isShort = !!(l && l.short);
             const { header, price, commute } = tagLines(p,
-              { tenure: m.tenure, lang, sharedRent: !!shared, mixedTenure });
+              { tenure: m.tenure, lang, sharedRent: !!shared, mixedTenure, hasWorkplace: hasWork });
             const lines = isShort ? { header, price, commute: null } : { header, price, commute };
-            const sz = tagSizePx(p, m.tenure, lang, { compact, short: isShort, sharedRent: !!shared });
+            const sz = tagSizePx(p, m.tenure, lang, { compact, short: isShort, sharedRent: !!shared,
+              hasWorkplace: hasWork });
             const box = (l && l.box) || { x: px - sz.w / 2, y: py - fs(12) - sz.h, w: sz.w, h: sz.h };
             const hi = cardHi === `home:${p.id}`;
             const picked = !!p.picked;
@@ -1260,7 +1290,8 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
             if (!pin) return null;
             const cluster = laid.find((l) => l.id === expanded);
             // 31g: fanned-out members draw as the new tags.
-            const sz = tagSizePx(pin, m.tenure, lang, { compact, sharedRent: !!shared, mixedTenure });
+            const sz = tagSizePx(pin, m.tenure, lang, { compact, sharedRent: !!shared, mixedTenure,
+              hasWorkplace: hasWork });
             const R = Math.max(48, 18 * arr.length);
             const ang = (-Math.PI / 2) + ((i + 0.5) * 2 * Math.PI) / arr.length;
             const bx = cluster.box.x + cluster.box.w / 2 + R * Math.cos(ang) - sz.w / 2;
@@ -1274,7 +1305,8 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
               ? (letterFillFor(pin.letter) || MAP_COLORS.pinPicked)
               : MAP_COLORS.pinText;
             const box = { x: bx, y: by, w: sz.w, h: sz.h };
-            const lines = tagLines(pin, { tenure: m.tenure, lang, sharedRent: !!shared, mixedTenure });
+            const lines = tagLines(pin, { tenure: m.tenure, lang, sharedRent: !!shared, mixedTenure,
+              hasWorkplace: hasWork });
             return (
               <g key={`open-${mb.id}`} data-layer="home-pin"
                 {...pinButtonProps(pin, tagPriceLine(pin.candidate, m.tenure, lang, { mixedTenure }))}>
@@ -1309,7 +1341,7 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
       {!hideLegend && (
       <div role="note" className={hasFilters
         ? "ui-float ui-chatmap-legend has-filters" : "ui-float ui-chatmap-legend"}>
-        {legendItems(lang, shared, mixedTenure, m.tenure, provider).flatMap((t, i) => (i > 0
+        {legendItems(lang, shared, mixedTenure, m.tenure, provider, hasWork).flatMap((t, i) => (i > 0
           ? [" · ", <span key={i} className="ui-chatmap-legend-item">{t}</span>]
           : [<span key={i} className="ui-chatmap-legend-item">{t}</span>]))}
         {shared && (
