@@ -1,7 +1,7 @@
 // Stage 41g: Meta HQ scenario details (pure-function tests).
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { commuteMinutesOf, layoutChatStage, runCommuteModeOf } from "../src/chatmap.js";
+import { buildChatMap, commuteMinutesOf, layoutChatStage, runCommuteModeOf } from "../src/chatmap.js";
 import { citationsFor, isUsToolContext } from "../src/ui/agent-float.js";
 import { extract_profile, lowerMidSentenceMemberLabels } from "../src/profile.js";
 import { META_HQ_EXAMPLE, META_HQ_EXAMPLE_KO } from "../src/places-us.js";
@@ -107,6 +107,47 @@ describe("41g pin minutes follow the 30-day run mode", () => {
     assert.equal(runCommuteModeOf(walk), "walk");
     assert.equal(runCommuteModeOf({ aways: [] }), null);
     assert.equal(runCommuteModeOf(null), null);
+  });
+  it("reads a direct walk/bike commute off trips and work aways (no ride)", () => {
+    const walkTrip = { trips: [{ purpose: "commute", minutes: 15 }], aways: [] };
+    assert.equal(runCommuteModeOf(walkTrip), "walk");
+    const bikeTrip = { trips: [{ purpose: "commute", minutes: 5, mode: "bike" }], aways: [] };
+    assert.equal(runCommuteModeOf(bikeTrip), "bike");
+    const walkAway = { trips: [],
+      aways: [{ kind: "work", detail: { commute: "walk" } }] };
+    assert.equal(runCommuteModeOf(walkAway), "walk");
+    const errand = { trips: [{ purpose: "park", minutes: 20 }], aways: [] };
+    assert.equal(runCommuteModeOf(errand), null);
+  });
+});
+
+describe("41j picked US pins follow the 30-day run mode", () => {
+  it("walk-run A/B pins show 15, not the 5-min bike", () => {
+    const candidates = [
+      { id: "a-hamilton", lon: -122.15, lat: 37.46, best_min: 5,
+        commute: { work: { walk_minutes: 15, bike_minutes: 5, mode: "walk", minutes: 15 } } },
+      { id: "b-willow", lon: -122.14, lat: 37.47, best_min: 5,
+        commute: { work: { walk_minutes: 15, bike_minutes: 5, mode: "walk", minutes: 15 } } },
+    ];
+    // Real run shape for a direct walk commute: commute trips carry no
+    // mode, the work away stamps detail.commute "walk" — no ride away.
+    const walkRun = () => ({
+      trips: [{ purpose: "commute", minutes: 15 }],
+      aways: [{ kind: "work", detail: { commute: "walk" } }],
+    });
+    const runs = { A: walkRun(), B: walkRun() };
+    // Same stamp chat.jsx applies after runStep.
+    const picked = candidates.filter((c) => ["a-hamilton", "b-willow"].includes(c.id));
+    ["A", "B"].forEach((l, i) => {
+      const m = runCommuteModeOf(runs[l]);
+      const c = picked[i];
+      if (m && c && c.commute && c.commute.work) c.runMode = m;
+    });
+    const map = buildChatMap({ regions: { regions: [] }, network: null,
+      candidates, picks: ["a-hamilton", "b-willow"] });
+    for (const p of map.pins.filter((pin) => pin.picked)) {
+      assert.equal(p.commuteMin, 15, JSON.stringify(p));
+    }
   });
 });
 

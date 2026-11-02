@@ -305,8 +305,22 @@ export function runCommuteModeOf(run) {
   let walked = false;
   for (const a of (run && run.aways) || []) {
     const dw = a && a.detail && a.detail.dest_walk;
-    if (!dw) continue;
-    if (dw.mode === "bike") return "bike";
+    if (dw) {
+      if (dw.mode === "bike") return "bike";
+      walked = true;
+      continue;
+    }
+    // 41j: direct walk/bike commutes (Meta HQ A/B) never ride, so no
+    // ride away carries dest_walk — the work away stamps detail.commute
+    // as the plain string "walk"/"bike", and the commute trips carry
+    // purpose "commute" (bike trips tag mode "bike", walks no mode).
+    const cm = a && a.detail && a.detail.commute;
+    if (cm === "bike") return "bike";
+    if (cm === "walk") walked = true;
+  }
+  for (const t of (run && run.trips) || []) {
+    if (!t || t.purpose !== "commute") continue;
+    if (t.mode === "bike") return "bike";
     walked = true;
   }
   return walked ? "walk" : null;
