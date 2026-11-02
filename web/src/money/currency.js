@@ -6,31 +6,31 @@
 
 import { fmtWon } from "./format.js";
 
-// English short won for map pins (34a, pure, no DOM). Same scale the
-// English cards use: millions / billions with one trimmed decimal
-// ("₩260M", "₩10M", "₩1.6B"), thousands as K ("₩600K"), grouped won
-// below a thousand. Null or non-finite renders "—".
+// English full-digit won for map pins, cards and aria labels (34a, 41i,
+// pure, no DOM). Owner rule 2026-11-01: English money is full digits +
+// " won" ("117,000,000 won", "960,000 won / 10,000,000 won") — never ₩,
+// never K/M/B abbreviations. Null or non-finite renders "—".
 export function fmtWonEn(won) {
   const v = Number(won);
   if (!Number.isFinite(v)) return "—";
-  const neg = v < 0;
-  const abs = Math.abs(v);
-  const trim1 = (x) => String(Math.round(x * 10) / 10);
-  let body;
-  if (abs >= 1000000000) body = `₩${trim1(abs / 1000000000)}B`;
-  else if (abs >= 1000000) body = `₩${trim1(abs / 1000000)}M`;
-  else if (abs >= 1000) body = `₩${Math.round(abs / 1000)}K`;
-  else body = `₩${Math.round(abs).toLocaleString("en-US")}`;
-  return `${neg ? "−" : ""}${body}`;
+  const body = `${Math.round(Math.abs(v)).toLocaleString("en-US")} won`;
+  return `${v < 0 ? "−" : ""}${body}`;
 }
 
-export function fmtMoney(value, currency = "KRW", { monthly = false } = {}) {
+export function fmtMoney(value, currency = "KRW", { monthly = false, lang } = {}) {
   if (value === null || value === undefined) return "—";
   if (currency === "USD") {
     const v = Number(value);
     if (!Number.isFinite(v)) return "—";
     const body = `$${Math.round(Math.abs(v)).toLocaleString("en-US")}`;
     return `${v < 0 ? "−" : ""}${monthly ? "월 " : ""}${body}`;
+  }
+  // 41i: English KRW renders through fmtWonEn above (full digits +
+  // " won"); Korean output and USD are unchanged.
+  if (lang === "en") {
+    const en = fmtWonEn(value);
+    if (en === "—") return en;
+    return monthly ? `monthly ${en}` : en;
   }
   return fmtWon(value, { monthly });
 }

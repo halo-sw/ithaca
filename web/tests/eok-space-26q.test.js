@@ -22,7 +22,7 @@ describe("stage 26q: eok space", () => {
     assert.ok(!dep.includes("iha"), dep);
     assert.equal(
       tr.translate("맞벌이 예비부부, 강남 출근, 전세 4억 이하, 59㎡ 이상"),
-      "Dual-income engaged couple, working in Gangnam, deposit lease under 400M won, 59㎡ or larger",
+      "Dual-income engaged couple, working in Gangnam, deposit lease under 400,000,000 won, 59㎡ or larger",
     );
   });
 });

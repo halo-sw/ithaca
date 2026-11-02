@@ -444,14 +444,25 @@ export function diaryFallbackLine(oneWay, names, lang = "ko") {
   const nmB = (names && names.B) || "B";
   const hasC = names && names.C !== undefined && names.C !== null && names.C !== "";
   if (lang === "en") {
+    // 41i: the model reads the same English names the cards show —
+    // a Korean raw name becomes its homeNameEn here too.
+    const enName = (n, fb) => {
+      const s = (n === undefined || n === null || n === "") ? fb : String(n);
+      return /[가-힣]/.test(s) ? homeNameEn(s) : s;
+    };
+    const enNames = {
+      A: enName(names && names.A, "A"),
+      B: enName(names && names.B, "B"),
+      ...(hasC ? { C: enName(names.C, "C") } : {}),
+    };
     const fmt = (v) => (v === null || v === undefined || v === "" || Number.isNaN(Number(v))
       ? "–" : `${Math.round(Number(v))} min`);
     const a = fmt(oneWay && oneWay.A);
     const b = fmt(oneWay && oneWay.B);
-    let line = `Finished living there. A ${nmA}: average one-way commute ${a}; B ${nmB}: ${b}. Couldn't write the diary this time.`;
+    let line = `Finished living there. A ${enNames.A}: average one-way commute ${a}; B ${enNames.B}: ${b}. Couldn't write the diary this time.`;
     if (hasC) {
       const c = fmt(oneWay && oneWay.C);
-      line = `Finished living there. A ${nmA}: average one-way commute ${a}; B ${nmB}: ${b}; C ${names.C}: ${c}. Couldn't write the diary this time.`;
+      line = `Finished living there. A ${enNames.A}: average one-way commute ${a}; B ${enNames.B}: ${b}; C ${enNames.C}: ${c}. Couldn't write the diary this time.`;
     }
     return line;
   }
@@ -2649,7 +2660,14 @@ export function ChatScreen() {
       // 27d: the diary follows without blocking the result card.
       if (LIVE_API) {
         try {
-          const digests = labels.map((l) => runDigest(runs[l], l, { name: (payload.names || {})[l] || "", lang: currentLang() }));
+          // 41i: the model reads each home's English name (the same
+          // homeNameEn the cards show), never the Korean raw name.
+          const digests = labels.map((l) => {
+            const rawName = (payload.names || {})[l] || "";
+            const digestName = currentLang() === "en" && /[가-힣]/.test(rawName)
+              ? homeNameEn(rawName) : rawName;
+            return runDigest(runs[l], l, { name: digestName, lang: currentLang() });
+          });
           setMessages((prev) => prev.map((m) => (m.id === simId
             ? { ...m, data: { ...m.data, diary: { status: "writing" } } } : m)));
           // 41g: a failed open-weights diary runs once more on Muse

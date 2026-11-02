@@ -4,6 +4,8 @@
 // judge sentence.
 
 import { lowerMidSentenceMemberLabels } from "../profile.js";
+import { cleanupEnglishAnswer } from "./guards.js";
+import { homeNameEn } from "../i18n/home-names.js";
 import { reportDigest, runComparisonLoop } from "../verify/compare.js";
 import { UNSUPPORTED_PERSONA_KO } from "../verify/loop.js";
 import { parseDiaryJson } from "./diary.js";
@@ -186,10 +188,30 @@ export async function writeReport({ call, provider, runs, labels, homes,
     judge, revise, onAttempt }, context: null };
   const out = await callTool(session, "submit_report", args);
   // 41g: a member label after the first reads lowercase mid-sentence.
+  // 41i: English sentences pass through the same deterministic
+  // cleanup as chat answers (41b) — Hangul parentheticals, tenure
+  // words, won forms and salutations — with each home's Korean name
+  // mapped to its homeNameEn.
   if (out && out.report && Array.isArray(out.report.sentences)) {
+    let nameMap = null;
+    if (lang === "en") {
+      nameMap = {};
+      for (const v of Object.values(names || {})) {
+        const ko = String(v ?? "").trim();
+        if (!ko || !/[가-힣]/.test(ko)) continue;
+        try {
+          const en = homeNameEn(ko);
+          if (en) nameMap[ko] = en;
+        } catch { /* the cleanup still strips the Hangul parens */ }
+      }
+    }
     for (const s of out.report.sentences) {
       if (s && typeof s.text_ko === "string") {
         s.text_ko = lowerMidSentenceMemberLabels(s.text_ko);
+        if (nameMap) {
+          s.text_ko = cleanupEnglishAnswer(s.text_ko,
+            { lang: "en", names: nameMap, commuteMinutes: true });
+        }
       }
     }
   }

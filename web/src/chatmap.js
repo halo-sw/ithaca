@@ -571,8 +571,9 @@ export function tagHeaderFor(pin, lang) {
 
 const TENURE_FIRST = { jeonse: "전", wolse: "월", monthly: "월", sale: "매", maemae: "매" };
 
-// 31j: English tenure initials over the card's short money style
-// (`J ₩260M`, `M ₩600K / ₩10M`, `S ₩300M`). USD stays `$4,261`.
+// 31j: English tenure initials over the card's full-digit money style
+// (41i: `J 260,000,000 won`, `M 600,000 won / 10,000,000 won`,
+// `S 300,000,000 won` — never ₩, never K/M/B). USD stays `$4,261`.
 // 34a: built from the tenure numbers (never by the DOM translator),
 // Korean output byte-identical.
 const TENURE_FIRST_EN = { jeonse: "J", wolse: "M", monthly: "M", sale: "S", maemae: "S" };

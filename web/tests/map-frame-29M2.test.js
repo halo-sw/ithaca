@@ -261,7 +261,7 @@ describe("29M2 pins + workplace centre in the free area", () => {
 describe("29M2 English price lines and legend", () => {
   it("a single shared tenure drops the letter in English", () => {
     const c = { tenures: [{ tenure: "jeonse", median_won: 273000000, deals: 5 }] };
-    assert.equal(M.tagPriceLine(c, "jeonse", "en"), "₩273M");
+    assert.equal(M.tagPriceLine(c, "jeonse", "en"), "273,000,000 won");
     assert.equal(M.tagPriceLine(c, "jeonse", "ko"), "전 2억 7,300");
   });
 
@@ -270,9 +270,9 @@ describe("29M2 English price lines and legend", () => {
       { tenure: "jeonse", median_won: 273000000, deals: 5 },
       { tenure: "wolse", median_won: 500000, deposit_median_won: 20000000, deals: 2 },
     ] };
-    assert.equal(M.tagPriceLine(c, "jeonse", "en"), "J ₩273M");
-    assert.equal(M.tagPriceLine(c, "jeonse", "en", { mixedTenure: true }), "J ₩273M");
-    assert.equal(M.tagPriceLine(c, "jeonse", "en", { mixedTenure: false }), "₩273M");
+    assert.equal(M.tagPriceLine(c, "jeonse", "en"), "J 273,000,000 won");
+    assert.equal(M.tagPriceLine(c, "jeonse", "en", { mixedTenure: true }), "J 273,000,000 won");
+    assert.equal(M.tagPriceLine(c, "jeonse", "en", { mixedTenure: false }), "273,000,000 won");
   });
 
   it("the English legend names jeonse", () => withLang("en", () => {

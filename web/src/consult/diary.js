@@ -2,6 +2,8 @@
 
 import { findInventedNumbers } from "../judge/guards.js";
 import { lowerMidSentenceMemberLabels } from "../profile.js";
+import { cleanupEnglishAnswer } from "./guards.js";
+import { homeNameEn } from "../i18n/home-names.js";
 
 export const DIARY_PROMPT = [
   "너는 이 집들에서 각각 30일을 살아 본 '나'다. 아래 기록(facts)만 보고 쓴다.",
@@ -178,6 +180,35 @@ export function cleanDiarySummary(summary) {
     String(summary || "").replace(/^(Muse|뮤즈)\s+/, ""));
 }
 
+// 41i: the English post-run summary and diary lines pass through the
+// same deterministic cleanup as chat answers (41b) — Hangul
+// parentheticals, tenure words, won forms and salutations — with each
+// digest's Korean home name mapped to its homeNameEn (the same English
+// name the card shows).
+function englishNamesFor(digests) {
+  const names = {};
+  for (const d of digests || []) {
+    const nm = d && typeof d.name === "string" ? d.name.trim() : "";
+    if (!nm || !/[가-힣]/.test(nm)) continue;
+    try {
+      const en = homeNameEn(nm);
+      if (en) names[nm] = en;
+    } catch { /* the cleanup still strips the Hangul parens */ }
+  }
+  return names;
+}
+
+function cleanEnSummary(summary, digests) {
+  return cleanupEnglishAnswer(cleanDiarySummary(summary),
+    { lang: "en", names: englishNamesFor(digests), commuteMinutes: true });
+}
+
+function cleanEnLines(lines, digests) {
+  const names = englishNamesFor(digests);
+  return (lines || []).map((l) => (l && typeof l.text === "string"
+    ? { ...l, text: cleanupEnglishAnswer(l.text, { lang: "en", names }) } : l));
+}
+
 // The rule diary: lines straight off the same facts (short fact texts
 // pass checkDiary by construction), never an empty diary.
 export function ruleDiary(digests, lang = "ko") {
@@ -198,10 +229,11 @@ export function ruleDiary(digests, lang = "ko") {
   const parsed = { summary: fallbackSummary(digests, lang), lines };
   const checked = checkDiary(parsed, digests);
   const kept = keptLines(parsed, digests);
+  const en = lang === "en";
   return {
     ok: true,
-    summary: cleanDiarySummary(parsed.summary),
-    lines: kept,
+    summary: en ? cleanEnSummary(parsed.summary, digests) : cleanDiarySummary(parsed.summary),
+    lines: en ? cleanEnLines(kept, digests) : kept,
     check: { total: kept.length, passed: kept.length,
       retried: 0, dropped: 0, summary_fallback: true, rule: true,
       failures: checked.failures.length },
@@ -268,10 +300,11 @@ export async function writeDiary({ complete, provider, digests, lang = "ko" }) {
     return { ...fallback, check: { ...fallback.check, retried } };
   }
   const total = lines.length + dropped;
+  const en = lang === "en";
   return {
     ok: true,
-    summary: cleanDiarySummary(summary),
-    lines,
+    summary: en ? cleanEnSummary(summary, digests) : cleanDiarySummary(summary),
+    lines: en ? cleanEnLines(lines, digests) : lines,
     check: { total, passed: lines.length, retried, dropped, summary_fallback },
     usage,
   };

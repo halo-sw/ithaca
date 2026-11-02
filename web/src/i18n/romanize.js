@@ -242,6 +242,12 @@ function romanizeWordCore(w) {
     // 41a: a trailing digits+차 reads " Phase N" ("오피스텔2차" →
     // "Officetel Phase 2"); digits+단지 reads " Complex N"
     // ("휴먼시아41단지" → "Humansia Complex 41").
+    // 41i: a standalone digits+차/단지 hyphen segment reads the same
+    // ("정원스테이-4차" → "Jeongwon Stay-Phase 4").
+    const chaOnly = /^(\d+)차$/.exec(w);
+    if (chaOnly) return `Phase ${chaOnly[1]}`;
+    const danjiOnly = /^(\d+)단지$/.exec(w);
+    if (danjiOnly) return `Complex ${danjiOnly[1]}`;
     const cha = /^(.*?)(\d+)차$/.exec(w);
     if (cha && cha[1] !== "") return `${romanizeWordCore(cha[1])} Phase ${cha[2]}`;
     const danji = /^(.*?)(\d+)단지$/.exec(w);
@@ -270,9 +276,23 @@ function romanizeWordCore(w) {
     return namePieces(w).join(" ");
 }
 
+// 41i: a bare "X역 근처 KIND" reads like its lot-number and
+// translator forms, so the model and the cards share one English name
+// ("판교역 근처 오피스텔" → "Officetel near Pangyo Stn", never
+// word-salad romanization). Only station-anchored 근처 with a known
+// kind; anything else keeps today's reading.
+function bareStationKindEn(s) {
+  const m = /^(.*역)\s*근처\s*(\S+)\s*$/.exec(s);
+  if (!m) return null;
+  if (!Object.hasOwn(HOME_KINDS, m[2])) return null;
+  return `${HOME_KINDS[m[2]]} near ${romanizeName(m[1])}`;
+}
+
 export function romanizeName(name) {
   const s = String(name).trim();
   const lot = lotNameEn(s);
   if (lot != null) return lot;
+  const bare = bareStationKindEn(s);
+  if (bare != null) return bare;
   return s.split(/\s+/).filter(Boolean).map(romanizeHyphen).join(" ");
 }

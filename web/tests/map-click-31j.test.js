@@ -71,13 +71,13 @@ describe("31j tag lines per language", () => {
     const p = pin(1, { area_m2: 30, tenures: [jeonse(270000000)] }, 5);
     const lines = tagLines(p, { tenure: "jeonse", lang: "en" });
     assert.equal(lines.header, "1 · 30 m²");
-    assert.equal(lines.price, "₩270M");
+    assert.equal(lines.price, "270,000,000 won");
     assert.equal(lines.commute, "5 min");
     const w = pin(2, { tenures: [{ tenure: "wolse", median_won: 600000,
       deposit_median_won: 10000000, deals: 3 }] }, null);
-    assert.equal(tagLines(w, { tenure: "wolse", lang: "en" }).price, "₩600K / ₩10M");
+    assert.equal(tagLines(w, { tenure: "wolse", lang: "en" }).price, "600,000 won / 10,000,000 won");
     const s = pin(3, { tenures: [{ tenure: "sale", median_won: 320000000, deals: 2 }] }, null);
-    assert.equal(tagLines(s, { tenure: "sale", lang: "en" }).price, "₩320M");
+    assert.equal(tagLines(s, { tenure: "sale", lang: "en" }).price, "320,000,000 won");
   });
 
   it("a missing or 0 area reads as just the number", () => {
@@ -108,14 +108,17 @@ describe("31j tag lines per language", () => {
 });
 
 describe("31j tag measurement follows the language", () => {
-  it("the EN commute line fits the measured tag", () => {
+  it("the EN tag measures its own full-digit price line", () => {
+    // 41i: English money is full digits + " won", so the EN tag is
+    // wider than the Korean one — and wide enough that nothing is cut.
     const p = pin(1, { area_m2: 30, tenures: [jeonse(270000000)] }, 38);
-    const sz = tagSizePx(p, "jeonse", "en");
     const lines = tagLines(p, { tenure: "jeonse", lang: "en" });
-    // EN commute (`38 min`) is ASCII-narrow: it must not dominate.
+    assert.equal(lines.price, "270,000,000 won");
+    assert.equal(lines.commute, "38 min");
+    const sz = tagSizePx(p, "jeonse", "en");
     const ko = tagSizePx(p, "jeonse");
-    assert.ok(sz.w <= ko.w, `en ${sz.w} fits ko measure ${ko.w}`);
-    assert.ok(lines.commute.length <= String(lines.header).length + 4, lines.commute);
+    assert.ok(sz.w > ko.w, `en ${sz.w} grows past ko measure ${ko.w}`);
+    assert.ok(sz.w >= 100, `en tag fits the full-digit price: ${sz.w}`);
   });
 
   it("compact phone tags use the small type sizes", () => {

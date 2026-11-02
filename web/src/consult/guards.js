@@ -97,10 +97,13 @@ function fmtFullWon(n) {
 // answers (lang !== "en") are returned unchanged. Strips Hangul
 // parentheticals, swaps known Korean home names for their name_en,
 // writes tenure words in English and Korean won as full digits + won.
+// 41i: also drops a leading "Dear customer," salutation and expands
+// every K/M/B won form (with or without ₩/원).
 export function cleanupEnglishAnswer(text, opts = {}) {
   const lang = (opts && opts.lang) || "en";
   let s = String(text ?? "");
   if (lang !== "en") return s;
+  s = s.replace(/^\s*Dear customers?,?\s+/i, "");
   const names = (opts && opts.names && typeof opts.names === "object")
     ? opts.names : {};
   const keys = Object.keys(names)
@@ -115,12 +118,13 @@ export function cleanupEnglishAnswer(text, opts = {}) {
     .replace(/\bjeonse\b/g, "deposit lease")
     .replace(/\bWolse\b/g, "Monthly rent")
     .replace(/\bwolse\b/g, "monthly rent");
-  s = s.replace(/₩\s*(\d+(?:\.\d+)?)\s*M\b/g,
-    (_, n) => fmtFullWon(parseFloat(n) * 1e6));
-  s = s.replace(/₩\s*(\d+(?:\.\d+)?)\s*K\b/g,
-    (_, n) => fmtFullWon(parseFloat(n) * 1e3));
-  s = s.replace(/(\d+(?:\.\d+)?)\s*M\s*(won|원)\b/g,
-    (_, n) => fmtFullWon(parseFloat(n) * 1e6));
+  // 41i: every K/M/B won form expands to full digits (owner rule
+  // 2026-11-01) — with or without a ₩/원 marker.
+  const abbrevMult = { K: 1e3, M: 1e6, B: 1e9 };
+  s = s.replace(/₩\s*(\d+(?:\.\d+)?)\s*([KMB])\b/g,
+    (_, n, u) => fmtFullWon(parseFloat(n) * abbrevMult[u]));
+  s = s.replace(/(\d+(?:\.\d+)?)\s*([KMB])\s*(won|원)\b/g,
+    (_, n, u) => fmtFullWon(parseFloat(n) * abbrevMult[u]));
   s = s.replace(/₩\s*(\d[\d,]*)/g, (_, d) => `${d} won`);
   s = s.replace(/(\d[\d,]*)\s*원/g, (_, d) => `${d} won`);
   if (opts && opts.commuteMinutes) {
