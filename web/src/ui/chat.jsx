@@ -45,7 +45,8 @@ import { IntakeCard, HouseholdCard } from "./intake.jsx";
 import { CandidateCard, CandidateSkeleton, areaForList, HomeName, listPhotoNote, listThumbKinds, sharedZipRent, sharedRentNote } from "./candidate-card.jsx";
 import { exampleLine } from "./copy.js";
 import { TopBar, usePhoneMedia } from "./topbar.jsx";
-import { EXAMPLE_PROMPTS, COVERAGE_AREAS, COVERAGE_US_LINE, LANDING_HEADING, LANDING_SUB } from "./landing.jsx";
+import { EXAMPLE_PROMPTS } from "./landing.jsx";
+import { EntryHero, runEntryAction, ENTRY_COMPOSER_PLACEHOLDER } from "./entry-hero.jsx";
 // 18: StageArea renders ChatMap (./chatmap.jsx), not the slab OrbView.
 import { toast, Toaster } from "./toast.jsx";
 import {
@@ -55,7 +56,10 @@ import {
 } from "../intake.js";
 import { selectPhotosForList } from "../places/select-photos.js";
 import { newUsageLog, recordTurn } from "../models/catalog.js";
-import { loadByoKey } from "../consult/byok.js";
+import { loadByoKey, saveByoKey } from "../consult/byok.js";
+import { noAnswerAlertFor, noAnswerKey, clearedNoAnswer, saveNoAnswerKey,
+  NO_ANSWER_PROVIDERS, NO_ANSWER_SUCCESS, NO_ANSWER_KEY_NOTE,
+  DIARY_NO_ANSWER, DIARY_RETRY_LABEL, REPORT_NO_ANSWER } from "./no-answer-alert.js";
 import { rotateChatSessionId } from "../chat/session-id.js";
 import { ModelPanel } from "./model-panel.jsx";
 import { buildChatMap, extractGreenRings, runCommuteModeOf } from "../chatmap.js";
@@ -73,6 +77,7 @@ import { monthlyHousingOf } from "../money/monthly.js";
 import { myScore, priorityValues } from "../priorities.js";
 import { pickMoments } from "../engine/moments.js";
 import { lifeEvents, lifeEventLines } from "../engine/life-events.js";
+import { homePersonLogs } from "../diary/person-log.js";
 import { oneWayByLabel, oneWayDelta, oneWaySentence } from "../verify/numbers.js";
 import { ShareDialog } from "./share.jsx";
 import { JeonseTab } from "./jeonse.jsx";
@@ -84,6 +89,7 @@ import { chipSourceIds } from "../sources.js";
 import { META_HQ_EXAMPLE, META_HQ_EXAMPLE_KO, US_REGION_IDS } from "../places-us.js";
 import { EXAMPLE_PROFILE_LABEL, noCommuteEntry } from "../profile.js";
 import { outingsFor, hhmm } from "../timeline.js";
+import { weekdayOf } from "../engine/scenario.js";
 import { runDigest } from "../diary/digest.js";
 import {
   extractStep, searchStep, searchWithBoxes, scenarioStep, runStep,
@@ -103,7 +109,7 @@ import { newCustomId, saveCustomRun, loadCustomRun } from "../chat/idb.js";
 import { chatUrl, simMomentUrl, tourUrl, withoutEmbed, saveTranscript, loadTranscript,
   clearTranscript, parseChatSearch } from "../chat/urls.js";
 import { recordingUrl, validateRecording, replaySchedule, replayRunPlan, RECORDINGS } from "../chat/recording.js";
-import { ruleTurnPlan } from "../chat/intent.js";
+import { ruleTurnPlan, isRunRequest } from "../chat/intent.js";
 import { postConsultStream, postDiary, postReportStream, loadScenario, basetenFallbackProvider } from "./consult-client.js";
 import { loadProviderChoice, saveProviderChoice, isValidProvider,
   offerOpenWeights, providerLabel, openFallbackLine, recordedModelOf,
@@ -113,7 +119,7 @@ import { shouldCallMuse, isNoKeyError, KEYLESS_LINE,
 import { voiceSupported, voiceKeyReady } from "./voice.js";
 import { MicButton, VOICE_DONE_NOTE, VOICE_ERROR_NOTE } from "./voice-button.jsx";
 import { LIVE_API, appUrl } from "../paths.js";
-import { PoweredByMuse } from "./powered-by-muse.jsx";
+
 import { recordedReplyFor } from "./demotour.js";
 import { REGION_NAME_ALIASES } from "../region-names.js";
 import { agentContext, stripToolLabel, toolActionKo, toolActionEn, viewSystemLine } from "./agent-float.js";
@@ -699,14 +705,62 @@ export function SceneRowLink({ disc, when, text, url, title, onScene, noI18n }) 
   );
 }
 
+// 42b: pinned no-answer alert — the design-system Banner (warning)
+// with the key field inline (same sessionStorage as ModelPanel via
+// saveByoKey; never localStorage, never logged, never in a URL).
+function NoAnswerAlert({ text, onHide, providerChoice, onProviderChoice,
+  draft, onDraft, onSave }) {
+  return (
+    <div className="ui-noanswer">
+      <Banner status="warning" title={text} isDismissable onDismiss={onHide} />
+      <div className="ui-noanswer-key">
+        <SegmentedControl label="모델 선택" value={providerChoice} onChange={onProviderChoice}>
+          {NO_ANSWER_PROVIDERS.map((p) => (
+            <SegmentedControlItem key={p.value} value={p.value} label={p.label} />
+          ))}
+        </SegmentedControl>
+        <HStack gap={1} vAlign="center" wrap="wrap" className="ui-noanswer-keyrow">
+          <input className="ui-keyinput" type="password" placeholder="모델 키 붙여넣기"
+            value={draft} onChange={(e) => onDraft(e.target.value)} aria-label="모델 키" />
+          <Button size="sm" variant="secondary" label="키 저장" onClick={onSave} />
+        </HStack>
+        <Text type="supporting">{NO_ANSWER_KEY_NOTE}</Text>
+      </div>
+    </div>
+  );
+}
+
+function sessionStorageOf() {
+  try {
+    return typeof sessionStorage !== "undefined" ? sessionStorage : null;
+  } catch {
+    return null;
+  }
+}
+
 // 31a: 살아 본 일기 — Muse's summary line, the first 3 lines as row
 // links, then one secondary button revealing the rest in place.
-export function DiarySection({ diary, customId, onScene }) {
+export function DiarySection({ diary, customId, onScene, onRetry, canRetry = true }) {
   const [open, setOpen] = useState(false);
   if (!diary) return null;
   if (diary.status === "writing") {
     return (
       <Text type="supporting">Muse가 기록을 읽고 일기를 쓰는 중…</Text>
+    );
+  }
+  // 42b: the diary failed because Muse is unavailable — say why and
+  // offer to re-run postDiary with the same digests (disabled until
+  // a key is saved or the server key works again).
+  if (diary.status === "failed") {
+    return (
+      <VStack gap={2}>
+        <span className="ui-result-sect">살아 본 일기</span>
+        <Text type="supporting">{DIARY_NO_ANSWER}</Text>
+        {onRetry && (
+          <Button size="sm" variant="secondary" label={DIARY_RETRY_LABEL}
+            onClick={() => onRetry()} isDisabled={canRetry === false} />
+        )}
+      </VStack>
     );
   }
   if (diary.status !== "done") return null;
@@ -731,6 +785,80 @@ export function DiarySection({ diary, customId, onScene }) {
           onClick={() => setOpen(true)} />
       )}
       <Text type="supporting">{diaryCheckLine(diary.check)}</Text>
+    </VStack>
+  );
+}
+
+// 42c: one moment row's "3D에서 보기" URL inside the 30일 기록 log.
+// The day is the customer-facing 1-based day; follow is the 1-based
+// person index in the log's people.
+export function personMomentUrl({ custom = null, home = "A", day = 1, minute = 0, follow = 1 } = {}) {
+  return simMomentUrl({ custom, home, day, t: hhmm(minute), follow, embed: true });
+}
+
+// 42c: 30일 기록 — the per-person day log, collapsed by default.
+// Home tabs (A·B), person tabs (나·배우자… from the log labels),
+// then 30 day rows; a row expands to its entries, each with a ›
+// that opens the moment on the right stage. Built in code, so it
+// reads even when the diary could not be written.
+export function PersonLogSection({ personLog, labels, customId, onScene }) {
+  const homes = labels && labels.length > 0 ? labels : Object.keys(personLog || {});
+  const [home, setHome] = useState(homes[0]);
+  const [person, setPerson] = useState(null);
+  const [openDay, setOpenDay] = useState(null);
+  if (!personLog || !personLog[home]) return null;
+  const log = personLog[home];
+  const people = log.people || [];
+  if (people.length === 0) return null;
+  const personKey = person && people.some((p) => p.key === person) ? person : people[0].key;
+  const en = LANG === "en";
+  return (
+    <VStack gap={2}>
+      <details className="ui-section" data-testid="section-personlog">
+        <summary className="ui-section-head">{en ? "30-day log" : "30일 기록"}</summary>
+        <div className="ui-section-body">
+          <VStack gap={2}>
+            <SegmentedControl label={en ? "Home" : "집"} value={home} onChange={(v) => { setHome(v); setOpenDay(null); }}>
+              {homes.filter((h) => personLog[h]).map((h) => (
+                <SegmentedControlItem key={h} value={h} label={h} />
+              ))}
+            </SegmentedControl>
+            <SegmentedControl label={en ? "Person" : "식구"} value={personKey} onChange={setPerson}>
+              {people.map((p) => (
+                <SegmentedControlItem key={p.key} value={p.key} label={p.label || p.key} />
+              ))}
+            </SegmentedControl>
+            {(log.days || []).map((d) => {
+              const list = (d.entries && d.entries[personKey]) || [];
+              const summ = (d.summary && d.summary[personKey]) || "";
+              const open = openDay === d.day;
+              return (
+                <details key={d.day} data-testid={`personlog-day-${d.day}`}{...(open ? { open: true } : null)}>
+                  <summary className="ui-section-head"
+                    onClick={(e) => { e.preventDefault(); setOpenDay(open ? null : d.day); }}>
+                    {`${d.day}일차 · ${summ || (en ? "no records" : "기록 없음")}`}
+                  </summary>
+                  <div className="ui-section-body">
+                    <VStack gap={1}>
+                      {list.map((e, i) => {
+                        const pi = people.findIndex((p) => p.key === personKey);
+                        return (
+                          <SceneRowLink key={i} disc={home} when={`${d.day}일차 ${hhmm(e.minute)}`}
+                            text={e.text}
+                            url={personMomentUrl({ custom: customId, home, day: d.day,
+                              minute: e.minute, follow: pi + 1 })}
+                            title={`${d.day}일차 ${hhmm(e.minute)} · ${home}`}
+                            onScene={onScene} noI18n={en} />
+                        );
+                      })}
+                    </VStack>
+                  </div>
+                </details>
+              );
+            })}
+          </VStack>
+        </div>
+      </details>
     </VStack>
   );
 }
@@ -855,7 +983,7 @@ export function ReportCheck({ report, names, onRetry, lang = LANG }) {
     return (
       <VStack gap={2}>
         {timeline}
-        <Text type="supporting">리포트 검증을 하지 못했어요 (연결 문제).</Text>
+        <Text type="supporting">{REPORT_NO_ANSWER}</Text>
         <Button size="sm" variant="secondary" label="다시 검증하기"
           onClick={() => onRetry && onRetry()} />
       </VStack>
@@ -1037,7 +1165,7 @@ export function plainRunError(message) {
   return "30일 살아 보기를 끝내지 못했어요. 다시 시도해 주세요.";
 }
 
-export function SimulationCard({ data, example, onRetry, onScene, onReportRetry }) {
+export function SimulationCard({ data, example, onRetry, onScene, onReportRetry, onDiaryRetry, canRetryDiary }) {
   if (!data) return null;
   if (data.status === "running") {
     const p = data.progress || { done: 0, total: 1, label: "" };
@@ -1124,8 +1252,13 @@ export function SimulationCard({ data, example, onRetry, onScene, onReportRetry 
             })}
           </VStack>
         )}
+        {data.personLog && (
+          <PersonLogSection personLog={data.personLog} labels={labels}
+            customId={data.customId} onScene={onScene} />
+        )}
         <ReportCheck report={data.report} names={names} onRetry={onReportRetry} />
-        <DiarySection diary={data.diary} customId={data.customId} onScene={onScene} />
+        <DiarySection diary={data.diary} customId={data.customId} onScene={onScene}
+          onRetry={onDiaryRetry} canRetry={canRetryDiary} />
         {calcs.length > 0 && (
           <details className="ui-section"{...(anyTradeCalc ? { open: true } : null)}>
             <summary className="ui-section-head">{anyTradeCalc ? "내가 내는 돈" : "어떻게 계산했나요"}</summary>
@@ -1377,7 +1510,9 @@ export function CardMsg({ msg, handlers, toolRows, cardHi }) {
           <div data-sim-card={msg.id} id={`sim-card-${msg.id}`}>
             <SimulationCard data={data} example={msg.example}
               onRetry={handlers.onRun} onScene={handlers.onScene}
-              onReportRetry={() => handlers.onReportRetry(msg.id)} />
+              onReportRetry={() => handlers.onReportRetry(msg.id)}
+              onDiaryRetry={() => handlers.onDiaryRetry(msg.id)}
+              canRetryDiary={handlers.diaryRetryReady} />
           </div>
         )}
         {msg.kind === "handoff" && (
@@ -1426,6 +1561,17 @@ export function routeTurn({ live, museFails = 0, museDown }) {
 // 27j2: count replies with a ref, not the lagging stateRef.
 export function answeredSince(countNow, countBefore) {
   return countNow > countBefore;
+}
+
+// 42d: the 42a guard counted every non-user message — a replaced
+// hidden card (profile/candidates/simulation with replace:true) or
+// a system/byok notice looked like an answer, so free questions
+// after a run stayed silent. Only a visible new assistant bubble
+// counts; the caller then pushes the fallback line.
+export function countsAsVisibleReply(msg) {
+  if (!msg || msg.role !== "assistant") return false;
+  if (msg.replace) return false;
+  return msg.kind === "text";
 }
 
 // 27j: the rules path always answers — fallback line when nothing else replied.
@@ -1617,6 +1763,17 @@ export function conjParticle(name) {
   if (!Number.isFinite(code) || code < 0xac00 || code > 0xd7a3) return "";
   return (code - 0xac00) % 28 === 0 ? "와" : "과";
 }
+// 42h: object particle from the name's last Hangul syllable
+// (closed syllable → 을, open → 를). A last char that is not a
+// Hangul syllable (digit, Latin, bracket) leaves it unknowable → ""
+// and the caller uses the no-particle `… 담아` form.
+export function objParticle(name) {
+  const s = String(name || "");
+  if (s.length === 0) return "";
+  const code = s.charCodeAt(s.length - 1);
+  if (!Number.isFinite(code) || code < 0xac00 || code > 0xd7a3) return "";
+  return (code - 0xac00) % 28 === 0 ? "를" : "을";
+}
 // `${label} ${name}` with the right topic particle — or the
 // no-particle `A {name}: …` form when it is unknowable.
 export function topicClause(label, name, tail) {
@@ -1739,6 +1896,623 @@ export function afterRunChipReply(text, { messages = [], picks = [], candidates 
   return { tab: "money", line: en
     ? "See the Money tab for the details."
     : "내가 내는 돈 탭에서 볼 수 있어요." };
+}
+
+// 42d: free questions after a 30-day run get rule answers, with or
+// without Muse. Every number comes from the latest done run payload
+// (personLog, lifeEvents, compare, moneyDoc, moments) — never
+// invented. afterRunAnswer returns null for text the rules cannot
+// answer; the Muse fallback line below is used only by the non-Muse
+// turn guard when nothing visible was added (the 42b alert stays
+// pinned on screen).
+export const AFTER_RUN_MUSE_FALLBACK = "이 질문은 Muse가 답해요. 위 알림에서 키를 넣으면 이어서 답해요.";
+export const AFTER_RUN_MUSE_FALLBACK_EN = "Muse answers this one. Add your key in the notice above and I'll continue.";
+
+const AFTER_RUN_NO_LATE_KO = "30일 동안 밤 10시 넘어 들어온 날은 없었어요.";
+const AFTER_RUN_NO_LATE_EN = "Nobody came home after 10 p.m. during the 30 days.";
+
+const SPOUSE_RE_42D = /(배우자|아내|남편|신랑|신부|짝꿍|파트너|예비|spouse|wife|husband|partner)/i;
+const ME_Q_RE_42D = /(나|저|본인|내가|제가)[^가-힣]{0,30}(뭐\s*했|뭘\s*했|어떻게)|\b(me|myself)\b[^.]{0,60}\b(did|do)\b/i;
+const WEEKEND_RE_42D = /(주말|토요일|일요일|weekend|saturday|sunday)/i;
+const LATE_RE_42D = /(밤\s*\d+\s*시|늦게|늦은\s*귀가|야근|밤늦게|late|after\s*10|past\s*10|midnight|overtime)/i;
+const CROWD_RE_42D = /(붐벼|붐비|혼잡|사람\s*많|북적|꽉\s*차|앉을|서서|crowd|packed|standing|seat)/i;
+const BETTER_RE_42D = /(어디가|어딜|어느\s*집|둘\s*중|양쪽\s*중|추천|나아|나을|better|recommend|which one|choose)/i;
+const LOAN_RE_42D = /(대출|한\s*달에|한달|관리비|loan|monthly|maintenance|repayment|mortgage)/i;
+const JEONSE_RE_42D = /(전세|jeonse|deposit)/i;
+const PLACES_RE_42D = /(공원|마트|편의|병원|약국|학교|초등|중학교|고등학교|유치원|학원|도서관|park|mart|grocery|store|school|hospital|clinic|library)/i;
+const SCHOOL_RE_42D = /(학교|초등|중학교|고등학교|유치원|학원|school|kindergarten)/i;
+const PICK_VERB_RE_42D = /(담아|담고|골라|찜|save|pick|add)/i;
+
+function afterRunLabels(sim) {
+  return Array.isArray(sim.labels) && sim.labels.length > 0
+    ? sim.labels : Object.keys((sim && sim.personLog) || {});
+}
+
+// 42e: per-home peak boarding congestion (highest household-member
+// peak per run, from the runs' fatigue roll-ups) — stamped onto
+// compare.peak_congestion next to compare.one_way. Null when the run
+// carries no congestion numbers, never invented.
+export function peakCongestionByLabel(runsByLabel) {
+  const out = {};
+  for (const [l, run] of Object.entries(runsByLabel || {})) {
+    let best = null;
+    const agents = Array.isArray(run && run.agents) ? run.agents : [];
+    const pm = (run && run.totals && run.totals.per_member) || {};
+    for (const a of agents) {
+      if (!a || !a.household) continue;
+      const p = pm[a.key] && pm[a.key].fatigue && pm[a.key].fatigue.peak_congestion;
+      const pct = p ? Number(p.pct) : NaN;
+      if (Number.isFinite(pct) && (best === null || pct > best)) best = pct;
+    }
+    out[l] = best === null ? null : Math.round(best);
+  }
+  return out;
+}
+
+function afterRunName(sim, label, lang) {
+  const raw = String(((sim.names || {})[label] ?? label));
+  return lang === "en" && /[가-힣]/.test(raw) ? homeNameEn(raw) : raw;
+}
+
+// Every entry of one home's person log, tagged with its day and person.
+function personLogEntries(log) {
+  const out = [];
+  const people = (log && log.people) || [];
+  for (const d of (log && log.days) || []) {
+    for (const p of people) {
+      const list = d && d.entries && d.entries[p.key];
+      for (const e of list || []) out.push({ day: d.day, person: p, ...(e || {}) });
+    }
+  }
+  out.sort((a, b) => (a.day - b.day) || ((a.minute ?? 0) - (b.minute ?? 0)));
+  return out;
+}
+
+function lateOfEntries(entries) {
+  const seen = new Set();
+  const out = [];
+  for (const e of entries || []) {
+    const late = /늦은 귀가|late return/i.test(String(e.text || ""))
+      || ((e.minute ?? 0) >= 22 * 60 && e.kind === "home");
+    if (!late || !Number.isFinite(e.day) || !Number.isFinite(e.minute)) continue;
+    const key = `${e.day}@${Math.round(e.minute)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(e);
+  }
+  return out;
+}
+
+function rideMatches(entries, re) {
+  const out = [];
+  for (const e of entries || []) {
+    const m = String(e.text || "").match(re);
+    if (m) out.push({ day: e.day, min: Number(m[1] ?? m[2]) });
+  }
+  return out;
+}
+
+function weekdayPattern(log, key) {
+  const counts = new Map();
+  for (const d of (log && log.days) || []) {
+    const s = d && d.summary && d.summary[key];
+    if (!s) continue;
+    counts.set(s, (counts.get(s) || 0) + 1);
+  }
+  let best = null;
+  let bestN = 0;
+  for (const [s, n] of counts) {
+    if (n > bestN) { bestN = n; best = s; }
+  }
+  return best;
+}
+
+const OUTING_KINDS_42D = new Set(["errand", "park", "other"]);
+
+function outingsOf(entries, n = 3) {
+  return (entries || []).filter((e) => OUTING_KINDS_42D.has(e.kind)).slice(0, n);
+}
+
+function outingBit(e, lang) {
+  const txt = String(e.text || "").trim().split("\n")[0];
+  return `${e.day}일차 ${txt}`;
+}
+
+// 42e: the run calendar — the same one the day strip uses
+// (`M월 d일(요일) · N일차/30`, sim.js formatClock). Person-log days are
+// 1-based, so day N reads weekdayOf(start_date, N - 1). The start is
+// always a Monday (scenario default 2026-11-02); a payload carrying its
+// own start_date (or scenario) wins. Never assume day 1 = Saturday.
+const RUN_START_FALLBACK = "2026-11-02";
+export function simStartDate(sim) {
+  const s = (sim && (sim.start_date
+    || (sim.scenario && sim.scenario.start_date))) || "";
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : RUN_START_FALLBACK;
+}
+function isWeekendPersonDay(sim, personDay) {
+  return weekdayOf(simStartDate(sim), Number(personDay) - 1) >= 5;
+}
+function isWeekdayPersonDay(sim, personDay) {
+  return weekdayOf(simStartDate(sim), Number(personDay) - 1) < 5;
+}
+function weekendEntriesOf(sim, entries) {
+  return (entries || []).filter((e) => isWeekendPersonDay(sim, e.day));
+}
+function weekdayEntriesOf(sim, entries) {
+  return (entries || []).filter((e) => isWeekdayPersonDay(sim, e.day));
+}
+
+function medianMinute(nums) {
+  const xs = (nums || []).filter((n) => Number.isFinite(n)).sort((a, b) => a - b);
+  if (xs.length === 0) return null;
+  const mid = Math.floor(xs.length / 2);
+  return xs.length % 2 === 1 ? xs[mid] : Math.round((xs[mid - 1] + xs[mid]) / 2);
+}
+
+const OUT_COMMUTE_RE = /집에서 출발|left home/i;
+const BACK_HOME_RE = /집 도착|arrived home|늦은 귀가|late return/i;
+const CLINIC_RE_42E = /진료|clinic|약국|병원|hospital/i;
+
+// 42e: the weekday pattern line off the person's own workday records.
+// Commuter (leave-home entries on weekdays): median leave / arrive-work
+// / arrive-home clocks. Non-commuter: weekday errand + clinic counts.
+// Times and counts come only from the records — never invented.
+export function weekdayHeadFor(log, key, sim, lang = "ko") {
+  const en = lang === "en";
+  const mine = weekdayEntriesOf(sim,
+    personLogEntries(log).filter((e) => e.person && e.person.key === key));
+  const outs = mine.filter((e) => (e.kind === "subway" || e.kind === "walk")
+    && OUT_COMMUTE_RE.test(String(e.text || "")));
+  if (outs.length > 0) {
+    const dep = medianMinute(outs.map((e) => e.minute));
+    const arr = medianMinute(outs.map((e) => (
+      Number.isFinite(e.end_minute) ? e.end_minute : e.minute)));
+    const backs = mine.filter((e) => BACK_HOME_RE.test(String(e.text || "")));
+    const home = backs.length > 0
+      ? medianMinute(backs.map((e) => (
+        Number.isFinite(e.end_minute) ? e.end_minute : e.minute)))
+      : null;
+    if (dep === null || arr === null) return null;
+    if (en) {
+      return home === null
+        ? `On weekdays you usually left around ${hhmm(dep)} and arrived at work around ${hhmm(arr)}.`
+        : `On weekdays you usually left around ${hhmm(dep)}, arrived at work around ${hhmm(arr)}, and got home around ${hhmm(home)}.`;
+    }
+    const wp = sim && sim.workplace ? `${sim.workplace} ` : "";
+    return home === null
+      ? `평일에는 ${hhmm(dep)}쯤 나가서 ${wp}회사에 ${hhmm(arr)}쯤 도착했어요.`
+      : `평일에는 ${hhmm(dep)}쯤 나가서 ${wp}회사에 ${hhmm(arr)}쯤 도착하고, ${hhmm(home)}쯤 집에 왔어요.`;
+  }
+  const errands = mine.filter((e) => e.kind === "errand").length;
+  const clinics = mine.filter((e) => e.kind === "other"
+    && CLINIC_RE_42E.test(String(e.text || ""))).length;
+  if (en) {
+    if (errands === 0 && clinics === 0) return "On weekdays you mostly stayed home.";
+    const bits = [];
+    if (errands > 0) bits.push(`${errands} grocery trip${errands > 1 ? "s" : ""}`);
+    if (clinics > 0) bits.push(`${clinics} clinic visit${clinics > 1 ? "s" : ""}`);
+    return `On weekdays you mostly stayed home, with ${bits.join(" and ")}.`;
+  }
+  if (errands === 0 && clinics === 0) return "평일에는 주로 집에 있었어요.";
+  const bits = [];
+  if (errands > 0) bits.push(`장보기 ${errands}번`);
+  if (clinics > 0) bits.push(`진료 ${clinics}번`);
+  return `평일에는 주로 집에 있었고, ${bits.join("·")} 다녀왔어요.`;
+}
+
+function personForQuestion(people, text) {
+  const list = Array.isArray(people) ? people : [];
+  if (list.length === 0) return null;
+  if (SPOUSE_RE_42D.test(text)) {
+    return list.find((p) => SPOUSE_RE_42D.test(`${p.label || ""} ${p.role || ""} ${p.key || ""}`))
+      || list[1] || list[0];
+  }
+  if (ME_Q_RE_42D.test(text)) return list[0];
+  return null;
+}
+
+// "3번 집이랑도 비교해 줘" after a run: keep A and B, add candidate
+// N, and run the 3-home stay. Null when it is not such a request.
+// 42h: "N번도 같이 살아 봐 줘" / "add home N to the comparison" are
+// the same action — a map number plus 비교/살아봐 (or compare/live).
+export function isCompareAddRequest(text) {
+  const s = String(text || "");
+  if (!/(\d+\s*번|#\d+|home\s*\d+|\d+\s*번?\s*집)/i.test(s)) return false;
+  return /(비교|compare|살아\s*봐|살아봐|live|stay)/i.test(s);
+}
+// 42h: typed "more candidates" — the same handler as the candidate
+// card's "다른 후보 N곳 더 보기" button (rule path re-runs the search
+// with limit 12). afterRunAnswer still returns null for these.
+export function isMoreCandidatesRequest(text) {
+  const s = String(text || "").trim();
+  return /^(다른 후보 더 보여\s*줘|더 보여\s*줘|다른 집 더( 보여\s*줘?)?|show more homes)$/i.test(s);
+}
+
+// 42i: the visible reply after a typed more-candidates re-run — the
+// re-run pushes its card with replace:true (not a visible reply), so
+// this line is the turn's answer and the fallback stays away. Pure.
+export function moreCandidatesLine(n, lang = currentLang()) {
+  return lang === "en"
+    ? `Showing ${n} homes on the map now.`
+    : `후보를 ${n}곳으로 늘려 지도에 올렸어요.`;
+}
+
+function compareAddTarget(text, { picks = [], candidates = [] } = {}) {
+  if (!isCompareAddRequest(text)) return null;
+  const m = String(text).match(/(\d+)\s*번|#(\d+)|home\s*(\d+)|(\d+)\s*번?\s*집/i);
+  const n = m ? Number(m[1] || m[2] || m[3] || m[4]) : null;
+  const list = Array.isArray(candidates) ? candidates : [];
+  if (!Number.isFinite(n) || n < 1 || n > list.length) return null;
+  const id = list[n - 1] && list[n - 1].id;
+  if (!id) return null;
+  const keep = (Array.isArray(picks) ? picks : []).filter((x) => list.some((c) => c && c.id === x));
+  const ids = [...keep];
+  if (!ids.includes(id)) ids.push(id);
+  if (ids.length < 2) return null;
+  return { ids: ids.slice(0, 3), added: list[n - 1] };
+}
+
+function lateLineFor(sim, lang) {
+  const en = lang === "en";
+  const labels = afterRunLabels(sim);
+  const parts = [];
+  for (const l of labels) {
+    const lates = lateOfEntries(personLogEntries((sim.personLog || {})[l])).slice(0, 4);
+    if (lates.length === 0) continue;
+    const nm = afterRunName(sim, l, lang);
+    const days = lates.map((e) => (en ? `day ${e.day} at ${hhmm(e.minute)}` : `${e.day}일차 ${hhmm(e.minute)}`));
+    parts.push(en ? `${l} ${nm}: ${days.join(", ")}` : `${l} ${nm}: ${days.join(", ")}에 늦게 들어왔어요`);
+  }
+  if (parts.length === 0) return en ? AFTER_RUN_NO_LATE_EN : AFTER_RUN_NO_LATE_KO;
+  return en
+    ? `Late returns after 10 p.m. — ${parts.join("; ")}.`
+    : `밤 10시 넘어 들어온 날 — ${parts.join("; ")}.`;
+}
+
+function crowdLineFor(sim, lang) {
+  const en = lang === "en";
+  const labels = afterRunLabels(sim);
+  const seated = {};
+  for (const row of sim.lifeEvents || []) {
+    if (row && row.kind === "seated") {
+      labels.forEach((l, i) => { seated[l] = row[i === 0 ? "a" : "b"] || null; });
+    }
+  }
+  const parts = [];
+  for (const l of labels) {
+    const stands = rideMatches(personLogEntries((sim.personLog || {})[l]), /서서 (\d+)분|standing (\d+) min/i);
+    const nm = afterRunName(sim, l, lang);
+    const top = stands.reduce((a, b) => (!a || b.min > a.min ? b : a), null);
+    const seat = seated[l];
+    const seatBit = seat && Number.isFinite(Number(seat.measured)) && Number(seat.measured) > 0
+      ? (en ? `, seated ${seat.seated}/${seat.measured} days`
+        : `, 앉아서 간 날 ${seat.seated}/${seat.measured}일(실측 혼잡도 기준)`)
+      : "";
+    parts.push(stands.length === 0 && !seatBit
+      ? (en ? `${l} ${nm}: no standing rides` : `${l} ${nm}: 서서 간 출근은 없었어요`)
+      : (en ? `${l} ${nm}: standing ${stands.length} rides${top ? ` (longest day ${top.day}, ${top.min} min)` : ""}${seatBit}`
+        : `${l} ${nm}: 서서 간 출근 ${stands.length}번${top ? `(가장 오래 ${top.day}일차 ${top.min}분)` : ""}${seatBit}`));
+  }
+  return en ? `Crowding — ${parts.join("; ")}.` : `혼잡 — ${parts.join("; ")}.`;
+}
+
+function betterLineFor(sim, lang) {
+  const en = lang === "en";
+  const labels = afterRunLabels(sim);
+  const oneWay = (sim.compare && sim.compare.one_way) || {};
+  const commute = labels.map((l) => {
+    const v = Number(oneWay[l]);
+    const nm = afterRunName(sim, l, lang);
+    return en ? `${l} ${nm} ${Number.isFinite(v) ? `${Math.round(v)} min` : "–"}`
+      : `${l} ${nm} ${Number.isFinite(v) ? fmtMinutes(v) : "–"}`;
+  });
+  const money = labels.map((l) => {
+    const mh = sim.moneyDoc ? monthlyHousingOf(sim.moneyDoc, l, 30) : null;
+    const nm = afterRunName(sim, l, lang);
+    const amt = mh && !mh.missing
+      ? (en ? fmtMoney(mh.monthly, "KRW", { lang: "en" }) : fmtWon(mh.monthly)) : "–";
+    return `${l} ${nm} ${amt}`;
+  });
+  return en
+    ? `Commute one-way: ${commute.join(", ")}. Monthly housing: ${money.join(", ")}. The choice is yours.`
+    : `출근 편도는 ${commute.join(", ")}, 월 주거비는 ${money.join(", ")}이에요. 고르는 건 고객님 몫이에요.`;
+}
+
+function loanLineFor(sim, lang) {
+  const en = lang === "en";
+  const labels = afterRunLabels(sim);
+  const parts = [];
+  for (const l of labels) {
+    const mh = sim.moneyDoc ? monthlyHousingOf(sim.moneyDoc, l, 30) : null;
+    if (!mh || mh.missing) continue;
+    const nm = afterRunName(sim, l, lang);
+    const hd = mh.housingDoc || {};
+    const loan = Number(hd.loan_won);
+    const money = (v) => (en ? fmtMoney(v, "KRW", { lang: "en" }) : fmtWon(v));
+    const moneyM = (v) => (en ? fmtMoney(v, "KRW", { lang: "en" }) : fmtWon(v, { monthly: true }));
+    const loanBit = Number.isFinite(loan) && loan > 0
+      ? (en ? `loan ${money(loan)}`
+        : `대출 ${fmtWonLump(loan)}${hd.rate_pct ? `(이자율 ${hd.rate_pct}%${hd.years ? ` ${hd.years}년` : ""})` : ""}`)
+      : (en ? "no loan" : "대출 없음");
+    parts.push(en
+      ? `${l} ${nm}: ${loanBit}, repayment ${moneyM(hd.monthly_won ?? mh.parts.housing)}, maintenance ${moneyM(mh.maintenanceWon)}, transit ${moneyM(mh.transitWon)}, total ${moneyM(mh.monthly)}`
+      : `${l} ${nm}: ${loanBit}, 매달 갚는 돈 ${moneyM(hd.monthly_won ?? mh.parts.housing)}, 관리비 ${moneyM(mh.maintenanceWon)}, 교통비 ${moneyM(mh.transitWon)}, 합계 ${moneyM(mh.monthly)}`);
+  }
+  if (parts.length === 0) {
+    return en ? "See the Money tab for the details." : "내가 내는 돈 탭에서 볼 수 있어요.";
+  }
+  return en ? `Monthly cost — ${parts.join("; ")}.` : `한 달 돈 — ${parts.join("; ")}.`;
+}
+
+function nearbyLineFor(sim, candidates, text, lang) {
+  const en = lang === "en";
+  const schoolQ = SCHOOL_RE_42D.test(text);
+  const items = [];
+  for (const c of candidates || []) {
+    const pools = [...(c.places || []), ...(c.schools || []), ...(c.nearby || []), ...(c.pois || [])];
+    for (const p of pools) {
+      if (!p) continue;
+      const name = p.name || p.title;
+      const walk = p.walk_minutes ?? p.walkMin ?? p.minutes ?? p.walk;
+      if (!name || !Number.isFinite(Number(walk))) continue;
+      const kind = `${p.kind || p.category || ""} ${name}`;
+      if (schoolQ && !/(학교|초등|중학|고등|유치원|학원|school|kindergarten)/i.test(kind)) continue;
+      items.push({ name: String(name), walk: Math.round(Number(walk)) });
+    }
+  }
+  if (items.length > 0) {
+    items.sort((a, b) => a.walk - b.walk);
+    const top = items.slice(0, 3).map((x) => (en ? `${x.name} ${x.walk} min on foot` : `${x.name} 걸어서 ${x.walk}분`));
+    return { line: en ? `Nearby: ${top.join(", ")}.` : `가까운 곳은 ${top.join(", ")}이에요.` };
+  }
+  return { scene: { panel: "tour", home: "A" },
+    line: en ? "Opened the neighborhood 3D on the right. Muse lists the nearby places once you add a key."
+      : "동네 3D를 열었어요. 가까운 장소 목록은 Muse가 찾아 줘요." };
+}
+
+// 42d: rule answers for free questions after a run — an extension of
+// the 42a chip replies to full sentences (Korean and English).
+// Returns { scene, tab, pick, run, line } like afterRunChipReply, or
+// null when there is no done run, the turn belongs to the pick/run
+// flow, or the text is not an after-run question. Unknown text
+// returns null so the caller falls through to the rule flow — the
+// Muse fallback line lives only in the non-Muse turn guard.
+export function afterRunAnswer(text, { messages = [], picks = [], candidates = [], lang = currentLang() } = {}) {
+  const t = String(text || "").trim();
+  const chip = afterRunChipReply(t, { messages, picks, candidates, lang });
+  if (chip) return chip;
+  const sim = latestDoneSim(messages);
+  if (!sim) return null;
+  const en = lang === "en";
+  const add = compareAddTarget(t, { picks, candidates });
+  if (add) {
+    // 42i: the line and the labels use the card's display name
+    // (displayNameFor, English via trayDisplayName/homeNameEn) — never
+    // the raw id. A name that is only a parenthesised id falls back
+    // to "{N}번 집".
+    const numOf = (c) => {
+      const i = (candidates || []).findIndex((x) => x && c && x.id === c.id);
+      return i >= 0 ? i + 1 : null;
+    };
+    const dispName = (c, n) => {
+      const s = String(c ? trayDisplayName(displayNameFor(c), lang) : "").trim();
+      if (s && !/^\(\d+(-\d+)?\)$/.test(s)) return s;
+      return lang === "en" ? `home ${n}` : `${n}번 집`;
+    };
+    const labelOf = (id) => {
+      const i = add.ids.indexOf(id);
+      return i >= 0 ? "ABC"[i] : "";
+    };
+    const names = add.ids.map((id, i) => {
+      const c = (candidates || []).find((x) => x && x.id === id);
+      return `${labelOf(id)} ${dispName(c, (c && numOf(c)) || (i + 1))}`;
+    });
+    const addedN = (add.added && numOf(add.added)) || add.ids.length;
+    const addedDisp = dispName(add.added, addedN);
+    const op = en ? "" : objParticle(addedDisp);
+    return { pick: add.ids, run: add.ids,
+      line: en ? `Added ${addedDisp} — running the 30-day stay in ${names.join(", ")}.`
+        : `${addedDisp}${op} 담아 ${names.join(", ")} 세 집으로 살아 볼게요.` };
+  }
+  // Typed picks and runs stay on the rule flow, never the fallback.
+  if (isRunRequest(t) || PICK_VERB_RE_42D.test(t)) return null;
+  if (SPOUSE_RE_42D.test(t) || ME_Q_RE_42D.test(t)) {
+    const labels = afterRunLabels(sim);
+    const log = (sim.personLog || {})[labels[0]] || {};
+    const who = personForQuestion(log.people || [], t) || (log.people || [])[0];
+    // 42f: no person in the log, no real answer — back to the rule flow.
+    if (!who) return null;
+    const all = personLogEntries(log).filter((e) => e.person && e.person.key === who.key);
+    // 42e: the head is the weekday pattern off the workday records
+    // (commuter clocks, else errand/clinic counts); outs are weekend
+    // days off the run calendar — never a Tuesday called 주말.
+    const headBit = weekdayHeadFor(log, who.key, sim, lang) || (en ? "–" : "기록 그대로");
+    const outs = outingsOf(weekendEntriesOf(sim, all), 3);
+    const whoName = en && /[가-힣]/.test(String(who.label || "")) ? homeNameEn(String(who.label)) : String(who.label || who.key);
+    const head = en ? `${whoName}: ${headBit}`
+      : `${whoName}님은 ${headBit}`;
+    const tail = outs.length === 0
+      ? (en ? "No weekend outings in the log." : "주말 외출 기록은 없었어요.")
+      : (en ? `Outings: ${outs.map((e) => `day ${e.day} ${String(e.text || "").trim().split("\n")[0]}`).join(", ")}.`
+        : `주말 외출은 ${outs.map((e) => outingBit(e, lang)).join(", ")}에 있었어요.`);
+    const first = outs[0] || all.find((e) => Number.isFinite(e.minute));
+    const scene = first && Number.isFinite(first.day)
+      ? { panel: "result", home: labels[0], day: first.day,
+        ...(Number.isFinite(first.minute) ? { time: hhmm(first.minute) } : {}) }
+      : { panel: "result", home: labels[0] };
+    return { scene, line: `${head} ${tail}` };
+  }
+  if (WEEKEND_RE_42D.test(t)) {
+    const labels = afterRunLabels(sim);
+    const log = (sim.personLog || {})[labels[0]] || {};
+    const bits = [];
+    for (const p of log.people || []) {
+      // 42e: weekend days off the run calendar (Sat/Sun), so a
+      // Tuesday outing is never reported as 주말.
+      const outs = outingsOf(weekendEntriesOf(sim,
+        personLogEntries(log).filter((e) => e.person && e.person.key === p.key)), 2);
+      const nm = en && /[가-힣]/.test(String(p.label || "")) ? homeNameEn(String(p.label)) : String(p.label || p.key);
+      bits.push(outs.length === 0
+        ? (en ? `${nm}: no outings` : `${nm}: 외출 기록 없음`)
+        : (en ? `${nm}: ${outs.map((e) => `day ${e.day} ${String(e.text || "").trim().split("\n")[0]}`).join(", ")}`
+          : `${nm}: ${outs.map((e) => outingBit(e, lang)).join(", ")}`));
+    }
+    const firstOut = outingsOf(weekendEntriesOf(sim, personLogEntries(log)), 1)[0];
+    const scene = firstOut && Number.isFinite(firstOut.day)
+      ? { panel: "result", home: labels[0], day: firstOut.day,
+        ...(Number.isFinite(firstOut.minute) ? { time: hhmm(firstOut.minute) } : {}) }
+      : { panel: "result", home: labels[0] };
+    // 42f: no people, no real answer — back to the rule flow.
+    if (bits.length === 0) return null;
+    return { scene,
+      line: en ? `Weekends — ${bits.join("; ")}.` : `주말에는 ${bits.join(" · ")} 이렇게 지냈어요.` };
+  }
+  if (LATE_RE_42D.test(t)) return { line: lateLineFor(sim, lang) };
+  const homeM = t.match(/([ABC])\s*집?\s*출근길|([ABC])\s*집?\s*출근|commute[^\n]{0,30}\b([ABC])\b|\b([ABC])\b[^\n]{0,30}commute|home\s*([ABC])/i);
+  const homeLetter = homeM ? (homeM[1] || homeM[2] || homeM[3] || homeM[4] || homeM[5]).toUpperCase() : null;
+  if (homeLetter && afterRunLabels(sim).includes(homeLetter)) {
+    const nm = afterRunName(sim, homeLetter, lang);
+    const v = Number((sim.compare && sim.compare.one_way || {})[homeLetter]);
+    return { scene: { panel: "commute", home: homeLetter },
+      line: en ? `${homeLetter} ${nm}: ${Number.isFinite(v) ? `${Math.round(v)} min` : "–"} one-way on average. Showing the commute on the right.`
+        : `${homeLetter} ${nm} 출근 편도 평균 ${Number.isFinite(v) ? fmtMinutes(v) : "–"}이에요. 오른쪽에서 출근길을 보여 드려요.` };
+  }
+  if (CROWD_RE_42D.test(t)) return { line: crowdLineFor(sim, lang) };
+  if (BETTER_RE_42D.test(t)) return { line: betterLineFor(sim, lang) };
+  if (LOAN_RE_42D.test(t)) return { tab: "money", line: loanLineFor(sim, lang) };
+  if (JEONSE_RE_42D.test(t)) {
+    return { tab: "jeonse",
+      line: en ? "Opened the deposit-lease tab. Check the deposit, loan interest, and risk list there."
+        : "전세 탭을 열었어요. 보증금·대출 이자·위험 체크를 한 번에 보세요." };
+  }
+  if (PLACES_RE_42D.test(t)) return nearbyLineFor(sim, candidates, t, lang);
+  // 42f: not an after-run question — the caller runs the rule flow.
+  return null;
+}
+
+// 42f: the non-Muse turn guard's line — after a done run the Muse
+// fallback invites a key in the pinned alert; otherwise the generic
+// rule line. Pure.
+export function nonMuseNoReplyLine(text, { messages = [], lang = currentLang() } = {}) {
+  if (latestDoneSim(messages)) {
+    return lang === "en" ? AFTER_RUN_MUSE_FALLBACK_EN : AFTER_RUN_MUSE_FALLBACK;
+  }
+  return localNoAnswerLine(text);
+}
+
+// 42e: a Muse turn that ended in the generic fallback (out.fallback)
+// still answers when the rule flow has a real answer for the text —
+// the rule line itself, never the Muse fallback line itself. Pure.
+// 42h: no inline rule-mark suffix on the line — the bubble's meta
+// line (fromModel: false) already says it.
+export function ruleAnswerForMuseFallback(text, out, ctx = {}) {
+  if (!out || !out.fallback) return null;
+  const r = afterRunAnswer(text, ctx);
+  if (!r || !r.line) return null;
+  if (r.pick || r.run) return null;
+  if (r.line === AFTER_RUN_MUSE_FALLBACK || r.line === AFTER_RUN_MUSE_FALLBACK_EN) return null;
+  return { ...r };
+}
+// 42h: numbers always land — after a Muse turn, when afterRunAnswer
+// recognises a stay intent with data (money/loan/관리비, crowding,
+// late return, person/weekend activity, a home's commute) but Muse's
+// visible text carries no digit, the caller pushes this rule answer
+// as one extra bubble right after Muse's (meta says 규칙으로
+// 답했어요; tab/scene apply only when Muse opened none). Pure:
+// null when Muse already gave a number, or for anything that is not
+// a data-backed stay answer (actions, unknown text). No inline mark.
+export function ruleAnswerForDigitlessMuse(text, museText, ctx = {}) {
+  if (/\d/.test(String(museText || ""))) return null;
+  const r = afterRunAnswer(text, ctx);
+  if (!r || !r.line) return null;
+  if (r.pick || r.run) return null;
+  return { ...r };
+}
+// 42h: compare-add is an action, not a question — after a done run,
+// "N번 집이랑도 비교해 줘" adds candidate N to the picks (keeping A
+// and B) and runs the 3-home stay. The Muse path calls this before
+// the Muse call (Muse is never asked); the rule path already answers
+// it first via afterRunAnswer in structuredFlow. Pure.
+export function preMuseCompareAdd(text, { messages = [], picks = [], candidates = [], lang = currentLang() } = {}) {
+  if (!latestDoneSim(messages)) return null;
+  const r = afterRunAnswer(text, { messages, picks, candidates, lang });
+  if (!r || !r.pick || !r.run) return null;
+  return r;
+}
+
+// 42d: compact run summary (≤ 3 KB) so Muse can answer stay
+// questions from numbers — per home one-way avg/max day, crowding,
+// monthly lines and loan; per person weekday pattern, outings,
+// late returns, longest day. Sent as context.run_summary.
+export function runSummaryFor(payload) {
+  const sim = payload || {};
+  const labels = Array.isArray(sim.labels) && sim.labels.length > 0
+    ? sim.labels : Object.keys(sim.personLog || {});
+  const oneWay = (sim.compare && sim.compare.one_way) || {};
+  const lines = [];
+  for (const l of labels) {
+    const log = (sim.personLog || {})[l];
+    const entries = log ? personLogEntries(log) : [];
+    const rides = rideMatches(entries, /지하철 (\d+)분|subway (\d+) min/i);
+    const top = rides.reduce((a, b) => (!a || b.min > a.min ? b : a), null);
+    const stands = rideMatches(entries, /서서 (\d+)분|standing (\d+) min/i);
+    const lates = lateOfEntries(entries);
+    const avg = Number(oneWay[l]);
+    const mh = sim.moneyDoc ? monthlyHousingOf(sim.moneyDoc, l, 30) : null;
+    const hd = (mh && mh.housingDoc) || {};
+    const bits = [`출근 편도 평균 ${Number.isFinite(avg) ? `${Math.round(avg)}분` : "–"}`];
+    if (top) bits.push(`가장 오래 ${top.day}일차 ${top.min}분`);
+    if (stands.length > 0) {
+      const sTop = stands.reduce((a, b) => (!a || b.min > a.min ? b : a), stands[0]);
+      // 42e: crowded minutes standing — the total, not just the count.
+      const sSum = stands.reduce((a, b) => a + (Number.isFinite(b.min) ? b.min : 0), 0);
+      bits.push(`서서 ${stands.length}번(합계 ${sSum}분·최대 ${sTop.day}일차 ${sTop.min}분)`);
+    }
+    // 42e: peak boarding congestion per home, stamped onto
+    // compare.peak_congestion at run time (from the runs' fatigue).
+    const peak = sim.compare && sim.compare.peak_congestion
+      ? Number(sim.compare.peak_congestion[l]) : NaN;
+    if (Number.isFinite(peak)) bits.push(`혼잡 최대 ${Math.round(peak)}%`);
+    if (mh && !mh.missing) {
+      bits.push(`월 상환 ${fmtWon(hd.monthly_won ?? mh.parts.housing, { monthly: true })}·관리비 ${fmtWon(mh.maintenanceWon, { monthly: true })}·교통비 ${fmtWon(mh.transitWon, { monthly: true })}·합계 ${fmtWon(mh.monthly, { monthly: true })}`);
+      if (Number.isFinite(Number(hd.loan_won))) bits.push(`대출 ${fmtWonLump(hd.loan_won)}`);
+    }
+    if (lates.length > 0) bits.push(`늦은 귀가 ${lates.length}번(최근 ${lates[lates.length - 1].day}일차 ${hhmm(lates[lates.length - 1].minute)})`);
+    lines.push(`${l} ${((sim.names || {})[l] || l)}: ${bits.join("; ")}.`);
+  }
+  const firstLog = (sim.personLog || {})[labels[0]];
+  for (const p of (firstLog && firstLog.people) || []) {
+    const mine = personLogEntries(firstLog).filter((e) => e.person && e.person.key === p.key);
+    const pattern = weekdayPattern(firstLog, p.key);
+    const outs = outingsOf(mine, 3).map((e) => `${e.day}일차 ${String(e.text || "").trim().split("\n")[0]}`);
+    const lates = lateOfEntries(mine).slice(0, 3).map((e) => `${e.day}일차 ${hhmm(e.minute)}`);
+    const spanByDay = new Map();
+    for (const e of mine) {
+      if (!Number.isFinite(e.day) || !Number.isFinite(e.minute)) continue;
+      const end = Number.isFinite(e.end_minute) ? e.end_minute : e.minute;
+      const cur = spanByDay.get(e.day) || { from: e.minute, to: end };
+      cur.from = Math.min(cur.from, e.minute);
+      cur.to = Math.max(cur.to, end);
+      spanByDay.set(e.day, cur);
+    }
+    let longest = null;
+    for (const [day, s] of spanByDay) {
+      if (!longest || (s.to - s.from) > (longest.to - longest.from)) longest = { day, ...s };
+    }
+    lines.push(`${p.label || p.key}: 평일 ${pattern || "–"}; 외출 ${outs.length > 0 ? outs.join(", ") : "없음"}; 늦은 귀가 ${lates.length > 0 ? lates.join(", ") : "없음"}; 가장 긴 날 ${longest ? `${longest.day}일차` : "–"}.`);
+  }
+  // Cap at 3 KB (drop trailing lines first).
+  while (lines.length > 1) {
+    let bytes = -1;
+    try {
+      bytes = new TextEncoder().encode(lines.join("\n")).length;
+    } catch {
+      bytes = lines.join("\n").length * 3;
+    }
+    if (bytes <= 3072) break;
+    lines.pop();
+  }
+  return lines.join("\n");
 }
 
 // 42a2: the thread messages behind an after-run chip answer — the
@@ -2158,6 +2932,8 @@ export function ChatScreen() {
   const dataRef = useRef(null); // {index, network, schedule, manifest, regionsKey}
   // 29j3: slim report inputs per sim message id (for 다시 검증하기).
   const reportInputsRef = useRef({});
+  // 42b: diary inputs per sim message id (for 일기 다시 쓰기).
+  const diaryInputsRef = useRef({});
   const stateRef = useRef({ messages, toolRows, profile, candidatesData, picks, exampleId, scenario });
   stateRef.current = { messages, toolRows, profile, candidatesData, picks, exampleId, scenario,
     intake, household, overrides, usageLog };
@@ -2174,8 +2950,12 @@ export function ChatScreen() {
   // candidates / simulation always show the latest state).
   const pushMsg = (msg) => {
     const id = msg.id || nextId();
-    if (msg.role !== "user") replyCountRef.current += 1;
-    setMessages((prev) => nextChatMessages(prev, msg, id));
+    if (countsAsVisibleReply(msg)) replyCountRef.current += 1;
+    // 42b: assistant text without an explicit fromModel did not come
+    // from the model (rule flow, recorded replay keeps its own flag).
+    const stamped = (msg.role === "assistant" && msg.fromModel === undefined && !msg.recorded)
+      ? { ...msg, fromModel: false } : msg;
+    setMessages((prev) => nextChatMessages(prev, stamped, id));
     return id;
   };
 
@@ -2202,6 +2982,13 @@ export function ChatScreen() {
     serverKeyUsedNoticedRef.current = true;
     pushMsg({ role: "assistant", kind: "byok", content: SERVER_KEY_USED_LINE });
   };
+  // 42b: pinned no-answer alert above the composer while Muse is
+  // not answering — server key used, keyless, or 27j fails ≥ 1.
+  const [serverKeyUsed, setServerKeyUsed] = useState(false);
+  const [noAnswerHideKey, setNoAnswerHideKey] = useState(null);
+  const [noAnswerSaved, setNoAnswerSaved] = useState(false);
+  const [noAnswerProvider, setNoAnswerProvider] = useState(null);
+  const [noAnswerDraft, setNoAnswerDraft] = useState("");
 
   // --- data (loaded once, cached) ---
   const fetchJson = (url) => fetchDataJson(url);
@@ -2284,9 +3071,18 @@ export function ChatScreen() {
     const onScreenEarly = (((stateRef.current.candidatesData || {}).result || {})
       .candidates) || [];
     {
-      const chip = afterRunChipReply(text, { messages: stateRef.current.messages,
+      const chip = afterRunAnswer(text, { messages: stateRef.current.messages,
         picks: stateRef.current.picks, candidates: onScreenEarly, lang: currentLang() });
       if (chip) {
+        if (chip.pick) {
+          setPicks(chip.pick);
+          stateRef.current.picks = chip.pick;
+        }
+        if (chip.run) {
+          for (const m of afterRunChipTurn(chip)) pushMsg(m);
+          await handleRun(chip.run);
+          return;
+        }
         if (chip.scene) {
           const res = sceneForEffect(chip.scene, { picks: stateRef.current.picks,
             candidates: onScreenEarly,
@@ -2305,6 +3101,24 @@ export function ChatScreen() {
         }
         for (const m of afterRunChipTurn(chip)) pushMsg(m);
         return;
+      }
+    }
+    // 42h: typed "more candidates" (isMoreCandidatesRequest) calls
+    // the same handler as the card's "다른 후보 N곳 더 보기" button —
+    // a re-run of the stored profile with limit 12, no Muse, no
+    // extract. afterRunAnswer already returned null for it (42f).
+    if (isMoreCandidatesRequest(text)) {
+      const stMore = stateRef.current;
+      if (stMore.profile && profileHasValues(stMore.profile)) {
+        const dataMore = await ensureData(null);
+        if (dataMore) {
+          const nMore = await runSearch(stMore.profile, dataMore,
+            { sort: (stMore.candidatesData && stMore.candidatesData.sort) || "commute",
+              limit: 12 });
+          pushMsg({ role: "assistant", kind: "text",
+            content: moreCandidatesLine(nMore, currentLang()) });
+          return;
+        }
       }
     }
     // 30c: typed picks/runs while candidates are on screen — the same
@@ -2490,8 +3304,10 @@ export function ChatScreen() {
   const lastSearchRef = useRef("");
   // 29N2a: "show more" ("다른 후보 더 보여 줘") re-runs with limit
   // 12 — the corridor first page spreads, the longer list stays pure.
+  // 42h: every typed more-candidates variant (isMoreCandidatesRequest)
+  // takes the same limit as the card button.
   function searchLimitFor(t) {
-    return String(t || "").trim() === "다른 후보 더 보여 줘" ? 12 : 6;
+    return isMoreCandidatesRequest(t) ? 12 : 6;
   }
   async function runSearch(prof, data, { sort, limit = 6 }) {
     lastSearchRef.current = profileSummary(prof);
@@ -2525,6 +3341,7 @@ export function ChatScreen() {
     pushMsg({ role: "assistant", kind: "candidates", replace: true,
       data: { result, tenure, sort, emptyHint }, example: stateRef.current.exampleId,
       tool_calls: [{ id: rowId, name: "find_homes" }] });
+    return result.candidates.length;
   }
 
   async function handleSort(msgId, sort) {
@@ -2836,6 +3653,10 @@ export function ChatScreen() {
       // result card, share card and compare table all read this.
       compare.one_way = oneWayByLabel(
         Object.fromEntries(labels.map((l) => [l, runs[l]])));
+      // 42e: crowding travels with the comparison (Muse reads it off
+      // the stay summary instead of deflecting to the cards).
+      compare.peak_congestion = peakCongestionByLabel(
+        Object.fromEntries(labels.map((l) => [l, runs[l]])));
       let extraLine = "";
       if (labels.length > 2) {
         const third = runs[labels[2]];
@@ -2844,7 +3665,22 @@ export function ChatScreen() {
           + `30일 동안 ${Math.round(hh.walk_minutes || 0)}분 걷고, `
           + `하루 평균 피곤한 정도 ${Math.round((hh.fatigue_avg_30d || 0) * 10) / 10} — 3D에서 보기로 하루를 보세요.`;
       }
-      const payload = { status: "done", compare, moments, labels, customId,
+      // 42c: the per-person 30-day log rides in the payload like the
+      // rest of the run (built in code, so it is there even when the
+      // diary could not be written).
+      const personLog = homePersonLogs(runs, labels, { lang: LANG === "en" ? "en" : "ko" });
+      // 42e: the run calendar start and the workplace name ride along
+      // so the rule answers read weekdays and the commute line off data.
+      const wp0 = st.profile && st.profile.workplaces
+        && Array.isArray(st.profile.workplaces.value)
+        ? st.profile.workplaces.value[0] : null;
+      const wpName = wp0 && wp0.resolved
+        ? (wp0.resolved.station
+          || (wp0.resolved.place && wp0.resolved.place.name) || null)
+        : (wp0 && wp0.text) || null;
+      const payload = { status: "done", compare, moments, labels, customId, personLog,
+        start_date: (scenValue && scenValue.start_date) || "2026-11-02",
+        ...(wpName ? { workplace: wpName } : {}),
         // 29M1: English reports and headers read Muse's registered home
         // names; unregistered names stay on the Korean display.
         names: Object.fromEntries(picked.map((p, i) => [labels[i], reportNameFor(p)])),
@@ -2887,6 +3723,9 @@ export function ChatScreen() {
               ? homeNameEn(rawName) : rawName;
             return runDigest(runs[l], l, { name: digestName, lang: currentLang() });
           });
+          // 42b: keep the digests so 일기 다시 쓰기 re-runs postDiary as-is.
+          diaryInputsRef.current[simId] = { digests, provider,
+            oneWay: compare.one_way, names: payload.names };
           setMessages((prev) => prev.map((m) => (m.id === simId
             ? { ...m, data: { ...m.data, diary: { status: "writing" } } } : m)));
           // 41g: a failed open-weights diary runs once more on Muse
@@ -2948,6 +3787,25 @@ export function ChatScreen() {
       }
     };
     const st = stateRef.current;
+    // 42h: compare-add is an action, not a question — after a done
+    // run "N번 집이랑도 비교해 줘" adds candidate N (keeping A and B)
+    // and runs the 3-home stay here, before the Muse call. Muse is
+    // not asked. (The rule path already answers it first via
+    // afterRunAnswer in structuredFlow.)
+    {
+      const preCands = (((st.candidatesData || {}).result || {}).candidates) || [];
+      const preAdd = preMuseCompareAdd(text, { messages: st.messages,
+        picks: st.picks, candidates: preCands, lang: LANG });
+      if (preAdd) {
+        if (preAdd.pick) {
+          setPicks(preAdd.pick);
+          stateRef.current.picks = preAdd.pick;
+        }
+        for (const m of afterRunChipTurn(preAdd)) pushMsg(m);
+        if (preAdd.run) await handleRun(preAdd.run);
+        return;
+      }
+    }
     let scen = st.scenario;
     if (!scen) {
       try {
@@ -2980,7 +3838,10 @@ export function ChatScreen() {
       .map((m) => m.content).slice(-6), text];
     // 29j3: Muse sees whether the comparison report is verified.
     const reportStatus = latestReportStatus(st.messages);
+    // 42d: Muse answers stay questions from the run's own numbers.
+    const runSummary = runSummaryFor(latestDoneSim(st.messages));
     const ctx = { ...agentContext(store.getState()), lang: LANG,
+      ...(runSummary ? { run_summary: runSummary } : {}),
       // 29M1: English turns tell Muse the names the screen already shows.
       ...(LANG === "en" ? { names_en: homeNamesEnSnapshot() } : {}),
       candidates: liveCands,
@@ -3045,7 +3906,26 @@ export function ChatScreen() {
           pushMsg({ role: "system", kind: "system", content: m.content });
         }
       }
+      // 42e: a Muse turn that ends in the generic fallback hides a
+      // good rule answer — resolve it first so the turn shows the rule
+      // answer instead (marked).
+      const fallbackRule = out.fallback ? ruleAnswerForMuseFallback(text, out, {
+        messages: stateRef.current.messages, picks: stateRef.current.picks,
+        candidates: liveCands, lang: LANG }) : null;
+      if (fallbackRule) {
+        if (fallbackRule.scene) {
+          const res = sceneForEffect(fallbackRule.scene, { picks: stateRef.current.picks,
+            candidates: liveCands,
+            latestRun: latestDoneRun(stateRef.current.messages) });
+          if (res && res.url) {
+            setScene({ url: res.url, title: res.title });
+            setWorkOpen(true);
+          }
+        }
+        if (fallbackRule.tab) store.set({ compareOpen: true, compareTab: fallbackRule.tab });
+      }
       const bubble = turnBubble(out);
+      if (fallbackRule) bubble.content = fallbackRule.line;
       absorbHomeNamesEn(out, bubble && bubble.content, liveCands);
       // 29h2: cards first, then Muse's words — the turn ends on the
       // next move, never on a wall of cards.
@@ -3055,6 +3935,38 @@ export function ChatScreen() {
       pushMsg({ role: "assistant", kind: "text", content: bubble.content || "",
         tool_calls: bubble.tool_calls, suggestions: [...suggestions],
         fromModel: !out.fallback, model: usedProvider });
+      // 42h: numbers always land — when afterRunAnswer recognises a
+      // stay intent with data but Muse's visible text carries no
+      // digit, the rule answer follows as one extra bubble (its meta
+      // line says 규칙으로 답했어요; tab/scene apply only when Muse
+      // opened none). No fromModel stamp, so the meta shows; no
+      // inline suffix on the line.
+      {
+        const supplement = (!fallbackRule && !out.fallback)
+          ? ruleAnswerForDigitlessMuse(text, bubble.content, {
+            messages: stateRef.current.messages, picks: stateRef.current.picks,
+            candidates: liveCands, lang: LANG }) : null;
+        const museOpenedPanel = Array.isArray(out.uiActions)
+          && out.uiActions.some((a) => a && a.action === "panel");
+        if (supplement) {
+          let say = supplement.line;
+          if (!museOpenedPanel) {
+            if (supplement.scene) {
+              const res = sceneForEffect(supplement.scene, { picks: stateRef.current.picks,
+                candidates: liveCands,
+                latestRun: latestDoneRun(stateRef.current.messages) });
+              if (res && res.url) {
+                setScene({ url: res.url, title: res.title });
+                setWorkOpen(true);
+              } else if (res && res.say) {
+                say = res.say;
+              }
+            }
+            if (supplement.tab) store.set({ compareOpen: true, compareTab: supplement.tab });
+          }
+          for (const m of afterRunChipTurn({ line: say })) pushMsg(m);
+        }
+      }
       // 27g: the Muse path never ran ensureData, so the map stayed on its
       // placeholder after Muse found homes. Fill it now (no await — the
       // workOpen effect re-renders when it lands).
@@ -3083,7 +3995,9 @@ export function ChatScreen() {
           } catch { /* not JSON — ignore */ }
         }
       }
+      const picksBeforeIds = [...(stateRef.current.picks || [])];
       let lastPickIds = null;
+      let sawRunAction = false;
       for (const eff of uiEffects(out.uiActions || [],
         { candidateIds, pickCount: stateRef.current.picks.length })) {
         if (eff.type === "work") setWorkOpen(true);
@@ -3093,9 +4007,10 @@ export function ChatScreen() {
           lastPickIds = eff.ids;
           stateRef.current.picks = eff.ids;
         }
-        else if (eff.type === "run") await handleRun(lastPickIds);
+        else if (eff.type === "run") { sawRunAction = true; await handleRun(lastPickIds); }
         else if (eff.type === "say") {
-          pushMsg({ role: "assistant", kind: "text", content: eff.text });
+          pushMsg({ role: "assistant", kind: "text", content: eff.text,
+            fromModel: !out.fallback });
         } else if (eff.type === "scene") {
           // 29j3: the 3D result opens only after the comparison
           // report is verified.
@@ -3105,6 +4020,12 @@ export function ChatScreen() {
               content: "비교 리포트를 검증하는 중이에요. 통과하면 결과를 열게요." });
           } else store.set({ pendingScene: eff });
         }
+      }
+      // 42d: Muse picked a third home to answer a compare request
+      // after a run — the 3-home stay follows in the same turn.
+      if (!sawRunAction && isCompareAddRequest(text) && lastPickIds
+        && lastPickIds.length > picksBeforeIds.length && lastPickIds.length >= 2) {
+        await handleRun(lastPickIds);
       }
       // 13: per-turn usage into the 모델 panel log.
       setUsageLog((log) => recordTurn(log, {
@@ -3125,6 +4046,7 @@ export function ChatScreen() {
           httpStatus: err.httpStatus || null, message: String(err.message || err).slice(0, 200),
         } }));
         noticeServerKeyUsedOnce();
+        setServerKeyUsed(true);
         await structuredFlow(text);
         guardFallback();
         return;
@@ -3200,6 +4122,7 @@ export function ChatScreen() {
     busyRef.current = true;
     setBusy(true);
     setError("");
+    setNoAnswerSaved(false);
     setChipsNearBottom(true);
     pushMsg({ role: "user", kind: "text", content });
     setComposer("");
@@ -3243,10 +4166,14 @@ export function ChatScreen() {
         await structuredFlow(content);
       }
       // 27j: the rules path always answers — fallback line when nothing replied.
+      // 42f: after a done run the line is the Muse fallback (key invite),
+      // otherwise the generic rule line.
       if (routeTurn({ live: shouldCallMuse({ museLive }), museFails }) !== "agent") {
         const answered = answeredSince(replyCountRef.current, repliesBefore);
         if (!answered) {
-          pushMsg({ role: "assistant", kind: "text", content: localNoAnswerLine(content) });
+          pushMsg({ role: "assistant", kind: "text",
+            content: nonMuseNoReplyLine(content,
+              { messages: stateRef.current.messages, lang: currentLang() }) });
         }
       }
     } catch (err) {
@@ -3603,6 +4530,63 @@ export function ChatScreen() {
     } catch { /* a live scene opens at once */ }
     return undefined;
   }
+  // 42b: 일기 다시 쓰기 — re-runs postDiary with the same digests.
+  function onDiaryRetry(simId) {
+    const inputs = diaryInputsRef.current[simId];
+    if (!inputs) return;
+    let diaryProvider = inputs.provider || provider;
+    setMessages((prev) => prev.map((m) => (m.id === simId
+      ? { ...m, data: { ...m.data, diary: { status: "writing" } } } : m)));
+    postDiary({ provider: diaryProvider, digests: inputs.digests, lang: LANG }).catch((firstErr) => {
+      const fallback = basetenFallbackProvider(diaryProvider, firstErr);
+      if (!fallback) throw firstErr;
+      diaryProvider = fallback;
+      return postDiary({ provider: fallback, digests: inputs.digests, lang: LANG });
+    }).then((result) => {
+      setMessages((prev) => prev.map((m) => (m.id === simId
+        ? { ...m, data: { ...m.data, diary: { status: "done", ...result } } } : m)));
+      pushMsg({ role: "assistant", kind: "text",
+        fromModel: !(result.check && result.check.summary_fallback),
+        content: LANG === "en"
+          ? `Finished living there. ${result.summary}`
+          : `다 살아 봤어요. ${result.summary}`,
+        model: diaryProvider,
+        suggestions: ["출근길 보여 줘", "한 달에 얼마 들어?", "동네 걸어 보기"] });
+    }).catch(() => {
+      setMessages((prev) => prev.map((m) => (m.id === simId
+        ? { ...m, data: { ...m.data, diary: { status: "failed" } } } : m)));
+      pushMsg({ role: "assistant", kind: "text",
+        content: diaryFallbackLine(inputs.oneWay, inputs.names, LANG),
+        suggestions: ["출근길 보여 줘", "한 달에 얼마 들어?", "동네 걸어 보기"] });
+    });
+  }
+  // 42b: the retry stays disabled until a key is saved or the server key works again.
+  let diaryRetryReady = museLive !== false;
+  if (!diaryRetryReady) {
+    try {
+      diaryRetryReady = loadByoKey(sessionStorageOf(), provider).length > 0;
+    } catch { diaryRetryReady = false; }
+  }
+  // 42b: pinned alert cause + visibility above the composer. The
+  // hide snapshot carries messages.length so a 닫기 comes back on
+  // the next non-Muse turn.
+  const noAnswerState = { serverKeyUsed, keyless: museLive === false, fails: museFails };
+  const noAnswerText = noAnswerAlertFor(noAnswerState);
+  const noAnswerKeyNow = noAnswerText ? `${noAnswerKey(noAnswerState)}|${messages.length}` : null;
+  const noAnswerVisible = !!noAnswerText && noAnswerHideKey !== noAnswerKeyNow && !replayId;
+  const saveNoAnswer = () => {
+    const p = noAnswerProvider || provider;
+    if (!saveNoAnswerKey({ storage: sessionStorageOf(), provider: p, key: noAnswerDraft })) return;
+    setNoAnswerDraft("");
+    setNoAnswerSaved(true);
+    if (p === provider) {
+      const cleared = clearedNoAnswer();
+      setServerKeyUsed(cleared.serverKeyUsed);
+      setMuseFails(cleared.fails);
+      if (museLive === false) setMuseLive(true);
+      setModelErrors((e) => ({ ...e, [p]: null }));
+    }
+  };
   const handlers = {
     picks,
     intake, household, profile, exampleId,
@@ -3615,6 +4599,8 @@ export function ChatScreen() {
     onJeonse: handleJeonse,
     onRun: handleRun,
     onReportRetry,
+    onDiaryRetry,
+    diaryRetryReady,
     onHandoffConfirm,
     onAsk: (text) => send(text),
     onIntakeAnswer: handleIntakeAnswer,
@@ -3798,6 +4784,17 @@ export function ChatScreen() {
               density="compact"
               composer={(
                 <>
+                  {noAnswerVisible && (
+                    <NoAnswerAlert text={noAnswerText}
+                      onHide={() => setNoAnswerHideKey(noAnswerKeyNow)}
+                      providerChoice={noAnswerProvider || provider}
+                      onProviderChoice={setNoAnswerProvider}
+                      draft={noAnswerDraft} onDraft={setNoAnswerDraft}
+                      onSave={saveNoAnswer} />
+                  )}
+                  {noAnswerSaved && !noAnswerVisible && (
+                    <p className="ui-noanswer-ok">{NO_ANSWER_SUCCESS}</p>
+                  )}
                   <ChatComposer onSubmit={send} isDisabled={busy || !!replayId}
                     value={composer} onChange={setComposer}
                     sendActions={canVoice ? (
@@ -3969,7 +4966,7 @@ export const EMPTY_STARTERS = [
   { id: "example", label: "예시로 써 보기" },
 ];
 
-const EMPTY_FIND_TEXT = "판교 출근, 모은 돈 1억, 4억 이하 매매로 혼자 살 집 찾아 줘";
+const EMPTY_FIND_TEXT = ENTRY_COMPOSER_PLACEHOLDER;
 const META_HQ_TEXT = META_HQ_EXAMPLE;
 // 41g: the Korean starter sends the Korean prompt so the Korean screen
 // gets Korean answers; English keeps the English prompt.
@@ -4045,60 +5042,36 @@ export function ChatEmpty({ onSend, onListing, onExample, replayId }) {
       }
     };
   }, []);
-  const starterAction = (id) => {
-    if (id === "find") setValue(EMPTY_FIND_TEXT);
-    else if (id === "listing") { if (onListing) onListing(); }
-    else if (id === "example") { if (onExample) onExample(); }
-    else if (id === "replay") {
+  // 42g: the empty state is the landing hero over the 3D backdrop —
+  // chips and buttons act in place through the shared entry ids.
+  const entryDeps = {
+    setValue,
+    findText: EMPTY_FIND_TEXT,
+    onSend,
+    onListing,
+    onExample,
+    openReplay: () => {
       try { window.location.href = appUrl("?replay=" + (LANG === "en" ? "menlo-month" : "seoul-couple")); } catch { /* keep the thread as it is */ }
-    }
-    else if (id === "metahq") { if (onSend) onSend(LANG === "en" ? META_HQ_TEXT : META_HQ_TEXT_KO); }
-    else if (id === "seoul") { if (onExample) onExample(); }
+    },
+    metaText: LANG === "en" ? META_HQ_TEXT : META_HQ_TEXT_KO,
   };
   return (
     <div className="ui-chat-empty">
       <div className="ui-chat-empty-scrim" aria-hidden="true" />
       <div className="ui-chat-empty-body">
-        <div>
-          <Heading level={2}>{LANDING_HEADING}</Heading>
-          <Text type="supporting">{LANDING_SUB}</Text>
-        </div>
-        <p className="ui-chat-empty-label">어떤 집을 고민 중이세요?</p>
-        <ChatComposer onSubmit={(text) => onSend && onSend(text)}
-          value={value} onChange={setValue}
+        <EntryHero
+          value={value}
+          onValueChange={setValue}
+          onSubmitText={(text) => { if (onSend) onSend(text); }}
+          onAction={(id) => runEntryAction(id, entryDeps)}
+          placeholder={ENTRY_COMPOSER_PLACEHOLDER}
           sendActions={canEmptyVoice ? (
             <MicButton onText={appendEmptyVoiceText} disabled={false}
               onNotice={(kind) => flashEmptyVoiceNote(
                 kind === "done" ? VOICE_DONE_NOTE : VOICE_ERROR_NOTE)} />
           ) : null}
-          placeholder="예: 판교로 출근해요. 전세로 혼자 살 집 찾아 줘" />
-        {emptyVoiceNote ? (
-          <Text type="supporting">{emptyVoiceNote}</Text>
-        ) : null}
-        <PoweredByMuse size="sm" live={LIVE_API} showStatus />
-        <div className="ui-chat-empty-row">
-          {EMPTY_STARTERS.map((s) => (
-            <Button key={s.id} size="sm" variant="secondary" label={s.label}
-              onClick={() => starterAction(s.id)} />
-          ))}
-        </div>
-        <div className="ui-chat-empty-cards">
-          {EXAMPLE_PROMPTS.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              className="ui-landing-card"
-              aria-label={`${p.title} 예시로 시작하기`}
-              onClick={() => sendExamplePrompt(onSend, p.prompt)}>
-              <span className="ui-landing-cardtop">
-                <span className="ui-landing-cardtitle">{p.title}</span>
-                <span className="ui-landing-cardchip">예시</span>
-              </span>
-              <p className="ui-landing-cardprompt">{p.prompt}</p>
-            </button>
-          ))}
-        </div>
-        <Text type="supporting" className="ui-chat-empty-coverage">{`다루는 지역: ${COVERAGE_AREAS.join(" · ")}`}<br />{COVERAGE_US_LINE}</Text>
+          voiceNote={emptyVoiceNote}
+        />
       </div>
     </div>
   );

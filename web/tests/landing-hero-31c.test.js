@@ -46,7 +46,7 @@ describe("31l landing hero order (SSR, no DOM)", () => {
     assert.ok(body.indexOf("ds-lp-btn--primary") < body.indexOf("ds-lp-btn--secondary"), "first is primary");
     const caps = body.match(/ds-lp-judgecap/g) || [];
     assert.equal(caps.length, 3);
-    assert.ok(body.indexOf("기록된 한 달 보기") < body.indexOf("키 없이 바로 재생"), "first caption follows first entry");
+    assert.ok(body.indexOf("기록된 한 달 보기") < body.indexOf("키 없이 기록 재생"), "first caption follows first entry");
   });
 
   it("has no ds-lp-replaynote", () => {

@@ -50,34 +50,35 @@ function emptyHtml() {
 }
 
 describe("26w first screen content (SSR, no DOM)", () => {
-  it("shows the product line and sub-line from the landing", () => {
+  // 42g: the empty state is the landing hero (EntryHero), not the old
+  // heading/sub + example cards.
+  it("shows the hero title and lede from the landing", () => {
     const html = emptyHtml();
-    assert.ok(html.includes(landing.LANDING_HEADING), "LANDING_HEADING");
-    assert.ok(html.includes(landing.LANDING_SUB), "LANDING_SUB");
+    assert.ok(html.includes("어떤 집을 고민 중이세요?"), "hero title");
+    assert.ok(html.includes("Muse가 직접 확인하고, 대신 30일 살아 보고, 대화로 알려 줘요."), "hero lede");
+    assert.ok(!html.includes(landing.LANDING_HEADING), "old heading gone");
+    assert.ok(!html.includes(landing.LANDING_SUB), "old sub gone");
   });
 
-  it("shows the four example cards, including the US card", () => {
+  it("shows no example cards", () => {
     const html = emptyHtml();
-    assert.equal(landing.EXAMPLE_PROMPTS.length, 4, "four examples");
-    for (const p of landing.EXAMPLE_PROMPTS) {
-      assert.ok(html.includes(p.title), `example title: ${p.title}`);
-      assert.ok(html.includes(p.prompt), `example prompt: ${p.id}`);
-    }
-    assert.ok(html.includes("Meta HQ, Menlo Park (US)"), "US card reachable");
-    assert.ok(html.includes("예시"), "예시 badge");
+    assert.ok(!html.includes("ui-landing-card"), "no example cards");
+    assert.ok(!html.includes("예시로 시작하기"), "no example card buttons");
   });
 
   it("keeps the composer with the question as its label, then coverage last", () => {
     const html = emptyHtml();
     assert.ok(html.includes("어떤 집을 고민 중이세요?"), "composer label line");
-    assert.ok(html.includes("예: 판교로 출근해요"), "composer");
+    assert.ok(html.includes("판교 출근, 모은 돈 1억, 4억 이하 매매로 혼자 살 집 찾아 줘"), "composer");
     for (const s of chat.EMPTY_STARTERS) {
       assert.ok(html.includes(s.label), `starter ${s.id}`);
     }
-    assert.ok(html.includes("다루는 지역"), "coverage line");
-    assert.ok(html.includes("미국 1곳"), "US coverage line");
-    const lastPrompt = Math.max(...landing.EXAMPLE_PROMPTS.map((p) => html.indexOf(p.prompt)));
-    assert.ok(html.indexOf("미국 1곳") > lastPrompt, "coverage stays last");
+    assert.ok(html.includes("다루는 지역 11곳"), "coverage line");
+    const lastCaption = Math.max(
+      html.indexOf("키 없이 기록 재생"),
+      html.indexOf("무료 체험 1회 · 이후 내 키"));
+    assert.ok(lastCaption !== -1, "try captions present");
+    assert.ok(html.indexOf("다루는 지역 11곳") > lastCaption, "coverage stays last");
   });
 
   it("sends the example prompt through onSend", () => {
@@ -183,8 +184,7 @@ describe("26w3 last three defects (SSR, no DOM)", () => {
     assert.ok(block.includes("border-radius: 10px"), "radius 10px");
     assert.ok(block.includes("width: fit-content"), "fits the text");
     const html = emptyHtml();
-    assert.ok(html.includes("다루는 지역"), "coverage line kept");
-    assert.ok(html.includes("미국 1곳"), "US coverage line kept");
+    assert.ok(html.includes("다루는 지역 11곳"), "coverage line kept");
   });
 
   it("shortens the status badge on phones, never clips it", () => {

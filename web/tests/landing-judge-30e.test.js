@@ -49,8 +49,9 @@ describe("30e landing hero judge buttons (SSR, no DOM)", () => {
     const html = renderToStaticMarkup(React.createElement(LandingPage));
     assert.ok(!html.includes("ds-lp-replaynote"));
     assert.ok(html.includes("ds-lp-judgecap"));
-    assert.ok(html.includes("키 없이 바로 재생"));
-    assert.ok(html.includes("Muse 실시간 · 하루 한도"));
+    assert.ok(html.includes("키 없이 기록 재생"));
+    assert.ok(html.includes("무료 체험 1회 · 이후 내 키"));
+    assert.ok(html.includes("Muse 실시간"));
   });
 
   it("ui.css has the judge button rules and no ellipsis", () => {

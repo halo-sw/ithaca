@@ -68,6 +68,7 @@ export const INITIAL_STATE = {
   monthStrip: null, // [{day, date, weekday, weekend, commuteMin, fatigueMean, trips}]
   routeSteps: null, // {steps, outing, outings} for the followed member today
   stripCompare: false, // A·B day strips stacked
+  personLog: null, // 42c: personMonthLog() for this home (the 기록 panel reads it)
   chatSummary: "", // top-bar profile chip in chat mode ("판교 출근 · 1인 · …")
   aerial: false, // 20d/20e: true once the VWorld aerial drape lands (set() drops unknown keys)
   aerialCorridor: false, // 36c: true once the ride-corridor drape lands

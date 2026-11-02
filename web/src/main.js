@@ -48,6 +48,7 @@ import { VALID_COMPARE_TABS, resolveTabId } from "./ui/compare-tabs.js";
 import { routeForSearch, bootKindFor, chatUrl, chatReopenUrl } from "./chat/urls.js";
 import { ACTIVITIES, daySegments, hhmm, isCaltrainRun, monthStrip, outingStepsFor, runHasBikeTrip } from "./timeline.js";
 import { customRunId, loadCustomRun } from "./chat/idb.js";
+import { personMonthLog } from "./diary/person-log.js";
 // Stage 5b realistic rendering seam: createRenderer / renderFrame plus
 // the rig/material builders (night emissive via aLit, not glow quads).
 import { PAINTED_ROOF_HEX, PAINTED_WALL_HEX, aviationBlink, eveningHomeFraction, facadeTintFor, globalHomeFraction, litFractionWithFallback, needsAviationLight, tourOfficeFraction } from "./render/facades.js";
@@ -3294,6 +3295,9 @@ async function bootSim() {
       simNote: `시뮬레이션 주민 ${run.meta.agents}명 (가구 ${run.meta.household}명 + 이웃 ${run.meta.background}명) · 엔진 재생`,
       note: simLegendBase,
     },
+    // 42c: the written per-person log for the 기록 panel, built in
+    // code from this home's own run data (there even without Muse).
+    personLog: personMonthLog(run, { lang: currentLang() === "en" ? "en" : "ko" }),
     follow,
     // 29L2: English follow options are built here (Me, Your
     // partner, …) inside data-no-i18n nodes — never glossaried.

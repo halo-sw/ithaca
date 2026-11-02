@@ -167,7 +167,7 @@ describe("no demo numbers without 예시", () => {
     assert.ok(!text.includes("억") && !text.includes("㎡"));
   });
 
-  it("empty chat shows no figures", () => {
+  it("empty chat shows no figures", async () => {
     // ChatScreen boots from effects (not run server-side): the fresh
     // render is the shell + empty screen. The 26w example cards are the
     // labelled-예시 exception (same as the landing above): strip their
@@ -178,6 +178,10 @@ describe("no demo numbers without 예시", () => {
     for (const p of landing.EXAMPLE_PROMPTS) {
       text = text.split(p.prompt).join("");
     }
+    // 42i: the composer placeholder is example text shared with the
+    // landing — strip it like the labelled 예시 prompts above.
+    const { ENTRY_COMPOSER_PLACEHOLDER } = await import("../src/ui/entry-hero.jsx");
+    text = text.split(ENTRY_COMPOSER_PLACEHOLDER).join("");
     const figs = [...text.matchAll(FIGURE)].map((m) => m[0]).filter((f) => f !== "30일"); // 30일은 제품명(30일 살아 보기)이라 데모 수치가 아님
     assert.deepEqual(figs, []);
     // 32e: the product name in the top bar is the Ithaca logo image now.

@@ -2,18 +2,18 @@
 // page — no 3D world, no area fetch. Every entry point leads to the chat.
 // 28f: band rhythm, hero proof facts, product window, dark closing.
 import { useState } from "react";
-import { ChatComposer } from "@astryxdesign/core/Chat";
 import { assetUrl, appUrl } from "../paths.js";
 import { appEntryUrl, chatUrl } from "../chat/urls.js";
 import { currentLang } from "../i18n/lang.js";
 import { META_HQ_EXAMPLE, META_HQ_EXAMPLE_KO } from "../places-us.js";
-import { COVERAGE_LINE, EXAMPLE_PROMPTS } from "./landing.jsx";
+import { EXAMPLE_PROMPTS } from "./landing.jsx";
 import { LangToggle } from "./lang-toggle.jsx";
 import { PoweredByMuse, MUSE_LOGO_PATH } from "./powered-by-muse.jsx";
+import { EntryHero, ENTRY_COMPOSER_PLACEHOLDER } from "./entry-hero.jsx";
 import { IthacaLogo } from "./ithaca-logo.jsx";
 
 const NOTICE = "지금은 서울 동남권과 분당·판교·수지 11곳에서 시작했어요";
-const HERO_PLACEHOLDER = "판교 출근, 모은 돈 1억, 4억 이하 매매로 혼자 살 집 찾아 줘";
+const HERO_PLACEHOLDER = ENTRY_COMPOSER_PLACEHOLDER;
 const COMPOSER_FILL = "판교로 출근해요. 혼자 살 집을 매매로 찾아 줘";
 const NIGHT_PROMPT = "판교 출근 집 두 곳에서 30일 살아 보고 밤 10시 이후 귀가를 보여 줘";
 const HOOD_PROMPT = "미금역 근처 매매 찾아 주고 동네를 보여 줘";
@@ -41,13 +41,6 @@ const SOURCES_DETAIL = [
   "주변 사진: Wikimedia Commons (자유 라이선스, 매물 사진 아님)",
   "치안·학교: 경찰청·교육부 공식 통계만 (출처·기간·단위와 함께 표시)",
   "미국 월세: Zillow Observed Rent Index (ZIP 단위 추정, 매물 가격 아님) · 지도·항공사진: USGS The National Map",
-];
-
-// Proof facts from the real walkthrough shown under the hero chips.
-const PROOFS = [
-  { num: "14초", rest: "후보 6곳 찾기" },
-  { num: "85초", rest: "두 집 30일 살아 보기" },
-  { num: "8/8", rest: "일기 문장 기록과 대조" },
 ];
 
 const COLUMNS = [
@@ -152,6 +145,12 @@ export function LandingPage() {
     if (!content) return;
     window.location.href = chatUrl(content);
   };
+  // 42g: chips navigate, like the hero always did.
+  const landingAction = (id) => {
+    if (id === "find") setValue(COMPOSER_FILL);
+    else if (id === "listing") { window.location.href = appEntryUrl(); }
+    else if (id === "example") { window.location.href = chatUrl(EXAMPLE_PROMPTS[0].prompt); }
+  };
   return (
     <div className="ds-lp" id="top">
       <nav className="ds-lp-nav">
@@ -173,68 +172,18 @@ export function LandingPage() {
       <div className="ds-lp-notice">{NOTICE}</div>
 
       <div className="ds-lp-heroband">
-      <header className="ds-lp-hero">
-        <p className="ds-lp-heroeyebrow">
-          <img src={assetUrl(MUSE_LOGO_PATH)} alt="" width={16} height={16} />
-          <span data-no-i18n>Pre-simulation by Muse Agent</span>
-        </p>
-        <h1 className="ds-lp-title">어떤 집을 고민 중이세요?</h1>
-        <p className="ds-lp-lede">Muse가 직접 확인하고, 대신 30일 살아 보고, 대화로 알려 줘요.</p>
-        <div className="ds-lp-composer">
-          <ChatComposer
-            onSubmit={submit}
-            value={value}
-            onChange={setValue}
-            placeholder={HERO_PLACEHOLDER}
-          />
-        </div>
-        <div className="ds-lp-chips">
-          <button type="button" className="ds-lp-chip" onClick={() => setValue(COMPOSER_FILL)}>
-            출근지로 집 찾기
-          </button>
-          <button
-            type="button"
-            className="ds-lp-chip"
-            onClick={() => { window.location.href = appEntryUrl(); }}>
-            본 매물 붙여 넣기
-          </button>
-          <button
-            type="button"
-            className="ds-lp-chip"
-            onClick={() => { window.location.href = chatUrl(EXAMPLE_PROMPTS[0].prompt); }}>
-            예시로 써 보기
-          </button>
-        </div>
-        <section className="ds-lp-try" aria-label="바로 해 보기">
-          <p className="ds-lp-trylabel">바로 해 보기</p>
-          <div className="ds-lp-judge">
-            <div className="ds-lp-judgeitem">
-              <a className="ds-lp-btn ds-lp-btn--primary" href={replayEntryUrl(currentLang())}>기록된 한 달 보기</a>
-              <p className="ds-lp-judgecap">키 없이 바로 재생</p>
-            </div>
-            <div className="ds-lp-judgeitem">
-              <a className="ds-lp-btn ds-lp-btn--secondary" href={chatUrl(currentLang() === "en" ? META_HQ_PROMPT : META_HQ_PROMPT_KO)}>Meta 본사 출근으로 해 보기</a>
-              <p className="ds-lp-judgecap">Muse 실시간 · 하루 한도</p>
-            </div>
-            <div className="ds-lp-judgeitem">
-              <a className="ds-lp-btn ds-lp-btn--secondary" href={chatUrl(EXAMPLE_PROMPTS[0].prompt)}>서울로 해 보기</a>
-              <p className="ds-lp-judgecap">Muse 실시간 · 하루 한도</p>
-            </div>
-          </div>
-          <div className="ds-lp-proof">
-            {PROOFS.map((p) => (
-              <span key={p.num} className="ds-lp-prooffact">
-                <b>{p.num}</b>
-                <span>{p.rest}</span>
-              </span>
-            ))}
-          </div>
-          <div className="ds-lp-tryfoot">
-            <PoweredByMuse size="sm" />
-            <p className="ds-lp-coverline">{COVERAGE_LINE}</p>
-          </div>
-        </section>
-      </header>
+      <EntryHero
+        value={value}
+        onValueChange={setValue}
+        onSubmitText={submit}
+        onAction={landingAction}
+        links={{
+          replay: replayEntryUrl(currentLang()),
+          meta: chatUrl(currentLang() === "en" ? META_HQ_PROMPT : META_HQ_PROMPT_KO),
+          seoul: chatUrl(EXAMPLE_PROMPTS[0].prompt),
+        }}
+        placeholder={HERO_PLACEHOLDER}
+      />
       </div>
 
       <section className="ds-lp-band ds-lp-band--sunken" id="features">

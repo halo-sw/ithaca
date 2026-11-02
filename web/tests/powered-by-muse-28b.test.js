@@ -62,7 +62,8 @@ describe("28b PoweredByMuse (SSR, no DOM)", () => {
     const topbar = read("../src/ui/topbar.jsx");
     assert.ok(topbar.includes("<PoweredByMuse"), "topbar uses the credit");
     assert.ok(!topbar.includes('className="ui-bar-muse"'), "old span gone");
-    assert.ok(read("../src/ui/chat.jsx").includes("<PoweredByMuse"), "empty chat uses it");
+    assert.ok(read("../src/ui/chat.jsx").includes("<EntryHero"), "empty chat uses the shared hero");
+    assert.ok(read("../src/ui/entry-hero.jsx").includes("<PoweredByMuse"), "hero carries the credit");
     assert.ok(read("../src/ui/ui.css").includes(".ds-pbm"), "css block");
     const doc = read("../../docs/design.md");
     assert.ok(doc.includes("### 3.12 PoweredByMuse"), "new section");
