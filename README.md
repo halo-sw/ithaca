@@ -4,7 +4,7 @@
 
 <p align="center">Before you sign, an AI household lives 30 days in each of your two candidate homes.<br>Then you see what a listing photo, a map and a 30-minute viewing never show: the commute day by day, the money, the walk home after dark.</p>
 
-<p align="center"><a href="https://github.com/halo-sw/ithaca/releases/download/demo-video/ithaca-demo.mp4"><img src="briefs/img/demo-video-thumb.jpg" width="720" alt="Demo video: about 2 minutes, narrated, a Seoul couple buying a home near Pangyo, English UI"></a><br><sub>▶ <a href="https://github.com/halo-sw/ithaca/releases/download/demo-video/ithaca-demo.mp4"><b>Demo video</b></a> (about 2 min, narrated, mp4) · a Seoul couple buys a home near Pangyo, English UI, a real run with Muse Spark 1.3 · <a href="https://github.com/halo-sw/ithaca/releases/tag/demo-video">release page</a></sub></p>
+<p align="center"><a href="https://github.com/halo-sw/ithaca/releases/download/demo-video/ithaca-demo.mp4"><img src="briefs/img/demo-video-thumb.jpg" width="720" alt="Demo video thumbnail: the 30-day result for a Pangyo couple (A 7 min, B 24 min one-way, report check passed on the first try) beside the 3D neighbourhood, with the caption Before you sign, an AI household lives 30 days in each home."></a><br><sub>▶ <a href="https://github.com/halo-sw/ithaca/releases/download/demo-video/ithaca-demo.mp4"><b>Demo video</b></a> (2:28, narrated, mp4) · Korea first: a couple working in Pangyo, a real Muse Spark 1.3 run · then Meta HQ in Menlo Park on Muse Spark Open · English UI · <a href="https://github.com/halo-sw/ithaca/releases/tag/demo-video">release page</a></sub></p>
 
 <p align="center"><b>Built with Meta AI:</b> Meta Model API (<code>api.meta.ai</code>) · Muse Spark 1.3 · Muse Spark Open · Muse Code · Muse Voice</p>
 
@@ -66,10 +66,10 @@
 | 5 | **Compare with evidence** | Time, fatigue, money for buying (매매), deposit lease (전세) and monthly rent (월세), deposit-lease warning signs, support programmes, official safety and education figures, all weighted by the customer's own priorities. Each home gets a 0–100 **내 기준 점수**: a subjective score from the customer's own weights, with the formula one tap away. | built |
 
 <p align="center">
-  <img src="briefs/img/1031-menlo.jpg" width="820" alt="The chat replaying a real Muse Spark 1.3 session for a Meta HQ commuter in Menlo Park. Left: the live-in diary (Day 1 08:00, left home and commuted 12 minutes), 'All 8 sentences checked against the record', the block 'Only living there tells you' (rode home from work after dark: A 37 times, avg 11 min, 2.9 km, by bike; B 40 times; sunset 17:00) and the sources Zillow ZORI, OSM (US), USGS. Right: a light map of Menlo Park with the Meta HQ work pin and six price pins at $4,261 with 11 to 13 minutes; A and B are picked, with a See the result button.">
+  <img src="briefs/img/1102-menlo.jpg" width="820" alt="Meta HQ in Menlo Park on Muse Spark Open, chosen with the header switch (Muse Spark 1.3 | Muse Spark Open · open weights). Left: After 30 days of living: 777 Hamilton $4,261/mo (ZIP estimate), 14 min one-way; 124 University Avenue $4,219/mo, 33 min; B takes 19 min more one-way on average; Report check: Try 1 passed (100%), each sentence marked Numbers checked. Right: the 3D neighbourhood on Day 1 08:10 with Me leaving 124 University Avenue.">
 </p>
 
-<p align="center"><sub>Meta HQ in Menlo Park, replayed from a real Muse Spark 1.3 session: the checked diary and "Only living there tells you" on the left, six candidates with ZIP rent and door-to-work minutes on the map. Real GPU capture, 2026-10-31.</sub></p>
+<p align="center"><sub>Meta HQ in Menlo Park on Muse Spark Open (open weights, picked in the header): the 30-day result, the report check that passed on the first try, and the 3D neighbourhood. Production build, 2026-11-02.</sub></p>
 
 **Why I built this.** I'm Halo, and I have been looking for a home to start married life in. Between the deposit-fraud news and two people with very different daily routines, it was hard, and every change, like a new job, brings things you only meet after moving in. I can't know in advance how well I'll sleep, how crowded my commute will be, or what a neighbourhood is really like, so I wanted to simulate it first.
 
@@ -151,11 +151,11 @@ How each check works, with the diagram: [docs/verification.md](docs/verification
 <table>
   <tr>
     <td width="50%"><img src="briefs/img/1031-landing.jpg" alt="The landing page: the heading Which home are you weighing?, one input, chips, and a Try it now panel with Watch a recorded month, I work at Meta HQ and Try Seoul, above three numbers: 14 seconds, 85 seconds, 8/8."></td>
-    <td width="50%"><img src="briefs/img/1031-result.jpg" alt="The 30-day result as an A | B table beside the map: 내 기준 점수 38 and 63, monthly housing cost 월 101만 7천 원 for both, one-way commute 5 minutes for both, then moments and the diary."></td>
+    <td width="50%"><img src="briefs/img/1102-result.jpg" alt="The 30-day result for an engaged couple working in Pangyo, English UI: Baekgung Dongyang Paragon and Suseo Hyundai Venture Ville, my-criteria score 30 and 70 pts, monthly housing cost 2,192,000 won and 1,197,000 won, cost to buy 599,070,000 won and 388,870,000 won, one-way commute 7 min and 24 min, B takes 17 min more; beside the map with Work · Pangyo and the six price pins."></td>
   </tr>
   <tr>
     <td><sub><b>Start with a sentence, or watch a recorded month.</b> One input, and three ways to try it now: a recorded month that plays without a key, Meta HQ live, Seoul live, with the run's own numbers (14 seconds to find 6 homes, 85 seconds to live 30 days in two, 8/8 diary sentences checked).</sub></td>
-    <td><sub><b>The answer first.</b> After 30 days in each home: the customer's own 내 기준 점수 (computed with every weight at 보통 until they set their own), monthly housing cost and the one-way commute side by side, then moments and the checked diary. No winner is named.</sub></td>
+    <td><sub><b>The answer first.</b> After 30 days in each home: the customer's own score (every weight at normal until they set their own), monthly housing cost, the cost to buy and the one-way commute side by side, then moments and the checked report. No winner is named.</sub></td>
   </tr>
   <tr>
     <td><img src="briefs/img/1101-3d.jpg" alt="The 3D neighbourhood following 나 (me) on Line 8 from Seokchon to Bokjeong, under Songpa-daero: the line and stations over the aerial photo, 25 min left, 7 min walking measured + 20 min subway assumed + 12 min transfer and wait assumed, crowding 70% assumed on Line 9, Suin-Bundang and Gyeonggang, crowding 100% measured on Line 8 (Seoul Metro)."></td>
@@ -166,10 +166,10 @@ How each check works, with the diagram: [docs/verification.md](docs/verification
     <td><sub><b>On a phone.</b> Chat and Map &amp; homes as two tabs: the checked diary, “Only living there tells you” and its sources, and map pins that show the same door-to-work minutes as the cards.</sub></td>
   </tr>
   <tr>
-    <td colspan="2"><img src="briefs/img/1101-seoul.jpg" alt="Seoul, in Korean: an engaged couple working in Pangyo buys a home for 700,000,000 won or less, replayed from a real Muse Spark 1.3 session. Left: the one-off purchase total 355,250,000 won (200,000,000 won own money, 155,250,000 won borrowed), the monthly ₩1,036,388 (loan payment ₩741,188, maintenance, transit) and Only living there tells you. Right: six homes to buy, one per neighbourhood, with real-transaction prices and commute minutes over the subway lines; A Baekgung Dongyang Paragon (570,000,000 won, 7 min) and B Yuji Villa 3 (350,000,000 won, 35 min) are picked."></td>
+    <td colspan="2"><img src="briefs/img/1102-seoul-ko.jpg" alt="The same Pangyo couple in Korean UI: what they pay once at purchase (total 3억 8,887만 원, 2억 원 of their own money), what they pay every month (loan 90만 1,695 원, maintenance 15만 원, transit 14만 5,200 원, total 119만 6,895 원), and 살아 봐야 아는 것 (walked home after dark: A 13 times, avg 3 min, 240 m from Jeongja Station; B 42 times, avg 2 min, 140 m from Suseo Station; sunset 17:25); beside the map with the two picked homes."></td>
   </tr>
   <tr>
-    <td colspan="2"><sub><b>Two countries, one engine.</b> Seoul, in Korean: an engaged couple working in Pangyo buys a home. What they pay once at purchase and every month on the left; six homes to buy, one per neighbourhood, with real-transaction prices and commute minutes on the right.</sub></td>
+    <td colspan="2"><sub><b>The same run in Korean.</b> The Korean sentence (판교에서 둘 다 일하는 예비부부…) gives the same two homes: what they pay once and every month, and "Only living there tells you" from the record. Production build, 2026-11-02.</sub></td>
   </tr>
 </table>
 

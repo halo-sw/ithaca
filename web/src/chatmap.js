@@ -626,24 +626,33 @@ export function tagPriceLine(candidate, tenure, lang, opts) {
   return first ? `${first} ${short}` : short;
 }
 
-export function tagCommuteLine(pin, lang) {
+export function tagCommuteLine(pin, lang, hasWorkplace = true) {
   const m = pin && pin.commuteMin;
   if (m === null || m === undefined || !Number.isFinite(Number(m))) return null;
-  return lang === "en" ? `${Math.round(m)} min` : `출근 ${Math.round(m)}분`;
+  const n = Math.round(m);
+  // 41l: without a known workplace the minutes are the walk to the
+  // nearest station, never a commute — label them as such.
+  if (hasWorkplace === false) {
+    return lang === "en" ? `${n} min walk to station` : `역까지 걸어서 ${n}분`;
+  }
+  return lang === "en" ? `${n} min` : `출근 ${n}분`;
 }
 
 // 31j: one place for a tag's three lines in the rendering
 // language — the tag measures and paints exactly these strings.
 export function tagLines(pin, opts) {
   const o = opts || {};
-  const commute = tagCommuteLine(pin, o.lang);
+  const commute = tagCommuteLine(pin, o.lang, o.hasWorkplace);
   if (o.sharedRent && commute) {
     // 29k2: every home shares one ZIP rent, so the bold line leads
     // with the commute (English: `N min to work`); the money line
     // is said once above the list instead.
+    // 41l: with no known workplace it leads with the station walk.
     const m = pin && pin.commuteMin;
     const price = (o.lang === "en" && Number.isFinite(Number(m)))
-      ? `${Math.round(m)} min to work`
+      ? (o.hasWorkplace === false
+        ? `${Math.round(m)} min walk to station`
+        : `${Math.round(m)} min to work`)
       : commute;
     return {
       header: tagHeaderFor(pin, o.lang),
@@ -667,7 +676,8 @@ export function tagSizePx(pin, tenure, lang, opts) {
   const t = tagFontPx(opts);
   const lines = tagLines(pin, { tenure, lang,
     sharedRent: opts && opts.sharedRent,
-    mixedTenure: opts && opts.mixedTenure });
+    mixedTenure: opts && opts.mixedTenure,
+    hasWorkplace: opts && opts.hasWorkplace });
   // 31m: { short: true } measures the compact form — header +
   // price, no commute line — for crowded stages.
   const commute = (opts && opts.short) ? null : lines.commute;
@@ -1504,7 +1514,9 @@ export function layoutChatStage({ focus, specs, W, H, pad, obstacles,
       const cy = g.reduce((t, m) => t + m.y, 0) / g.length;
       const infos = ordered.map((m) => {
         const p = m.pin || {};
-        const lines = tagLines(p, { tenure, lang, sharedRent, mixedTenure });
+        const lines = tagLines(p, { tenure, lang, sharedRent, mixedTenure,
+          // 41l: the commute line names 출근 only with a workplace.
+          hasWorkplace: (specs || []).some((s) => s.kind === "work") });
         const glyph = (p.picked && p.letter) ? p.letter : String(p.n ?? "");
         return { n: glyph, price: lines.price, commute: lines.commute };
       });
@@ -1656,7 +1668,9 @@ export function layoutChatStage({ focus, specs, W, H, pad, obstacles,
         const infos = ordered.map((m) => {
           const pin = (m.spec && m.spec.pin) || {};
           const lines = tagLines(pin,
-            { tenure, lang, sharedRent, mixedTenure });
+            { tenure, lang, sharedRent, mixedTenure,
+              // 41l: the commute line names 출근 only with a workplace.
+              hasWorkplace: (specs || []).some((s) => s.kind === "work") });
           const glyph = (pin.picked && pin.letter)
             ? pin.letter : String(pin.n ?? "");
           return { n: glyph, price: lines.price, commute: lines.commute };

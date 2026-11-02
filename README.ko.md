@@ -4,7 +4,7 @@
 
 <p align="center"><b>계약하기 전에, 그 집에서 먼저 살아 보세요.</b><br>AI 가족이 후보 집 두 곳에서 30일씩 먼저 살아 보고, 매물 사진·지도·30분 집 구경으로는 안 보이는 출퇴근, 돈, 밤 귀갓길을 보여 줘요.</p>
 
-<p align="center"><a href="https://github.com/halo-sw/ithaca/releases/download/demo-video/ithaca-demo.mp4"><img src="briefs/img/demo-video-thumb.jpg" width="720" alt="데모 영상: 약 2분, 내레이션, 판교 출근 부부의 집 사기, 영어 화면"></a><br><sub>▶ <a href="https://github.com/halo-sw/ithaca/releases/download/demo-video/ithaca-demo.mp4"><b>데모 영상</b></a> (약 2분, 영어 내레이션, mp4) · 판교로 출근하는 부부가 집을 사는 경우를 영어 화면으로, Muse Spark 1.3 실제 실행 · <a href="https://github.com/halo-sw/ithaca/releases/tag/demo-video">릴리스 페이지</a></sub></p>
+<p align="center"><a href="https://github.com/halo-sw/ithaca/releases/download/demo-video/ithaca-demo.mp4"><img src="briefs/img/demo-video-thumb.jpg" width="720" alt="데모 영상 썸네일: 판교 출근 부부의 30일 결과(A 편도 7분, B 24분, 리포트 검증 1차 통과)와 3D 동네, 자막 Before you sign, an AI household lives 30 days in each home."></a><br><sub>▶ <a href="https://github.com/halo-sw/ithaca/releases/download/demo-video/ithaca-demo.mp4"><b>데모 영상</b></a> (2분 28초, 영어 내레이션, mp4) · 한국 먼저: 판교로 출근하는 부부, Muse Spark 1.3 실제 실행 · 이어서 멘로파크 Meta 본사, Muse Spark Open · 영어 화면 · <a href="https://github.com/halo-sw/ithaca/releases/tag/demo-video">릴리스 페이지</a></sub></p>
 
 <p align="center"><b>Meta AI로 만들었어요:</b> Meta Model API (<code>api.meta.ai</code>) · Muse Spark 1.3 · Muse Spark Open · Muse Code · Muse Voice</p>
 
@@ -66,10 +66,10 @@
 | 5 | **근거를 보며 비교하기** | 시간, 피곤한 정도, 매매·전세·월세 비용, 전세 위험 신호, 지원 제도, 공식 치안·교육 통계를 고객이 정한 우선순위로만 비교해요. 집마다 0~100 **내 기준 점수**를 보여 줘요. 고객이 정한 비중으로 계산한 주관적인 점수이고, 계산식은 한 번 누르면 보여요. | 완료 |
 
 <p align="center">
-  <img src="briefs/img/1101-seoul.jpg" width="820" alt="판교로 출근하는 예비부부(연봉 6천·5천, 모은 돈 2억)가 7억 이하 집을 사는 실제 Muse Spark 1.3 대화를 재생한 화면. 왼쪽은 살 때 드는 돈 합계 3억 5,525만 원(내 돈 2억, 빌리는 돈 1억 5,525만 원), 매달 내는 돈 월 103만 6,388원(대출 갚는 돈 74만 1,188원, 관리비, 교통비), 살아 봐야 아는 것(해 진 뒤 걸어서 퇴근 A 10번·B 44번), 확인한 출처. 오른쪽은 지하철 노선 위 매매 후보 6곳의 가격과 출근 분, 담은 집 A 백궁 동양파라곤(5억 7,000, 출근 7분)과 B 유지빌라3차(3억 5,000, 출근 35분), 결과 보기 버튼.">
+  <img src="briefs/img/1102-seoul-ko.jpg" width="820" alt="판교에서 둘 다 일하는 예비부부의 한국어 화면: 살 때 한 번에 내는 돈 합계 3억 8,887만 원(내 돈 2억 원), 매달 내는 돈 합계 119만 6,895 원(대출 90만 1,695 원, 관리비 15만 원, 교통비 14만 5,200 원), 살아 봐야 아는 것(해 진 뒤 걸어서 퇴근 A 13번·정자역에서 평균 3분 240m, B 42번·수서역에서 평균 2분 140m, 해 지는 시각 17:25), 오른쪽은 담은 두 집이 있는 지도.">
 </p>
 
-<p align="center"><sub>판교 출근 예비부부가 집을 사는 경우, 실제 Muse Spark 1.3 대화(2026-11-01)를 재생한 화면: 왼쪽은 살 때 한 번에 내는 돈과 매달 내는 돈, "살아 봐야 아는 것", 오른쪽은 동네별 매매 후보 6곳의 가격과 출근 시간. 실제 GPU 캡처, 2026-11-01.</sub></p>
+<p align="center"><sub>판교 출근 예비부부가 집을 사는 경우, 한국어 문장 그대로 Muse Spark 1.3이 실행한 화면: 왼쪽은 살 때 한 번에 내는 돈과 매달 내는 돈, "살아 봐야 아는 것", 오른쪽은 담은 두 집. 운영 빌드, 2026-11-02.</sub></p>
 
 **만든 이유.** 저는 Halo이고, 신혼집을 구하고 있었어요. 전세사기 소식에 두 사람의 생활 패턴까지 달라서 집 구하기가 정말 어려웠고, 이직 같은 변화가 생길 때마다 살아 보고 나서야 마주치는 것들이 많았어요. 수면의 질, 출퇴근길 혼잡도, 동네마다의 특성은 미리 알 수 없으니, 계약하기 전에 먼저 시뮬레이션을 돌려 보고 싶었어요.
 
@@ -151,7 +151,7 @@ Spark Open은 Baseten이 공개한 그대로 서빙해요. 서빙된 두 모델�
 <table>
   <tr>
     <td width="50%"><img src="briefs/img/1031-landing.jpg" alt="랜딩 페이지: 제목 Which home are you weighing?, 입력창 하나, 바로 해 보기 패널(Watch a recorded month, I work at Meta HQ, Try Seoul)과 숫자 세 개 14초·85초·8/8."></td>
-    <td width="50%"><img src="briefs/img/1031-result.jpg" alt="지도 옆 30일 살아 보기 결과 A | B 표: 내 기준 점수 38점·63점, 월 주거비 둘 다 월 101만 7천 원, 출퇴근 편도 둘 다 5분, 이어서 살아 보니 장면과 일기."></td>
+    <td width="50%"><img src="briefs/img/1102-result.jpg" alt="영어 화면의 30일 결과: 백궁 동양파라곤과 수서현대벤처빌, 내 기준 점수 30점·70점, 월 주거비 2,192,000 won·1,197,000 won, 살 때 드는 돈 599,070,000 won·388,870,000 won, 편도 출근 7분·24분, B가 평균 17분 더 걸림. 오른쪽은 회사·판교와 가격 핀 6개."></td>
   </tr>
   <tr>
     <td><sub><b>한 문장으로, 아니면 기록된 한 달로 시작해요.</b> 입력창 하나와 바로 해 보는 세 가지 길(키 없이 재생되는 기록된 한 달, Meta 본사 실시간, 서울 실시간), 그리고 실행에서 나온 숫자(후보 6곳 찾는 데 14초, 두 집 30일 사는 데 85초, 일기 8문장 모두 대조).</sub></td>
@@ -166,10 +166,10 @@ Spark Open은 Baseten이 공개한 그대로 서빙해요. 서빙된 두 모델�
     <td><sub><b>폰에서도.</b> 대화와 지도·집 두 탭: 기록과 대조한 일기, "살아 봐야 아는 것"과 출처, 카드와 같은 출근 시간을 보여 주는 지도 핀.</sub></td>
   </tr>
   <tr>
-    <td colspan="2"><img src="briefs/img/1031-menlo.jpg" alt="영어로 본 Menlo Park: 왼쪽은 대조한 일기, "Only living there tells you", 출처 Zillow ZORI·OSM (US)·USGS, 오른쪽은 Meta 본사 주변 $4,261 후보 6곳과 11~13분 출근 시간."></td>
+    <td colspan="2"><img src="briefs/img/1102-menlo.jpg" alt="멘로파크 Meta 본사, 헤더에서 Muse Spark Open을 고른 영어 화면: 777 Hamilton 월 $4,261(ZIP 추정)·편도 14분, 124 University Avenue 월 $4,219·33분, B가 평균 19분 더 걸림, 리포트 검증 1차 통과(100%), 문장마다 숫자 확인. 오른쪽은 1일차 08:10 3D 동네."></td>
   </tr>
   <tr>
-    <td colspan="2"><sub><b>두 나라, 같은 엔진.</b> 영어로 본 Menlo Park: 왼쪽은 대조한 일기, "Only living there tells you", 출처 Zillow ZORI·OSM (US)·USGS, 오른쪽은 Meta 본사 주변 $4,261 후보 6곳과 11~13분 출근 시간.</sub></td>
+    <td colspan="2"><sub><b>두 나라, 같은 엔진.</b> 멘로파크 Meta 본사를 오픈 웨이트 모델 Muse Spark Open으로: 30일 결과, 1차에 통과한 리포트 검증, 3D 동네. 운영 빌드, 2026-11-02.</sub></td>
   </tr>
 </table>
 

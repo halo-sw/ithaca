@@ -91,6 +91,9 @@ function parseMoneyChunk(chunk) {
   if (cheon) {
     total += Number(cheon[1]) * 1000 * WON_MAN;
     rest = rest.replace(cheon[0], "");
+    // 41l: "6천만(원)" names 천만 outright — the trailing 만(원)
+    // is the unit word, not another value.
+    if (/^만(원)?$/.test(rest)) rest = "";
   }
   const man = rest.match(/(\d+(?:\.\d+)?)만/);
   if (man) {
@@ -495,8 +498,10 @@ function matchWorkplaceIn(clause, stations) {
   // "강남역으" with "로" matching. A trailing "으" on "역으" is stripped
   // defensively below.
   const pats = [
-    /([가-힣A-Za-z0-9·]+?)(?:으로|로|에서|에)\s*출근/,
-    /([가-힣A-Za-z0-9·]+?)(?:에서|에)\s*일해/,
+    // 41l: "판교로 (둘 다) 출근하는/출근해요".
+    /([가-힣A-Za-z0-9·]+?)(?:으로|로)\s*(?:둘\s*다|같이|함께)?\s*출근/,
+    // 41l: "판교에서 (둘 다|같이|함께) 일하는/근무해요/다니는".
+    /([가-힣A-Za-z0-9·]+?)(?:에서|에)\s*(?:둘\s*다|같이|함께)?\s*(?:일하는|일해요|일합니다|일해|근무하는|근무해요|근무합니다|근무해|다니는|다녀요|다닙니다|다녀)/,
     /출근(?:지|은|이)\s*([가-힣A-Za-z0-9·]+)/,
     /(?:직장|회사)(?:이|은|는)?\s*([가-힣A-Za-z0-9·]+)/,
     /([가-힣A-Za-z0-9·]+?)\s*출근/,
@@ -508,6 +513,12 @@ function matchWorkplaceIn(clause, stations) {
       let mention = m[1].trim();
       // Defensive: "강남역으로" mis-split would leave "강남역으".
       if (/역으$/.test(mention)) mention = mention.slice(0, -1);
+      // 41l: "직장은 판교예요" captures the copula — strip it (and a
+      // trailing particle) so the place resolves.
+      mention = mention.replace(/(이에요|예요|에요|입니다|이야)$/, "");
+      if (mention.length > 2) mention = mention.replace(/야$/, "");
+      mention = mention.replace(/(은|는|이|가|을|를|에서|으로|로|에|의)$/, "");
+      if (!mention || mention.length < 2) continue;
       return {
         text: mention, evidence: m[0],
         resolved: resolveWorkplace(mention, stations),
@@ -748,10 +759,28 @@ function nearMoney(text, anchorRe, monies, window = 14, boundedBefore = false) {
 // ₩50M", "₩60M and ₩50M a year"). Amounts joined only by short
 // separators (,, ·, /, and, &, 이랑, 하고, 과/와) chain together; all
 // of them are claimed, so none becomes the price, deposit or cap.
-const SALARY_LIST_SEP = /^(?:\s*(?:,|·|・|\/|&|and|이랑|하고|과|와)\s*)+$/i;
-const SALARY_ANCHORS = [/연봉|세전|급여/,
+const SALARY_LIST_SEP = /^(?:\s*(?:,|·|・|\/|&|and|or|이랑|하고|과|와|만원|원)\s*)+$/i;
+const SALARY_ANCHORS = [/연봉|월급|세전|급여/,
   /(?<!-)(?:salaries|salary|earn|make|income)(?!-)/i,
   /\b(?:a year|per year|annual(?:ly)?)\b/i];
+// 41l: money tied to a savings cue is cash only, never salary —
+// in both languages. A chain element counts as tied when a savings
+// word stands just before it (particle/space in between) or just
+// after it (a unit word or comma in between).
+const CASH_TIE_WORD = `(?:모은\\s*돈|저축|자기자본|자기\\s*자본|현금|보유|수중|마련|종잣돈|savings|saved|cash|in the bank)`;
+function cashTiedBefore(src, pos) {
+  const before = src.slice(Math.max(0, pos - 12), pos);
+  return new RegExp(`${CASH_TIE_WORD}[\\s은는이가을를의,·]*$`, "i").test(before);
+}
+function cashTiedAfter(src, end) {
+  const after = src.slice(end, end + 12);
+  const m = new RegExp(`^[\\s,·만원won]*(${CASH_TIE_WORD})`, "i").exec(after);
+  if (!m) return false;
+  // The cue belongs to a later amount ("현금 2억") — not to this one.
+  const ahead = after.slice(m[0].length, m[0].length + 14);
+  if (/\d/.test(ahead)) return false;
+  return true;
+}
 function salaryListAfterAnchor(text, monies) {
   const src = String(text || "");
   let anchor = null;
@@ -828,23 +857,31 @@ export function extract_profile(text, current = null, opts = {}) {
   const isUsd = profile.currency && profile.currency.value === "USD";
 
   const tenure = findTenure(src);
-  const salaryHit = nearMoney(src, /연봉|세전|급여/, krwMonies)
+  const salaryHit = nearMoney(src, /연봉|월급|세전|급여/, krwMonies)
     // 36d2: "dual-income" names the household, not a salary — the
     // English anchor never matches inside a hyphenated compound.
     // 36i: the English anchor also matches "salaries".
     || nearMoney(src, /(?<!-)(?:salaries|salary|earn|make|income)(?!-)/i, krwMonies, 24)
     || (/(신입|초봉).*?(4천|3천|5천)/.test(src) ? null : null);
-  const cashHit = nearMoney(src, /모은\s*돈|모은돈|보유|현금|수중|마련|종잣돈/, krwMonies, 20)
+  const cashHit = nearMoney(src, /모은\s*돈|모은돈|저축|자기자본|자기\s*자본|보유|현금|수중|마련|종잣돈/, krwMonies, 20)
     || nearMoney(src, /savings|saved|cash|in the bank/i, krwMonies, 24);
   // 36i: a list after one salary anchor is one amount per member, in
   // order; a second anchor for the partner sets the second pay.
-  const salaryChain = salaryListAfterAnchor(src, krwMonies);
+  // 41l: a chain element tied to a savings cue is cash only — it
+  // never reads as salary (both languages).
+  const salaryChainRaw = salaryListAfterAnchor(src, krwMonies);
+  const salaryChain = salaryChainRaw && salaryChainRaw.length > 0
+    ? salaryChainRaw.filter((o) => !cashTiedBefore(src, o.pos) && !cashTiedAfter(src, o.end))
+    : null;
+  const salaryHitTied = salaryHit
+    && (cashTiedBefore(src, src.indexOf(salaryHit.evidence)) || cashTiedAfter(src,
+      src.indexOf(salaryHit.evidence) + salaryHit.evidence.length));
   const salaryWons = salaryChain && salaryChain.length > 0
     ? salaryChain.map((o) => o.money.won)
-    : salaryHit ? [salaryHit.won] : [];
+    : (salaryHit && !salaryHitTied) ? [salaryHit.won] : [];
   const salaryEvidence = salaryChain && salaryChain.length > 0
     ? src.slice(salaryChain[0].pos, salaryChain[salaryChain.length - 1].end)
-    : salaryHit ? salaryHit.evidence : null;
+    : (salaryHit && !salaryHitTied) ? salaryHit.evidence : null;
   const partnerHit = salaryWons.length > 0
     ? nearMoney(src, /(?:\bpartner\b|\bspouse\b|\bhusband\b|\bwife\b|배우자|아내|남편)/i,
         krwMonies.filter((h) => !salaryWons.includes(h.won)
