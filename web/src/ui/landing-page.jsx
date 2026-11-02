@@ -10,6 +10,8 @@ import { META_HQ_EXAMPLE, META_HQ_EXAMPLE_KO } from "../places-us.js";
 import { COVERAGE_LINE, EXAMPLE_PROMPTS } from "./landing.jsx";
 import { LangToggle } from "./lang-toggle.jsx";
 import { PoweredByMuse, MUSE_LOGO_PATH } from "./powered-by-muse.jsx";
+import { saveByoKey } from "../consult/byok.js";
+import { NO_ANSWER_PROVIDERS, LANDING_KEY_ROW_LABEL } from "./no-answer-alert.js";
 import { IthacaLogo } from "./ithaca-logo.jsx";
 
 const NOTICE = "지금은 서울 동남권과 분당·판교·수지 11곳에서 시작했어요";
@@ -147,6 +149,18 @@ function ExampleRow({ title, prompt }) {
 
 export function LandingPage() {
   const [value, setValue] = useState("");
+  // 42b: collapsed key row under 바로 해 보기 (same sessionStorage as ModelPanel).
+  const [keyOpen, setKeyOpen] = useState(false);
+  const [keyProvider, setKeyProvider] = useState("meta");
+  const [keyDraft, setKeyDraft] = useState("");
+  const [keySaved, setKeySaved] = useState(false);
+  const saveLandingKey = () => {
+    let storage = null;
+    try { storage = typeof sessionStorage !== "undefined" ? sessionStorage : null; } catch { storage = null; }
+    if (!saveByoKey(storage, keyProvider, keyDraft)) return;
+    setKeyDraft("");
+    setKeySaved(true);
+  };
   const submit = (text) => {
     const content = String(text || "").trim();
     if (!content) return;
@@ -210,16 +224,41 @@ export function LandingPage() {
           <div className="ds-lp-judge">
             <div className="ds-lp-judgeitem">
               <a className="ds-lp-btn ds-lp-btn--primary" href={replayEntryUrl(currentLang())}>기록된 한 달 보기</a>
-              <p className="ds-lp-judgecap">키 없이 바로 재생</p>
+              <p className="ds-lp-judgecap">키 없이 기록 재생</p>
             </div>
             <div className="ds-lp-judgeitem">
+              <span className="ds-lp-live">Muse 실시간</span>
               <a className="ds-lp-btn ds-lp-btn--secondary" href={chatUrl(currentLang() === "en" ? META_HQ_PROMPT : META_HQ_PROMPT_KO)}>Meta 본사 출근으로 해 보기</a>
-              <p className="ds-lp-judgecap">Muse 실시간 · 하루 한도</p>
+              <p className="ds-lp-judgecap">무료 체험 1회 · 이후 내 키</p>
             </div>
             <div className="ds-lp-judgeitem">
+              <span className="ds-lp-live">Muse 실시간</span>
               <a className="ds-lp-btn ds-lp-btn--secondary" href={chatUrl(EXAMPLE_PROMPTS[0].prompt)}>서울로 해 보기</a>
-              <p className="ds-lp-judgecap">Muse 실시간 · 하루 한도</p>
+              <p className="ds-lp-judgecap">무료 체험 1회 · 이후 내 키</p>
             </div>
+          </div>
+          <div className="ds-lp-byok">
+            <button type="button" className="ds-lp-byok-toggle" aria-expanded={keyOpen}
+              onClick={() => setKeyOpen((v) => !v)}>
+              {`${LANDING_KEY_ROW_LABEL} ${keyOpen ? "▾" : "▸"}`}
+            </button>
+            {keyOpen && (
+              <div className="ds-lp-byok-form">
+                <div className="ds-lp-byok-providers" role="group" aria-label="모델 선택">
+                  {NO_ANSWER_PROVIDERS.map((p) => (
+                    <button key={p.value} type="button"
+                      className={keyProvider === p.value ? "ds-lp-chip is-on" : "ds-lp-chip"}
+                      aria-pressed={keyProvider === p.value}
+                      onClick={() => setKeyProvider(p.value)}>{p.label}</button>
+                  ))}
+                </div>
+                <input type="password" className="ds-lp-byok-input" placeholder="모델 키 붙여넣기"
+                  value={keyDraft} onChange={(e) => setKeyDraft(e.target.value)} aria-label="모델 키" />
+                <button type="button" className="ds-lp-btn ds-lp-btn--secondary" onClick={saveLandingKey}>키 저장</button>
+                <p className="ds-lp-judgecap">키는 이 탭에만 저장돼요</p>
+                {keySaved && <p className="ds-lp-judgecap">키를 저장했어요. 다음 말부터 Muse가 답해요.</p>}
+              </div>
+            )}
           </div>
           <div className="ds-lp-proof">
             {PROOFS.map((p) => (

@@ -33,9 +33,11 @@ describe("29a10 landing hero (SSR, no DOM)", () => {
     const html = renderToStaticMarkup(React.createElement(LandingPage));
     assert.ok(html.includes("ds-lp-try"));
     assert.ok(html.includes("바로 해 보기"));
-    assert.ok(html.includes("키 없이 바로 재생"));
-    const live = html.match(/Muse 실시간 · 하루 한도/g) || [];
-    assert.equal(live.length, 2);
+    assert.ok(html.includes("키 없이 기록 재생"));
+    const trial = html.match(/무료 체험 1회 · 이후 내 키/g) || [];
+    assert.equal(trial.length, 2);
+    const live = html.match(/Muse 실시간/g) || [];
+    assert.ok(live.length >= 2);
   });
 
   it("ds-lp-judge still holds exactly 3 links, one primary", () => {

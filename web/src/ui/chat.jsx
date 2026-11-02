@@ -55,7 +55,10 @@ import {
 } from "../intake.js";
 import { selectPhotosForList } from "../places/select-photos.js";
 import { newUsageLog, recordTurn } from "../models/catalog.js";
-import { loadByoKey } from "../consult/byok.js";
+import { loadByoKey, saveByoKey } from "../consult/byok.js";
+import { noAnswerAlertFor, noAnswerKey, clearedNoAnswer, saveNoAnswerKey,
+  NO_ANSWER_PROVIDERS, NO_ANSWER_SUCCESS, NO_ANSWER_KEY_NOTE,
+  DIARY_NO_ANSWER, DIARY_RETRY_LABEL, REPORT_NO_ANSWER } from "./no-answer-alert.js";
 import { rotateChatSessionId } from "../chat/session-id.js";
 import { ModelPanel } from "./model-panel.jsx";
 import { buildChatMap, extractGreenRings, runCommuteModeOf } from "../chatmap.js";
@@ -699,14 +702,62 @@ export function SceneRowLink({ disc, when, text, url, title, onScene, noI18n }) 
   );
 }
 
+// 42b: pinned no-answer alert — the design-system Banner (warning)
+// with the key field inline (same sessionStorage as ModelPanel via
+// saveByoKey; never localStorage, never logged, never in a URL).
+function NoAnswerAlert({ text, onHide, providerChoice, onProviderChoice,
+  draft, onDraft, onSave }) {
+  return (
+    <div className="ui-noanswer">
+      <Banner status="warning" title={text} isDismissable onDismiss={onHide} />
+      <div className="ui-noanswer-key">
+        <SegmentedControl label="모델 선택" value={providerChoice} onChange={onProviderChoice}>
+          {NO_ANSWER_PROVIDERS.map((p) => (
+            <SegmentedControlItem key={p.value} value={p.value} label={p.label} />
+          ))}
+        </SegmentedControl>
+        <HStack gap={1} vAlign="center">
+          <input className="ui-keyinput" type="password" placeholder="모델 키 붙여넣기"
+            value={draft} onChange={(e) => onDraft(e.target.value)} aria-label="모델 키" />
+          <Button size="sm" variant="secondary" label="키 저장" onClick={onSave} />
+        </HStack>
+        <Text type="supporting">{NO_ANSWER_KEY_NOTE}</Text>
+      </div>
+    </div>
+  );
+}
+
+function sessionStorageOf() {
+  try {
+    return typeof sessionStorage !== "undefined" ? sessionStorage : null;
+  } catch {
+    return null;
+  }
+}
+
 // 31a: 살아 본 일기 — Muse's summary line, the first 3 lines as row
 // links, then one secondary button revealing the rest in place.
-export function DiarySection({ diary, customId, onScene }) {
+export function DiarySection({ diary, customId, onScene, onRetry, canRetry = true }) {
   const [open, setOpen] = useState(false);
   if (!diary) return null;
   if (diary.status === "writing") {
     return (
       <Text type="supporting">Muse가 기록을 읽고 일기를 쓰는 중…</Text>
+    );
+  }
+  // 42b: the diary failed because Muse is unavailable — say why and
+  // offer to re-run postDiary with the same digests (disabled until
+  // a key is saved or the server key works again).
+  if (diary.status === "failed") {
+    return (
+      <VStack gap={2}>
+        <span className="ui-result-sect">살아 본 일기</span>
+        <Text type="supporting">{DIARY_NO_ANSWER}</Text>
+        {onRetry && (
+          <Button size="sm" variant="secondary" label={DIARY_RETRY_LABEL}
+            onClick={() => onRetry()} isDisabled={canRetry === false} />
+        )}
+      </VStack>
     );
   }
   if (diary.status !== "done") return null;
@@ -855,7 +906,7 @@ export function ReportCheck({ report, names, onRetry, lang = LANG }) {
     return (
       <VStack gap={2}>
         {timeline}
-        <Text type="supporting">리포트 검증을 하지 못했어요 (연결 문제).</Text>
+        <Text type="supporting">{REPORT_NO_ANSWER}</Text>
         <Button size="sm" variant="secondary" label="다시 검증하기"
           onClick={() => onRetry && onRetry()} />
       </VStack>
@@ -1037,7 +1088,7 @@ export function plainRunError(message) {
   return "30일 살아 보기를 끝내지 못했어요. 다시 시도해 주세요.";
 }
 
-export function SimulationCard({ data, example, onRetry, onScene, onReportRetry }) {
+export function SimulationCard({ data, example, onRetry, onScene, onReportRetry, onDiaryRetry, canRetryDiary }) {
   if (!data) return null;
   if (data.status === "running") {
     const p = data.progress || { done: 0, total: 1, label: "" };
@@ -1125,7 +1176,8 @@ export function SimulationCard({ data, example, onRetry, onScene, onReportRetry 
           </VStack>
         )}
         <ReportCheck report={data.report} names={names} onRetry={onReportRetry} />
-        <DiarySection diary={data.diary} customId={data.customId} onScene={onScene} />
+        <DiarySection diary={data.diary} customId={data.customId} onScene={onScene}
+          onRetry={onDiaryRetry} canRetry={canRetryDiary} />
         {calcs.length > 0 && (
           <details className="ui-section"{...(anyTradeCalc ? { open: true } : null)}>
             <summary className="ui-section-head">{anyTradeCalc ? "내가 내는 돈" : "어떻게 계산했나요"}</summary>
@@ -1377,7 +1429,9 @@ export function CardMsg({ msg, handlers, toolRows, cardHi }) {
           <div data-sim-card={msg.id} id={`sim-card-${msg.id}`}>
             <SimulationCard data={data} example={msg.example}
               onRetry={handlers.onRun} onScene={handlers.onScene}
-              onReportRetry={() => handlers.onReportRetry(msg.id)} />
+              onReportRetry={() => handlers.onReportRetry(msg.id)}
+              onDiaryRetry={() => handlers.onDiaryRetry(msg.id)}
+              canRetryDiary={handlers.diaryRetryReady} />
           </div>
         )}
         {msg.kind === "handoff" && (
@@ -2158,6 +2212,8 @@ export function ChatScreen() {
   const dataRef = useRef(null); // {index, network, schedule, manifest, regionsKey}
   // 29j3: slim report inputs per sim message id (for 다시 검증하기).
   const reportInputsRef = useRef({});
+  // 42b: diary inputs per sim message id (for 일기 다시 쓰기).
+  const diaryInputsRef = useRef({});
   const stateRef = useRef({ messages, toolRows, profile, candidatesData, picks, exampleId, scenario });
   stateRef.current = { messages, toolRows, profile, candidatesData, picks, exampleId, scenario,
     intake, household, overrides, usageLog };
@@ -2175,7 +2231,11 @@ export function ChatScreen() {
   const pushMsg = (msg) => {
     const id = msg.id || nextId();
     if (msg.role !== "user") replyCountRef.current += 1;
-    setMessages((prev) => nextChatMessages(prev, msg, id));
+    // 42b: assistant text without an explicit fromModel did not come
+    // from the model (rule flow, recorded replay keeps its own flag).
+    const stamped = (msg.role === "assistant" && msg.fromModel === undefined && !msg.recorded)
+      ? { ...msg, fromModel: false } : msg;
+    setMessages((prev) => nextChatMessages(prev, stamped, id));
     return id;
   };
 
@@ -2202,6 +2262,13 @@ export function ChatScreen() {
     serverKeyUsedNoticedRef.current = true;
     pushMsg({ role: "assistant", kind: "byok", content: SERVER_KEY_USED_LINE });
   };
+  // 42b: pinned no-answer alert above the composer while Muse is
+  // not answering — server key used, keyless, or 27j fails ≥ 1.
+  const [serverKeyUsed, setServerKeyUsed] = useState(false);
+  const [noAnswerHideKey, setNoAnswerHideKey] = useState(null);
+  const [noAnswerSaved, setNoAnswerSaved] = useState(false);
+  const [noAnswerProvider, setNoAnswerProvider] = useState(null);
+  const [noAnswerDraft, setNoAnswerDraft] = useState("");
 
   // --- data (loaded once, cached) ---
   const fetchJson = (url) => fetchDataJson(url);
@@ -2887,6 +2954,9 @@ export function ChatScreen() {
               ? homeNameEn(rawName) : rawName;
             return runDigest(runs[l], l, { name: digestName, lang: currentLang() });
           });
+          // 42b: keep the digests so 일기 다시 쓰기 re-runs postDiary as-is.
+          diaryInputsRef.current[simId] = { digests, provider,
+            oneWay: compare.one_way, names: payload.names };
           setMessages((prev) => prev.map((m) => (m.id === simId
             ? { ...m, data: { ...m.data, diary: { status: "writing" } } } : m)));
           // 41g: a failed open-weights diary runs once more on Muse
@@ -3095,7 +3165,8 @@ export function ChatScreen() {
         }
         else if (eff.type === "run") await handleRun(lastPickIds);
         else if (eff.type === "say") {
-          pushMsg({ role: "assistant", kind: "text", content: eff.text });
+          pushMsg({ role: "assistant", kind: "text", content: eff.text,
+            fromModel: !out.fallback });
         } else if (eff.type === "scene") {
           // 29j3: the 3D result opens only after the comparison
           // report is verified.
@@ -3125,6 +3196,7 @@ export function ChatScreen() {
           httpStatus: err.httpStatus || null, message: String(err.message || err).slice(0, 200),
         } }));
         noticeServerKeyUsedOnce();
+        setServerKeyUsed(true);
         await structuredFlow(text);
         guardFallback();
         return;
@@ -3200,6 +3272,7 @@ export function ChatScreen() {
     busyRef.current = true;
     setBusy(true);
     setError("");
+    setNoAnswerSaved(false);
     setChipsNearBottom(true);
     pushMsg({ role: "user", kind: "text", content });
     setComposer("");
@@ -3603,6 +3676,63 @@ export function ChatScreen() {
     } catch { /* a live scene opens at once */ }
     return undefined;
   }
+  // 42b: 일기 다시 쓰기 — re-runs postDiary with the same digests.
+  function onDiaryRetry(simId) {
+    const inputs = diaryInputsRef.current[simId];
+    if (!inputs) return;
+    let diaryProvider = inputs.provider || provider;
+    setMessages((prev) => prev.map((m) => (m.id === simId
+      ? { ...m, data: { ...m.data, diary: { status: "writing" } } } : m)));
+    postDiary({ provider: diaryProvider, digests: inputs.digests, lang: LANG }).catch((firstErr) => {
+      const fallback = basetenFallbackProvider(diaryProvider, firstErr);
+      if (!fallback) throw firstErr;
+      diaryProvider = fallback;
+      return postDiary({ provider: fallback, digests: inputs.digests, lang: LANG });
+    }).then((result) => {
+      setMessages((prev) => prev.map((m) => (m.id === simId
+        ? { ...m, data: { ...m.data, diary: { status: "done", ...result } } } : m)));
+      pushMsg({ role: "assistant", kind: "text",
+        fromModel: !(result.check && result.check.summary_fallback),
+        content: LANG === "en"
+          ? `Finished living there. ${result.summary}`
+          : `다 살아 봤어요. ${result.summary}`,
+        model: diaryProvider,
+        suggestions: ["출근길 보여 줘", "한 달에 얼마 들어?", "동네 걸어 보기"] });
+    }).catch(() => {
+      setMessages((prev) => prev.map((m) => (m.id === simId
+        ? { ...m, data: { ...m.data, diary: { status: "failed" } } } : m)));
+      pushMsg({ role: "assistant", kind: "text",
+        content: diaryFallbackLine(inputs.oneWay, inputs.names, LANG),
+        suggestions: ["출근길 보여 줘", "한 달에 얼마 들어?", "동네 걸어 보기"] });
+    });
+  }
+  // 42b: the retry stays disabled until a key is saved or the server key works again.
+  let diaryRetryReady = museLive !== false;
+  if (!diaryRetryReady) {
+    try {
+      diaryRetryReady = loadByoKey(sessionStorageOf(), provider).length > 0;
+    } catch { diaryRetryReady = false; }
+  }
+  // 42b: pinned alert cause + visibility above the composer. The
+  // hide snapshot carries messages.length so a 닫기 comes back on
+  // the next non-Muse turn.
+  const noAnswerState = { serverKeyUsed, keyless: museLive === false, fails: museFails };
+  const noAnswerText = noAnswerAlertFor(noAnswerState);
+  const noAnswerKeyNow = noAnswerText ? `${noAnswerKey(noAnswerState)}|${messages.length}` : null;
+  const noAnswerVisible = !!noAnswerText && noAnswerHideKey !== noAnswerKeyNow && !replayId;
+  const saveNoAnswer = () => {
+    const p = noAnswerProvider || provider;
+    if (!saveNoAnswerKey({ storage: sessionStorageOf(), provider: p, key: noAnswerDraft })) return;
+    setNoAnswerDraft("");
+    setNoAnswerSaved(true);
+    if (p === provider) {
+      const cleared = clearedNoAnswer();
+      setServerKeyUsed(cleared.serverKeyUsed);
+      setMuseFails(cleared.fails);
+      if (museLive === false) setMuseLive(true);
+      setModelErrors((e) => ({ ...e, [p]: null }));
+    }
+  };
   const handlers = {
     picks,
     intake, household, profile, exampleId,
@@ -3615,6 +3745,8 @@ export function ChatScreen() {
     onJeonse: handleJeonse,
     onRun: handleRun,
     onReportRetry,
+    onDiaryRetry,
+    diaryRetryReady,
     onHandoffConfirm,
     onAsk: (text) => send(text),
     onIntakeAnswer: handleIntakeAnswer,
@@ -3798,6 +3930,17 @@ export function ChatScreen() {
               density="compact"
               composer={(
                 <>
+                  {noAnswerVisible && (
+                    <NoAnswerAlert text={noAnswerText}
+                      onHide={() => setNoAnswerHideKey(noAnswerKeyNow)}
+                      providerChoice={noAnswerProvider || provider}
+                      onProviderChoice={setNoAnswerProvider}
+                      draft={noAnswerDraft} onDraft={setNoAnswerDraft}
+                      onSave={saveNoAnswer} />
+                  )}
+                  {noAnswerSaved && !noAnswerVisible && (
+                    <p className="ui-noanswer-ok">{NO_ANSWER_SUCCESS}</p>
+                  )}
                   <ChatComposer onSubmit={send} isDisabled={busy || !!replayId}
                     value={composer} onChange={setComposer}
                     sendActions={canVoice ? (

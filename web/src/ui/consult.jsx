@@ -18,6 +18,7 @@ import {
 import { store } from "./store.js";
 import { ModelTag } from "./powered-by-muse.jsx";
 import { citationsFor, toolActionKo, toolDurationKo } from "./agent-float.js";
+import { RULE_ANSWER_META } from "./no-answer-alert.js";
 import { SOURCES, sourceById } from "../sources.js";
 import { LANG } from "../i18n/lang.js";
 
@@ -103,7 +104,11 @@ export function AssistantMsg({ msg, toolRows, lang = LANG, usSession = null }) {
           <Markdown>{msg.content}</Markdown>
         </ChatMessageBubble>
       )}
-      {msg.model ? (<ModelTag model={msg.model} />) : null}
+      {msg.fromModel === false && !msg.recorded ? (
+        <span className="ui-model-tag">
+          <Text type="supporting">{RULE_ANSWER_META}</Text>
+        </span>
+      ) : (msg.model ? (<ModelTag model={msg.model} />) : null)}
       <ToolRows rows={rows} />
       <CiteRows tools={tools} toolCalls={msg.tool_calls || []}
         candidates={msg && msg.data && msg.data.result
