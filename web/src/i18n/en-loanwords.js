@@ -48,6 +48,8 @@ export const LOANWORDS = {
   "테라스": "Terrace", "클래식": "Classic", "블레스": "Bless", "그레이스": "Grace",
   "스톤": "Stone", "베어": "Bear", "훼미리": "Family", "패밀리": "Family",
   "벤쳐": "Venture", "벤처": "Venture", "썬빌": "Sun Ville", "휴먼시아": "Humansia",
+  "더리치": "The Rich", "더퍼스트": "The First", "해링턴": "Harrington", "넥스텔": "Nextel",
+  "신한": "Shinhan", "리베르떼": "Liberte", "라이프": "Life",
   "레반트": "Levant", "에이스": "Ace", "에비뉴": "Avenue", "애비뉴": "Avenue",
   "허브": "Hub", "아트": "Art", "리치": "Rich", "하임": "Heim", "하이": "Hi",
   "라움": "Raum", "리움": "Rium", "뷰티": "Beauty", "가든": "Garden",
