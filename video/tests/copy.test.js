@@ -20,8 +20,9 @@ test("fills two stats in one line", () => {
 });
 
 test("drops a line whose stat is null", () => {
+  const nulledStats = { ...stats, jeonse_fraud_victims_2030_pct: null, jeonse_fraud_source: null };
   assert.equal(
-    fillLine("{stat:jeonse_fraud_victims_2030_pct}% of victims", stats),
+    fillLine("{stat:jeonse_fraud_victims_2030_pct}% of victims", nulledStats),
     null
   );
 });
@@ -54,7 +55,8 @@ test("fillLines drops only the null lines, leaving no gap", () => {
 });
 
 test("fillSource drops a source whose stat is null", () => {
-  assert.equal(fillSource("{stat:jeonse_fraud_source}", stats), null);
+  const nulledStats = { ...stats, jeonse_fraud_victims_2030_pct: null, jeonse_fraud_source: null };
+  assert.equal(fillSource("{stat:jeonse_fraud_source}", nulledStats), null);
 });
 
 test("fillSource keeps a plain source", () => {
@@ -92,22 +94,24 @@ test("fillTable returns [] when absent", () => {
   assert.deepEqual(fillTable(undefined, stats), []);
 });
 
-test("real meta rows: last row drops, first three stay", () => {
+test("real built-with table: Spark Open row drops when its stat is null", () => {
   const script = JSON.parse(
     readFileSync(join(here, "../data/script.json"), "utf8")
   );
-  const meta = script.scenes.find((s) => s.id === "meta");
-  if (meta.table_en) {
-    const full = fillTable(meta.table_en, stats);
-    assert.equal(full.length, meta.table_en.length);
-    const nulled = { ...stats, spark_open_same: null };
-    const dropped = fillTable(meta.table_en, nulled);
-    assert.equal(dropped.length, full.length - 1);
-  } else {
-    const rows = fillLines(meta.rows_en, stats);
-    assert.equal(rows.length, 3);
-    assert.ok(rows[0].includes(String(stats.muse_stages)));
-    assert.ok(rows[1].includes(String(stats.tests_js)));
-    assert.ok(rows[2].includes(String(stats.spark_open_judgments)));
-  }
+  const scene = script.scenes.find(
+    (s) =>
+      Array.isArray(s.table_en) &&
+      s.table_en.some((row) =>
+        row.some(
+          (cell) =>
+            typeof cell === "string" && cell.includes("{stat:spark_open_same}")
+        )
+      )
+  );
+  assert.ok(scene, "expected a scene with a table_en cell containing {stat:spark_open_same}");
+  const full = fillTable(scene.table_en, stats);
+  assert.equal(full.length, scene.table_en.length);
+  const nulled = { ...stats, spark_open_same: null };
+  const dropped = fillTable(scene.table_en, nulled);
+  assert.equal(dropped.length, full.length - 1);
 });
