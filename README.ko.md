@@ -2,7 +2,7 @@
 
 <p align="center"><i>“We walk the odyssey. You just come home.”</i></p>
 
-<p align="center"><b>계약하기 전에, 그 집에서 먼저 살아 보세요.</b><br>AI 가족이 후보 집 두 곳에서 30일씩 먼저 살아 보고, 매물 사진·지도·30분 집 구경으로는 안 보이는 출퇴근, 돈, 밤 귀갓길을 보여 줘요.</p>
+<p align="center"><b>계약하기 전에, 그 집에서 먼저 살아 보세요.</b><br>한국에서는 집을 한 번 보고 한나절 안에 정해야 할 때가 많아요.<br>Ithaca는 우리 가족을 닮은 AI 가족이 후보 집마다 먼저 30일을 살아 보게 하고, 어느 집이 우리 생활에 맞는지 보여 줘요.</p>
 
 <p align="center"><a href="https://github.com/halo-sw/ithaca/releases/download/demo-video/ithaca-demo.mp4"><img src="briefs/img/demo-video-thumb.jpg" width="720" alt="데모 영상 썸네일: 판교 출근 부부의 30일 결과(A 편도 7분, B 24분, 리포트 검증 1차 통과)와 3D 동네, 자막 Before you sign, an AI household lives 30 days in each home."></a><br><sub>▶ <a href="https://github.com/halo-sw/ithaca/releases/download/demo-video/ithaca-demo.mp4"><b>데모 영상</b></a> (2분 28초, 영어 내레이션, mp4) · 한국 먼저: 판교로 출근하는 부부, Muse Spark 1.3 실제 실행 · 이어서 멘로파크 Meta 본사, Muse Spark Open · 영어 화면 · <a href="https://github.com/halo-sw/ithaca/releases/tag/demo-video">릴리스 페이지</a></sub></p>
 
@@ -37,9 +37,14 @@
 
 ## 무엇인가요
 
-**문제.** 첫 집은 대부분의 사람에게 인생에서 가장 큰 구매인데, 사진 몇 장과 30분짜리 집 구경으로 정해요. 한국에서는 젊은 사람이 하는 가장 위험한 결정이기도 해요. **전세사기 피해자의 약 75%가 20·30대**예요(2025년 3월 보도, 국토교통부 자료 인용).
+**문제.** 몇 년을 살 집을 살아 보지 않고 정해요. 집은 대부분의 사람에게 인생에서 가장 큰 구매인데, 사진 몇 장과 한 번의 집 구경으로 정해요. 한국만의 문제도 아니에요.
 
-**누구를 위한 건가요.** 첫 집을 구하는 사회초년생, 결혼을 앞둔 커플, 두 집 사이에서 고민하는 어린 자녀를 둔 가족이에요.
+- **미국: 살아 보고 나서야 알아요.** 미국 주택 소유자의 45%가 지금 집을 산 것에 후회가 하나 이상 있어요. 이유는 예상보다 큰 유지비와 숨은 비용 42%, 너무 작은 집 21%, 높은 대출 상환금 16%, 나쁜 위치 14% 순이에요([Bankrate, 2025년 5월](https://www.bankrate.com/press-releases/nearly-half-of-homeowners-have-at-least-one-regret-about-the-purchase-of-their-current-home/)). 최근 1년 안에 집을 산 사람 중 Z세대는 후회가 없는 비율이 27%뿐이고, 젊은 세대일수록 통근 거리와 동네를 더 후회해요([Realtor.com, 2025년 11월](https://www.stocktitan.net/news/NWS/realtor-com-as-market-cools-buyer-regret-does-grzvemhi8uiu.html)). 세입자는 집 구경조차 건너뛰기도 해요. 41%가 집을 직접 보지 않고 계약할 의향이 있어요([Apartments.com, 2025년 2분기](https://www.apartments.com/grow/learning-center/renter-search-survey-q2-2025)). 반대로 미국 시장은 느려졌고(2025년 10월 매물이 시장에 머무는 기간 중앙값 63일, 같은 Realtor.com 조사) 후회도 그만큼 줄었어요. 그래서 미국의 문제는 서두름이 아니라 살아 보지 않고 정한다는 점이에요.
+- **한국: 같은 문제에 서두름과 전세사기가 더해져요.** 2025년 6월 서울 아파트값은 한 주에 0.43% 올라 주간 기준 6년 9개월 만에 가장 크게 올랐어요(한국부동산원, [뉴시스](https://www.newsis.com/view/NISX20250627_0003230658)). 2026년 9월 기준 **전세사기 피해자로 공식 인정된 건수는 누적 41,559건이고, 이 중 40세 미만이 75.9%**(30대 50.7%, 20대 25.2%)예요. 97.7%는 보증금 3억 원 이하예요(국토교통부 자료, [헤럴드경제](https://www.heraldk.com/article/2026101114382405541)).
+
+30일 생활 시뮬레이션이 전세사기를 막지는 못해요. 피해는 주로 다세대(28.3%), 오피스텔(21.0%), 다가구(18.8%) 임차인에게서 일어나요. Ithaca는 계약 전에 위험을 미리 보게 도와요. 전세 경고 신호를 출퇴근, 돈, 30일 기록과 나란히 보여 줘요.
+
+**누구를 위한 건가요.** 첫 집을 구하는 사회초년생, 결혼을 앞둔 커플, 두 집 사이에서 고민하는 어린 자녀를 둔 가족, 그리고 살아 본 적 없는 도시로 옮기는 새 입사자예요. Caltrain 축에서 집을 찾는 Meta 신입이 그 예예요.
 
 **Ithaca가 하는 일.** 계약하기 전에, 우리 가족을 닮은 AI 가족이 **후보 두 집에서 각각 30일을 살아요.** 일상의 선택은 Muse Spark가 하고 이유를 남겨요. 시간과 돈은 결정적 엔진이 1분, 1원까지 세요. 그다음 매물 글에는 없는 것을 보여 줘요. 해 진 뒤 걸어서 집에 오는 저녁이 며칠인지, 출퇴근이 실제로 몇 분인지, 한 달에 실제로 얼마가 드는지요. 보여 주고 설명할 뿐이고, 결정은 고객이 해요.
 
