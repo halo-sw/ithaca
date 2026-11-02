@@ -46,7 +46,7 @@ import { CandidateCard, CandidateSkeleton, areaForList, HomeName, listPhotoNote,
 import { exampleLine } from "./copy.js";
 import { TopBar, usePhoneMedia } from "./topbar.jsx";
 import { EXAMPLE_PROMPTS } from "./landing.jsx";
-import { EntryHero, runEntryAction } from "./entry-hero.jsx";
+import { EntryHero, runEntryAction, ENTRY_COMPOSER_PLACEHOLDER } from "./entry-hero.jsx";
 // 18: StageArea renders ChatMap (./chatmap.jsx), not the slab OrbView.
 import { toast, Toaster } from "./toast.jsx";
 import {
@@ -2128,6 +2128,15 @@ export function isMoreCandidatesRequest(text) {
   return /^(다른 후보 더 보여\s*줘|더 보여\s*줘|다른 집 더( 보여\s*줘?)?|show more homes)$/i.test(s);
 }
 
+// 42i: the visible reply after a typed more-candidates re-run — the
+// re-run pushes its card with replace:true (not a visible reply), so
+// this line is the turn's answer and the fallback stays away. Pure.
+export function moreCandidatesLine(n, lang = currentLang()) {
+  return lang === "en"
+    ? `Showing ${n} homes on the map now.`
+    : `후보를 ${n}곳으로 늘려 지도에 올렸어요.`;
+}
+
 function compareAddTarget(text, { picks = [], candidates = [] } = {}) {
   if (!isCompareAddRequest(text)) return null;
   const m = String(text).match(/(\d+)\s*번|#(\d+)|home\s*(\d+)|(\d+)\s*번?\s*집/i);
@@ -2277,20 +2286,33 @@ export function afterRunAnswer(text, { messages = [], picks = [], candidates = [
   const en = lang === "en";
   const add = compareAddTarget(t, { picks, candidates });
   if (add) {
-    const nm = (c) => String((c && (c.name || c.id)) || "");
+    // 42i: the line and the labels use the card's display name
+    // (displayNameFor, English via trayDisplayName/homeNameEn) — never
+    // the raw id. A name that is only a parenthesised id falls back
+    // to "{N}번 집".
+    const numOf = (c) => {
+      const i = (candidates || []).findIndex((x) => x && c && x.id === c.id);
+      return i >= 0 ? i + 1 : null;
+    };
+    const dispName = (c, n) => {
+      const s = String(c ? trayDisplayName(displayNameFor(c), lang) : "").trim();
+      if (s && !/^\(\d+(-\d+)?\)$/.test(s)) return s;
+      return lang === "en" ? `home ${n}` : `${n}번 집`;
+    };
     const labelOf = (id) => {
       const i = add.ids.indexOf(id);
       return i >= 0 ? "ABC"[i] : "";
     };
-    const names = add.ids.map((id) => {
+    const names = add.ids.map((id, i) => {
       const c = (candidates || []).find((x) => x && x.id === id);
-      return `${labelOf(id)} ${en && /[가-힣]/.test(nm(c)) ? homeNameEn(nm(c)) : nm(c)}`;
+      return `${labelOf(id)} ${dispName(c, (c && numOf(c)) || (i + 1))}`;
     });
-    const addedNm = en && /[가-힣]/.test(nm(add.added)) ? homeNameEn(nm(add.added)) : nm(add.added);
-    const op = en ? "" : objParticle(nm(add.added));
+    const addedN = (add.added && numOf(add.added)) || add.ids.length;
+    const addedDisp = dispName(add.added, addedN);
+    const op = en ? "" : objParticle(addedDisp);
     return { pick: add.ids, run: add.ids,
-      line: en ? `Added ${addedNm} — running the 30-day stay in ${names.join(", ")}.`
-        : `${nm(add.added)}${op} 담아 ${names.join(", ")} 세 집으로 살아 볼게요.` };
+      line: en ? `Added ${addedDisp} — running the 30-day stay in ${names.join(", ")}.`
+        : `${addedDisp}${op} 담아 ${names.join(", ")} 세 집으로 살아 볼게요.` };
   }
   // Typed picks and runs stay on the rule flow, never the fallback.
   if (isRunRequest(t) || PICK_VERB_RE_42D.test(t)) return null;
@@ -3090,9 +3112,11 @@ export function ChatScreen() {
       if (stMore.profile && profileHasValues(stMore.profile)) {
         const dataMore = await ensureData(null);
         if (dataMore) {
-          await runSearch(stMore.profile, dataMore,
+          const nMore = await runSearch(stMore.profile, dataMore,
             { sort: (stMore.candidatesData && stMore.candidatesData.sort) || "commute",
               limit: 12 });
+          pushMsg({ role: "assistant", kind: "text",
+            content: moreCandidatesLine(nMore, currentLang()) });
           return;
         }
       }
@@ -3317,6 +3341,7 @@ export function ChatScreen() {
     pushMsg({ role: "assistant", kind: "candidates", replace: true,
       data: { result, tenure, sort, emptyHint }, example: stateRef.current.exampleId,
       tool_calls: [{ id: rowId, name: "find_homes" }] });
+    return result.candidates.length;
   }
 
   async function handleSort(msgId, sort) {
@@ -4941,7 +4966,7 @@ export const EMPTY_STARTERS = [
   { id: "example", label: "예시로 써 보기" },
 ];
 
-const EMPTY_FIND_TEXT = "판교 출근, 모은 돈 1억, 4억 이하 매매로 혼자 살 집 찾아 줘";
+const EMPTY_FIND_TEXT = ENTRY_COMPOSER_PLACEHOLDER;
 const META_HQ_TEXT = META_HQ_EXAMPLE;
 // 41g: the Korean starter sends the Korean prompt so the Korean screen
 // gets Korean answers; English keeps the English prompt.
@@ -5039,7 +5064,7 @@ export function ChatEmpty({ onSend, onListing, onExample, replayId }) {
           onValueChange={setValue}
           onSubmitText={(text) => { if (onSend) onSend(text); }}
           onAction={(id) => runEntryAction(id, entryDeps)}
-          placeholder="예: 판교로 출근해요. 전세로 혼자 살 집 찾아 줘"
+          placeholder={ENTRY_COMPOSER_PLACEHOLDER}
           sendActions={canEmptyVoice ? (
             <MicButton onText={appendEmptyVoiceText} disabled={false}
               onNotice={(kind) => flashEmptyVoiceNote(

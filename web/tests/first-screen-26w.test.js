@@ -69,7 +69,7 @@ describe("26w first screen content (SSR, no DOM)", () => {
   it("keeps the composer with the question as its label, then coverage last", () => {
     const html = emptyHtml();
     assert.ok(html.includes("어떤 집을 고민 중이세요?"), "composer label line");
-    assert.ok(html.includes("예: 판교로 출근해요"), "composer");
+    assert.ok(html.includes("판교 출근, 모은 돈 1억, 4억 이하 매매로 혼자 살 집 찾아 줘"), "composer");
     for (const s of chat.EMPTY_STARTERS) {
       assert.ok(html.includes(s.label), `starter ${s.id}`);
     }

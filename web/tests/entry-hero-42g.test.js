@@ -96,7 +96,7 @@ describe("42g one entry screen (SSR, no DOM)", () => {
   it("chat empty state keeps the backdrop, scrim and composer", () => {
     const html = emptyHtml();
     assert.ok(html.includes("ui-chat-empty-scrim"), "scrim kept");
-    assert.ok(html.includes("예: 판교로 출근해요"), "composer kept");
+    assert.ok(html.includes("판교 출근, 모은 돈 1억, 4억 이하 매매로 혼자 살 집 찾아 줘"), "composer kept");
   });
 
   it("landing try buttons still navigate as anchors", () => {

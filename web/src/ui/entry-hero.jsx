@@ -22,6 +22,10 @@ const PROOFS = [
 // Action ids shared by the chips and the 바로 해 보기 buttons.
 export const ENTRY_ACTION_IDS = ["find", "listing", "example", "replay", "meta", "seoul"];
 
+// 42i: one composer placeholder — the landing hero and the chat empty
+// state both show this text.
+export const ENTRY_COMPOSER_PLACEHOLDER = "판교 출근, 모은 돈 1억, 4억 이하 매매로 혼자 살 집 찾아 줘";
+
 // 42g: pure mapping of entry ids to in-chat behaviour — the same mapping
 // the old chat starterAction used (exported for the no-DOM test).
 export function runEntryAction(id, deps = {}) {

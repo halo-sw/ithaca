@@ -9,11 +9,11 @@ import { META_HQ_EXAMPLE, META_HQ_EXAMPLE_KO } from "../places-us.js";
 import { EXAMPLE_PROMPTS } from "./landing.jsx";
 import { LangToggle } from "./lang-toggle.jsx";
 import { PoweredByMuse, MUSE_LOGO_PATH } from "./powered-by-muse.jsx";
-import { EntryHero } from "./entry-hero.jsx";
+import { EntryHero, ENTRY_COMPOSER_PLACEHOLDER } from "./entry-hero.jsx";
 import { IthacaLogo } from "./ithaca-logo.jsx";
 
 const NOTICE = "지금은 서울 동남권과 분당·판교·수지 11곳에서 시작했어요";
-const HERO_PLACEHOLDER = "판교 출근, 모은 돈 1억, 4억 이하 매매로 혼자 살 집 찾아 줘";
+const HERO_PLACEHOLDER = ENTRY_COMPOSER_PLACEHOLDER;
 const COMPOSER_FILL = "판교로 출근해요. 혼자 살 집을 매매로 찾아 줘";
 const NIGHT_PROMPT = "판교 출근 집 두 곳에서 30일 살아 보고 밤 10시 이후 귀가를 보여 줘";
 const HOOD_PROMPT = "미금역 근처 매매 찾아 주고 동네를 보여 줘";
