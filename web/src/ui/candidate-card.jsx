@@ -225,12 +225,27 @@ const SRC_CLS = { official: "ui-src-official", estimate: "ui-src-estimate", said
 
 // 29a1: home/complex names keep the Hangul original (the DOM
 // translator skips it); English mode adds a romanized gloss beside it.
-export function HomeName({ name, lang = LANG, address = null }) {
+// 41c: a generated lot-number name (raw name is a bare lot number, see
+// LOT_NAME_RE in homes.js) is not a real name, so English mode shows
+// only the English name — no Korean, no gloss parentheses.
+const LOT_NAME_RE_41C = /^\(?\d+(-\d+)?\)?$/;
+export function HomeName({ name, lang = LANG, address = null, rawName = null }) {
   // 29M1c: plain component — re-render comes from the chat state update
   // that follows every consult response (registration runs before set).
   const original = String(name ?? "");
   const gloss = lang === "en" && /[가-힣]/.test(original)
     ? homeNameEn(original) : "";
+  const raw = rawName != null ? String(rawName).trim() : "";
+  if (lang === "en" && raw && LOT_NAME_RE_41C.test(raw)) {
+    const only = gloss && gloss !== original ? gloss : (gloss || original);
+    const addrOnly = roadAddressEn(address);
+    return (
+      <span className="ui-home-name">
+        <span data-no-i18n>{only}</span>
+        {addrOnly ? <span className="ui-home-address" data-no-i18n style={{ display: "block", fontSize: 14, color: "#6b7280" }}>{addrOnly}</span> : null}
+      </span>
+    );
+  }
   // 39c: English mode shows the road-name address in English under the
   // name; Korean screens are unchanged.
   const addrEn = lang === "en" ? roadAddressEn(address) : "";
@@ -930,7 +945,7 @@ export function CandidateCard({ candidate, tenure, destName, photos, index,
       <div className="ui-cand-row-main">
         <div className="ui-cand-row-top">
           <span className={`ui-cand-disc${picked ? " is-pick" : ""}`} aria-hidden="true"{...(/^[AB]$/.test(disc) ? { "data-home": disc } : null)}>{disc}</span>
-          <span className="ui-cand-row-name"><HomeName name={displayNameFor(candidate)} address={candidate.address} /></span>
+          <span className="ui-cand-row-name"><HomeName name={displayNameFor(candidate)} address={candidate.address} rawName={candidate.name} /></span>
           <Button size="sm" variant={picked ? "primary" : "secondary"}
             label={picked ? "담음 ✓" : "담기"}
             aria-label={pickLabel}
@@ -1099,7 +1114,7 @@ function FullCard({ candidate, price, facts, row, hero, rest,
       )}
       <div className="ui-cand-body">
         <div>
-          <div className="ui-cand-name"><HomeName name={displayNameFor(candidate)} address={candidate.address} /></div>
+          <div className="ui-cand-name"><HomeName name={displayNameFor(candidate)} address={candidate.address} rawName={candidate.name} /></div>
           {candidate.dong && <div className="ui-cand-place">{candidate.dong}</div>}
           {candidate.kind_mismatch && <Text type="supporting">{KIND_MISMATCH_KO}</Text>}
         </div>

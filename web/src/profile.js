@@ -220,7 +220,7 @@ function findTenure(text) {
   // English cues (24b): word-bounded, case-insensitive, Korean first.
   const en = [
     [/\bpublic\s+(?:rental|housing)\b/i, "public"],
-    [/\bjeonse\b|\bchonsei\b/i, "jeonse"],
+    [/\bjeonse\b|\bchonsei\b|\bdeposit[-\s]+lease\b|\blump\s*-\s*sum\s+deposit\b|\bkey\s+money\b/i, "jeonse"],
     [/\bmonthly\s+rent\b|\bwolse\b/i, "wolse"],
     [/\bbuy\b|\bpurchase\b|\bbuying\b/i, "trade"],
     [/\bnot\s+sure\b|\bundecided\b|\bdon't\s+know\s+yet\b/i, "undecided"],

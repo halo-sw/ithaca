@@ -376,7 +376,7 @@ export function MoneyTab({ state }) {
                 </Text>
                 {h.reference && (
                   <Text type="supporting">
-                    {`실제로 거래된 값 ${h.area_m2}㎡ (${h.match_method === "parcel+name" ? "땅+단지 이름" : "단지 이름"}으로 찾은 ${h.parcel_rows + h.name_rows}건 중): `}
+                    {`실제로 거래된 값 ${h.area_m2}㎡${(h.parcel_rows != null || h.name_rows != null) ? ` (${h.match_method === "parcel+name" ? "땅+단지 이름" : "단지 이름"}으로 찾은 ${(Number(h.parcel_rows) || 0) + (Number(h.name_rows) || 0)}건 중)` : ""}: `}
                     {h.reference.trade.count > 0 ? `매매 한가운데 ${fmtWon(h.reference.trade.median)}` : "매매 없음"}
                     {h.reference.jeonse.count > 0 ? ` · 전세 ${fmtWon(h.reference.jeonse.deposit.median)}` : ""}
                     {h.reference.wolse.count > 0 ? ` · 월세 ${fmtWon(h.reference.wolse.deposit.median)}/${fmtWon(h.reference.wolse.monthly.median)}` : ""}
