@@ -23,19 +23,20 @@ describe("30e landing hero judge buttons (SSR, no DOM)", () => {
     ({ LandingPage } = await import("../src/ui/landing-page.jsx"));
   });
 
-  it("the three hero links sit inside ds-lp-judge, not ds-lp-cta", () => {
+  it("the three hero links sit inside ds-lp-trygrid, not ds-lp-cta", () => {
     const html = renderToStaticMarkup(React.createElement(LandingPage));
-    const judge = html.match(/<div class="ds-lp-judge">([\s\S]*?)<\/div>\s*<div class="ds-lp-proof">/);
-    assert.ok(judge, "hero ds-lp-judge wrapper missing");
-    const links = judge[1].match(/<a /g) || [];
+    const panel = html.match(/<section class="ds-lp-try"([\s\S]*?)<\/section>/);
+    assert.ok(panel, "hero ds-lp-try panel missing");
+    assert.ok(panel[1].includes("ds-lp-trygrid"), "hero ds-lp-trygrid wrapper missing");
+    const links = panel[1].match(/<a /g) || [];
     assert.equal(links.length, 3);
-    const first = judge[1].indexOf("기록된 한 달 보기");
-    const second = judge[1].indexOf("Meta 본사 출근으로 해 보기");
-    const third = judge[1].indexOf("서울로 해 보기");
+    const first = panel[1].indexOf("기록된 한 달 보기");
+    const second = panel[1].indexOf("Meta 본사 출근으로 해 보기");
+    const third = panel[1].indexOf("서울로 해 보기");
     assert.ok(first !== -1 && second !== -1 && third !== -1, "all three entries present");
     assert.ok(first < second && second < third, "order");
-    assert.ok(judge[1].includes("ds-lp-btn--primary"));
-    assert.ok(judge[1].includes("ds-lp-btn--secondary"));
+    assert.ok(panel[1].includes("ds-lp-btn--primary"));
+    assert.ok(panel[1].includes("ds-lp-btn--secondary"));
   });
 
   it("ds-lp-cta appears exactly once, on the bottom section", () => {
@@ -49,9 +50,10 @@ describe("30e landing hero judge buttons (SSR, no DOM)", () => {
     const html = renderToStaticMarkup(React.createElement(LandingPage));
     assert.ok(!html.includes("ds-lp-replaynote"));
     assert.ok(html.includes("ds-lp-judgecap"));
-    assert.ok(html.includes("키 없이 기록 재생"));
+    assert.ok(html.includes("키 없이"));
+    assert.ok(html.includes("녹화된 30일을 재생해요"));
     assert.ok(html.includes("무료 체험 1회 · 이후 내 키"));
-    assert.ok(html.includes("Muse 실시간"));
+    assert.equal((html.match(/Muse 실시간/g) || []).length, 1);
   });
 
   it("ui.css has the judge button rules and no ellipsis", () => {

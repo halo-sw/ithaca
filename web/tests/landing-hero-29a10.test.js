@@ -33,20 +33,22 @@ describe("29a10 landing hero (SSR, no DOM)", () => {
     const html = renderToStaticMarkup(React.createElement(LandingPage));
     assert.ok(html.includes("ds-lp-try"));
     assert.ok(html.includes("바로 해 보기"));
-    assert.ok(html.includes("키 없이 기록 재생"));
+    assert.ok(html.includes("키 없이"));
+    assert.ok(html.includes("녹화된 30일을 재생해요"));
     const trial = html.match(/무료 체험 1회 · 이후 내 키/g) || [];
-    assert.equal(trial.length, 2);
+    assert.equal(trial.length, 1);
     const live = html.match(/Muse 실시간/g) || [];
-    assert.ok(live.length >= 2);
+    assert.equal(live.length, 1);
   });
 
-  it("ds-lp-judge still holds exactly 3 links, one primary", () => {
+  it("ds-lp-trygrid still holds exactly 3 links, one primary", () => {
     const html = renderToStaticMarkup(React.createElement(LandingPage));
-    const judge = html.match(/<div class="ds-lp-judge">([\s\S]*?)<\/div>\s*<div class="ds-lp-proof">/);
-    assert.ok(judge, "hero ds-lp-judge wrapper missing");
-    const links = judge[1].match(/<a /g) || [];
+    const panel = html.match(/<section class="ds-lp-try"([\s\S]*?)<\/section>/);
+    assert.ok(panel, "hero ds-lp-try panel missing");
+    assert.ok(panel[1].includes("ds-lp-trygrid"), "hero ds-lp-trygrid wrapper missing");
+    const links = panel[1].match(/<a /g) || [];
     assert.equal(links.length, 3);
-    assert.ok(judge[1].includes("ds-lp-btn--primary"));
+    assert.ok(panel[1].includes("ds-lp-btn--primary"));
   });
 
   it("drops the replay note and shows one credit in the hero header", () => {

@@ -2006,6 +2006,28 @@ button.ui-result-moment:hover { background: var(--ui-sunken); }
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--ds-s-8); }
 .ds-lp-judge .ds-lp-btn { height: 44px; width: 100%; white-space: nowrap; }
+.ds-lp-trygrid { display: grid; grid-template-columns: 1fr 2fr;
+  gap: var(--ds-s-16); }
+.ds-lp-trygroup { display: grid; grid-template-rows: auto 44px auto;
+  gap: var(--ds-s-4); align-content: start; min-width: 0; }
+.ds-lp-tryeyebrow { font-size: var(--ds-t-12); color: var(--ds-ink-3);
+  line-height: 1.5; margin: 0; display: flex; align-items: center;
+  gap: var(--ds-s-4); }
+.ds-lp-livedot { width: 6px; height: 6px; border-radius: 50%;
+  background: #e5484d; flex: none; }
+.ds-lp-trybtns { min-width: 0; }
+.ds-lp-trybtns .ds-lp-btn { height: 44px; width: 100%; white-space: normal; }
+.ds-lp-trybtns--duo { display: grid; grid-template-columns: 1fr 1fr;
+  gap: var(--ds-s-8); }
+.ds-lp-keytoggle { background: none; border: 0; padding: 0;
+  font-size: var(--ds-t-12); line-height: inherit; color: var(--ds-ink-2);
+  cursor: pointer; }
+.ds-lp-byok-form { display: flex; flex-direction: column;
+  gap: var(--ds-s-8); }
+@media (max-width: 900px) {
+  .ds-lp-trygrid { grid-template-columns: 1fr; }
+  .ds-lp-trybtns--duo { grid-template-columns: 1fr; }
+}
 .ds-lp-btn { border-radius: var(--ds-r-pill); font-size: var(--ds-t-14);
   font-weight: var(--ds-w-medium); cursor: pointer; white-space: nowrap;
   display: inline-flex; align-items: center; justify-content: center;

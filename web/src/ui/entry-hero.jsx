@@ -108,29 +108,26 @@ export function EntryHero({
       </div>
       <section className="ds-lp-try" aria-label="바로 해 보기">
         <p className="ds-lp-trylabel">바로 해 보기</p>
-        <div className="ds-lp-judge">
-          <div className="ds-lp-judgeitem">
-            <TryButton href={hrefFor("replay")} onClick={() => act("replay")} primary>기록된 한 달 보기</TryButton>
-            <p className="ds-lp-judgecap">키 없이 기록 재생</p>
+        <div className="ds-lp-trygrid">
+          <div className="ds-lp-trygroup">
+            <p className="ds-lp-tryeyebrow">키 없이</p>
+            <div className="ds-lp-trybtns">
+              <TryButton href={hrefFor("replay")} onClick={() => act("replay")} primary>기록된 한 달 보기</TryButton>
+            </div>
+            <p className="ds-lp-judgecap">녹화된 30일을 재생해요</p>
           </div>
-          <div className="ds-lp-judgeitem">
-            <span className="ds-lp-live">Muse 실시간</span>
-            <TryButton href={hrefFor("meta")} onClick={() => act("meta")}>Meta 본사 출근으로 해 보기</TryButton>
-            <p className="ds-lp-judgecap">무료 체험 1회 · 이후 내 키</p>
-          </div>
-          <div className="ds-lp-judgeitem">
-            <span className="ds-lp-live">Muse 실시간</span>
-            <TryButton href={hrefFor("seoul")} onClick={() => act("seoul")}>서울로 해 보기</TryButton>
-            <p className="ds-lp-judgecap">무료 체험 1회 · 이후 내 키</p>
+          <div className="ds-lp-trygroup">
+            <p className="ds-lp-tryeyebrow"><span className="ds-lp-livedot" aria-hidden="true" />Muse 실시간</p>
+            <div className="ds-lp-trybtns ds-lp-trybtns--duo">
+              <TryButton href={hrefFor("meta")} onClick={() => act("meta")}>Meta 본사 출근으로 해 보기</TryButton>
+              <TryButton href={hrefFor("seoul")} onClick={() => act("seoul")}>서울로 해 보기</TryButton>
+            </div>
+            <p className="ds-lp-judgecap">무료 체험 1회 · 이후 내 키 · <button type="button" className="ds-lp-keytoggle" aria-expanded={keyOpen}
+              onClick={() => setKeyOpen((v) => !v)}><span>{LANDING_KEY_ROW_LABEL}</span><span aria-hidden="true">{keyOpen ? " ▾" : " ▸"}</span></button></p>
           </div>
         </div>
-        <div className="ds-lp-byok">
-          <button type="button" className="ds-lp-byok-toggle" aria-expanded={keyOpen}
-            onClick={() => setKeyOpen((v) => !v)}>
-            {`${LANDING_KEY_ROW_LABEL} ${keyOpen ? "▾" : "▸"}`}
-          </button>
-          {keyOpen && (
-            <div className="ds-lp-byok-form">
+        {keyOpen && (
+          <div className="ds-lp-byok-form">
               <div className="ds-lp-byok-providers" role="group" aria-label="모델 선택">
                 {NO_ANSWER_PROVIDERS.map((p) => (
                   <button key={p.value} type="button"
@@ -144,9 +141,8 @@ export function EntryHero({
               <button type="button" className="ds-lp-btn ds-lp-btn--secondary" onClick={saveEntryKey}>키 저장</button>
               <p className="ds-lp-judgecap">키는 이 탭에만 저장돼요</p>
               {keySaved && <p className="ds-lp-judgecap">키를 저장했어요. 다음 말부터 Muse가 답해요.</p>}
-            </div>
-          )}
-        </div>
+          </div>
+        )}
         <div className="ds-lp-proof">
           {PROOFS.map((p) => (
             <span key={p.num} className="ds-lp-prooffact">
