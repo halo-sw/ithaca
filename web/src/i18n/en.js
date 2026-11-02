@@ -217,6 +217,10 @@ const seedPhrases = {
   "무료 체험 1회 · 이후 내 키": "One free try · then your own key",
   "키 없이 기록 재생": "Recorded replay, no key",
   "내 모델 키로 하기": "Use my own model key",
+  // 42k: try card eyebrows and caption.
+  "Muse 실시간": "Live with Muse",
+  "키 없이": "No key needed",
+  "녹화된 30일을 재생해요": "Plays a recorded 30 days",
   "모델 키 붙여넣기": "Paste a model key",
   "모델 키": "Model key",
   "키 저장": "Save key",
