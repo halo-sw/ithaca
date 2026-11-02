@@ -102,9 +102,15 @@ describe("42b rule answers say who answered (SSR)", () => {
 
   it("a rule answer renders the meta line", () => {
     const html = renderToStaticMarkup(React.createElement(AssistantMsg,
-      { msg: { role: "assistant", content: "두 곳을 담아 주세요.", fromModel: false }, toolRows: {} }));
+      { msg: { role: "assistant", content: "두 곳을 담아 주세요.", fromModel: false, ruleAnswer: true }, toolRows: {} }));
     assert.ok(html.includes(RULE_ANSWER_META));
     assert.ok(html.includes("규칙으로 답했어요"));
+  });
+
+  it("42m: fromModel false alone (e.g. a recorded run-done line) shows no mark", () => {
+    const html = renderToStaticMarkup(React.createElement(AssistantMsg,
+      { msg: { role: "assistant", content: "다 살아 봤어요. A는 출근 편도 평균 7분.", fromModel: false }, toolRows: {} }));
+    assert.ok(!html.includes("규칙으로 답했어요"));
   });
 
   it("a Muse answer keeps the model name and shows no rule line", () => {

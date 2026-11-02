@@ -50,12 +50,15 @@ export const NO_ANSWER_PROVIDERS = [
 export const NO_ANSWER_SUCCESS = "키를 저장했어요. 다음 말부터 Muse가 답해요.";
 export const NO_ANSWER_KEY_NOTE = "키는 이 탭에만 저장돼요";
 
-// Assistant bubbles: model text keeps the model name (ModelTag);
-// anything stamped fromModel: false says who answered instead.
+// Assistant bubbles: model text keeps the model name (ModelTag).
+// 42m: the "answered by rules" mark shows only on messages
+// explicitly created as a rule answer (msg.ruleAnswer === true) —
+// never from fromModel alone, so app status lines (run started /
+// run done / diary and report status) carry no mark.
 export const RULE_ANSWER_META = "규칙으로 답했어요";
 
 export function answerMetaFor(msg) {
-  return msg && msg.fromModel === false ? RULE_ANSWER_META : null;
+  return msg && msg.ruleAnswer === true ? RULE_ANSWER_META : null;
 }
 
 // The result card's diary area when the diary failed because Muse

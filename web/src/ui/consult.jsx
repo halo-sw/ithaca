@@ -104,7 +104,7 @@ export function AssistantMsg({ msg, toolRows, lang = LANG, usSession = null }) {
           <Markdown>{msg.content}</Markdown>
         </ChatMessageBubble>
       )}
-      {msg.fromModel === false && !msg.recorded ? (
+      {msg.ruleAnswer === true ? (
         <span className="ui-model-tag">
           <Text type="supporting">{RULE_ANSWER_META}</Text>
         </span>

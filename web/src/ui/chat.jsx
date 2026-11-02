@@ -2468,7 +2468,7 @@ export function nonMuseNoReplyLine(text, { messages = [], lang = currentLang() }
 // still answers when the rule flow has a real answer for the text —
 // the rule line itself, never the Muse fallback line itself. Pure.
 // 42h: no inline rule-mark suffix on the line — the bubble's meta
-// line (fromModel: false) already says it.
+// line (ruleAnswer flag) already says it.
 export function ruleAnswerForMuseFallback(text, out, ctx = {}) {
   if (!out || !out.fallback) return null;
   const r = afterRunAnswer(text, ctx);
@@ -2481,8 +2481,9 @@ export function ruleAnswerForMuseFallback(text, out, ctx = {}) {
 // recognises a stay intent with data (money/loan/관리비, crowding,
 // late return, person/weekend activity, a home's commute) but Muse's
 // visible text carries no digit, the caller pushes this rule answer
-// as one extra bubble right after Muse's (meta says 규칙으로
-// 답했어요; tab/scene apply only when Muse opened none). Pure:
+// as one extra bubble right after Muse's (flagged ruleAnswer, so the
+// meta says 규칙으로 답했어요; tab/scene apply only when Muse
+// opened none). Pure:
 // null when Muse already gave a number, or for anything that is not
 // a data-backed stay answer (actions, unknown text). No inline mark.
 export function ruleAnswerForDigitlessMuse(text, museText, ctx = {}) {
@@ -2627,7 +2628,11 @@ export function runSummaryFor(payload, lang = currentLang()) {
 // "자세히"). Scene effects are applied by the caller.
 export function afterRunChipTurn(chip) {
   if (!chip || !chip.line) return [];
-  return [{ role: "assistant", kind: "text", content: chip.line }];
+  // 42m: an answer line is explicitly a rule answer (the bubble meta
+  // says 규칙으로 답했어요); a run-action line ("세 집으로 살아
+  // 볼게요") is the app's own action line and carries no mark.
+  return [{ role: "assistant", kind: "text", content: chip.line,
+    ...(chip.run ? null : { ruleAnswer: true }) }];
 }
 
 // 27b2: next-step chips — Muse's suggestions on the latest assistant
@@ -3197,7 +3202,7 @@ export function ChatScreen() {
             setScene({ url: res.url, title: res.title });
             setWorkOpen(true);
           } else {
-            pushMsg({ role: "assistant", kind: "text",
+            pushMsg({ role: "assistant", kind: "text", ruleAnswer: true,
               content: res && res.say ? res.say : chip.line });
             return;
           }
@@ -3224,7 +3229,7 @@ export function ChatScreen() {
           const nMore = await runSearch(stMore.profile, dataMore,
             { sort: (stMore.candidatesData && stMore.candidatesData.sort) || "commute",
               limit: 12 });
-          pushMsg({ role: "assistant", kind: "text",
+          pushMsg({ role: "assistant", kind: "text", ruleAnswer: true,
             content: moreCandidatesLine(nMore, currentLang()) });
           return;
         }
@@ -3242,15 +3247,15 @@ export function ChatScreen() {
         if (plan.type === "pick") {
           setPicks(plan.ids);
           stateRef.current.picks = plan.ids;
-          pushMsg({ role: "assistant", kind: "text", content: plan.message });
+          pushMsg({ role: "assistant", kind: "text", ruleAnswer: true, content: plan.message });
           if (plan.thenRun) {
             if (plan.runReady) await handleRun(plan.ids);
-            else pushMsg({ role: "assistant", kind: "text", content: plan.gate });
+            else pushMsg({ role: "assistant", kind: "text", ruleAnswer: true, content: plan.gate });
           }
         } else if (plan.type === "run") {
           await handleRun(plan.ids);
         } else if (plan.type === "gate") {
-          pushMsg({ role: "assistant", kind: "text", content: plan.message });
+          pushMsg({ role: "assistant", kind: "text", ruleAnswer: true, content: plan.message });
         }
         return;
       }
@@ -3278,7 +3283,7 @@ export function ChatScreen() {
     const exId = addToolRow({ name: "extract_profile", ok: ex.value.ok,
       summary: ex.value.ok ? "" : "읽기 실패", ms: ex.ms });
     if (!ex.value.ok) {
-      pushMsg({ role: "assistant", kind: "text",
+      pushMsg({ role: "assistant", kind: "text", ruleAnswer: true,
         content: `말씀을 숫자로 옮기지 못했어요: ${ex.value.errors.join("; ")}`,
         tool_calls: [{ id: exId, name: "extract_profile" }] });
       return;
@@ -3290,7 +3295,7 @@ export function ChatScreen() {
       pushMsg({ role: "assistant", kind: "profile", replace: true,
         data: { profile: prof }, example: stateRef.current.exampleId,
         tool_calls: [{ id: exId, name: "extract_profile" }] });
-      pushMsg({ role: "assistant", kind: "text",
+      pushMsg({ role: "assistant", kind: "text", ruleAnswer: true,
         content: "어떤 상황인지 조금만 더 알려주세요. 예를 들어 어디로 출근하는지, 전세·월세 중 뭘 보는지, 예산은 얼마인지요." });
       return;
     }
@@ -3892,7 +3897,7 @@ export function ChatScreen() {
     const repliesBefore = replyCountRef.current;
     const guardFallback = () => {
       if (!answeredSince(replyCountRef.current, repliesBefore)) {
-        pushMsg({ role: "assistant", kind: "text", content: localNoAnswerLine(text) });
+        pushMsg({ role: "assistant", kind: "text", ruleAnswer: true, content: localNoAnswerLine(text) });
       }
     };
     const st = stateRef.current;
@@ -4017,7 +4022,7 @@ export function ChatScreen() {
       }
       // 42e: a Muse turn that ends in the generic fallback hides a
       // good rule answer — resolve it first so the turn shows the rule
-      // answer instead (marked).
+      // answer instead (flagged ruleAnswer, so marked).
       const fallbackRule = out.fallback ? ruleAnswerForMuseFallback(text, out, {
         messages: stateRef.current.messages, picks: stateRef.current.picks,
         candidates: liveCands, lang: LANG }) : null;
@@ -4041,15 +4046,17 @@ export function ChatScreen() {
       appendToolCards(out.messages);
       // 26t: deterministic fallbacks (numbers-only, action confirmation)
       // stay translatable — only model-written text is fromModel.
+      // 42m: a fallbackRule replacement is explicitly a rule answer.
       pushMsg({ role: "assistant", kind: "text", content: bubble.content || "",
         tool_calls: bubble.tool_calls, suggestions: [...suggestions],
-        fromModel: !out.fallback, model: usedProvider });
+        fromModel: !out.fallback, model: usedProvider,
+        ...(fallbackRule ? { ruleAnswer: true } : null) });
       // 42h: numbers always land — when afterRunAnswer recognises a
       // stay intent with data but Muse's visible text carries no
-      // digit, the rule answer follows as one extra bubble (its meta
-      // line says 규칙으로 답했어요; tab/scene apply only when Muse
-      // opened none). No fromModel stamp, so the meta shows; no
-      // inline suffix on the line.
+      // digit, the rule answer follows as one extra bubble (flagged
+      // ruleAnswer, so its meta line says 규칙으로 답했어요;
+      // tab/scene apply only when Muse opened none). No inline
+      // suffix on the line.
       {
         const supplement = (!fallbackRule && !out.fallback)
           ? ruleAnswerForDigitlessMuse(text, bubble.content, {
@@ -4280,7 +4287,7 @@ export function ChatScreen() {
       if (routeTurn({ live: shouldCallMuse({ museLive }), museFails }) !== "agent") {
         const answered = answeredSince(replyCountRef.current, repliesBefore);
         if (!answered) {
-          pushMsg({ role: "assistant", kind: "text",
+          pushMsg({ role: "assistant", kind: "text", ruleAnswer: true,
             content: nonMuseNoReplyLine(content,
               { messages: stateRef.current.messages, lang: currentLang() }) });
         }
