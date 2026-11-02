@@ -107,25 +107,9 @@ Covered today: Seoul 성동 · 송파 · 강남 · 강동 · 위례 and 판교 �
 
 How one conversation runs, left to right. Blue boxes are Muse Spark; grey boxes are code. Dotted arrows are the checks sending work back.
 
-```mermaid
-flowchart LR
-  U(["<b>You</b><br/>one sentence<br/>KO · EN · voice"]) --> R["<b>Relay</b><br/>keys on server<br/>1 free session/IP"]
-  R --> A["<b>Consult agent</b><br/>Spark 1.3 or<br/>Spark Open<br/>≤ 6 tool rounds"]
-  A <--> T[("<b>Tools</b><br/>profile · homes<br/>real deals · transit")]
-  A --> G["<b>Guard</b><br/>numbers only<br/>from tools"]
-  G -. "retry once" .-> A
-  G --> L["<b>30 days × 2 homes</b><br/>Muse picks each move<br/>engine counts min · won"]
-  L --> P["<b>Report</b><br/>Muse writes<br/>submit_report"]
-  P --> C["<b>Check</b><br/>code: numbers<br/>judge: sentences"]
-  C -. "fail ≤ 3×" .-> P
-  C --> O(["<b>You decide</b><br/>A | B · diary · 3D"])
-  classDef muse fill:#eef3ff,stroke:#3d63dd,color:#111;
-  classDef code fill:#f4f4f2,stroke:#777,color:#111;
-  class A,L,P muse
-  class R,T,G,C code
-```
+<p align="center"><img src="briefs/img/agent-workflow.png" width="100%" alt="Agent workflow, left to right: You (one sentence, Korean, English or voice) → Relay (keys stay on the server, 1 free session per IP) → Consult agent (Muse Spark 1.3 or Spark Open, up to 6 tool rounds a turn), which calls Tools (profile, homes, real deals, transit) → Guard (numbers only from tools; a failed answer is retried once) → 30 days in each of 2 homes (Muse picks each move, the engine counts minutes and won) → Report (Muse writes it through submit_report) → Check (code checks every number, the Muse judge every sentence; a failed report goes back up to 3 times) → You decide (A | B result, diary, 3D)."></p>
 
-Code: [relay](relay/handler.js) · [consult agent](web/src/consult/agent.js) · [tools](web/src/consult/tools.js) · [guard](web/src/consult/guards.js) · [30-day run](web/src/judge/run.js) · [report](web/src/consult/report.js) · [check](web/src/verify/compare.js). If Spark Open is busy, Spark 1.3 answers and the reply says so.
+Code: [relay](relay/handler.js) · [consult agent](web/src/consult/agent.js) · [tools](web/src/consult/tools.js) · [guard](web/src/consult/guards.js) · [30-day run](web/src/judge/run.js) · [report](web/src/consult/report.js) · [check](web/src/verify/compare.js). If Spark Open is busy, Spark 1.3 answers and the reply says so. Chart source: [docs/agent-workflow.mmd](docs/agent-workflow.mmd) (Mermaid).
 
 ## Built with Meta
 
