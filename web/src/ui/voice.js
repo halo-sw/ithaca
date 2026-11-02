@@ -3,6 +3,7 @@
 // holds a key). Pure helpers are unit-tested; recordOnce needs a mic.
 
 import { LIVE_API, apiUrl } from "../paths.js";
+import { judgeHeaders } from "../chat/judge-code.js";
 
 export const VOICE_SAMPLE_RATE = 16000;
 export const VOICE_MAX_MS = 30000;
@@ -160,7 +161,7 @@ export async function transcribe(wav) {
   try {
     res = await fetch(apiUrl("/api/voice/transcribe"), {
       method: "POST",
-      headers: { "Content-Type": "audio/wav" },
+      headers: { "Content-Type": "audio/wav", ...judgeHeaders() },
       body: wav,
     });
   } catch {
