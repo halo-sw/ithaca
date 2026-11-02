@@ -45,7 +45,8 @@ import { IntakeCard, HouseholdCard } from "./intake.jsx";
 import { CandidateCard, CandidateSkeleton, areaForList, HomeName, listPhotoNote, listThumbKinds, sharedZipRent, sharedRentNote } from "./candidate-card.jsx";
 import { exampleLine } from "./copy.js";
 import { TopBar, usePhoneMedia } from "./topbar.jsx";
-import { EXAMPLE_PROMPTS, COVERAGE_AREAS, COVERAGE_US_LINE, LANDING_HEADING, LANDING_SUB } from "./landing.jsx";
+import { EXAMPLE_PROMPTS } from "./landing.jsx";
+import { EntryHero, runEntryAction } from "./entry-hero.jsx";
 // 18: StageArea renders ChatMap (./chatmap.jsx), not the slab OrbView.
 import { toast, Toaster } from "./toast.jsx";
 import {
@@ -118,7 +119,7 @@ import { shouldCallMuse, isNoKeyError, KEYLESS_LINE,
 import { voiceSupported, voiceKeyReady } from "./voice.js";
 import { MicButton, VOICE_DONE_NOTE, VOICE_ERROR_NOTE } from "./voice-button.jsx";
 import { LIVE_API, appUrl } from "../paths.js";
-import { PoweredByMuse } from "./powered-by-muse.jsx";
+
 import { recordedReplyFor } from "./demotour.js";
 import { REGION_NAME_ALIASES } from "../region-names.js";
 import { agentContext, stripToolLabel, toolActionKo, toolActionEn, viewSystemLine } from "./agent-float.js";
@@ -4898,60 +4899,36 @@ export function ChatEmpty({ onSend, onListing, onExample, replayId }) {
       }
     };
   }, []);
-  const starterAction = (id) => {
-    if (id === "find") setValue(EMPTY_FIND_TEXT);
-    else if (id === "listing") { if (onListing) onListing(); }
-    else if (id === "example") { if (onExample) onExample(); }
-    else if (id === "replay") {
+  // 42g: the empty state is the landing hero over the 3D backdrop —
+  // chips and buttons act in place through the shared entry ids.
+  const entryDeps = {
+    setValue,
+    findText: EMPTY_FIND_TEXT,
+    onSend,
+    onListing,
+    onExample,
+    openReplay: () => {
       try { window.location.href = appUrl("?replay=" + (LANG === "en" ? "menlo-month" : "seoul-couple")); } catch { /* keep the thread as it is */ }
-    }
-    else if (id === "metahq") { if (onSend) onSend(LANG === "en" ? META_HQ_TEXT : META_HQ_TEXT_KO); }
-    else if (id === "seoul") { if (onExample) onExample(); }
+    },
+    metaText: LANG === "en" ? META_HQ_TEXT : META_HQ_TEXT_KO,
   };
   return (
     <div className="ui-chat-empty">
       <div className="ui-chat-empty-scrim" aria-hidden="true" />
       <div className="ui-chat-empty-body">
-        <div>
-          <Heading level={2}>{LANDING_HEADING}</Heading>
-          <Text type="supporting">{LANDING_SUB}</Text>
-        </div>
-        <p className="ui-chat-empty-label">어떤 집을 고민 중이세요?</p>
-        <ChatComposer onSubmit={(text) => onSend && onSend(text)}
-          value={value} onChange={setValue}
+        <EntryHero
+          value={value}
+          onValueChange={setValue}
+          onSubmitText={(text) => { if (onSend) onSend(text); }}
+          onAction={(id) => runEntryAction(id, entryDeps)}
+          placeholder="예: 판교로 출근해요. 전세로 혼자 살 집 찾아 줘"
           sendActions={canEmptyVoice ? (
             <MicButton onText={appendEmptyVoiceText} disabled={false}
               onNotice={(kind) => flashEmptyVoiceNote(
                 kind === "done" ? VOICE_DONE_NOTE : VOICE_ERROR_NOTE)} />
           ) : null}
-          placeholder="예: 판교로 출근해요. 전세로 혼자 살 집 찾아 줘" />
-        {emptyVoiceNote ? (
-          <Text type="supporting">{emptyVoiceNote}</Text>
-        ) : null}
-        <PoweredByMuse size="sm" live={LIVE_API} showStatus />
-        <div className="ui-chat-empty-row">
-          {EMPTY_STARTERS.map((s) => (
-            <Button key={s.id} size="sm" variant="secondary" label={s.label}
-              onClick={() => starterAction(s.id)} />
-          ))}
-        </div>
-        <div className="ui-chat-empty-cards">
-          {EXAMPLE_PROMPTS.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              className="ui-landing-card"
-              aria-label={`${p.title} 예시로 시작하기`}
-              onClick={() => sendExamplePrompt(onSend, p.prompt)}>
-              <span className="ui-landing-cardtop">
-                <span className="ui-landing-cardtitle">{p.title}</span>
-                <span className="ui-landing-cardchip">예시</span>
-              </span>
-              <p className="ui-landing-cardprompt">{p.prompt}</p>
-            </button>
-          ))}
-        </div>
-        <Text type="supporting" className="ui-chat-empty-coverage">{`다루는 지역: ${COVERAGE_AREAS.join(" · ")}`}<br />{COVERAGE_US_LINE}</Text>
+          voiceNote={emptyVoiceNote}
+        />
       </div>
     </div>
   );
