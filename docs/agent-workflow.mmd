@@ -1,0 +1,15 @@
+flowchart LR
+  U(["<b>You</b><br/>one sentence<br/>KO · EN · voice"]) --> R["<b>Relay</b><br/>keys on server<br/>1 free session/IP"]
+  R --> A["<b>Consult agent</b><br/>Spark 1.3 or<br/>Spark Open<br/>≤ 6 tool rounds"]
+  A <--> T[("<b>Tools</b><br/>profile · homes<br/>real deals · transit")]
+  A --> G["<b>Guard</b><br/>numbers only<br/>from tools"]
+  G -. "retry once" .-> A
+  G --> L["<b>30 days × 2 homes</b><br/>Muse picks each move<br/>engine counts min · won"]
+  L --> P["<b>Report</b><br/>Muse writes<br/>submit_report"]
+  P --> C["<b>Check</b><br/>code: numbers<br/>judge: sentences"]
+  C -. "fail ≤ 3×" .-> P
+  C --> O(["<b>You decide</b><br/>A | B · diary · 3D"])
+  classDef muse fill:#eef3ff,stroke:#3d63dd,color:#111;
+  classDef code fill:#f4f4f2,stroke:#777,color:#111;
+  class A,L,P muse
+  class R,T,G,C code
