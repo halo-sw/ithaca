@@ -110,6 +110,7 @@ describe("29j3 reportUnlocked", () => {
     assert.equal(reportUnlocked(sim({ status: "handoff" })), false);
     assert.equal(reportUnlocked(sim({ status: "handoff", confirmed: true })), true);
     assert.equal(reportUnlocked(sim({ status: "pass" })), true);
+    assert.equal(reportUnlocked(sim({ status: "failed" })), true);
     assert.equal(reportUnlocked(sim({ status: "unsupported" })), true);
     assert.equal(reportUnlocked(sim({ status: "off" })), true);
   });

@@ -470,10 +470,10 @@ export function diaryFallbackLine(oneWay, names, lang = "ko") {
     ? "—" : `${Math.round(Number(v))}분`);
   const a = fmt(oneWay && oneWay.A);
   const b = fmt(oneWay && oneWay.B);
-  let line = `다 살아 봤어요. A ${nmA}는 출근 편도 평균 ${a}, B ${nmB}는 ${b}이었어요. 일기는 이번에 못 썼어요.`;
+  let line = `다 살아 봤어요. ${topicClause("A", nmA, `출근 편도 평균 ${a}`)}, ${topicClause("B", nmB, `${b}이었어요`)}. 일기는 이번에 못 썼어요.`;
   if (hasC) {
     const c = fmt(oneWay && oneWay.C);
-    line = `다 살아 봤어요. A ${nmA}는 출근 편도 평균 ${a}, B ${nmB}는 ${b}, C ${names.C}는 ${c}이었어요. 일기는 이번에 못 썼어요.`;
+    line = `다 살아 봤어요. ${topicClause("A", nmA, `출근 편도 평균 ${a}`)}, ${topicClause("B", nmB, `${b}`)}, ${topicClause("C", names.C, `${c}이었어요`)}. 일기는 이번에 못 썼어요.`;
   }
   return line;
 }
@@ -749,6 +749,9 @@ export function reportUnlocked(messages) {
   if (!rep) return true;
   if (rep.status === "off" || rep.status === "pass"
     || rep.status === "unsupported") return true;
+  // 42a: a failed check never locks the result — the card already
+  // says the check could not run and offers 다시 검증하기.
+  if (rep.status === "failed") return true;
   if (rep.status === "handoff") return rep.confirmed === true;
   return false;
 }
@@ -1560,6 +1563,193 @@ export function latestDoneRun(messages) {
   return null;
 }
 
+// 42a: the newest done simulation payload (names / compare /
+// moneyDoc / noCommute included) for the deterministic after-run
+// chip replies. Null when no run finished yet.
+export function latestDoneSim(messages) {
+  const list = Array.isArray(messages) ? messages : [];
+  for (let i = list.length - 1; i >= 0; i--) {
+    const m = list[i];
+    if (m && m.kind === "simulation" && m.data && m.data.status === "done") {
+      return m.data;
+    }
+  }
+  return null;
+}
+
+// 42a: the right stage follows the run (wide layout only) — a done
+// run with a customId auto-opens the A commute replay, the same
+// scene sceneForEffect({ panel: "commute", home: "A" }) gives.
+// Narrow layouts never auto-switch. Null when there is nothing to open.
+export function autoRunScene({ messages = [], picks = [], candidates = [], narrow = false } = {}) {
+  if (narrow) return null;
+  const run = latestDoneRun(messages);
+  if (!run) return null;
+  const res = sceneForEffect({ panel: "commute", home: "A" },
+    { picks, candidates, latestRun: run });
+  if (!res || !res.url) return null;
+  return { url: res.url, title: res.title };
+}
+
+const AFTER_RUN_COMMUTE_KO = "출근길 보여 줘";
+const AFTER_RUN_TOUR_KO = "동네 걸어 보기";
+const AFTER_RUN_MONEY_KO = "한 달에 얼마 들어?";
+const AFTER_RUN_COMMUTE_EN = "Show the commute";
+const AFTER_RUN_TOUR_EN = "Walk the neighborhood";
+const AFTER_RUN_MONEY_EN = "How much a month?";
+
+// 42a2: topic/conjunction particles from the name's last Hangul
+// syllable (closed syllable → 은/과, open → 는/와). A last char that
+// is not a Hangul syllable (digit, Latin, bracket) leaves the
+// particle unknowable → "" and the caller uses a no-particle
+// `A {name}: …` form instead of guessing.
+export function topicParticle(name) {
+  const s = String(name || "");
+  if (s.length === 0) return "";
+  const code = s.charCodeAt(s.length - 1);
+  if (!Number.isFinite(code) || code < 0xac00 || code > 0xd7a3) return "";
+  return (code - 0xac00) % 28 === 0 ? "는" : "은";
+}
+export function conjParticle(name) {
+  const s = String(name || "");
+  if (s.length === 0) return "";
+  const code = s.charCodeAt(s.length - 1);
+  if (!Number.isFinite(code) || code < 0xac00 || code > 0xd7a3) return "";
+  return (code - 0xac00) % 28 === 0 ? "와" : "과";
+}
+// `${label} ${name}` with the right topic particle — or the
+// no-particle `A {name}: …` form when it is unknowable.
+export function topicClause(label, name, tail) {
+  const p = topicParticle(name);
+  return p ? `${label} ${name}${p} ${tail}` : `${label} ${name}: ${tail}`;
+}
+
+function moneyLineFor(doc, labels, names, lang = "ko") {
+  const days = 30;
+  const en = lang === "en";
+  const parts = [];
+  for (const l of labels) {
+    const mh = monthlyHousingOf(doc, l, days);
+    if (!mh || mh.missing || !Number.isFinite(mh.monthly)) return null;
+    const raw = ((names || {})[l] || l);
+    const nm = en && /[가-힣]/.test(String(raw)) ? homeNameEn(raw) : raw;
+    // One 월 only: the bare amount here, the single 월 in the head.
+    const amount = (doc && doc.currency === "USD")
+      ? fmtMoney(mh.monthly, "USD")
+      : en ? fmtMoney(mh.monthly, "KRW", { lang: "en" }) : fmtWon(mh.monthly);
+    parts.push(`${l} ${nm} ${amount}`);
+  }
+  if (parts.length === 0) return null;
+  return en
+    ? `Monthly housing cost: ${parts.join(", ")}.`
+    : `월 주거비는 ${parts.join(", ")}이에요.`;
+}
+
+// 42a: deterministic after-run chip answers for every non-Muse path
+// (local route, server_key_used, keyless, failure fallback). Returns
+// { scene, tab, line } — scene is a pendingScene-style effect
+// ({ panel, home }), tab is a compare tab id — or null for unknown
+// text (the caller falls back to localNoAnswerLine).
+export function afterRunChipReply(text, { messages = [], picks = [], candidates = [], lang = currentLang() } = {}) {
+  const t = String(text || "").trim();
+  const isCommute = t === AFTER_RUN_COMMUTE_KO || t === AFTER_RUN_COMMUTE_EN;
+  const isTour = t === AFTER_RUN_TOUR_KO || t === AFTER_RUN_TOUR_EN;
+  const isMoney = t === AFTER_RUN_MONEY_KO || t === AFTER_RUN_MONEY_EN;
+  if (!isCommute && !isTour && !isMoney) return null;
+  const en = lang === "en";
+  // 41i: the model reads the same English names the cards show —
+  // a Korean raw name becomes its homeNameEn here too.
+  const enName = (n, fb) => {
+    const s = (n === undefined || n === null || n === "") ? fb : String(n);
+    return /[가-힣]/.test(s) ? homeNameEn(s) : s;
+  };
+  const sim = latestDoneSim(messages);
+  const noRunLine = en
+    ? "First save two homes and run the 30-day stay."
+    : "먼저 두 집을 담고 30일 살아 보기를 해 주세요.";
+  if (isCommute) {
+    if (!sim || !sim.customId) return { line: noRunLine };
+    if (sim.noCommute) {
+      const res = sceneForEffect({ panel: "result", home: "A" },
+        { picks, candidates, latestRun: { customId: sim.customId, moments: sim.moments || [] } });
+      const nm = ((sim.names || {}).A || "A");
+      if (!res || !res.url) {
+        return { line: en
+          ? "This stay had no commute, so there is no commute to show."
+          : "출근 없이 살아 봐서 출근길이 없어요." };
+      }
+      return { scene: { panel: "result", home: "A" },
+        line: en
+          ? `This stay had no commute. Showing a day at A ${enName(nm, "A")} on the right.`
+          : `출근 없이 살아 봐서 출근길이 없어요. 오른쪽에서 A ${nm}의 하루를 보여 드려요.` };
+    }
+    const oneWay = (sim.compare && sim.compare.one_way) || {};
+    const nmA = ((sim.names || {}).A || "A");
+    const nmB = ((sim.names || {}).B || "B");
+    const a = oneWay.A;
+    const b = oneWay.B;
+    if (!Number.isFinite(Number(a)) || !Number.isFinite(Number(b))) {
+      if (en) {
+        return { scene: { panel: "commute", home: "A" },
+          line: `Showing A ${enName(nmA, "A")} and B ${enName(nmB, "B")}'s commutes on the right.` };
+      }
+      const wa = conjParticle(nmA);
+      return { scene: { panel: "commute", home: "A" },
+        line: wa
+          ? `A ${nmA}${wa} B ${nmB}의 출근길을 오른쪽에서 보여 드려요.`
+          : `A ${nmA}, B ${nmB}의 출근길을 오른쪽에서 보여 드려요.` };
+    }
+    if (en) {
+      const fmt = (v) => `${Math.round(Number(v))} min`;
+      return { scene: { panel: "commute", home: "A" },
+        line: `Average one-way commute: A ${enName(nmA, "A")} ${fmt(a)}, B ${enName(nmB, "B")} ${fmt(b)}. Showing A's commute on the right.` };
+    }
+    return { scene: { panel: "commute", home: "A" },
+      line: `${topicClause("A", nmA, `출근 편도 평균 ${fmtMinutes(a)}`)}, ${topicClause("B", nmB, `${fmtMinutes(b)}이에요`)}. 오른쪽에서 A 출근길을 보여 드려요.` };
+  }
+  if (isTour) {
+    if (!sim || !sim.customId) return { line: noRunLine };
+    const res = sceneForEffect({ panel: "tour", home: "A" },
+      { picks, candidates,
+        latestRun: sim && sim.customId
+          ? { customId: sim.customId, moments: sim.moments || [] } : null });
+    if (!res || !res.url) {
+      return { line: en
+        ? "This home has no 3D neighborhood data yet."
+        : "이 집은 아직 3D 동네 자료가 없어요." };
+    }
+    const nm = ((sim && sim.names && sim.names.A) || "A");
+    return { scene: { panel: "tour", home: "A" },
+      line: en
+        ? `Opened A ${enName(nm, "A")}'s neighborhood on the right.`
+        : `A ${nm} 동네를 오른쪽에 열었어요.` };
+  }
+  if (sim && sim.moneyDoc) {
+    const labels = Array.isArray(sim.labels) && sim.labels.length > 0
+      ? sim.labels : ["A", "B"];
+    const line = moneyLineFor(sim.moneyDoc, labels, sim.names || {}, lang);
+    if (line) return { tab: "money", line };
+  }
+  if (!sim || !sim.moneyDoc) {
+    if (!sim || !sim.customId) return { line: noRunLine };
+    return { tab: "money", line: en
+      ? "See the Money tab for the details."
+      : "내가 내는 돈 탭에서 볼 수 있어요." };
+  }
+  return { tab: "money", line: en
+    ? "See the Money tab for the details."
+    : "내가 내는 돈 탭에서 볼 수 있어요." };
+}
+
+// 42a2: the thread messages behind an after-run chip answer — the
+// text line only. The money tab opens on the right via the store;
+// no bare tab card is ever appended (its heading alone reads
+// "자세히"). Scene effects are applied by the caller.
+export function afterRunChipTurn(chip) {
+  if (!chip || !chip.line) return [];
+  return [{ role: "assistant", kind: "text", content: chip.line }];
+}
+
 // 27b2: next-step chips — Muse's suggestions on the latest assistant
 // message win; otherwise the rule chips.
 export function chipsForLatest(messages, fallback) {
@@ -2088,6 +2278,35 @@ export function ChatScreen() {
 
   // --- structured flow ---
   async function structuredFlow(text) {
+    // 42a: deterministic after-run chips answer on every non-Muse
+    // path (local route, server_key_used, keyless, failure
+    // fallback) — before the extract/search flow.
+    const onScreenEarly = (((stateRef.current.candidatesData || {}).result || {})
+      .candidates) || [];
+    {
+      const chip = afterRunChipReply(text, { messages: stateRef.current.messages,
+        picks: stateRef.current.picks, candidates: onScreenEarly, lang: currentLang() });
+      if (chip) {
+        if (chip.scene) {
+          const res = sceneForEffect(chip.scene, { picks: stateRef.current.picks,
+            candidates: onScreenEarly,
+            latestRun: latestDoneRun(stateRef.current.messages) });
+          if (res && res.url) {
+            setScene({ url: res.url, title: res.title });
+            setWorkOpen(true);
+          } else {
+            pushMsg({ role: "assistant", kind: "text",
+              content: res && res.say ? res.say : chip.line });
+            return;
+          }
+        }
+        if (chip.tab) {
+          store.set({ compareOpen: true, compareTab: chip.tab });
+        }
+        for (const m of afterRunChipTurn(chip)) pushMsg(m);
+        return;
+      }
+    }
     // 30c: typed picks/runs while candidates are on screen — the same
     // state the Pick buttons and tray run button use, no
     // extract_profile, no profile change.
@@ -2720,6 +2939,14 @@ export function ChatScreen() {
       pushMsg({ role: "assistant", kind: "text", content: STATIC_OFF_LINE });
       return;
     }
+    // 42a: the 27j guard runs on this in-agent fallback too — no
+    // user bubble is ever left without a reply.
+    const repliesBefore = replyCountRef.current;
+    const guardFallback = () => {
+      if (!answeredSince(replyCountRef.current, repliesBefore)) {
+        pushMsg({ role: "assistant", kind: "text", content: localNoAnswerLine(text) });
+      }
+    };
     const st = stateRef.current;
     let scen = st.scenario;
     if (!scen) {
@@ -2899,6 +3126,7 @@ export function ChatScreen() {
         } }));
         noticeServerKeyUsedOnce();
         await structuredFlow(text);
+        guardFallback();
         return;
       }
       // 30b: no server key is not slowness — same rules answer, said
@@ -2910,6 +3138,7 @@ export function ChatScreen() {
         } }));
         noticeKeylessOnce();
         await structuredFlow(text);
+        guardFallback();
         return;
       }
       setModelErrors((e) => ({ ...e, [provider]: {
@@ -2926,6 +3155,7 @@ export function ChatScreen() {
           : "Muse 답이 늦어서 이번엔 규칙으로 답했어요. 다시 말하면 Muse가 이어받아요" });
       }
       await structuredFlow(text);
+      guardFallback();
     }
   }
 
@@ -3423,19 +3653,47 @@ export function ChatScreen() {
   // once the done simulation in the thread ran for these exact picks.
   const trayCandidates = (candidatesData && candidatesData.result.candidates) || [];
   const trayResultReady = resultReadyFor(messages, picks, trayCandidates);
+  // 42a: the right stage follows the run (title + map filter).
+  const runStage = runStageOf(messages, picks);
   const handleViewResult = () => {
     // 29j3: the 3D result opens only after the comparison report is
-    // verified.
+    // verified. 42a: a failed check never locks (reportUnlocked) —
+    // the "검증하는 중이에요" line below runs only while the status
+    // really is checking.
     if (!reportUnlocked(messages)) {
       pushMsg({ role: "assistant", kind: "text",
         content: "비교 리포트를 검증하는 중이에요. 통과하면 결과를 열게요." });
       return;
+    }
+    // 42a: the tray opens the same A commute replay on the right
+    // (wide layout only) and still scrolls to the result card.
+    const auto = autoRunScene({ messages, picks,
+      candidates: trayCandidates, narrow });
+    if (auto) {
+      setScene(auto);
+      setWorkOpen(true);
     }
     // On the narrow Chat / Map toggle the result lives in Chat.
     if (narrow) setView("chat");
     const sim = [...messages].reverse().find((m) => m && m.kind === "simulation");
     soon(() => scrollChatToSim(sim && sim.id));
   };
+  // 42a: the right stage follows the run — a fresh done run with a
+  // customId auto-opens the A commute replay (wide layout only;
+  // nothing auto-switches at ≤ 900 px). 후보 지도 returns to the map.
+  const lastAutoRunId = useRef(null);
+  useEffect(() => {
+    if (narrow) return;
+    const run = latestDoneRun(messages);
+    if (!run || lastAutoRunId.current === run.customId) return;
+    lastAutoRunId.current = run.customId;
+    const auto = autoRunScene({ messages, picks,
+      candidates: trayCandidates, narrow });
+    if (auto) {
+      setScene(auto);
+      setWorkOpen(true);
+    }
+  }, [messages]);
   // 26p: one toggle instance — its mount point moves with the viewport.
   // 29a4: paneTabsMount keeps exactly one mount point per layout.
   // 32a: the mount follows the single 900 px narrow breakpoint.
@@ -3633,13 +3891,18 @@ export function ChatScreen() {
               network: dataRef.current?.network || null,
               tiles: mapTiles,
               green: mergeGreenBoxes(dataRef.current?.greenBoxes),
-              candidates: candidatesData?.result?.candidates || [],
+              // 42a: while the run is active the map shows only the
+              // picked homes + workplace (fit to them).
+              candidates: runStage.running
+                ? ((candidatesData?.result?.candidates || [])
+                  .filter((c) => c && picks.includes(c.id)))
+                : (candidatesData?.result?.candidates || []),
               picks,
               workplaceStation: destName || null,
               workPlace: workPlace || null,
               tenure: candidatesData?.tenure || null,
             })}
-            contextLine={stageContextLine(profile, candidatesData)}
+            contextLine={stageContextLine(profile, candidatesData, runStage)}
             cardHi={cardHi}
             onPinHover={(key) => setCardHi(key)}
             onPinClick={(id) => scrollToCandidateCard(id)}
@@ -3848,7 +4111,30 @@ export function chatWorkAttr(workOpen) {
 
 // 18: the stage header is the customer's context ("판교 출근 · 후보
 // 6곳"), never a fixed scene name.
-export function stageContextLine(profile, candidatesData) {
+// 42a: while the 30-day run is active the stage names it
+// (`A·B 30일 살아 보는 중`); otherwise the normal context line.
+export function runStageOf(messages, picks = []) {
+  const list = Array.isArray(messages) ? messages : [];
+  for (let i = list.length - 1; i >= 0; i--) {
+    const m = list[i];
+    if (m && m.kind === "simulation" && m.data && m.data.status) {
+      if (m.data.status === "running") {
+        const n = Math.max(2, (Array.isArray(picks) ? picks.length : 0) || 2);
+        const labels = [];
+        for (let k = 0; k < Math.min(n, 3); k++) labels.push("ABC"[k]);
+        return { running: true, labels };
+      }
+      return { running: false };
+    }
+  }
+  return { running: false };
+}
+export function stageContextLine(profile, candidatesData, run = null, lang = currentLang()) {
+  if (run && run.running) {
+    const labels = (run.labels && run.labels.length > 0 ? run.labels : ["A", "B"]);
+    if (lang === "en") return `Living 30 days in ${labels.join("·")}`;
+    return `${labels.join("·")} 30일 살아 보는 중`;
+  }
   const bits = [];
   const wps = profile && profile.workplaces && profile.workplaces.value;
   const where = Array.isArray(wps) && wps[0]
