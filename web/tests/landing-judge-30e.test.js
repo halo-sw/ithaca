@@ -52,7 +52,7 @@ describe("30e landing hero judge buttons (SSR, no DOM)", () => {
     assert.ok(html.includes("ds-lp-judgecap"));
     assert.ok(html.includes("키 없이"));
     assert.ok(html.includes("녹화된 30일을 재생해요"));
-    assert.ok(html.includes("무료 체험 1회 · 이후 내 키"));
+    assert.ok(html.includes("무료 체험 하루 3회 · 이후 내 키"));
     assert.equal((html.match(/Muse 실시간/g) || []).length, 1);
   });
 

@@ -21,7 +21,7 @@ describe("42b no-answer alert text per cause", () => {
 
   it("server key used wins over the other causes", () => {
     assert.equal(noAnswerCause({ serverKeyUsed: true, keyless: true, fails: 5 }), "serverKeyUsed");
-    assert.ok(noAnswerAlertFor({ serverKeyUsed: true }).includes("무료 체험(1회)을 이미 썼어요"));
+    assert.ok(noAnswerAlertFor({ serverKeyUsed: true }).includes("무료 체험 3회를 다 썼어요"));
   });
 
   it("keyless names the missing key", () => {
@@ -166,9 +166,9 @@ describe("42b landing 바로 해 보기 captions and key row (SSR)", () => {
     ({ LandingPage } = await import("../src/ui/landing-page.jsx"));
   });
 
-  it("live entries read 무료 체험 1회 · 이후 내 키, replay needs no key", () => {
+  it("live entries read 무료 체험 하루 3회 · 이후 내 키, replay needs no key", () => {
     const html = renderToStaticMarkup(React.createElement(LandingPage));
-    const trial = html.match(/무료 체험 1회 · 이후 내 키/g) || [];
+    const trial = html.match(/무료 체험 하루 3회 · 이후 내 키/g) || [];
     assert.equal(trial.length, 1);
     assert.equal(html.match(/Muse 실시간/g).length, 1);
     assert.ok(html.includes("키 없이"));

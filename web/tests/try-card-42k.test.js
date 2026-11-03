@@ -43,7 +43,7 @@ describe("42k try card hierarchy (SSR)", () => {
   it("replay caption and single free-trial caption", () => {
     const h = html();
     assert.ok(h.includes("녹화된 30일을 재생해요"));
-    assert.equal((h.match(/무료 체험 1회 · 이후 내 키/g) || []).length, 1);
+    assert.equal((h.match(/무료 체험 하루 3회 · 이후 내 키/g) || []).length, 1);
   });
 
   it("no separate byok row above the proof strip", () => {
