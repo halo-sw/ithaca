@@ -1,12 +1,26 @@
-<p align="center"><img src="briefs/img/ithaca-banner.png" width="100%" alt="Ithaca — The Pre-living Agent for Your Next Home"></p>
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="briefs/img/ithaca-logo-light.svg">
+    <img src="briefs/img/ithaca-logo.svg" width="380" alt="Ithaca">
+  </picture>
+</h1>
 
-# Ithaca
+<h3 align="center">Before you sign, live the next 30 days.</h3>
 
-**Before you sign, live the next 30 days.**
+<p align="center"><b>The pre-living agent for your next home</b><br>
+Household simulation · Muse agent planning · Voice intake · Room-photo vision · Evidence-checked reports</p>
 
-Built from scratch since [October 28, 2026](https://github.com/halo-sw/ithaca/commit/7fec53140d26cc100392126fa76029909c0ff1a3) by **Halo, solo**, for **Meta Hackathon 2026**. Track: **Indie Developer**. Problem statement: **Build for Your World**.
-
-<p align="center"><b>Built with Meta AI:</b> Meta Model API (<code>api.meta.ai</code>) · Muse Spark 1.3 · Muse Spark Open · Muse Code · Muse Voice · Muse Image · SAM 3.1</p>
+<p align="center">
+  <a href="https://github.com/halo-sw/ithaca/actions/workflows/ci.yml"><img src="https://github.com/halo-sw/ithaca/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <img src="https://img.shields.io/badge/tests-3%2C765_JS_·_289_Python_passed-2ea44f" alt="CI: 3,765 JavaScript and 289 Python tests passed">
+  <a href="#benchmarks-and-evaluation"><img src="https://img.shields.io/badge/eval-report_checks_3%2F3_pass_on_try_1-2ea44f" alt="Report checks: 3 of 3 recorded runs pass on the first try"></a>
+  <a href="#benchmarks-and-evaluation"><img src="https://img.shields.io/badge/benchmark-Meta_HQ_commute_%2B28.7_min_vs_listing-0072f1" alt="Benchmark: the door-to-door commute to Meta HQ is 28.7 minutes longer than a listing-style figure on average"></a>
+  <br>
+  <img src="https://img.shields.io/badge/Meta_AI-Muse_Spark_1.3_|_Spark_Open_|_Voice_|_Image_|_SAM_3.1-7b3fe4?logo=data%3Aimage%2Fpng%3Bbase64%2CiVBORw0KGgoAAAANSUhEUgAAACgAAAAbCAYAAAAOEM1uAAAEf0lEQVR42rWXW2iXdRjHv7%2F%2Ff3MOyVJbLMPoAMrWqjmIpBhddWO7KYsiiqDDtLsgC0woo912uqi0sAzpBNqsboKKohhIlBiVItNdRB6Zmk5qzv%2F7frro%2BcXTs%2Fe%2FUdgPXp7f%2B77P%2BfR7flLFAuoGLwbeAA4Do8Dt9r3WjMb2qQrnvKzMGLgK%2BIl%2FrtPAZVHJsF%2Bk%2F2s55S4B9ptS5wK803BaAs2twG7gOPA5cOV59aQxqwOtwNdBKYAGUAL3ZAWBmtH1AH8YXmnwnRj6%2F7Ja3L6eUmoAr0nql3Qu%2FJekJOm38I6kTZLmGk322DWSlFIqKqKU6VL8r1mKYtB5rgweybDPcOcYfCB4uzD4Q7MU%2Brehzcr1ApMWyoYJ%2BdaqN68zQGcWBswHfjXlC5cKADtz6oRcvRZ4H%2FgKeNTjNFUQaAN%2BdJ4oTJkBS%2Fq89ufcM9qhkJ9ewc%2BcIRn%2FeuBk6Ax3zZSrNcuBpyT1SGpYftQkrZd0UNJCyy1J%2BiWl1PiLH5dLekxSaTTZCxg8kWVISkC7pPckXSRpStJZo13p8nm6gkCPpCecoLqkPSmll61YJCkn8pglPpI2SJpndDVJ%2BxwPSRp3xZed0GVOmGNyao535apJek5Su7O8lDRo%2B96AP2ZtpVfS%2Fca8bp7%2BJAg8anAKWCpprcP368xsCq40qxpG%2FFJKacT%2BL3V4kjRq3nvWWlBOibckTTgDJemI8%2Fbz1oaq1kRVtf%2Bdk8ABl7C7gXbz0jzgUGgdVwPdrhgKYAroBN6172cN5nN7oKKQfFtaW3UyeW17gQ%2BBLcBi931ZYHrKTplhe580uNXwdwXBN5qhe4KRRwPeoD%2BZbN8N9DdrO9mS24zBlMERYIXreYUZ0GXMD4b2sRB4yHm1NCM2B0%2FfbfLaDD7iZG6u5Xjb40t9WcipA1btyR1pO1JKeyVdKmmBoz1m7WkoH2n2bKhoJ6dcMV0naaOkVpP74EwefD14cJeFtXTe67Mw3hDC%2BD3waqD%2FzvjuDCG%2B2Xgk4BtHUwKjM41cX4aTgfC%2B3dEMhH8ngN9NSP52iykx5owpgeXGY3UoPoB100auPAgERriBIedfn8NfUzGeeYU%2FMrwFwLFQyYuBRWZU4QaVMWB%2BM%2B8tqZjvvMDhkNhDQcHSGTNphZSAKxxfgAnrDFsd%2Fyzjjpkmm5sqlMN5b7kJzCPXliYDLsALjn9PiMrPwH0OP9PvqBwgXIHcO4PAD9wUlD3%2BacDJhhyxsGbD%2BwPeYcPxuXfcwl4Dai1Njp8l0bnWHqYkPe3aUT6%2FO8JEUtpRuD6ldNJSoZB0QeDb6fhgR%2B3qlNIhoJ5SKppNuB3hvWF9b2NKaZ%2Fty5QSQKukCx1uYcqNSHrTvJcHiDZnlFesYTQvppS2AS35KjDbCF5YU261ieUZC2sZhLQYbh4eGpLW2KCAU2rc3UdwMlolfSzp8WBQ0yLpD8UxDqyouANn%2FLcD%2FsPhf27E7W5y92sYmJtvibNePw2uArYDm4DuqknDCe4AXgG2AauqKtAVVBfwhfXDvcCTTuY05f4Eau6o08a%2ByYgAAAAASUVORK5CYII%3D" alt="Meta AI models: Muse Spark 1.3, Muse Spark Open, Muse Voice, Muse Image and SAM 3.1">
+  <img src="https://img.shields.io/badge/partner-Baseten-e8590c" alt="Partner: Baseten">
+  <img src="https://img.shields.io/badge/code_written_by-Muse_Code-0072f1?logo=data%3Aimage%2Fpng%3Bbase64%2CiVBORw0KGgoAAAANSUhEUgAAACgAAAAbCAYAAAAOEM1uAAAEf0lEQVR42rWXW2iXdRjHv7%2F%2Ff3MOyVJbLMPoAMrWqjmIpBhddWO7KYsiiqDDtLsgC0woo912uqi0sAzpBNqsboKKohhIlBiVItNdRB6Zmk5qzv%2F7frro%2BcXTs%2Fe%2FUdgPXp7f%2B77P%2BfR7flLFAuoGLwbeAA4Do8Dt9r3WjMb2qQrnvKzMGLgK%2BIl%2FrtPAZVHJsF%2Bk%2F2s55S4B9ptS5wK803BaAs2twG7gOPA5cOV59aQxqwOtwNdBKYAGUAL3ZAWBmtH1AH8YXmnwnRj6%2F7Ja3L6eUmoAr0nql3Qu%2FJekJOm38I6kTZLmGk322DWSlFIqKqKU6VL8r1mKYtB5rgweybDPcOcYfCB4uzD4Q7MU%2Brehzcr1ApMWyoYJ%2BdaqN68zQGcWBswHfjXlC5cKADtz6oRcvRZ4H%2FgKeNTjNFUQaAN%2BdJ4oTJkBS%2Fq89ufcM9qhkJ9ewc%2BcIRn%2FeuBk6Ax3zZSrNcuBpyT1SGpYftQkrZd0UNJCyy1J%2BiWl1PiLH5dLekxSaTTZCxg8kWVISkC7pPckXSRpStJZo13p8nm6gkCPpCecoLqkPSmll61YJCkn8pglPpI2SJpndDVJ%2BxwPSRp3xZed0GVOmGNyao535apJek5Su7O8lDRo%2B96AP2ZtpVfS%2Fca8bp7%2BJAg8anAKWCpprcP368xsCq40qxpG%2FFJKacT%2BL3V4kjRq3nvWWlBOibckTTgDJemI8%2Fbz1oaq1kRVtf%2Bdk8ABl7C7gXbz0jzgUGgdVwPdrhgKYAroBN6172cN5nN7oKKQfFtaW3UyeW17gQ%2BBLcBi931ZYHrKTplhe580uNXwdwXBN5qhe4KRRwPeoD%2BZbN8N9DdrO9mS24zBlMERYIXreYUZ0GXMD4b2sRB4yHm1NCM2B0%2FfbfLaDD7iZG6u5Xjb40t9WcipA1btyR1pO1JKeyVdKmmBoz1m7WkoH2n2bKhoJ6dcMV0naaOkVpP74EwefD14cJeFtXTe67Mw3hDC%2BD3waqD%2FzvjuDCG%2B2Xgk4BtHUwKjM41cX4aTgfC%2B3dEMhH8ngN9NSP52iykx5owpgeXGY3UoPoB100auPAgERriBIedfn8NfUzGeeYU%2FMrwFwLFQyYuBRWZU4QaVMWB%2BM%2B8tqZjvvMDhkNhDQcHSGTNphZSAKxxfgAnrDFsd%2Fyzjjpkmm5sqlMN5b7kJzCPXliYDLsALjn9PiMrPwH0OP9PvqBwgXIHcO4PAD9wUlD3%2BacDJhhyxsGbD%2BwPeYcPxuXfcwl4Dai1Njp8l0bnWHqYkPe3aUT6%2FO8JEUtpRuD6ldNJSoZB0QeDb6fhgR%2B3qlNIhoJ5SKppNuB3hvWF9b2NKaZ%2Fty5QSQKukCx1uYcqNSHrTvJcHiDZnlFesYTQvppS2AS35KjDbCF5YU261ieUZC2sZhLQYbh4eGpLW2KCAU2rc3UdwMlolfSzp8WBQ0yLpD8UxDqyouANn%2FLcD%2FsPhf27E7W5y92sYmJtvibNePw2uArYDm4DuqknDCe4AXgG2AauqKtAVVBfwhfXDvcCTTuY05f4Eau6o08a%2ByYgAAAAASUVORK5CYII%3D" alt="All product code written by Muse Code">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-1a56db" alt="MIT license"></a>
+</p>
 
 <p align="center">
   <a href="https://halo-sw.github.io/ithaca/?lang=en"><img src="https://img.shields.io/badge/Try_it-live-1a56db?style=for-the-badge" alt="Try it live"></a>
@@ -20,14 +34,7 @@ Built from scratch since [October 28, 2026](https://github.com/halo-sw/ithaca/co
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Muse_Spark-1.3-0072f1?style=flat-square&logo=data%3Aimage%2Fpng%3Bbase64%2CiVBORw0KGgoAAAANSUhEUgAAACgAAAAbCAYAAAAOEM1uAAAEf0lEQVR42rWXW2iXdRjHv7%2F%2Ff3MOyVJbLMPoAMrWqjmIpBhddWO7KYsiiqDDtLsgC0woo912uqi0sAzpBNqsboKKohhIlBiVItNdRB6Zmk5qzv%2F7frro%2BcXTs%2Fe%2FUdgPXp7f%2B77P%2BfR7flLFAuoGLwbeAA4Do8Dt9r3WjMb2qQrnvKzMGLgK%2BIl%2FrtPAZVHJsF%2Bk%2F2s55S4B9ptS5wK803BaAs2twG7gOPA5cOV59aQxqwOtwNdBKYAGUAL3ZAWBmtH1AH8YXmnwnRj6%2F7Ja3L6eUmoAr0nql3Qu%2FJekJOm38I6kTZLmGk322DWSlFIqKqKU6VL8r1mKYtB5rgweybDPcOcYfCB4uzD4Q7MU%2Brehzcr1ApMWyoYJ%2BdaqN68zQGcWBswHfjXlC5cKADtz6oRcvRZ4H%2FgKeNTjNFUQaAN%2BdJ4oTJkBS%2Fq89ufcM9qhkJ9ewc%2BcIRn%2FeuBk6Ax3zZSrNcuBpyT1SGpYftQkrZd0UNJCyy1J%2BiWl1PiLH5dLekxSaTTZCxg8kWVISkC7pPckXSRpStJZo13p8nm6gkCPpCecoLqkPSmll61YJCkn8pglPpI2SJpndDVJ%2BxwPSRp3xZed0GVOmGNyao535apJek5Su7O8lDRo%2B96AP2ZtpVfS%2Fca8bp7%2BJAg8anAKWCpprcP368xsCq40qxpG%2FFJKacT%2BL3V4kjRq3nvWWlBOibckTTgDJemI8%2Fbz1oaq1kRVtf%2Bdk8ABl7C7gXbz0jzgUGgdVwPdrhgKYAroBN6172cN5nN7oKKQfFtaW3UyeW17gQ%2BBLcBi931ZYHrKTplhe580uNXwdwXBN5qhe4KRRwPeoD%2BZbN8N9DdrO9mS24zBlMERYIXreYUZ0GXMD4b2sRB4yHm1NCM2B0%2FfbfLaDD7iZG6u5Xjb40t9WcipA1btyR1pO1JKeyVdKmmBoz1m7WkoH2n2bKhoJ6dcMV0naaOkVpP74EwefD14cJeFtXTe67Mw3hDC%2BD3waqD%2FzvjuDCG%2B2Xgk4BtHUwKjM41cX4aTgfC%2B3dEMhH8ngN9NSP52iykx5owpgeXGY3UoPoB100auPAgERriBIedfn8NfUzGeeYU%2FMrwFwLFQyYuBRWZU4QaVMWB%2BM%2B8tqZjvvMDhkNhDQcHSGTNphZSAKxxfgAnrDFsd%2Fyzjjpkmm5sqlMN5b7kJzCPXliYDLsALjn9PiMrPwH0OP9PvqBwgXIHcO4PAD9wUlD3%2BacDJhhyxsGbD%2BwPeYcPxuXfcwl4Dai1Njp8l0bnWHqYkPe3aUT6%2FO8JEUtpRuD6ldNJSoZB0QeDb6fhgR%2B3qlNIhoJ5SKppNuB3hvWF9b2NKaZ%2Fty5QSQKukCx1uYcqNSHrTvJcHiDZnlFesYTQvppS2AS35KjDbCF5YU261ieUZC2sZhLQYbh4eGpLW2KCAU2rc3UdwMlolfSzp8WBQ0yLpD8UxDqyouANn%2FLcD%2FsPhf27E7W5y92sYmJtvibNePw2uArYDm4DuqknDCe4AXgG2AauqKtAVVBfwhfXDvcCTTuY05f4Eau6o08a%2ByYgAAAAASUVORK5CYII%3D" alt="Muse Spark 1.3">
-  <img src="https://img.shields.io/badge/code_written_by-Muse_Code-0072f1?style=flat-square&logo=data%3Aimage%2Fpng%3Bbase64%2CiVBORw0KGgoAAAANSUhEUgAAACgAAAAbCAYAAAAOEM1uAAAEf0lEQVR42rWXW2iXdRjHv7%2F%2Ff3MOyVJbLMPoAMrWqjmIpBhddWO7KYsiiqDDtLsgC0woo912uqi0sAzpBNqsboKKohhIlBiVItNdRB6Zmk5qzv%2F7frro%2BcXTs%2Fe%2FUdgPXp7f%2B77P%2BfR7flLFAuoGLwbeAA4Do8Dt9r3WjMb2qQrnvKzMGLgK%2BIl%2FrtPAZVHJsF%2Bk%2F2s55S4B9ptS5wK803BaAs2twG7gOPA5cOV59aQxqwOtwNdBKYAGUAL3ZAWBmtH1AH8YXmnwnRj6%2F7Ja3L6eUmoAr0nql3Qu%2FJekJOm38I6kTZLmGk322DWSlFIqKqKU6VL8r1mKYtB5rgweybDPcOcYfCB4uzD4Q7MU%2Brehzcr1ApMWyoYJ%2BdaqN68zQGcWBswHfjXlC5cKADtz6oRcvRZ4H%2FgKeNTjNFUQaAN%2BdJ4oTJkBS%2Fq89ufcM9qhkJ9ewc%2BcIRn%2FeuBk6Ax3zZSrNcuBpyT1SGpYftQkrZd0UNJCyy1J%2BiWl1PiLH5dLekxSaTTZCxg8kWVISkC7pPckXSRpStJZo13p8nm6gkCPpCecoLqkPSmll61YJCkn8pglPpI2SJpndDVJ%2BxwPSRp3xZed0GVOmGNyao535apJek5Su7O8lDRo%2B96AP2ZtpVfS%2Fca8bp7%2BJAg8anAKWCpprcP368xsCq40qxpG%2FFJKacT%2BL3V4kjRq3nvWWlBOibckTTgDJemI8%2Fbz1oaq1kRVtf%2Bdk8ABl7C7gXbz0jzgUGgdVwPdrhgKYAroBN6172cN5nN7oKKQfFtaW3UyeW17gQ%2BBLcBi931ZYHrKTplhe580uNXwdwXBN5qhe4KRRwPeoD%2BZbN8N9DdrO9mS24zBlMERYIXreYUZ0GXMD4b2sRB4yHm1NCM2B0%2FfbfLaDD7iZG6u5Xjb40t9WcipA1btyR1pO1JKeyVdKmmBoz1m7WkoH2n2bKhoJ6dcMV0naaOkVpP74EwefD14cJeFtXTe67Mw3hDC%2BD3waqD%2FzvjuDCG%2B2Xgk4BtHUwKjM41cX4aTgfC%2B3dEMhH8ngN9NSP52iykx5owpgeXGY3UoPoB100auPAgERriBIedfn8NfUzGeeYU%2FMrwFwLFQyYuBRWZU4QaVMWB%2BM%2B8tqZjvvMDhkNhDQcHSGTNphZSAKxxfgAnrDFsd%2Fyzjjpkmm5sqlMN5b7kJzCPXliYDLsALjn9PiMrPwH0OP9PvqBwgXIHcO4PAD9wUlD3%2BacDJhhyxsGbD%2BwPeYcPxuXfcwl4Dai1Njp8l0bnWHqYkPe3aUT6%2FO8JEUtpRuD6ldNJSoZB0QeDb6fhgR%2B3qlNIhoJ5SKppNuB3hvWF9b2NKaZ%2Fty5QSQKukCx1uYcqNSHrTvJcHiDZnlFesYTQvppS2AS35KjDbCF5YU261ieUZC2sZhLQYbh4eGpLW2KCAU2rc3UdwMlolfSzp8WBQ0yLpD8UxDqyouANn%2FLcD%2FsPhf27E7W5y92sYmJtvibNePw2uArYDm4DuqknDCe4AXgG2AauqKtAVVBfwhfXDvcCTTuY05f4Eau6o08a%2ByYgAAAAASUVORK5CYII%3D" alt="All product code written by Muse Code">
-  <img src="https://img.shields.io/badge/tests-3764_JS_CI_passed_·_42_skipped-1a56db?style=flat-square" alt="main CI on 2026-11-03: 3,764 JavaScript tests passed, 0 failed, 42 skipped">
-  <a href="https://github.com/halo-sw/ithaca/actions/workflows/ci.yml"><img src="https://github.com/halo-sw/ithaca/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-1a56db?style=flat-square" alt="MIT license"></a>
-</p>
-
-<p align="center">
+  <a href="#submission-overview">Overview</a> ·
   <a href="#0-quick-start">Quick&nbsp;start</a> ·
   <a href="#1-project-introduction">Introduction</a> ·
   <a href="#2-service-summary">Summary</a> ·
@@ -35,9 +42,22 @@ Built from scratch since [October 28, 2026](https://github.com/halo-sw/ithaca/co
   <a href="#4-how-the-muse-agents-work">How&nbsp;the&nbsp;Muse&nbsp;agents&nbsp;work</a> ·
   <a href="#where-the-models-run">Where&nbsp;the&nbsp;models&nbsp;run</a> ·
   <a href="#5-main-service-flow">Service&nbsp;flow</a> ·
+  <a href="#benchmarks-and-evaluation">Benchmarks</a> ·
   <a href="#6-conclusion">Conclusion</a> ·
   <a href="#7-expected-impact-and-next-steps">Next&nbsp;steps</a>
 </p>
+
+## Submission overview
+
+| Criterion | Details |
+|---|---|
+| **Hackathon** | Meta Hackathon 2026 · Track: **Indie Developer** · Problem statement: **Build for Your World** |
+| **Built during the event** | From scratch since [October 28, 2026](https://github.com/halo-sw/ithaca/commit/7fec53140d26cc100392126fa76029909c0ff1a3) by **Halo, solo**. All product code, tests and pipelines were written by **Muse Code** from the stage briefs in [`briefs/`](briefs/). |
+| **Live app** | [halo-sw.github.io/ithaca](https://halo-sw.github.io/ithaca/?lang=en) with live Muse under a shared daily limit · [a recorded month](https://halo-sw.github.io/ithaca/?replay=pangyo-reviewed-month&lang=en) that needs no key · [Meta HQ in Menlo Park](https://halo-sw.github.io/ithaca/?chat=I+work+at+Meta+HQ+in+Menlo+Park.+Two+of+us%2C+rent+up+to+%244%2C500+a+month.&lang=en) |
+| **Demo video** | [2:53, English narration and captions](https://github.com/halo-sw/ithaca/releases/download/demo-v9/ithaca-hackathon-final-en.mp4) (revision 9) |
+| **Meta models** | `Muse Spark 1.3` (`api.meta.ai`): consultation, plans, daily choices, reports and evidence checks<br>`Muse Spark Open` (Baseten): a selectable alternative to Spark 1.3<br>`Muse Voice Transcribe 1.0` (`api.meta.ai`): speech to editable text<br>`Muse Image 1.0` (`api.meta.ai`): one labelled illustration of a diary moment<br>`SAM 3.1` (`api.meta.ai`): windows in a room photo<br>`Muse Code`: wrote the product code · [where each one runs ↓](#where-the-models-run) |
+| **Evaluation** | Report checks: **3 of 3** recorded runs pass on the first try, coverage 100 % · Spark Open makes the same choice as Spark 1.3 at **120 of 139** decision points (86 %) · the door-to-door commute to Meta HQ is **28.7 min** longer than a listing-style figure on average · [details ↓](#benchmarks-and-evaluation) |
+| **Run it yourself** | `docker compose up --build`, then open `localhost:8080` · [quick start ↓](#0-quick-start) |
 
 ## 0. Quick start
 
@@ -50,7 +70,7 @@ For judges and developers. Every path runs the same app as the public site.
 | **[From source](#run-from-source)** | Node 22 | The Vite dev server, with every feature the public site turns on |
 | **[Rebuild&nbsp;the&nbsp;data](docs/development.md)** | Python 3.12, about 6 GB of raw data | The pipeline that builds each area from OpenStreetMap and building records |
 
-**Keys are optional.** Without one, the header shows **Rule mode**: the engine still computes every number, and recorded months play in full. With your own `META_API_KEY`, the chat, plans, daily choices, report checks and voice run on Muse Spark 1.3 and Muse Voice. Muse Spark Open runs only with your own Baseten key.
+**Keys are optional.** Without one, the header shows **Rule mode**: the engine still computes every number, and recorded months play in full. With your own `META_API_KEY`, the chat, plans, daily choices, report checks and voice run on Muse Spark 1.3 and Muse Voice, and the room-photo windows and diary picture call SAM 3.1 and Muse Image. Muse Spark Open runs only with your own Baseten key.
 
 ### Run with Docker
 
@@ -60,7 +80,7 @@ cp .env.example .env      # optional: add your META_API_KEY
 docker compose up --build
 ```
 
-Open [http://localhost:8080](http://localhost:8080). The build downloads the runtime data the public site serves (about 130 MB, from the [`data-v1` release](https://github.com/halo-sw/ithaca/releases/tag/data-v1)). CI builds and starts these two containers without a key on every pull request. The relay reads area data from the public site unless you set `DATA_BASE_URL`. This build leaves the room-photo windows (SAM 3.1) and the diary picture (Muse Image) off; the dev server below turns them on.
+Open [http://localhost:8080](http://localhost:8080). The build downloads the runtime data the public site serves (about 130 MB, from the [`data-v1` release](https://github.com/halo-sw/ithaca/releases/tag/data-v1)). CI builds and starts these two containers without a key on every pull request. The relay reads area data from the public site unless you set `DATA_BASE_URL`. Like the public site, this build turns on the room-photo windows (SAM 3.1) and the diary picture (Muse Image).
 
 ### Run from source
 
@@ -127,6 +147,45 @@ Historical transaction prices are reference data, not available listings. US ren
 
 **Muse proposes routines and makes bounded choices. Code computes the consequences. The report is checked against the saved run.**
 
+How one conversation runs, top to bottom. Blue boxes are Muse, grey boxes are code, white boxes are you. Dotted arrows send work back.
+
+```mermaid
+flowchart TB
+  subgraph S1["1 · Talk"]
+    direction LR
+    U(["You: one sentence<br/>KO · EN · voice"]) --> A["Consult agent<br/>Muse Spark 1.3 or Spark Open"]
+    A <--> T[("Tools<br/>profile · homes · real deals · transit")]
+    A --> G["Guard<br/>numbers only from tools"]
+    G -. "retry once" .-> A
+  end
+  subgraph S2["2 · Plan"]
+    direction LR
+    H["Muse proposes<br/>each member's routine"] --> F(["You review<br/>the assumptions"])
+    F -. "Adjust my routine" .-> H
+  end
+  subgraph S3["3 · Live 30 days in both homes"]
+    direction LR
+    D["Muse picks one allowed option<br/>at each choice point, with a reason"] --> E["Code computes<br/>routes · minutes · won"]
+    E -. "next choice point" .-> D
+  end
+  subgraph S4["4 · Check, then you decide"]
+    direction LR
+    P["Muse writes the report<br/>from the saved record"] --> C["Check<br/>code: numbers and IDs<br/>Muse judge: sentences"]
+    C -. "fails: back, up to 3×" .-> P
+    C --> O(["You compare and decide"])
+    C --> N["Unverified items<br/>stay visible"]
+  end
+  S1 --> S2 --> S3 --> S4
+  classDef muse fill:#eef3ff,stroke:#3d63dd,color:#111
+  classDef code fill:#f4f4f2,stroke:#777,color:#111
+  classDef you fill:#ffffff,stroke:#1a56db,color:#111
+  class A,H,D,P muse
+  class T,G,E,C,N code
+  class U,F,O you
+```
+
+Code: [relay](relay/handler.js) · [consult agent](web/src/consult/agent.js) · [tools](web/src/consult/tools.js) · [guard](web/src/consult/guards.js) · [household plan](web/src/consult/life-plan.js) · [live household loop](web/src/judge/household.js) · [browser worker](web/src/sim-worker.js) · [report](web/src/consult/report.js) · [checks](web/src/verify/compare.js). Chart source: [docs/agent-workflow.mmd](docs/agent-workflow.mmd).
+
 | Role | What happens | What makes it inspectable |
 |---|---|---|
 | Consultation | Muse uses tools to extract the household profile and search recorded housing data | Stated inputs and missing information stay distinct |
@@ -182,16 +241,19 @@ The report's saved status is **pass**. This checks internal consistency with the
 
 A **separate four-person family run** records school-level routes. A missing middle-school route remains unavailable; school assignment and enrollment are not inferred. [Family evidence](docs/recording-v9.md#separate-four-person-family).
 
-<details>
-<summary>Other evaluations and ways to try it</summary>
+### Benchmarks and evaluation
 
-- [Commute baseline analysis](docs/baseline-commute.md): a rule-based, ten-seed comparison against a constructed station-distance-plus-ride baseline. It is separate from the live Muse month and from real-world measurements. Korean platform waits are not modeled in that analysis.
-- [Spark 1.3 vs Spark Open](docs/model-comparison.md): a separate model comparison on shared decision points; agreement is not an accuracy score.
-- [Try Meta HQ](https://halo-sw.github.io/ithaca/?chat=I+work+at+Meta+HQ+in+Menlo+Park.+Two+of+us%2C+rent+up+to+%244%2C500+a+month.&lang=en).
-- [Run it yourself](#0-quick-start) · [full local setup](docs/development.md): Docker, source setup and data regeneration. Without a configured provider, local execution uses labeled rule mode. Public live use is subject to shared model limits; the saved replay needs no live model call.
-- [CI](https://github.com/halo-sw/ithaca/actions/workflows/ci.yml) · [Features](docs/features.md) · [Data attribution](ATTRIBUTION.md).
+Each result can be reproduced from files in this repo. None of them measures real-world accuracy; the field study in section 7 is the step for that.
 
-</details>
+| Evaluation | Setup | Result | Evidence |
+|---|---|---|---|
+| **Report check** | 3 recorded runs (Pangyo couple, Seoul engaged couple, Meta HQ), live Muse Spark 1.3 | **3 of 3 pass on the first try**, must and weighted coverage 100 %. The first Seoul run, before stage 29k, took 4 tries | [verification](docs/verification.md) · [recordings](web/public/recorded/) |
+| **Model agreement** | Spark 1.3 vs Spark Open, same household, 154 decisions each | **Same choice at 120 of 139** shared decision points (86 %); 0 guard fallbacks on either; 3.7 s vs 2.7 s per call | [comparison](docs/model-comparison.md) |
+| **Commute vs a listing-style figure** | 17 homes from the 3 recorded runs, 10 seeds, rule-based | Meta HQ: door-to-door is **26.0–31.6 min longer** (mean 28.7), mostly the last mile and the train wait. Pangyo: 0.2–2.6 min longer | [baseline](docs/baseline-commute.md) |
+| **Published month** | Run `cmw0nibca873f`, two homes | **133 Muse choices**, 2 labelled rule fallbacks, report pass | [recording v9](docs/recording-v9.md) |
+| **Tests** | CI on every pull request | **3,765 JS** pass (42 skipped) · **289 Python** pass (18 skipped) · Docker compose smoke | [CI](https://github.com/halo-sw/ithaca/actions/workflows/ci.yml) |
+
+Agreement between two models is not an accuracy score. A passing report check means the report agrees with its own saved record. The listing-style figure is our stand-in for the convention, not text from real listings.
 
 ## 6. Conclusion
 
@@ -214,6 +276,6 @@ Start with your household, inspect the assumptions, and use the result to ask be
 
 ---
 
-[Architecture](docs/architecture.md) · [Planning and the 30-day window](docs/household-planning.md) · [Build log](docs/build-log.md) · [Local setup](docs/development.md) · [Recording script](docs/demo-script.md)
+[Architecture](docs/architecture.md) · [Features](docs/features.md) · [Planning and the 30-day window](docs/household-planning.md) · [Build log](docs/build-log.md) · [Local setup](docs/development.md) · [Recording script](docs/demo-script.md)
 
 Code: [MIT](LICENSE). Data, imagery and fonts retain their own licenses; see [ATTRIBUTION.md](ATTRIBUTION.md).
