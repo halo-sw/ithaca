@@ -84,14 +84,16 @@ Ithaca는 집을 정하기 전에, 그 집이 우리 가족의 일상에 어떻�
 
 **브라우저**에서는 화면, 3D 재생, 시뮬레이션 워커가 돌아가요. 실행 중 모델 호출은 Vercel(또는 로컬 Docker)의 **중계 서버**가 해요. 서비스 키는 중계 서버의 환경 변수에만 있어요. 사용자가 자기 키를 넣으면, 그 키는 그 사용자의 요청에만 실려 가요.
 
-| 모델 / 도구 | 하는 일 | 도는 곳 | Ithaca가 쓰는 API | 근거 |
-|---|---|---|---|---|
-| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark 1.3** | 상담, 플랜, 정해진 선택지 안의 선택, 리포트, 별도 근거 검사 | 중계 서버 → Meta Model API | `api.meta.ai/v1/chat/completions` | [모델 호출 코드](web/src/judge/providers.js), [기록된 한 달(영어)](docs/recording-v9.md) |
-| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark Open** | 지원하는 텍스트 에이전트 작업에서 고를 수 있는 대안 | 중계 서버 → Baseten 추론 | `inference.baseten.co/v1/chat/completions` | [실제 호출](docs/evidence/muse-spark-open-2026-10-31.json), [비교](docs/model-comparison.ko.md) |
-| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Voice Transcribe 1.0** | 말한 내용을 고칠 수 있는 글로 받아 적기 | 브라우저가 녹음, 중계 서버 → Meta | `api.meta.ai/v1/asr/transcribe` | [음성 핸들러](web/src/consult/voice.js) |
-| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Image 1.0** | 기록된 활동 하나를 종류, 시간, 지역만으로 그리기 | 중계 서버 → Meta | `api.meta.ai/v1/images/generations` | [핸들러](web/src/consult/diary-image.js), [실제 호출](docs/evidence/muse-image-2026-11-03.json) |
-| **SAM 3.1** | 넣은 방 사진에서 창 상자 찾기 | 브라우저가 사진 준비, 중계 서버 → Meta | `api.meta.ai/v1/responses` | [핸들러](web/src/consult/windows.js), [실제 호출](docs/evidence/sam-3.1-2026-11-03.json) |
-| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Code** | 개발 지시문대로 제품 코드, 테스트, 파이프라인 구현 | 개발자 환경, 개발할 때만 | 실행 중에 부르는 엔드포인트 없음 | [지시문](briefs/), [저장소 규칙](AGENTS.md) |
+| 모델 | 하는 일 | 도는 곳 | 근거 |
+|---|---|---|---|
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark 1.3** | 상담, 플랜, 하루하루의 선택, 리포트와 근거 검사 | 중계 서버 → Meta API | [코드](web/src/judge/providers.js) · [기록된 한 달(영어)](docs/recording-v9.md) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark Open** | Spark 1.3 대신 고를 수 있는 모델 | 중계 서버 → Baseten | [실제 호출](docs/evidence/muse-spark-open-2026-10-31.json) · [비교](docs/model-comparison.ko.md) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Voice Transcribe 1.0** | 말을 고칠 수 있는 글로 받아 적기 | 브라우저 마이크 → 중계 서버 → Meta API | [코드](web/src/consult/voice.js) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Image 1.0** | 기록된 활동 하나를 그림으로 그리기 | 중계 서버 → Meta API | [코드](web/src/consult/diary-image.js) · [실제 호출](docs/evidence/muse-image-2026-11-03.json) |
+| **SAM 3.1** | 넣은 방 사진에서 창 찾기 | 브라우저 → 중계 서버 → Meta API | [코드](web/src/consult/windows.js) · [실제 호출](docs/evidence/sam-3.1-2026-11-03.json) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Code** | 제품 코드, 테스트, 파이프라인 작성 | 개발자 컴퓨터, 개발할 때만 | [지시문](briefs/) · [규칙](AGENTS.md) |
+
+API 경로: Meta `api.meta.ai/v1/` 아래 `chat/completions`(Spark 1.3), `asr/transcribe`(Voice), `images/generations`(Image), `responses`(SAM) · Baseten `inference.baseten.co/v1/chat/completions`(Spark Open). Muse Code는 실행 중에 부르는 엔드포인트가 없어요.
 
 Muse Image가 그린 그림에는 **“Muse Image 일러스트 · 실제 장소 사진이 아니에요”**라는 표시가 붙어요. 집을 찍은 사진이 아니에요. SAM은 창 상자와 그 상자가 사진에서 차지하는 비율만 알려 줘요. 실제 창 크기나 채광 성능은 말하지 않아요. 공개한 호출 기록에는 그림으로 그린 시험용 방을 썼어요. 이 두 기능은 30일 비교의 근거와 별개예요.
 

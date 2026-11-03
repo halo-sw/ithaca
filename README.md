@@ -84,14 +84,16 @@ Korean public transaction records, building data and transit data provide useful
 
 The **browser** hosts the UI, 3D playback and simulation worker. A **relay server** on Vercel (or local Docker) makes runtime model calls. Hosted service keys stay in the relay's environment. An optional user-supplied key is sent with that user's request.
 
-| Model / tool | Job | Where it runs | API used by Ithaca | Evidence |
-|---|---|---|---|---|
-| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark 1.3** | Consultation, plans, bounded choices, reports and separate evidence checks | Relay → Meta Model API | `api.meta.ai/v1/chat/completions` | [Provider](web/src/judge/providers.js), [recorded month](docs/recording-v9.md) |
-| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark Open** | Selectable alternative for supported text-agent tasks | Relay → Baseten inference | `inference.baseten.co/v1/chat/completions` | [Real calls](docs/evidence/muse-spark-open-2026-10-31.json), [comparison](docs/model-comparison.md) |
-| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Voice Transcribe 1.0** | Turns spoken input into editable text | Browser records audio; relay → Meta | `api.meta.ai/v1/asr/transcribe` | [Voice handler](web/src/consult/voice.js) |
-| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Image 1.0** | Illustrates a recorded activity using its kind, time and region | Relay → Meta | `api.meta.ai/v1/images/generations` | [Handler](web/src/consult/diary-image.js), [real calls](docs/evidence/muse-image-2026-11-03.json) |
-| **SAM 3.1** | Finds window boxes in a supplied room image | Browser prepares image; relay → Meta | `api.meta.ai/v1/responses` | [Handler](web/src/consult/windows.js), [real call](docs/evidence/sam-3.1-2026-11-03.json) |
-| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Code** | Implements product code, tests and pipelines from development briefs | Developer's environment, during development only | No runtime application endpoint | [Briefs](briefs/), [repository rules](AGENTS.md) |
+| Model | Job | Runs on | Evidence |
+|---|---|---|---|
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark 1.3** | Consultation, plans, daily choices, reports and evidence checks | Relay → Meta API | [code](web/src/judge/providers.js) · [recorded month](docs/recording-v9.md) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark Open** | Selectable alternative to Spark 1.3 | Relay → Baseten | [real calls](docs/evidence/muse-spark-open-2026-10-31.json) · [comparison](docs/model-comparison.md) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Voice Transcribe 1.0** | Speech to editable text | Browser mic → relay → Meta API | [code](web/src/consult/voice.js) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Image 1.0** | Draws one recorded activity | Relay → Meta API | [code](web/src/consult/diary-image.js) · [real calls](docs/evidence/muse-image-2026-11-03.json) |
+| **SAM 3.1** | Finds windows in a room photo | Browser → relay → Meta API | [code](web/src/consult/windows.js) · [real call](docs/evidence/sam-3.1-2026-11-03.json) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Code** | Wrote the product code, tests and pipelines | Developer machine, build time only | [briefs](briefs/) · [rules](AGENTS.md) |
+
+API paths: Meta `api.meta.ai/v1/` + `chat/completions` (Spark 1.3), `asr/transcribe` (Voice), `images/generations` (Image), `responses` (SAM) · Baseten `inference.baseten.co/v1/chat/completions` (Spark Open). Muse Code has no runtime endpoint.
 
 Muse Image outputs carry **“Illustration by Muse Image”** labeling; they are not photographs of the property. SAM reports boxes and their share of the image, not physical window dimensions or daylight performance. Its published call used an illustrated test room. These integrations are separate from the evidence for the 30-day comparison.
 
