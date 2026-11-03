@@ -207,11 +207,11 @@ The **browser** hosts the UI, 3D playback and simulation worker. A **relay serve
 
 | Model | Job | Runs on | Evidence |
 |---|---|---|---|
-| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark 1.3** | Consultation, plans, daily choices, reports and evidence checks | Relay → Meta&nbsp;API | [code](web/src/judge/providers.js) · [recorded&nbsp;month](docs/recording-v9.md) |
-| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark Open** | Selectable alternative to Spark 1.3 | Relay → Baseten | [real&nbsp;calls](docs/evidence/muse-spark-open-2026-10-31.json) · [comparison](docs/model-comparison.md) |
-| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Voice Transcribe 1.0** | Speech to editable text | Browser mic → relay → Meta&nbsp;API | [code](web/src/consult/voice.js) |
-| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Image 1.0** | Draws one recorded activity | Relay → Meta&nbsp;API | [code](web/src/consult/diary-image.js) · [real&nbsp;calls](docs/evidence/muse-image-2026-11-03.json) |
-| **SAM 3.1** | Finds windows in a room photo | Browser → relay → Meta&nbsp;API | [code](web/src/consult/windows.js) · [real&nbsp;call](docs/evidence/sam-3.1-2026-11-03.json) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark 1.3** | Consultation, plans, daily choices, reports and evidence checks | Relay → Meta&nbsp;Model&nbsp;API | [code](web/src/judge/providers.js) · [recorded&nbsp;month](docs/recording-v9.md) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark Open** | Open-weights alternative to Spark 1.3, selectable in the app | Relay → Baseten | [real&nbsp;calls](docs/evidence/muse-spark-open-2026-10-31.json) · [comparison](docs/model-comparison.md) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Voice Transcribe 1.0** | Speech to editable text | Browser mic → relay → Meta&nbsp;Model&nbsp;API | [code](web/src/consult/voice.js) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Image 1.0** | Draws one recorded activity | Relay → Meta&nbsp;Model&nbsp;API | [code](web/src/consult/diary-image.js) · [real&nbsp;calls](docs/evidence/muse-image-2026-11-03.json) |
+| **SAM 3.1** | Finds windows in a room photo | Browser → relay → Meta&nbsp;Model&nbsp;API | [code](web/src/consult/windows.js) · [real&nbsp;call](docs/evidence/sam-3.1-2026-11-03.json) |
 | <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Code** | Wrote the product code, tests and pipelines | Developer machine, build time only | [briefs](briefs/) · [rules](AGENTS.md) |
 
 API paths: Meta `api.meta.ai/v1/` + `chat/completions` (Spark 1.3), `asr/transcribe` (Voice), `images/generations` (Image), `responses` (SAM) · Baseten `inference.baseten.co/v1/chat/completions` (Spark Open). Muse Code has no runtime endpoint.
