@@ -69,7 +69,7 @@ Recorded product commit: `b4c6e6b8a12bc4db6e18c0d5d222f456302b2429`. Public fron
 
 - Couple record SHA-256: `2d6fae0bbeba5aa699b771c897d19614a5cce5bf214fb1b9b2101ac91d2436d9`.
 - Family record SHA-256: `039c593dc7fc4484f37227c6168b55e0bf106fc8323fac0c8e7fd3ec6c6284ae`.
-- Video SHA-256: `c6302f6356ba71e6f00502a8d1fe5cb3e0e3a8b9d40cc2d8030176047c28e494`.
+- Video SHA-256: `37c25006e859ff1e490b5d87007cd0ed47e90ae5b91d2d87d631e8e9b471fc11`.
 - Final video: 173.021 seconds, 1920×1080, 30 fps, English narration and captions.
 
 The evidence manifest, complete saved runs, sanitized transcripts, script, subtitles and independent video/numerical QA accompany the package. Public replay: https://halo-sw.github.io/ithaca/?replay=pangyo-reviewed-month&lang=en
