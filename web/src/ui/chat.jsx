@@ -63,6 +63,7 @@ import { noAnswerAlertFor, noAnswerKey, clearedNoAnswer, saveNoAnswerKey,
 import { rotateChatSessionId } from "../chat/session-id.js";
 import { ModelPanel } from "./model-panel.jsx";
 import { buildChatMap, extractGreenRings, runCommuteModeOf } from "../chatmap.js";
+import { selectMapGroundAreaIds, loadMapGround } from "../map-ground.js";
 import { ChatMap } from "./chatmap.jsx";
 import { mapFilterChips, filterPatch } from "./map-filters.js";
 import { defaultOverrides, setOverride, resetOverride,
@@ -3279,22 +3280,43 @@ export function ChatScreen() {
   // 18: corridor ground tiles (real 시군구 boundaries + open water)
   // intersecting the current pins; the map paints fine without them.
   const [mapTiles, setMapTiles] = useState([]);
+  // 50c: real neighbourhood geometry (roads, water/parks, building
+  // footprints) for the workplace + candidate areas; the map paints
+  // fine without it.
+  const [mapGround, setMapGround] = useState(null);
+  // 50c: stable effect key for the workplace areas (station/region/text).
+  const workGroundKey = ((profile && profile.workplaces && profile.workplaces.value) || [])
+    .map((w) => (w && w.resolved && (w.resolved.station || w.resolved.region))
+      || (w && w.text) || "")
+    .join("|");
   useEffect(() => {
     const cands = (candidatesData && candidatesData.result
       && candidatesData.result.candidates) || [];
     const pts = cands.filter((c) => Number.isFinite(c.lon) && Number.isFinite(c.lat));
-    if (pts.length === 0) { setMapTiles([]); return undefined; }
+    if (pts.length === 0) { setMapTiles([]); setMapGround(null); return undefined; }
     const lons = pts.map((c) => c.lon);
     const lats = pts.map((c) => c.lat);
     const pad = 0.03;
     const bbox = [Math.min(...lons) - pad, Math.min(...lats) - pad,
       Math.max(...lons) + pad, Math.max(...lats) + pad];
     let stale = false;
+    // 50c: stale ground clears immediately on a new query; a late
+    // previous search never overwrites the current one.
+    setMapGround(null);
     loadCorridorTiles(fetchJson, bbox).then((tiles) => {
       if (!stale) setMapTiles(tiles || []);
     });
+    const ids = selectMapGroundAreaIds({
+      workplaces: (profile && profile.workplaces && profile.workplaces.value) || [],
+      candidates: cands, picks });
+    if (ids.length === 0) return () => { stale = true; };
+    loadMapGround(fetchJson, ids).then((g) => {
+      if (!stale) setMapGround(g);
+    }).catch(() => {
+      if (!stale) setMapGround(null);
+    });
     return () => { stale = true; };
-  }, [candidatesData]);
+  }, [candidatesData, picks, workGroundKey]);
   const idRef = useRef(0);
   const busyRef = useRef(false);
   // 47g: the provider in effect, re-read on every render so late model
@@ -5826,6 +5848,7 @@ export function ChatScreen() {
               network: dataRef.current?.network || null,
               tiles: mapTiles,
               green: mergeGreenBoxes(dataRef.current?.greenBoxes),
+              ground: mapGround,
               // 42a: while the run is active the map shows only the
               // picked homes + workplace (fit to them).
               candidates: runStage.running
