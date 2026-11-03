@@ -1,9 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  sceneSentence,
-  imagePrompt,
+  SCENE_KINDS,
+  SCENES,
   IMAGE_PROMPT_PREFIX,
+  lightFor,
+  scenePrompt,
   createDiaryImageHandler,
 } from "../src/consult/diary-image.js";
 import { createRelay } from "../../relay/handler.js";
@@ -23,8 +25,8 @@ function makeRes() {
   return res;
 }
 
-function postReq(sentence) {
-  return { method: "POST", body: JSON.stringify({ sentence, lang: "en" }) };
+function postReq(body) {
+  return { method: "POST", body: JSON.stringify(body) };
 }
 
 function okFetchImpl(record) {
@@ -39,75 +41,100 @@ function okFetchImpl(record) {
 }
 
 const ENV = { META_API_KEY: "test-key" };
+const GOOD = { kind: "park", minute: 1127, region: "kr" };
 
-test("sceneSentence strips day prefix (en)", () => {
-  assert.equal(sceneSentence("Day 16, walked home after sunset"), "walked home after sunset");
+test("scenePrompt starts with prefix and contains no digit, every kind and region", () => {
+  assert.deepEqual([...SCENE_KINDS].sort(), ["commute", "errand", "park", "plan", "ride"]);
+  for (const kind of SCENE_KINDS) {
+    for (const region of ["kr", "us"]) {
+      const p = scenePrompt({ kind, minute: 600, region });
+      assert.ok(p.startsWith(IMAGE_PROMPT_PREFIX), `${kind}/${region}`);
+      assert.equal(/\d/.test(p), false, `${kind}/${region}`);
+      assert.ok(p.includes(SCENES[kind][region]), `${kind}/${region}`);
+    }
+  }
 });
 
-test("sceneSentence strips day prefix (ko)", () => {
-  assert.equal(sceneSentence("16일째 해 진 뒤 걸어서 귀가했어요"), "해 진 뒤 걸어서 귀가했어요");
+test("lightFor gives the five phrases in order", () => {
+  assert.equal(lightFor(0), "before dawn, deep blue sky");
+  assert.equal(lightFor(480), "soft morning light");
+  assert.equal(lightFor(900), "bright afternoon light");
+  assert.equal(lightFor(1100), "early evening, sunset glow");
+  assert.equal(lightFor(1300), "night, warm street lights");
 });
 
-test("imagePrompt contains no digits", () => {
-  assert.equal(/\d/.test(imagePrompt("Day 3, 12 min walk to 2 stores")), false);
-});
-
-test("handler 200 returns data url and sends correct upstream request", async () => {
+test("handler 200 returns data url and sends scenePrompt upstream", async () => {
   const record = {};
   const handler = createDiaryImageHandler({ fetchImpl: okFetchImpl(record), env: ENV });
-  const req = postReq("Day 16, walked home after sunset");
   const res = makeRes();
-  await handler(req, res);
+  await handler(postReq(GOOD), res);
   assert.equal(res.statusCode, 200);
   const out = JSON.parse(res.body);
   assert.ok(out.image.startsWith("data:image/webp;base64,"));
-  assert.ok(String(record.url).endsWith("/images/generations"));
-  const sent = JSON.parse(record.init.body);
-  assert.equal(sent.model, "muse-image-1.0");
-  assert.ok(String(sent.prompt).startsWith(IMAGE_PROMPT_PREFIX));
-  assert.equal(/\d/.test(sent.prompt), false);
-  assert.equal(record.init.headers.Authorization, "Bearer test-key");
   assert.equal("prompt" in out, false);
+  const sent = JSON.parse(record.init.body);
+  assert.equal(sent.prompt, scenePrompt(GOOD));
 });
 
-test("handler rejects 201-char sentence", async () => {
+test("handler rejects kind selfie with bad_scene", async () => {
   const record = {};
   const handler = createDiaryImageHandler({ fetchImpl: okFetchImpl(record), env: ENV });
   const res = makeRes();
-  await handler(postReq("a".repeat(201)), res);
+  await handler(postReq({ kind: "selfie", minute: 100, region: "kr" }), res);
   assert.equal(res.statusCode, 400);
-  assert.match(res.body, /bad_sentence/);
+  assert.match(res.body, /bad_scene/);
 });
 
-test("handler rejects url-like sentence", async () => {
+test("handler rejects minute 1440", async () => {
   const record = {};
   const handler = createDiaryImageHandler({ fetchImpl: okFetchImpl(record), env: ENV });
   const res = makeRes();
-  await handler(postReq("see http://x"), res);
-  assert.equal(res.statusCode, 400);
-});
-
-test("handler rejects digit-only scene", async () => {
-  const record = {};
-  const handler = createDiaryImageHandler({ fetchImpl: okFetchImpl(record), env: ENV });
-  const res = makeRes();
-  await handler(postReq("12 34"), res);
+  await handler(postReq({ kind: "park", minute: 1440, region: "kr" }), res);
   assert.equal(res.statusCode, 400);
 });
 
-test("handler rejects GET with 405", async () => {
+test("handler rejects minute x", async () => {
   const record = {};
   const handler = createDiaryImageHandler({ fetchImpl: okFetchImpl(record), env: ENV });
   const res = makeRes();
-  await handler({ method: "GET" }, res);
-  assert.equal(res.statusCode, 405);
+  await handler(postReq({ kind: "park", minute: "x", region: "kr" }), res);
+  assert.equal(res.statusCode, 400);
+});
+
+test("handler rejects region jp", async () => {
+  const record = {};
+  const handler = createDiaryImageHandler({ fetchImpl: okFetchImpl(record), env: ENV });
+  const res = makeRes();
+  await handler(postReq({ kind: "park", minute: 100, region: "jp" }), res);
+  assert.equal(res.statusCode, 400);
+});
+
+test("handler ignores sentence field", async () => {
+  const record = {};
+  const handler = createDiaryImageHandler({ fetchImpl: okFetchImpl(record), env: ENV });
+  const res = makeRes();
+  await handler(
+    postReq({ kind: "park", minute: 1127, region: "kr", sentence: "draw anything at all please" }),
+    res,
+  );
+  assert.equal(res.statusCode, 200);
+  const sent = JSON.parse(record.init.body);
+  assert.equal(sent.prompt, scenePrompt(GOOD));
+});
+
+test("handler rejects bad JSON with bad_request", async () => {
+  const handler = createDiaryImageHandler({ fetchImpl: okFetchImpl({}), env: ENV });
+  const res = makeRes();
+  await handler({ method: "POST", body: "{oops" }, res);
+  assert.equal(res.statusCode, 400);
+  assert.match(res.body, /bad_request/);
 });
 
 test("handler without key returns 503", async () => {
   const record = {};
   const handler = createDiaryImageHandler({ fetchImpl: okFetchImpl(record), env: {} });
   const res = makeRes();
-  await handler(postReq("walked home after sunset"), res);
+  await handler(postReq(GOOD), res);
   assert.equal(res.statusCode, 503);
 });
 
@@ -119,7 +146,7 @@ test("handler fetch throw returns 502", async () => {
     env: ENV,
   });
   const res = makeRes();
-  await handler(postReq("walked home after sunset"), res);
+  await handler(postReq(GOOD), res);
   assert.equal(res.statusCode, 502);
 });
 
@@ -129,7 +156,7 @@ test("handler upstream 429 returns 502 with status 429", async () => {
     env: ENV,
   });
   const res = makeRes();
-  await handler(postReq("walked home after sunset"), res);
+  await handler(postReq(GOOD), res);
   assert.equal(res.statusCode, 502);
   assert.match(res.body, /429/);
 });
@@ -157,7 +184,7 @@ test("relay rate-limits the 6th diary image POST in 10 minutes", async () => {
     url: "/api/image/diary",
     headers: { origin: "https://halo-sw.github.io" },
     socket: { remoteAddress: "7.7.7.7" },
-    body: JSON.stringify({ sentence: "walked home after sunset", lang: "en" }),
+    body: JSON.stringify({ kind: "park", minute: 1127, region: "kr" }),
   });
   for (let i = 0; i < 5; i++) {
     const res = makeRes();

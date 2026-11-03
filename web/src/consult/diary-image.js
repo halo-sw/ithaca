@@ -3,6 +3,10 @@
 // always labelled; never a photo of the real place. The key stays
 // server-side (env). Nothing is stored.
 //
+// The server builds the prompt itself from a fixed scene list. The
+// browser sends only { kind, minute, region }; no customer text
+// reaches the model.
+//
 // Upstream (measured 2026-11-03):
 //   POST https://api.meta.ai/v1/images/generations
 //   Authorization: Bearer <key>
@@ -14,25 +18,34 @@ import { META_API_BASE, metaApiKey } from "../judge/providers.js";
 
 export const IMAGE_MODEL = "muse-image-1.0";
 export const IMAGE_URL = META_API_BASE + "/images/generations";
-export const IMAGE_SENTENCE_MAX = 200;
 export const IMAGE_PROMPT_PREFIX =
   "Flat editorial illustration, soft muted colours, no text, no logos, no real addresses, no identifiable people: ";
 
-export function sceneSentence(text) {
-  const tokens = String(text == null ? "" : text).split(/\s+/).filter((t) => t.length > 0);
-  const kept = [];
-  for (const tok of tokens) {
-    if (/\d/.test(tok)) continue;
-    if (tok === "Day" || tok === "day" || tok === "일째") continue;
-    kept.push(tok);
-  }
-  let out = kept.join(" ").replace(/\s+/g, " ").trim();
-  out = out.replace(/^[,.:;·\-\s]+/, "").replace(/[,.:;·\-\s]+$/, "");
-  return out;
+export const SCENE_KINDS = ["commute", "errand", "park", "ride", "plan"];
+export const SCENES = {
+  commute: { kr: "a figure seen from behind walking to a subway entrance on a Korean apartment-district street",
+             us: "a figure seen from behind walking to a commuter-train platform in a quiet Bay Area suburb" },
+  errand:  { kr: "a figure seen from behind carrying a grocery bag out of a small neighbourhood mart in a Korean city",
+             us: "a figure seen from behind carrying a grocery bag out of a neighbourhood market in a Bay Area suburb" },
+  park:    { kr: "a figure seen from behind walking on a path in a small park between Korean apartment blocks",
+             us: "a figure seen from behind walking on a path in a leafy Bay Area neighbourhood park" },
+  ride:    { kr: "the inside of a busy subway car in a Korean city, passengers seen from behind",
+             us: "the inside of a commuter-train carriage on the San Francisco Peninsula, passengers seen from behind" },
+  plan:    { kr: "a quiet weekend morning inside a small Korean apartment, sunlight on the floor",
+             us: "a quiet weekend morning inside a small Bay Area apartment, sunlight on the floor" },
+};
+
+export function lightFor(minute) {
+  const m = ((Number(minute) % 1440) + 1440) % 1440;
+  if (m < 360) return "before dawn, deep blue sky";
+  if (m < 660) return "soft morning light";
+  if (m < 1020) return "bright afternoon light";
+  if (m < 1200) return "early evening, sunset glow";
+  return "night, warm street lights";
 }
 
-export function imagePrompt(text) {
-  return IMAGE_PROMPT_PREFIX + sceneSentence(text);
+export function scenePrompt({ kind, minute, region }) {
+  return IMAGE_PROMPT_PREFIX + SCENES[kind][region] + ", " + lightFor(minute);
 }
 
 function readJsonBody(req, limit) {
@@ -80,12 +93,12 @@ export function createDiaryImageHandler({ env = process.env, fetchImpl = fetch, 
     }
     let raw;
     try {
-      raw = await readJsonBody(req, 4096);
+      raw = await readJsonBody(req, 1024);
     } catch {
       send(400, { ok: false, error: "bad_request" });
       return;
     }
-    if (raw.length > 4096) {
+    if (raw.length > 1024) {
       send(400, { ok: false, error: "bad_request" });
       return;
     }
@@ -96,17 +109,17 @@ export function createDiaryImageHandler({ env = process.env, fetchImpl = fetch, 
       send(400, { ok: false, error: "bad_request" });
       return;
     }
-    const sentence = parsed && parsed.sentence;
-    if (typeof sentence !== "string") {
-      send(400, { ok: false, error: "bad_request" });
-      return;
-    }
+    const body = parsed && typeof parsed === "object" ? parsed : {};
+    const { kind, minute, region } = body;
     if (
-      sentence.length > IMAGE_SENTENCE_MAX ||
-      sentence.includes("http") ||
-      sceneSentence(sentence).length < 3
+      !SCENE_KINDS.includes(kind) ||
+      typeof minute !== "number" ||
+      !Number.isFinite(minute) ||
+      minute < 0 ||
+      minute >= 1440 ||
+      (region !== "kr" && region !== "us")
     ) {
-      send(400, { ok: false, error: "bad_sentence" });
+      send(400, { ok: false, error: "bad_scene" });
       return;
     }
     const key = metaApiKey(env || {});
@@ -126,7 +139,7 @@ export function createDiaryImageHandler({ env = process.env, fetchImpl = fetch, 
         },
         body: JSON.stringify({
           model: IMAGE_MODEL,
-          prompt: imagePrompt(sentence),
+          prompt: scenePrompt({ kind, minute, region }),
           n: 1,
           size: "1024x1024",
         }),
