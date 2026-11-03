@@ -6,9 +6,37 @@
 
 Built from scratch since [October 28, 2026](https://github.com/halo-sw/ithaca/commit/7fec53140d26cc100392126fa76029909c0ff1a3) by **Halo, solo**, for **Meta Hackathon 2026**. Track: **Indie Developer**. Problem statement: **Build for Your World**.
 
-**[Try the app](https://halo-sw.github.io/ithaca/?lang=en)** · **[Watch the published demo — 2:53](https://github.com/halo-sw/ithaca/releases/download/demo-v9/ithaca-hackathon-final-en.mp4)** · **[Replay the recorded month — no key](https://halo-sw.github.io/ithaca/?replay=pangyo-reviewed-month&lang=en)** · [한국어](README.ko.md)
+<p align="center"><b>Built with Meta AI:</b> Meta Model API (<code>api.meta.ai</code>) · Muse Spark 1.3 · Muse Spark Open · Muse Code · Muse Voice · Muse Image · SAM 3.1</p>
 
-Published demo: revision 9, with English synthesized narration and captions.
+<p align="center">
+  <a href="https://halo-sw.github.io/ithaca/?lang=en"><img src="https://img.shields.io/badge/Try_it-live-1a56db?style=for-the-badge" alt="Try it live"></a>
+  &nbsp;
+  <a href="https://github.com/halo-sw/ithaca/releases/download/demo-v9/ithaca-hackathon-final-en.mp4"><img src="https://img.shields.io/badge/Watch-the_demo_·_2:53-1a56db?style=for-the-badge" alt="Watch the published demo, 2:53"></a>
+  &nbsp;
+  <a href="https://halo-sw.github.io/ithaca/?replay=pangyo-reviewed-month&lang=en"><img src="https://img.shields.io/badge/Watch-a_recorded_month-1a56db?style=for-the-badge" alt="Watch a recorded month, no key needed"></a>
+  &nbsp;
+  <a href="README.ko.md"><img src="https://img.shields.io/badge/한국어-README-e8f0fe?style=for-the-badge&labelColor=1a56db" alt="Korean README"></a>
+  <br><sub>Published demo: revision 9, with English synthesized narration and captions.</sub>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Muse_Spark-1.3-0072f1?style=flat-square&logo=data%3Aimage%2Fpng%3Bbase64%2CiVBORw0KGgoAAAANSUhEUgAAACgAAAAbCAYAAAAOEM1uAAAEf0lEQVR42rWXW2iXdRjHv7%2F%2Ff3MOyVJbLMPoAMrWqjmIpBhddWO7KYsiiqDDtLsgC0woo912uqi0sAzpBNqsboKKohhIlBiVItNdRB6Zmk5qzv%2F7frro%2BcXTs%2Fe%2FUdgPXp7f%2B77P%2BfR7flLFAuoGLwbeAA4Do8Dt9r3WjMb2qQrnvKzMGLgK%2BIl%2FrtPAZVHJsF%2Bk%2F2s55S4B9ptS5wK803BaAs2twG7gOPA5cOV59aQxqwOtwNdBKYAGUAL3ZAWBmtH1AH8YXmnwnRj6%2F7Ja3L6eUmoAr0nql3Qu%2FJekJOm38I6kTZLmGk322DWSlFIqKqKU6VL8r1mKYtB5rgweybDPcOcYfCB4uzD4Q7MU%2Brehzcr1ApMWyoYJ%2BdaqN68zQGcWBswHfjXlC5cKADtz6oRcvRZ4H%2FgKeNTjNFUQaAN%2BdJ4oTJkBS%2Fq89ufcM9qhkJ9ewc%2BcIRn%2FeuBk6Ax3zZSrNcuBpyT1SGpYftQkrZd0UNJCyy1J%2BiWl1PiLH5dLekxSaTTZCxg8kWVISkC7pPckXSRpStJZo13p8nm6gkCPpCecoLqkPSmll61YJCkn8pglPpI2SJpndDVJ%2BxwPSRp3xZed0GVOmGNyao535apJek5Su7O8lDRo%2B96AP2ZtpVfS%2Fca8bp7%2BJAg8anAKWCpprcP368xsCq40qxpG%2FFJKacT%2BL3V4kjRq3nvWWlBOibckTTgDJemI8%2Fbz1oaq1kRVtf%2Bdk8ABl7C7gXbz0jzgUGgdVwPdrhgKYAroBN6172cN5nN7oKKQfFtaW3UyeW17gQ%2BBLcBi931ZYHrKTplhe580uNXwdwXBN5qhe4KRRwPeoD%2BZbN8N9DdrO9mS24zBlMERYIXreYUZ0GXMD4b2sRB4yHm1NCM2B0%2FfbfLaDD7iZG6u5Xjb40t9WcipA1btyR1pO1JKeyVdKmmBoz1m7WkoH2n2bKhoJ6dcMV0naaOkVpP74EwefD14cJeFtXTe67Mw3hDC%2BD3waqD%2FzvjuDCG%2B2Xgk4BtHUwKjM41cX4aTgfC%2B3dEMhH8ngN9NSP52iykx5owpgeXGY3UoPoB100auPAgERriBIedfn8NfUzGeeYU%2FMrwFwLFQyYuBRWZU4QaVMWB%2BM%2B8tqZjvvMDhkNhDQcHSGTNphZSAKxxfgAnrDFsd%2Fyzjjpkmm5sqlMN5b7kJzCPXliYDLsALjn9PiMrPwH0OP9PvqBwgXIHcO4PAD9wUlD3%2BacDJhhyxsGbD%2BwPeYcPxuXfcwl4Dai1Njp8l0bnWHqYkPe3aUT6%2FO8JEUtpRuD6ldNJSoZB0QeDb6fhgR%2B3qlNIhoJ5SKppNuB3hvWF9b2NKaZ%2Fty5QSQKukCx1uYcqNSHrTvJcHiDZnlFesYTQvppS2AS35KjDbCF5YU261ieUZC2sZhLQYbh4eGpLW2KCAU2rc3UdwMlolfSzp8WBQ0yLpD8UxDqyouANn%2FLcD%2FsPhf27E7W5y92sYmJtvibNePw2uArYDm4DuqknDCe4AXgG2AauqKtAVVBfwhfXDvcCTTuY05f4Eau6o08a%2ByYgAAAAASUVORK5CYII%3D" alt="Muse Spark 1.3">
+  <img src="https://img.shields.io/badge/code_written_by-Muse_Code-0072f1?style=flat-square&logo=data%3Aimage%2Fpng%3Bbase64%2CiVBORw0KGgoAAAANSUhEUgAAACgAAAAbCAYAAAAOEM1uAAAEf0lEQVR42rWXW2iXdRjHv7%2F%2Ff3MOyVJbLMPoAMrWqjmIpBhddWO7KYsiiqDDtLsgC0woo912uqi0sAzpBNqsboKKohhIlBiVItNdRB6Zmk5qzv%2F7frro%2BcXTs%2Fe%2FUdgPXp7f%2B77P%2BfR7flLFAuoGLwbeAA4Do8Dt9r3WjMb2qQrnvKzMGLgK%2BIl%2FrtPAZVHJsF%2Bk%2F2s55S4B9ptS5wK803BaAs2twG7gOPA5cOV59aQxqwOtwNdBKYAGUAL3ZAWBmtH1AH8YXmnwnRj6%2F7Ja3L6eUmoAr0nql3Qu%2FJekJOm38I6kTZLmGk322DWSlFIqKqKU6VL8r1mKYtB5rgweybDPcOcYfCB4uzD4Q7MU%2Brehzcr1ApMWyoYJ%2BdaqN68zQGcWBswHfjXlC5cKADtz6oRcvRZ4H%2FgKeNTjNFUQaAN%2BdJ4oTJkBS%2Fq89ufcM9qhkJ9ewc%2BcIRn%2FeuBk6Ax3zZSrNcuBpyT1SGpYftQkrZd0UNJCyy1J%2BiWl1PiLH5dLekxSaTTZCxg8kWVISkC7pPckXSRpStJZo13p8nm6gkCPpCecoLqkPSmll61YJCkn8pglPpI2SJpndDVJ%2BxwPSRp3xZed0GVOmGNyao535apJek5Su7O8lDRo%2B96AP2ZtpVfS%2Fca8bp7%2BJAg8anAKWCpprcP368xsCq40qxpG%2FFJKacT%2BL3V4kjRq3nvWWlBOibckTTgDJemI8%2Fbz1oaq1kRVtf%2Bdk8ABl7C7gXbz0jzgUGgdVwPdrhgKYAroBN6172cN5nN7oKKQfFtaW3UyeW17gQ%2BBLcBi931ZYHrKTplhe580uNXwdwXBN5qhe4KRRwPeoD%2BZbN8N9DdrO9mS24zBlMERYIXreYUZ0GXMD4b2sRB4yHm1NCM2B0%2FfbfLaDD7iZG6u5Xjb40t9WcipA1btyR1pO1JKeyVdKmmBoz1m7WkoH2n2bKhoJ6dcMV0naaOkVpP74EwefD14cJeFtXTe67Mw3hDC%2BD3waqD%2FzvjuDCG%2B2Xgk4BtHUwKjM41cX4aTgfC%2B3dEMhH8ngN9NSP52iykx5owpgeXGY3UoPoB100auPAgERriBIedfn8NfUzGeeYU%2FMrwFwLFQyYuBRWZU4QaVMWB%2BM%2B8tqZjvvMDhkNhDQcHSGTNphZSAKxxfgAnrDFsd%2Fyzjjpkmm5sqlMN5b7kJzCPXliYDLsALjn9PiMrPwH0OP9PvqBwgXIHcO4PAD9wUlD3%2BacDJhhyxsGbD%2BwPeYcPxuXfcwl4Dai1Njp8l0bnWHqYkPe3aUT6%2FO8JEUtpRuD6ldNJSoZB0QeDb6fhgR%2B3qlNIhoJ5SKppNuB3hvWF9b2NKaZ%2Fty5QSQKukCx1uYcqNSHrTvJcHiDZnlFesYTQvppS2AS35KjDbCF5YU261ieUZC2sZhLQYbh4eGpLW2KCAU2rc3UdwMlolfSzp8WBQ0yLpD8UxDqyouANn%2FLcD%2FsPhf27E7W5y92sYmJtvibNePw2uArYDm4DuqknDCe4AXgG2AauqKtAVVBfwhfXDvcCTTuY05f4Eau6o08a%2ByYgAAAAASUVORK5CYII%3D" alt="All product code written by Muse Code">
+  <img src="https://img.shields.io/badge/tests-3764_JS_CI_passed_·_42_skipped-1a56db?style=flat-square" alt="main CI on 2026-11-03: 3,764 JavaScript tests passed, 0 failed, 42 skipped">
+  <a href="https://github.com/halo-sw/ithaca/actions/workflows/ci.yml"><img src="https://github.com/halo-sw/ithaca/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-1a56db?style=flat-square" alt="MIT license"></a>
+</p>
+
+<p align="center">
+  <a href="#1-project-introduction">Introduction</a> ·
+  <a href="#2-service-summary">Summary</a> ·
+  <a href="#3-problem-definition">Problem</a> ·
+  <a href="#4-how-the-muse-agents-work">How&nbsp;the&nbsp;Muse&nbsp;agents&nbsp;work</a> ·
+  <a href="#where-the-models-run">Where&nbsp;the&nbsp;models&nbsp;run</a> ·
+  <a href="#5-main-service-flow">Service&nbsp;flow</a> ·
+  <a href="#6-conclusion">Conclusion</a> ·
+  <a href="#7-expected-impact-and-next-steps">Next&nbsp;steps</a>
+</p>
 
 ## 1. Project introduction
 
@@ -58,12 +86,12 @@ The **browser** hosts the UI, 3D playback and simulation worker. A **relay serve
 
 | Model / tool | Job | Where it runs | API used by Ithaca | Evidence |
 |---|---|---|---|---|
-| **Muse Spark 1.3** | Consultation, plans, bounded choices, reports and separate evidence checks | Relay → Meta Model API | `api.meta.ai/v1/chat/completions` | [Provider](web/src/judge/providers.js), [recorded month](docs/recording-v9.md) |
-| **Muse Spark Open** | Selectable alternative for supported text-agent tasks | Relay → Baseten inference | `inference.baseten.co/v1/chat/completions` | [Real calls](docs/evidence/muse-spark-open-2026-10-31.json), [comparison](docs/model-comparison.md) |
-| **Muse Voice Transcribe 1.0** | Turns spoken input into editable text | Browser records audio; relay → Meta | `api.meta.ai/v1/asr/transcribe` | [Voice handler](web/src/consult/voice.js) |
-| **Muse Image 1.0** | Illustrates a recorded activity using its kind, time and region | Relay → Meta | `api.meta.ai/v1/images/generations` | [Handler](web/src/consult/diary-image.js), [real calls](docs/evidence/muse-image-2026-11-03.json) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark 1.3** | Consultation, plans, bounded choices, reports and separate evidence checks | Relay → Meta Model API | `api.meta.ai/v1/chat/completions` | [Provider](web/src/judge/providers.js), [recorded month](docs/recording-v9.md) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark Open** | Selectable alternative for supported text-agent tasks | Relay → Baseten inference | `inference.baseten.co/v1/chat/completions` | [Real calls](docs/evidence/muse-spark-open-2026-10-31.json), [comparison](docs/model-comparison.md) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Voice Transcribe 1.0** | Turns spoken input into editable text | Browser records audio; relay → Meta | `api.meta.ai/v1/asr/transcribe` | [Voice handler](web/src/consult/voice.js) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Image 1.0** | Illustrates a recorded activity using its kind, time and region | Relay → Meta | `api.meta.ai/v1/images/generations` | [Handler](web/src/consult/diary-image.js), [real calls](docs/evidence/muse-image-2026-11-03.json) |
 | **SAM 3.1** | Finds window boxes in a supplied room image | Browser prepares image; relay → Meta | `api.meta.ai/v1/responses` | [Handler](web/src/consult/windows.js), [real call](docs/evidence/sam-3.1-2026-11-03.json) |
-| **Muse Code** | Implements product code, tests and pipelines from development briefs | Developer's environment, during development only | No runtime application endpoint | [Briefs](briefs/), [repository rules](AGENTS.md) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Code** | Implements product code, tests and pipelines from development briefs | Developer's environment, during development only | No runtime application endpoint | [Briefs](briefs/), [repository rules](AGENTS.md) |
 
 Muse Image outputs carry **“Illustration by Muse Image”** labeling; they are not photographs of the property. SAM reports boxes and their share of the image, not physical window dimensions or daylight performance. Its published call used an illustrated test room. These integrations are separate from the evidence for the 30-day comparison.
 
