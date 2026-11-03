@@ -1,18 +1,32 @@
-flowchart LR
-  U(["<b>You</b><br/>one sentence<br/>KO · EN · voice"]) --> R["<b>Relay</b><br/>keys on server<br/>3 free/day per IP"]
-  R --> A["<b>Consult agent</b><br/>Spark 1.3 or<br/>Spark Open<br/>≤ 6 tool rounds"]
-  A <--> T[("<b>Tools</b><br/>profile · homes<br/>real deals · transit")]
-  A --> G["<b>Guard</b><br/>numbers only<br/>from tools"]
-  G -. "retry once" .-> A
-  G --> H["<b>Household plan</b><br/>Muse proposes routines<br/>questions and assumptions"]
-  H --> F["<b>User review</b><br/>confirm current inputs<br/>before execution"]
-  F --> L["<b>30 days × 2 homes</b><br/>Muse selects bounded options<br/>code computes min · won"]
-  L --> P["<b>Report</b><br/>Muse writes<br/>submit_report"]
-  P --> C["<b>Check</b><br/>code: numbers<br/>judge: sentences"]
-  C -. "fail ≤ 3×" .-> P
-  C --> O(["<b>You decide</b><br/>A | B · diary · 3D"])
-  C --> N["<b>Unverified</b><br/>missing or failed judge<br/>inspect facts or retry"]
-  classDef muse fill:#eef3ff,stroke:#3d63dd,color:#111;
-  classDef code fill:#f4f4f2,stroke:#777,color:#111;
-  class A,H,L,P muse
-  class R,T,G,C code
+flowchart TB
+  subgraph S1["1 · Talk"]
+    direction LR
+    U(["You<br/>one sentence<br/>KO · EN · voice"]) --> A["Consult agent<br/>Muse Spark 1.3<br/>or Spark Open"]
+    A <--> T[("Tools<br/>profile · homes<br/>real deals<br/>transit")]
+    A --> G["Guard<br/>numbers only<br/>from tools"]
+    G -. "retry once" .-> A
+  end
+  subgraph S2["2 · Plan"]
+    direction LR
+    H["Muse proposes<br/>each member's<br/>routine"] --> F(["You review<br/>the assumptions"])
+    F -. "Adjust my routine" .-> H
+  end
+  subgraph S3["3 · Live 30 days in both homes"]
+    direction LR
+    D["At each choice,<br/>Muse picks one<br/>allowed option<br/>with a reason"] --> E["Code computes<br/>routes<br/>minutes · won"]
+    E -. "next choice point" .-> D
+  end
+  subgraph S4["4 · Check, then you decide"]
+    direction LR
+    P["Muse writes<br/>the report from<br/>the saved record"] --> C["Check<br/>code: numbers<br/>and IDs<br/>Muse judge:<br/>sentences"]
+    C -. "fails: back, up to 3×" .-> P
+    C --> O(["You compare<br/>and decide"])
+    C --> N["Unverified items<br/>stay visible"]
+  end
+  S1 --> S2 --> S3 --> S4
+  classDef muse fill:#cfe0ff,stroke:#0b5bd3,stroke-width:2px,color:#111
+  classDef code fill:#e6e6e3,stroke:#8a8a86,color:#111
+  classDef you fill:#ffffff,stroke:#444,color:#111
+  class A,H,D,P muse
+  class T,G,E,C,N code
+  class U,F,O you
