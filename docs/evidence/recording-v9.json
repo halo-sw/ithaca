@@ -1,0 +1,4072 @@
+{
+  "revision": 9,
+  "recorded_at": "2026-11-03 KST",
+  "code_commit": "b4c6e6b8a12bc4db6e18c0d5d222f456302b2429",
+  "public_bundle": "index-BVfJHGGl.js",
+  "couple": {
+    "id": "cmw0nibca873f",
+    "savedAt": "2026-11-03T12:15:30.538Z",
+    "seed": 1929529302,
+    "start_date": "2026-11-02",
+    "days": 30,
+    "user_inputs": [
+      "We are an example couple buying our first home, up to 700 million won, with 200 million won saved. Our annual salaries are 50 and 45 million won. We both work near Pangyo Station; use the station as our explicit workplace assumption. I commute Monday to Friday and prefer quick grocery stops. My partner commutes Monday, Wednesday and Friday, works from home Tuesday and Thursday, and enjoys evening park walks. Each of us makes one supermarket trip and one convenience-store trip, plus two park walks per week. Accept the default departure times and work duration as simulation assumptions. Minimum size 25 square meters, commute under 60 minutes. Find homes to compare."
+    ],
+    "profile": {
+      "members": {
+        "value": [
+          {
+            "role": "adult"
+          },
+          {
+            "role": "adult"
+          }
+        ],
+        "source": "customer",
+        "note": "함께 사는 사람",
+        "evidence": "couple"
+      },
+      "workplaces": {
+        "value": [
+          {
+            "member": 0,
+            "text": "Pangyo",
+            "resolved": {
+              "station": "판교",
+              "station_en": "Pangyo Stn"
+            }
+          },
+          {
+            "member": 1,
+            "text": "Pangyo",
+            "resolved": {
+              "station": "판교",
+              "station_en": "Pangyo Stn"
+            }
+          }
+        ],
+        "source": "customer",
+        "note": "직장 근처역: 판교",
+        "evidence": "work near Pangyo Station"
+      },
+      "salaryAnnual": {
+        "value": [
+          50000000,
+          45000000
+        ],
+        "source": "customer",
+        "note": "세전 연봉이에요. 실수령은 따로 계산해요.",
+        "evidence": "50 and 45 million won"
+      },
+      "takehomeMonthly": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "cash": {
+        "value": 200000000,
+        "source": "customer",
+        "note": "모은 돈",
+        "evidence": "200 million won"
+      },
+      "debts": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "tenure": {
+        "value": "trade",
+        "source": "customer",
+        "note": "매매",
+        "evidence": "buying"
+      },
+      "depositMax": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "monthlyMax": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "priceMax": {
+        "value": 700000000,
+        "source": "customer",
+        "note": "매매가 상한",
+        "evidence": "700 million won"
+      },
+      "sizeMin": {
+        "value": 25,
+        "source": "customer",
+        "note": "최소 면적(㎡)",
+        "evidence": "25 square meters"
+      },
+      "commuteMax": {
+        "value": 60,
+        "source": "customer",
+        "note": "출퇴근 상한(분)",
+        "evidence": "under 60 minutes"
+      },
+      "officeDays": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "pets": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "priorities": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "mustHaves": {
+        "value": [],
+        "source": "asked",
+        "note": ""
+      },
+      "home_kinds": {
+        "value": [],
+        "source": "asked",
+        "note": ""
+      },
+      "currency": {
+        "value": "KRW",
+        "source": "default",
+        "note": ""
+      }
+    },
+    "members": [
+      {
+        "id": "m1",
+        "label": "나",
+        "role": "adult",
+        "workdays": [
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu",
+          "Fri"
+        ],
+        "work": {
+          "type": "station_ride",
+          "station_name": {
+            "A": "판교",
+            "B": "단대오거리"
+          },
+          "ride_minutes": {
+            "A": 0,
+            "B": 19.4
+          },
+          "ride_minutes_source": "derived",
+          "needs_user_input": false,
+          "destination_station": "판교",
+          "place": {
+            "name": "Work (assumed: near Pangyo Stn)",
+            "station": "판교"
+          }
+        },
+        "errands_per_week": {
+          "supermarket": 1,
+          "convenience": 1
+        },
+        "park_walks_per_week": 2,
+        "clinic_visits_per_month": 0,
+        "preferences": "Prefers quick grocery stops.",
+        "plan_context": "[commute] Both commute to near Pangyo Station, m1 Mon-Fri onsite, m2 onsite Mon/Wed/Fri. | [errands] Each makes one supermarket and one convenience-store trip per week. | [walks] Each makes two park walks per week; evening preference stated for partner."
+      },
+      {
+        "id": "m2",
+        "label": "배우자",
+        "role": "adult",
+        "workdays": [
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu",
+          "Fri"
+        ],
+        "work": {
+          "type": "station_ride",
+          "station_name": {
+            "A": "판교",
+            "B": "단대오거리"
+          },
+          "ride_minutes": {
+            "A": 0,
+            "B": 19.4
+          },
+          "ride_minutes_source": "derived",
+          "needs_user_input": false,
+          "destination_station": "판교",
+          "place": {
+            "name": "Work (assumed: near Pangyo Stn)",
+            "station": "판교"
+          }
+        },
+        "errands_per_week": {
+          "supermarket": 1,
+          "convenience": 1
+        },
+        "park_walks_per_week": 2,
+        "clinic_visits_per_month": 0,
+        "home_office_days": [
+          "Tue",
+          "Thu"
+        ],
+        "preferences": "Enjoys evening park walks.",
+        "plan_context": "[commute] Both commute to near Pangyo Station, m1 Mon-Fri onsite, m2 onsite Mon/Wed/Fri. | [remote_days] Works from home Tue and Thu, onsite Mon/Wed/Fri. | [errands] Each makes one supermarket and one convenience-store trip per week. | [walks] Each makes two park walks per week; evening preference stated for partner."
+      }
+    ],
+    "life_plan": {
+      "members": [
+        {
+          "id": "m1",
+          "changes": [
+            {
+              "field": "workdays",
+              "value": [
+                "Mon",
+                "Tue",
+                "Wed",
+                "Thu",
+                "Fri"
+              ],
+              "basis": "stated",
+              "evidence": "I commute Monday to Friday"
+            },
+            {
+              "field": "errands_per_week",
+              "value": {
+                "supermarket": 1,
+                "convenience": 1
+              },
+              "basis": "stated",
+              "evidence": "Each of us makes one supermarket trip and one convenience-store trip"
+            },
+            {
+              "field": "park_walks_per_week",
+              "value": 2,
+              "basis": "stated",
+              "evidence": "plus two park walks per week"
+            },
+            {
+              "field": "preferences",
+              "value": "Prefers quick grocery stops.",
+              "basis": "stated",
+              "evidence": "prefer quick grocery stops"
+            }
+          ]
+        },
+        {
+          "id": "m2",
+          "changes": [
+            {
+              "field": "workdays",
+              "value": [
+                "Mon",
+                "Tue",
+                "Wed",
+                "Thu",
+                "Fri"
+              ],
+              "basis": "stated",
+              "evidence": "My partner commutes Monday, Wednesday and Friday, works from home Tuesday and Thursday"
+            },
+            {
+              "field": "home_office_days",
+              "value": [
+                "Tue",
+                "Thu"
+              ],
+              "basis": "stated",
+              "evidence": "works from home Tuesday and Thursday"
+            },
+            {
+              "field": "errands_per_week",
+              "value": {
+                "supermarket": 1,
+                "convenience": 1
+              },
+              "basis": "stated",
+              "evidence": "Each of us makes one supermarket trip and one convenience-store trip"
+            },
+            {
+              "field": "park_walks_per_week",
+              "value": 2,
+              "basis": "stated",
+              "evidence": "plus two park walks per week"
+            },
+            {
+              "field": "preferences",
+              "value": "Enjoys evening park walks.",
+              "basis": "stated",
+              "evidence": "enjoys evening park walks"
+            }
+          ]
+        }
+      ],
+      "observations": [
+        {
+          "code": "commute",
+          "member_ids": [
+            "m1",
+            "m2"
+          ],
+          "reason": "Both commute to near Pangyo Station, m1 Mon-Fri onsite, m2 onsite Mon/Wed/Fri."
+        },
+        {
+          "code": "remote_days",
+          "member_ids": [
+            "m2"
+          ],
+          "reason": "Works from home Tue and Thu, onsite Mon/Wed/Fri."
+        },
+        {
+          "code": "errands",
+          "member_ids": [
+            "m1",
+            "m2"
+          ],
+          "reason": "Each makes one supermarket and one convenience-store trip per week."
+        },
+        {
+          "code": "walks",
+          "member_ids": [
+            "m1",
+            "m2"
+          ],
+          "reason": "Each makes two park walks per week; evening preference stated for partner."
+        }
+      ],
+      "questions": [],
+      "unmodeled": [
+        "Home purchase budget, savings, salaries and 25 sqm minimum are search filters, not daily routine.",
+        "Default departure times and work duration accepted as simulation assumptions, not routine choices."
+      ],
+      "review": [],
+      "input_signature": "lp1-698b1925",
+      "source": "muse",
+      "confirmed": true,
+      "days": 30
+    },
+    "homes": {
+      "A": {
+        "name": "판교역 근처 오피스텔 (647)",
+        "area": "pangyo",
+        "one_way_minutes": 4.8,
+        "monthly_housing_commute_won": 509790,
+        "monthly_housing_only_won": 509790,
+        "commute_fares_won": 0,
+        "reference_price_won": 262000000,
+        "reference_deals": 7,
+        "reference_area_band_m2": [
+          25,
+          35
+        ],
+        "decision_provenance": {
+          "model": 70
+        },
+        "commute_days": {
+          "h1": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            7,
+            8,
+            9,
+            10,
+            11,
+            14,
+            15,
+            16,
+            17,
+            18,
+            21,
+            22,
+            23,
+            24,
+            25,
+            28,
+            29
+          ],
+          "h2": [
+            0,
+            2,
+            4,
+            7,
+            9,
+            11,
+            14,
+            16,
+            18,
+            21,
+            23,
+            25,
+            28
+          ]
+        },
+        "school_days": {
+          "h1": [],
+          "h2": []
+        },
+        "unavailable_records": []
+      },
+      "B": {
+        "name": "미래하이빌",
+        "area": "st-단대오거리",
+        "one_way_minutes": 23.9,
+        "monthly_housing_commute_won": 1023917,
+        "monthly_housing_only_won": 915417,
+        "commute_fares_won": 108500,
+        "reference_price_won": 355000000,
+        "reference_deals": 1,
+        "reference_area_band_m2": [
+          55,
+          65
+        ],
+        "decision_provenance": {
+          "model": 63,
+          "rule_fallback": 2
+        },
+        "commute_days": {
+          "h1": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            7,
+            8,
+            9,
+            10,
+            11,
+            14,
+            15,
+            16,
+            17,
+            18,
+            21,
+            22,
+            23,
+            24,
+            25,
+            28,
+            29
+          ],
+          "h2": [
+            0,
+            2,
+            4,
+            7,
+            9,
+            11,
+            14,
+            16,
+            18,
+            21,
+            23,
+            25,
+            28
+          ]
+        },
+        "school_days": {
+          "h1": [],
+          "h2": []
+        },
+        "unavailable_records": [
+          {
+            "agent": "h1",
+            "day": 24,
+            "activity": "errand",
+            "category": "supermarket"
+          },
+          {
+            "agent": "h2",
+            "day": 10,
+            "activity": "errand",
+            "category": "supermarket"
+          },
+          {
+            "agent": "h2",
+            "day": 16,
+            "activity": "errand",
+            "category": "supermarket"
+          },
+          {
+            "agent": "h2",
+            "day": 25,
+            "activity": "errand",
+            "category": "supermarket"
+          },
+          {
+            "agent": "h2",
+            "day": 29,
+            "activity": "errand",
+            "category": "supermarket"
+          }
+        ]
+      }
+    },
+    "report": {
+      "ok": true,
+      "status": "pass",
+      "report": {
+        "persona": "newlywed_couple",
+        "sentences": [
+          {
+            "home": "A",
+            "id": "A-C01-1",
+            "item_id": "C01",
+            "text_ko": "Door to work averaged 4.8 minutes one way.",
+            "claims": [
+              {
+                "field": "minutes",
+                "unit": "분",
+                "value": 4.8
+              }
+            ]
+          },
+          {
+            "home": "B",
+            "id": "B-C01-1",
+            "item_id": "C01",
+            "text_ko": "Door to work averaged 23.9 minutes one way.",
+            "claims": [
+              {
+                "field": "minutes",
+                "unit": "분",
+                "value": 23.9
+              }
+            ]
+          },
+          {
+            "home": "A",
+            "id": "A-C02-1",
+            "item_id": "C02",
+            "text_ko": "Loan payment plus maintenance for one month was 509,790 won.",
+            "claims": [
+              {
+                "field": "monthly_total",
+                "unit": "원",
+                "value": 509790
+              }
+            ]
+          },
+          {
+            "home": "B",
+            "id": "B-C02-1",
+            "item_id": "C02",
+            "text_ko": "Loan payment plus maintenance for one month was 915,417 won.",
+            "claims": [
+              {
+                "field": "monthly_total",
+                "unit": "원",
+                "value": 915417
+              }
+            ]
+          },
+          {
+            "home": "A",
+            "id": "A-N01-1",
+            "item_id": "N01",
+            "text_ko": "You and your partner each averaged 4.8 minutes one way.",
+            "claims": [
+              {
+                "field": "minutes",
+                "member": "h1",
+                "unit": "분",
+                "value": 4.8
+              },
+              {
+                "field": "minutes",
+                "member": "h2",
+                "unit": "분",
+                "value": 4.8
+              }
+            ]
+          },
+          {
+            "home": "B",
+            "id": "B-N01-1",
+            "item_id": "N01",
+            "text_ko": "You and your partner each averaged 23.9 minutes one way.",
+            "claims": [
+              {
+                "field": "minutes",
+                "member": "h1",
+                "unit": "분",
+                "value": 23.9
+              },
+              {
+                "field": "minutes",
+                "member": "h2",
+                "unit": "분",
+                "value": 23.9
+              }
+            ]
+          },
+          {
+            "home": "A",
+            "id": "A-C05-1",
+            "item_id": "C05",
+            "text_ko": "Grocery trips averaged 1.7 minutes.",
+            "claims": [
+              {
+                "field": "minutes",
+                "unit": "분",
+                "value": 1.7
+              }
+            ]
+          },
+          {
+            "home": "B",
+            "id": "B-C05-1",
+            "item_id": "C05",
+            "text_ko": "Grocery trips averaged 10.4 minutes.",
+            "claims": [
+              {
+                "field": "minutes",
+                "unit": "분",
+                "value": 10.4
+              }
+            ]
+          },
+          {
+            "home": "A",
+            "id": "A-C06-1",
+            "item_id": "C06",
+            "text_ko": "Day 3 17:37, walked home in 4.8 minutes after sunset.",
+            "evidence": [
+              "t000010"
+            ]
+          },
+          {
+            "home": "B",
+            "id": "B-C06-1",
+            "item_id": "C06",
+            "text_ko": "Day 1 17:48, walked home in 4.5 minutes after sunset.",
+            "evidence": [
+              "t000002"
+            ]
+          }
+        ]
+      },
+      "attempts": [
+        {
+          "attempt": 1,
+          "summary_ko": "검증 통과: 커버리지 100%",
+          "pass": true,
+          "status": "passed",
+          "reason_en": null,
+          "weighted_coverage": 1,
+          "must_coverage": 1
+        }
+      ],
+      "handoff": null,
+      "result": {
+        "pass": true,
+        "status": "passed",
+        "weighted_coverage": 1,
+        "must_coverage": 1,
+        "feedback_ko": [
+          "A: [MUST] C03 소음 (층간·도로·상가): 엔진이 아직 확인할 수 없는 필수 항목이에요 (미지원)",
+          "B: [MUST] C03 소음 (층간·도로·상가): 엔진이 아직 확인할 수 없는 필수 항목이에요 (미지원)"
+        ],
+        "failures": [],
+        "by_home": {
+          "A": {
+            "unsupported": [
+              {
+                "item_id": "C03",
+                "reason_ko": "엔진이 아직 확인할 수 없는 필수 항목이에요 (미지원)"
+              },
+              {
+                "item_id": "C04",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "C07",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "C08",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "C09",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "N02",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "N04",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "N05",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              }
+            ],
+            "inapplicable": [
+              {
+                "item_id": "N01",
+                "reason_ko": "이 집 자료로 계산할 수 없어요"
+              },
+              {
+                "item_id": "N03",
+                "reason_ko": "이 집 기록에 해당 장면이 없어요"
+              }
+            ],
+            "status": "passed",
+            "pass": true
+          },
+          "B": {
+            "unsupported": [
+              {
+                "item_id": "C03",
+                "reason_ko": "엔진이 아직 확인할 수 없는 필수 항목이에요 (미지원)"
+              },
+              {
+                "item_id": "C04",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "C07",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "C08",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "C09",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "N02",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "N04",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "N05",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              }
+            ],
+            "inapplicable": [
+              {
+                "item_id": "N01",
+                "reason_ko": "이 집 자료로 계산할 수 없어요"
+              },
+              {
+                "item_id": "N03",
+                "reason_ko": "이 집 기록에 해당 장면이 없어요"
+              }
+            ],
+            "status": "passed",
+            "pass": true
+          }
+        }
+      },
+      "usage": {
+        "prompt_tokens": 3193,
+        "completion_tokens": 2638,
+        "calls": 1
+      },
+      "persona": "newlywed_couple"
+    },
+    "choice_examples": [
+      {
+        "label": "A",
+        "items": [
+          {
+            "id": "h1:d0:1060:park_or_home:00",
+            "agent": "h1",
+            "follow": 1,
+            "memberLabel": "나",
+            "memberPreferences": "Prefers quick grocery stops.",
+            "day": 0,
+            "minute": 1060,
+            "kind": "park_or_home",
+            "options": [
+              {
+                "key": "park",
+                "label": "모자이크파크",
+                "minutes": 5.1,
+                "distance_m": 398.7,
+                "poi_id": "w469361456"
+              },
+              {
+                "key": "home",
+                "label": "집",
+                "minutes": 0,
+                "distance_m": 0
+              }
+            ],
+            "default_key": "home",
+            "default_label": "집",
+            "chosen_label": "모자이크파크",
+            "chosen_minutes": 5.1,
+            "chosen_distance_m": 398.7,
+            "chosen_legs": [
+              {
+                "key": "park",
+                "label": "모자이크파크",
+                "minutes": 5.1,
+                "distance_m": 398.7,
+                "poi_id": "w469361456"
+              }
+            ],
+            "isDefaultChange": true,
+            "chosen_key": "park",
+            "chosen_by": "model",
+            "reason_ko": "퇴근 후 집에 있어 주간 산책 루틴을 시작하기 좋음",
+            "reason_en": "Just back from work and due for weekly park walks",
+            "provider": "meta",
+            "model": "muse-spark-1.3"
+          },
+          {
+            "id": "h2:d1:0960:park_or_home:00",
+            "agent": "h2",
+            "follow": 2,
+            "memberLabel": "배우자",
+            "memberPreferences": "Enjoys evening park walks.",
+            "day": 1,
+            "minute": 960,
+            "kind": "park_or_home",
+            "options": [
+              {
+                "key": "park",
+                "label": "모자이크파크",
+                "minutes": 5.1,
+                "distance_m": 398.7,
+                "poi_id": "w469361456"
+              },
+              {
+                "key": "home",
+                "label": "집",
+                "minutes": 0,
+                "distance_m": 0
+              }
+            ],
+            "default_key": "home",
+            "default_label": "집",
+            "chosen_label": "모자이크파크",
+            "chosen_minutes": 5.1,
+            "chosen_distance_m": 398.7,
+            "chosen_legs": [
+              {
+                "key": "park",
+                "label": "모자이크파크",
+                "minutes": 5.1,
+                "distance_m": 398.7,
+                "poi_id": "w469361456"
+              }
+            ],
+            "isDefaultChange": true,
+            "chosen_key": "park",
+            "chosen_by": "model",
+            "reason_ko": "저녁 산책 루틴을 즐기기 좋은 시간",
+            "reason_en": "Matches evening park walk routine on remote workday",
+            "provider": "meta",
+            "model": "muse-spark-1.3"
+          },
+          {
+            "id": "h2:d2:1047:shop_choice:00",
+            "agent": "h2",
+            "follow": 2,
+            "memberLabel": "배우자",
+            "memberPreferences": "Enjoys evening park walks.",
+            "day": 2,
+            "minute": 1047,
+            "kind": "shop_choice",
+            "options": [
+              {
+                "key": "s0",
+                "label": "CU",
+                "minutes": 0.8,
+                "distance_m": 64.43,
+                "poi_id": "n5073062623"
+              },
+              {
+                "key": "s1",
+                "label": "세븐일레븐",
+                "minutes": 2.3,
+                "distance_m": 182.42,
+                "poi_id": "n5126034923"
+              },
+              {
+                "key": "s2",
+                "label": "emart24",
+                "minutes": 2.9,
+                "distance_m": 226.08,
+                "poi_id": "n5085488826"
+              }
+            ],
+            "default_key": "s0",
+            "default_label": "CU",
+            "chosen_label": "CU",
+            "chosen_minutes": 0.8,
+            "chosen_distance_m": 64.43,
+            "chosen_legs": [
+              {
+                "key": "s0",
+                "label": "CU",
+                "minutes": 0.8,
+                "distance_m": 64.43,
+                "poi_id": "n5073062623"
+              }
+            ],
+            "isDefaultChange": false,
+            "chosen_key": "s0",
+            "chosen_by": "model",
+            "reason_ko": "퇴근 후 저녁 산책 루틴에 맞는 빠른 방문",
+            "reason_en": "Quick stop that fits post-work evening walk routine",
+            "provider": "meta",
+            "model": "muse-spark-1.3"
+          },
+          {
+            "id": "h2:d3:0960:park_or_home:00",
+            "agent": "h2",
+            "follow": 2,
+            "memberLabel": "배우자",
+            "memberPreferences": "Enjoys evening park walks.",
+            "day": 3,
+            "minute": 960,
+            "kind": "park_or_home",
+            "options": [
+              {
+                "key": "park",
+                "label": "모자이크파크",
+                "minutes": 5.1,
+                "distance_m": 398.7,
+                "poi_id": "w469361456"
+              },
+              {
+                "key": "home",
+                "label": "집",
+                "minutes": 0,
+                "distance_m": 0
+              }
+            ],
+            "default_key": "home",
+            "default_label": "집",
+            "chosen_label": "모자이크파크",
+            "chosen_minutes": 5.1,
+            "chosen_distance_m": 398.7,
+            "chosen_legs": [
+              {
+                "key": "park",
+                "label": "모자이크파크",
+                "minutes": 5.1,
+                "distance_m": 398.7,
+                "poi_id": "w469361456"
+              }
+            ],
+            "isDefaultChange": true,
+            "chosen_key": "park",
+            "chosen_by": "model",
+            "reason_ko": "저녁 산책 루틴을 즐기기 좋은 시간",
+            "reason_en": "Enjoys evening park walks as part of routine",
+            "provider": "meta",
+            "model": "muse-spark-1.3"
+          }
+        ]
+      },
+      {
+        "label": "B",
+        "items": [
+          {
+            "id": "h1:d0:1098.8000000000002:park_or_home:00",
+            "agent": "h1",
+            "follow": 1,
+            "memberLabel": "나",
+            "memberPreferences": "Prefers quick grocery stops.",
+            "day": 0,
+            "minute": 1098.8000000000002,
+            "kind": "park_or_home",
+            "options": [
+              {
+                "key": "park",
+                "label": "희망대공원",
+                "minutes": 3.5,
+                "distance_m": 273.97,
+                "poi_id": "w240577848"
+              },
+              {
+                "key": "home",
+                "label": "집",
+                "minutes": 0,
+                "distance_m": 0
+              }
+            ],
+            "default_key": "home",
+            "default_label": "집",
+            "chosen_label": "희망대공원",
+            "chosen_minutes": 3.5,
+            "chosen_distance_m": 273.97,
+            "chosen_legs": [
+              {
+                "key": "park",
+                "label": "희망대공원",
+                "minutes": 3.5,
+                "distance_m": 273.97,
+                "poi_id": "w240577848"
+              }
+            ],
+            "isDefaultChange": true,
+            "chosen_key": "park",
+            "chosen_by": "model",
+            "reason_ko": "퇴근 후 주간 산책 루틴을 이어가기 좋아서",
+            "reason_en": "Fits weekly park walk routine after workday commute home",
+            "provider": "meta",
+            "model": "muse-spark-1.3"
+          },
+          {
+            "id": "h2:d2:1085.8000000000002:shop_choice:00",
+            "agent": "h2",
+            "follow": 2,
+            "memberLabel": "배우자",
+            "memberPreferences": "Enjoys evening park walks.",
+            "day": 2,
+            "minute": 1085.8000000000002,
+            "kind": "shop_choice",
+            "options": [
+              {
+                "key": "s0",
+                "label": "CU",
+                "minutes": 10.5,
+                "distance_m": 817.48,
+                "poi_id": "n12687894219"
+              },
+              {
+                "key": "s1",
+                "label": "GS25",
+                "minutes": 13.1,
+                "distance_m": 1021.03,
+                "poi_id": "n12687894225"
+              }
+            ],
+            "default_key": "s0",
+            "default_label": "CU",
+            "chosen_label": "CU",
+            "chosen_minutes": 10.5,
+            "chosen_distance_m": 817.48,
+            "chosen_legs": [
+              {
+                "key": "s0",
+                "label": "CU",
+                "minutes": 10.5,
+                "distance_m": 817.48,
+                "poi_id": "n12687894219"
+              }
+            ],
+            "isDefaultChange": false,
+            "chosen_key": "s0",
+            "chosen_by": "model",
+            "reason_ko": "저녁 산책을 즐기며 주간 편의점 방문을 함께하기에 좋다",
+            "reason_en": "Fits evening walk habit and weekly convenience-store trip",
+            "provider": "meta",
+            "model": "muse-spark-1.3"
+          },
+          {
+            "id": "h1:d4:1068.8:park_or_home:00",
+            "agent": "h1",
+            "follow": 1,
+            "memberLabel": "나",
+            "memberPreferences": "Prefers quick grocery stops.",
+            "day": 4,
+            "minute": 1068.8,
+            "kind": "park_or_home",
+            "options": [
+              {
+                "key": "park",
+                "label": "희망대공원",
+                "minutes": 3.5,
+                "distance_m": 273.97,
+                "poi_id": "w240577848"
+              },
+              {
+                "key": "home",
+                "label": "집",
+                "minutes": 0,
+                "distance_m": 0
+              }
+            ],
+            "default_key": "park",
+            "default_label": "희망대공원",
+            "chosen_label": "집",
+            "chosen_minutes": 0,
+            "chosen_distance_m": 0,
+            "chosen_legs": [
+              {
+                "key": "home",
+                "label": "집",
+                "minutes": 0,
+                "distance_m": 0
+              }
+            ],
+            "isDefaultChange": true,
+            "chosen_key": "home",
+            "chosen_by": "model",
+            "reason_ko": "주간 산책을 채워 집에서 쉬는 루틴에 맞아서",
+            "reason_en": "Weekly walks are done so resting at home fits routine",
+            "provider": "meta",
+            "model": "muse-spark-1.3"
+          },
+          {
+            "id": "h2:d4:1071.8:park_or_home:00",
+            "agent": "h2",
+            "follow": 2,
+            "memberLabel": "배우자",
+            "memberPreferences": "Enjoys evening park walks.",
+            "day": 4,
+            "minute": 1071.8,
+            "kind": "park_or_home",
+            "options": [
+              {
+                "key": "park",
+                "label": "희망대공원",
+                "minutes": 3.5,
+                "distance_m": 273.97,
+                "poi_id": "w240577848"
+              },
+              {
+                "key": "home",
+                "label": "집",
+                "minutes": 0,
+                "distance_m": 0
+              }
+            ],
+            "default_key": "home",
+            "default_label": "집",
+            "chosen_label": "희망대공원",
+            "chosen_minutes": 3.5,
+            "chosen_distance_m": 273.97,
+            "chosen_legs": [
+              {
+                "key": "park",
+                "label": "희망대공원",
+                "minutes": 3.5,
+                "distance_m": 273.97,
+                "poi_id": "w240577848"
+              }
+            ],
+            "isDefaultChange": true,
+            "chosen_key": "park",
+            "chosen_by": "model",
+            "reason_ko": "저녁 산책 루틴을 즐기기에 좋은 시간이다",
+            "reason_en": "Good time to enjoy the evening park walk routine",
+            "provider": "meta",
+            "model": "muse-spark-1.3"
+          }
+        ]
+      }
+    ],
+    "plan_summary": {
+      "A": {
+        "first_7_days": {
+          "trips": 54,
+          "travel_minutes": 213.19999999999993,
+          "travel_minutes_partial": false,
+          "commute_minutes": 76.8,
+          "commute_minutes_partial": false,
+          "by_member": {
+            "m1": {
+              "trips": 24,
+              "travel_minutes": 97.39999999999996,
+              "travel_minutes_partial": false,
+              "commute_minutes": 48,
+              "commute_minutes_partial": false
+            },
+            "m2": {
+              "trips": 30,
+              "travel_minutes": 115.79999999999995,
+              "travel_minutes_partial": false,
+              "commute_minutes": 28.799999999999997,
+              "commute_minutes_partial": false
+            }
+          },
+          "by_purpose": {
+            "commute": {
+              "trips": 16,
+              "travel_minutes": 76.79999999999998,
+              "travel_minutes_partial": false
+            },
+            "park": {
+              "trips": 22,
+              "travel_minutes": 112.19999999999996,
+              "travel_minutes_partial": false
+            },
+            "errand": {
+              "trips": 16,
+              "travel_minutes": 24.200000000000003,
+              "travel_minutes_partial": false
+            }
+          }
+        },
+        "full_period": {
+          "trips": 210,
+          "travel_minutes": 845.200000000001,
+          "travel_minutes_partial": false,
+          "commute_minutes": 335.9999999999999,
+          "commute_minutes_partial": false,
+          "by_member": {
+            "m1": {
+              "trips": 96,
+              "travel_minutes": 392.20000000000044,
+              "travel_minutes_partial": false,
+              "commute_minutes": 211.19999999999993,
+              "commute_minutes_partial": false
+            },
+            "m2": {
+              "trips": 114,
+              "travel_minutes": 453.00000000000057,
+              "travel_minutes_partial": false,
+              "commute_minutes": 124.79999999999997,
+              "commute_minutes_partial": false
+            }
+          },
+          "by_purpose": {
+            "commute": {
+              "trips": 70,
+              "travel_minutes": 336.00000000000045,
+              "travel_minutes_partial": false
+            },
+            "park": {
+              "trips": 80,
+              "travel_minutes": 408.00000000000045,
+              "travel_minutes_partial": false
+            },
+            "errand": {
+              "trips": 60,
+              "travel_minutes": 101.2,
+              "travel_minutes_partial": false
+            }
+          }
+        },
+        "day_coverage": {
+          "observed_days": 30,
+          "active_trip_days": 30,
+          "total_days": 30,
+          "coverage_source": "daily"
+        },
+        "missing": {
+          "members_without_trips": [],
+          "unavailable_records": 0,
+          "unavailable_days": 0,
+          "legs_missing_minutes": 0
+        },
+        "evidence": {
+          "trip_ids": [
+            "t000001",
+            "t000002",
+            "t000003",
+            "t000004",
+            "t000005",
+            "t000006",
+            "t000007",
+            "t000008",
+            "t000009",
+            "t000010",
+            "t000011",
+            "t000012",
+            "t000013",
+            "t000014",
+            "t000015",
+            "t000016",
+            "t000017",
+            "t000018",
+            "t000019",
+            "t000020",
+            "t000021",
+            "t000022",
+            "t000023",
+            "t000024",
+            "t000025",
+            "t000026",
+            "t000027",
+            "t000028",
+            "t000029",
+            "t000030",
+            "t000031",
+            "t000032",
+            "t000033",
+            "t000034",
+            "t000035",
+            "t000036",
+            "t000037",
+            "t000038",
+            "t000039",
+            "t000040",
+            "t000041",
+            "t000042",
+            "t000043",
+            "t000044",
+            "t000045",
+            "t000046",
+            "t000047",
+            "t000048",
+            "t000049",
+            "t000050",
+            "t000051",
+            "t000052",
+            "t000053",
+            "t000054",
+            "t000055",
+            "t000056",
+            "t000057",
+            "t000058",
+            "t000059",
+            "t000060",
+            "t000061",
+            "t000062",
+            "t000063",
+            "t000064",
+            "t000065",
+            "t000066",
+            "t000067",
+            "t000068",
+            "t000069",
+            "t000070",
+            "t000071",
+            "t000072",
+            "t000073",
+            "t000074",
+            "t000075",
+            "t000076",
+            "t000077",
+            "t000078",
+            "t000079",
+            "t000080",
+            "t000081",
+            "t000082",
+            "t000083",
+            "t000084",
+            "t000085",
+            "t000086",
+            "t000087",
+            "t000088",
+            "t000089",
+            "t000090",
+            "t000091",
+            "t000092",
+            "t000093",
+            "t000094",
+            "t000095",
+            "t000096",
+            "t000097",
+            "t000098",
+            "t000099",
+            "t000100",
+            "t000101",
+            "t000102",
+            "t000103",
+            "t000104",
+            "t000105",
+            "t000106",
+            "t000107",
+            "t000108",
+            "t000109",
+            "t000110",
+            "t000111",
+            "t000112",
+            "t000113",
+            "t000114",
+            "t000115",
+            "t000116",
+            "t000117",
+            "t000118",
+            "t000119",
+            "t000120",
+            "t000121",
+            "t000122",
+            "t000123",
+            "t000124",
+            "t000125",
+            "t000126",
+            "t000127",
+            "t000128",
+            "t000129",
+            "t000130",
+            "t000131",
+            "t000132",
+            "t000133",
+            "t000134",
+            "t000135",
+            "t000136",
+            "t000137",
+            "t000138",
+            "t000139",
+            "t000140",
+            "t000141",
+            "t000142",
+            "t000143",
+            "t000144",
+            "t000145",
+            "t000146",
+            "t000147",
+            "t000148",
+            "t000149",
+            "t000150",
+            "t000151",
+            "t000152",
+            "t000153",
+            "t000154",
+            "t000155",
+            "t000156",
+            "t000157",
+            "t000158",
+            "t000159",
+            "t000160",
+            "t000161",
+            "t000162",
+            "t000163",
+            "t000164",
+            "t000165",
+            "t000166",
+            "t000167",
+            "t000168",
+            "t000169",
+            "t000170",
+            "t000171",
+            "t000172",
+            "t000173",
+            "t000174",
+            "t000175",
+            "t000176",
+            "t000177",
+            "t000178",
+            "t000179",
+            "t000180",
+            "t000181",
+            "t000182",
+            "t000183",
+            "t000184",
+            "t000185",
+            "t000186",
+            "t000187",
+            "t000188",
+            "t000189",
+            "t000190",
+            "t000191",
+            "t000192",
+            "t000193",
+            "t000194",
+            "t000195",
+            "t000196",
+            "t000197",
+            "t000198",
+            "t000199",
+            "t000200"
+          ],
+          "trip_ids_truncated": true
+        }
+      },
+      "B": {
+        "first_7_days": {
+          "trips": 40,
+          "travel_minutes": 225.00000000000003,
+          "travel_minutes_partial": false,
+          "commute_minutes": 382.4,
+          "commute_minutes_partial": false,
+          "by_member": {
+            "m1": {
+              "trips": 18,
+              "travel_minutes": 100.6,
+              "travel_minutes_partial": false,
+              "commute_minutes": 239,
+              "commute_minutes_partial": false
+            },
+            "m2": {
+              "trips": 22,
+              "travel_minutes": 124.39999999999999,
+              "travel_minutes_partial": false,
+              "commute_minutes": 143.39999999999998,
+              "commute_minutes_partial": false
+            }
+          },
+          "by_purpose": {
+            "commute": {
+              "trips": 16,
+              "travel_minutes": 72,
+              "travel_minutes_partial": false
+            },
+            "park": {
+              "trips": 14,
+              "travel_minutes": 49,
+              "travel_minutes_partial": false
+            },
+            "errand": {
+              "trips": 10,
+              "travel_minutes": 104,
+              "travel_minutes_partial": false
+            }
+          }
+        },
+        "full_period": {
+          "trips": 182,
+          "travel_minutes": 900.1999999999998,
+          "travel_minutes_partial": false,
+          "commute_minutes": 1672.9999999999995,
+          "commute_minutes_partial": false,
+          "by_member": {
+            "m1": {
+              "trips": 98,
+              "travel_minutes": 497.4000000000001,
+              "travel_minutes_partial": false,
+              "commute_minutes": 1051.5999999999997,
+              "commute_minutes_partial": false
+            },
+            "m2": {
+              "trips": 84,
+              "travel_minutes": 402.8,
+              "travel_minutes_partial": false,
+              "commute_minutes": 621.4,
+              "commute_minutes_partial": false
+            }
+          },
+          "by_purpose": {
+            "commute": {
+              "trips": 70,
+              "travel_minutes": 315,
+              "travel_minutes_partial": false
+            },
+            "park": {
+              "trips": 84,
+              "travel_minutes": 294,
+              "travel_minutes_partial": false
+            },
+            "errand": {
+              "trips": 28,
+              "travel_minutes": 291.2000000000001,
+              "travel_minutes_partial": false
+            }
+          }
+        },
+        "day_coverage": {
+          "observed_days": 30,
+          "active_trip_days": 29,
+          "total_days": 30,
+          "coverage_source": "daily"
+        },
+        "missing": {
+          "members_without_trips": [],
+          "unavailable_records": 5,
+          "unavailable_days": 5,
+          "legs_missing_minutes": 0
+        },
+        "evidence": {
+          "trip_ids": [
+            "t000001",
+            "t000002",
+            "t000003",
+            "t000004",
+            "t000005",
+            "t000006",
+            "t000007",
+            "t000008",
+            "t000009",
+            "t000010",
+            "t000011",
+            "t000012",
+            "t000013",
+            "t000014",
+            "t000015",
+            "t000016",
+            "t000017",
+            "t000018",
+            "t000019",
+            "t000020",
+            "t000021",
+            "t000022",
+            "t000023",
+            "t000024",
+            "t000025",
+            "t000026",
+            "t000027",
+            "t000028",
+            "t000029",
+            "t000030",
+            "t000031",
+            "t000032",
+            "t000033",
+            "t000034",
+            "t000035",
+            "t000036",
+            "t000037",
+            "t000038",
+            "t000039",
+            "t000040",
+            "t000041",
+            "t000042",
+            "t000043",
+            "t000044",
+            "t000045",
+            "t000046",
+            "t000047",
+            "t000048",
+            "t000049",
+            "t000050",
+            "t000051",
+            "t000052",
+            "t000053",
+            "t000054",
+            "t000055",
+            "t000056",
+            "t000057",
+            "t000058",
+            "t000059",
+            "t000060",
+            "t000061",
+            "t000062",
+            "t000063",
+            "t000064",
+            "t000065",
+            "t000066",
+            "t000067",
+            "t000068",
+            "t000069",
+            "t000070",
+            "t000071",
+            "t000072",
+            "t000073",
+            "t000074",
+            "t000075",
+            "t000076",
+            "t000077",
+            "t000078",
+            "t000079",
+            "t000080",
+            "t000081",
+            "t000082",
+            "t000083",
+            "t000084",
+            "t000085",
+            "t000086",
+            "t000087",
+            "t000088",
+            "t000089",
+            "t000090",
+            "t000091",
+            "t000092",
+            "t000093",
+            "t000094",
+            "t000095",
+            "t000096",
+            "t000097",
+            "t000098",
+            "t000099",
+            "t000100",
+            "t000101",
+            "t000102",
+            "t000103",
+            "t000104",
+            "t000105",
+            "t000106",
+            "t000107",
+            "t000108",
+            "t000109",
+            "t000110",
+            "t000111",
+            "t000112",
+            "t000113",
+            "t000114",
+            "t000115",
+            "t000116",
+            "t000117",
+            "t000118",
+            "t000119",
+            "t000120",
+            "t000121",
+            "t000122",
+            "t000123",
+            "t000124",
+            "t000125",
+            "t000126",
+            "t000127",
+            "t000128",
+            "t000129",
+            "t000130",
+            "t000131",
+            "t000132",
+            "t000133",
+            "t000134",
+            "t000135",
+            "t000136",
+            "t000137",
+            "t000138",
+            "t000139",
+            "t000140",
+            "t000141",
+            "t000142",
+            "t000143",
+            "t000144",
+            "t000145",
+            "t000146",
+            "t000147",
+            "t000148",
+            "t000149",
+            "t000150",
+            "t000151",
+            "t000152",
+            "t000153",
+            "t000154",
+            "t000155",
+            "t000156",
+            "t000157",
+            "t000158",
+            "t000159",
+            "t000160",
+            "t000161",
+            "t000162",
+            "t000163",
+            "t000164",
+            "t000165",
+            "t000166",
+            "t000167",
+            "t000168",
+            "t000169",
+            "t000170",
+            "t000171",
+            "t000172",
+            "t000173",
+            "t000174",
+            "t000175",
+            "t000176",
+            "t000177",
+            "t000178",
+            "t000179",
+            "t000180",
+            "t000181",
+            "t000182"
+          ],
+          "trip_ids_truncated": false
+        }
+      }
+    },
+    "assumptions": {
+      "transit_fare_won": 1500,
+      "basket_won": 30000,
+      "maintenance_won_month": 150000,
+      "other_fixed_won_month": 0,
+      "pay_day_of_month": 25,
+      "fixed_due_day_1based": 1,
+      "loan_rate_pct": 4,
+      "loan_years": 30,
+      "jeonse_loan_cap_won": 500000000
+    },
+    "record_sha256": "2d6fae0bbeba5aa699b771c897d19614a5cce5bf214fb1b9b2101ac91d2436d9",
+    "record_file": "ithaca-couple-record.json"
+  },
+  "family": {
+    "id": "cmw0opz1800db",
+    "savedAt": "2026-11-03T12:49:27.452Z",
+    "seed": 1498289042,
+    "start_date": "2026-11-02",
+    "days": 30,
+    "user_inputs": [
+      "We are an example family of four: two working parents and two children. Both parents work near Jamsil Station. We both commute five days a week; use the station as an explicit workplace assumption. Child 1 attends elementary school and child 2 attends middle school, Monday to Friday. We have no assigned schools: use the nearest mapped school matching each level as a route assumption only, without inferring enrollment or catchment. Our annual salaries are 80 and 70 million won, savings 500 million won, purchase budget 1.5 billion won, minimum size 80 square meters, a 45-minute one-way commute limit. Each parent makes one supermarket trip, one convenience-store trip and one park walk per week. Each child takes one park walk and has no shopping errands. Accept default work and school departure times and durations as simulation assumptions. Find homes to compare.",
+      "Both parents commute Monday to Friday, every week. Enrollment and catchment must stay unmodeled: we only want the nearest mapped elementary-school route for Child 1 and middle-school route for Child 2 as explicit assumptions. Confirm all other routines and default times already stated."
+    ],
+    "profile": {
+      "members": {
+        "value": [
+          {
+            "role": "adult"
+          },
+          {
+            "role": "adult"
+          },
+          {
+            "role": "child",
+            "school": true
+          },
+          {
+            "role": "child",
+            "school": true
+          }
+        ],
+        "source": "customer",
+        "note": "함께 사는 사람",
+        "evidence": "two working parents·two children"
+      },
+      "workplaces": {
+        "value": [
+          {
+            "member": 0,
+            "text": "Jamsil",
+            "resolved": {
+              "station": "잠실",
+              "station_en": "Jamsil Stn"
+            }
+          },
+          {
+            "member": 1,
+            "text": "Jamsil",
+            "resolved": {
+              "station": "잠실",
+              "station_en": "Jamsil Stn"
+            }
+          }
+        ],
+        "source": "customer",
+        "note": "직장 근처역: 잠실",
+        "evidence": "work near Jamsil Station"
+      },
+      "salaryAnnual": {
+        "value": [
+          80000000,
+          70000000
+        ],
+        "source": "customer",
+        "note": "세전 연봉이에요. 실수령은 따로 계산해요.",
+        "evidence": "80 and 70 million won"
+      },
+      "takehomeMonthly": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "cash": {
+        "value": 500000000,
+        "source": "customer",
+        "note": "모은 돈",
+        "evidence": "500 million won"
+      },
+      "debts": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "tenure": {
+        "value": "trade",
+        "source": "customer",
+        "note": "매매",
+        "evidence": "purchase"
+      },
+      "depositMax": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "monthlyMax": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "priceMax": {
+        "value": 1500000000,
+        "source": "customer",
+        "note": "매매가 상한",
+        "evidence": "1.5 billion won"
+      },
+      "sizeMin": {
+        "value": 80,
+        "source": "customer",
+        "note": "최소 면적(㎡)",
+        "evidence": "80 square meters"
+      },
+      "commuteMax": {
+        "value": 45,
+        "source": "customer",
+        "note": "출퇴근 상한(분)",
+        "evidence": "45-minute one-way commute limit"
+      },
+      "officeDays": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "pets": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "priorities": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "mustHaves": {
+        "value": [],
+        "source": "asked",
+        "note": ""
+      },
+      "home_kinds": {
+        "value": [],
+        "source": "asked",
+        "note": ""
+      },
+      "currency": {
+        "value": "KRW",
+        "source": "default",
+        "note": ""
+      }
+    },
+    "members": [
+      {
+        "id": "m1",
+        "label": "나",
+        "role": "adult",
+        "workdays": [
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu",
+          "Fri"
+        ],
+        "work": {
+          "type": "station_ride",
+          "station_name": {
+            "A": "석촌",
+            "B": "강남"
+          },
+          "ride_minutes": {
+            "A": 1.8,
+            "B": 8.5
+          },
+          "ride_minutes_source": "derived",
+          "needs_user_input": false,
+          "destination_station": "잠실",
+          "place": {
+            "name": "Work (assumed: near Jamsil Stn)",
+            "station": "잠실"
+          }
+        },
+        "errands_per_week": {
+          "supermarket": 1,
+          "convenience": 1
+        },
+        "park_walks_per_week": 1,
+        "clinic_visits_per_month": 0,
+        "plan_context": "[commute] Both parents commute to Jamsil Station Mon-Fri using station as explicit workplace assumption. | [errands] Each parent makes one supermarket and one convenience-store trip per week. | [walks] Each parent and each child takes one park walk per week."
+      },
+      {
+        "id": "m2",
+        "label": "배우자",
+        "role": "adult",
+        "workdays": [
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu",
+          "Fri"
+        ],
+        "work": {
+          "type": "station_ride",
+          "station_name": {
+            "A": "석촌",
+            "B": "강남"
+          },
+          "ride_minutes": {
+            "A": 1.8,
+            "B": 8.5
+          },
+          "ride_minutes_source": "derived",
+          "needs_user_input": false,
+          "destination_station": "잠실",
+          "place": {
+            "name": "Work (assumed: near Jamsil Stn)",
+            "station": "잠실"
+          }
+        },
+        "errands_per_week": {
+          "supermarket": 1,
+          "convenience": 1
+        },
+        "park_walks_per_week": 1,
+        "clinic_visits_per_month": 0,
+        "plan_context": "[commute] Both parents commute to Jamsil Station Mon-Fri using station as explicit workplace assumption. | [errands] Each parent makes one supermarket and one convenience-store trip per week. | [walks] Each parent and each child takes one park walk per week."
+      },
+      {
+        "id": "m3",
+        "label": "아이 1",
+        "role": "child",
+        "workdays": [
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu",
+          "Fri"
+        ],
+        "work": {
+          "type": "none"
+        },
+        "errands_per_week": {
+          "supermarket": 0,
+          "convenience": 0
+        },
+        "park_walks_per_week": 1,
+        "clinic_visits_per_month": 0,
+        "schooldays": [
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu",
+          "Fri"
+        ],
+        "school": {
+          "mode": "nearby",
+          "level": "elementary"
+        },
+        "plan_context": "[school] Nearest mapped elementary-school route for Child 1 used as route assumption only. | [walks] Each parent and each child takes one park walk per week."
+      },
+      {
+        "id": "m4",
+        "label": "아이 2",
+        "role": "child",
+        "workdays": [
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu",
+          "Fri"
+        ],
+        "work": {
+          "type": "none"
+        },
+        "errands_per_week": {
+          "supermarket": 0,
+          "convenience": 0
+        },
+        "park_walks_per_week": 1,
+        "clinic_visits_per_month": 0,
+        "schooldays": [
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu",
+          "Fri"
+        ],
+        "school": {
+          "mode": "nearby",
+          "level": "middle"
+        },
+        "plan_context": "[school] Nearest mapped middle-school route for Child 2 used as route assumption only. | [walks] Each parent and each child takes one park walk per week."
+      }
+    ],
+    "life_plan": {
+      "members": [
+        {
+          "id": "m1",
+          "changes": [
+            {
+              "field": "workdays",
+              "value": [
+                "Mon",
+                "Tue",
+                "Wed",
+                "Thu",
+                "Fri"
+              ],
+              "basis": "stated",
+              "evidence": "Both parents commute Monday to Friday, every week"
+            },
+            {
+              "field": "errands_per_week",
+              "value": {
+                "supermarket": 1,
+                "convenience": 1
+              },
+              "basis": "stated",
+              "evidence": "Each parent makes one supermarket trip, one convenience-store trip and one park walk per week"
+            },
+            {
+              "field": "park_walks_per_week",
+              "value": 1,
+              "basis": "stated",
+              "evidence": "Each parent makes one supermarket trip, one convenience-store trip and one park walk per week"
+            }
+          ]
+        },
+        {
+          "id": "m2",
+          "changes": [
+            {
+              "field": "workdays",
+              "value": [
+                "Mon",
+                "Tue",
+                "Wed",
+                "Thu",
+                "Fri"
+              ],
+              "basis": "stated",
+              "evidence": "Both parents commute Monday to Friday, every week"
+            },
+            {
+              "field": "errands_per_week",
+              "value": {
+                "supermarket": 1,
+                "convenience": 1
+              },
+              "basis": "stated",
+              "evidence": "Each parent makes one supermarket trip, one convenience-store trip and one park walk per week"
+            },
+            {
+              "field": "park_walks_per_week",
+              "value": 1,
+              "basis": "stated",
+              "evidence": "Each parent makes one supermarket trip, one convenience-store trip and one park walk per week"
+            }
+          ]
+        },
+        {
+          "id": "m3",
+          "changes": [
+            {
+              "field": "schooldays",
+              "value": [
+                "Mon",
+                "Tue",
+                "Wed",
+                "Thu",
+                "Fri"
+              ],
+              "basis": "stated",
+              "evidence": "Child 1 attends elementary school and child 2 attends middle school, Monday to Friday"
+            },
+            {
+              "field": "school",
+              "value": {
+                "mode": "nearby",
+                "level": "elementary"
+              },
+              "basis": "proposal",
+              "evidence": "we only want the nearest mapped elementary-school route for Child 1 and middle-school route for Child 2 as explicit assumptions"
+            },
+            {
+              "field": "errands_per_week",
+              "value": {
+                "supermarket": 0,
+                "convenience": 0
+              },
+              "basis": "stated",
+              "evidence": "Each child takes one park walk and has no shopping errands"
+            },
+            {
+              "field": "park_walks_per_week",
+              "value": 1,
+              "basis": "stated",
+              "evidence": "Each child takes one park walk and has no shopping errands"
+            }
+          ]
+        },
+        {
+          "id": "m4",
+          "changes": [
+            {
+              "field": "schooldays",
+              "value": [
+                "Mon",
+                "Tue",
+                "Wed",
+                "Thu",
+                "Fri"
+              ],
+              "basis": "stated",
+              "evidence": "Child 1 attends elementary school and child 2 attends middle school, Monday to Friday"
+            },
+            {
+              "field": "school",
+              "value": {
+                "mode": "nearby",
+                "level": "middle"
+              },
+              "basis": "proposal",
+              "evidence": "we only want the nearest mapped elementary-school route for Child 1 and middle-school route for Child 2 as explicit assumptions"
+            },
+            {
+              "field": "errands_per_week",
+              "value": {
+                "supermarket": 0,
+                "convenience": 0
+              },
+              "basis": "stated",
+              "evidence": "Each child takes one park walk and has no shopping errands"
+            },
+            {
+              "field": "park_walks_per_week",
+              "value": 1,
+              "basis": "stated",
+              "evidence": "Each child takes one park walk and has no shopping errands"
+            }
+          ]
+        }
+      ],
+      "observations": [
+        {
+          "code": "commute",
+          "member_ids": [
+            "m1",
+            "m2"
+          ],
+          "reason": "Both parents commute to Jamsil Station Mon-Fri using station as explicit workplace assumption."
+        },
+        {
+          "code": "school",
+          "member_ids": [
+            "m3"
+          ],
+          "reason": "Nearest mapped elementary-school route for Child 1 used as route assumption only."
+        },
+        {
+          "code": "school",
+          "member_ids": [
+            "m4"
+          ],
+          "reason": "Nearest mapped middle-school route for Child 2 used as route assumption only."
+        },
+        {
+          "code": "errands",
+          "member_ids": [
+            "m1",
+            "m2"
+          ],
+          "reason": "Each parent makes one supermarket and one convenience-store trip per week."
+        },
+        {
+          "code": "walks",
+          "member_ids": [
+            "m1",
+            "m2",
+            "m3",
+            "m4"
+          ],
+          "reason": "Each parent and each child takes one park walk per week."
+        }
+      ],
+      "questions": [],
+      "unmodeled": [
+        "Enrollment and catchment for Child 1 and Child 2 stay unmodeled; nearest school routes are assumptions only.",
+        "Actual school catchment assignment is not modeled and not inferred from grade or level.",
+        "Purchase budget, size minimum, salaries, savings and 45-minute commute limit are home-search criteria, not daily routines."
+      ],
+      "review": [],
+      "input_signature": "lp1-b56c563f",
+      "source": "muse",
+      "confirmed": true,
+      "days": 30
+    },
+    "homes": {
+      "A": {
+        "name": "갑오빌라트",
+        "area": "st-석촌",
+        "one_way_minutes": 5.1,
+        "monthly_housing_commute_won": 2805339,
+        "monthly_housing_only_won": 2668939,
+        "commute_fares_won": 136400,
+        "reference_price_won": 990000000,
+        "reference_deals": 1,
+        "reference_area_band_m2": [
+          75,
+          85
+        ],
+        "decision_provenance": {
+          "model": 133
+        },
+        "commute_days": {
+          "h1": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            7,
+            8,
+            9,
+            10,
+            11,
+            14,
+            15,
+            16,
+            17,
+            18,
+            21,
+            22,
+            23,
+            24,
+            25,
+            28,
+            29
+          ],
+          "h2": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            7,
+            8,
+            9,
+            10,
+            11,
+            14,
+            15,
+            16,
+            17,
+            18,
+            21,
+            22,
+            23,
+            24,
+            25,
+            28,
+            29
+          ],
+          "h3": [],
+          "h4": []
+        },
+        "school_days": {
+          "h1": [],
+          "h2": [],
+          "h3": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            7,
+            8,
+            9,
+            10,
+            11,
+            14,
+            15,
+            16,
+            17,
+            18,
+            21,
+            22,
+            23,
+            24,
+            25,
+            28,
+            29
+          ],
+          "h4": []
+        },
+        "unavailable_records": [
+          {
+            "agent": "h4",
+            "day": 0,
+            "activity": "school",
+            "category": "school"
+          },
+          {
+            "agent": "h4",
+            "day": 1,
+            "activity": "school",
+            "category": "school"
+          },
+          {
+            "agent": "h4",
+            "day": 2,
+            "activity": "school",
+            "category": "school"
+          },
+          {
+            "agent": "h4",
+            "day": 3,
+            "activity": "school",
+            "category": "school"
+          },
+          {
+            "agent": "h4",
+            "day": 4,
+            "activity": "school",
+            "category": "school"
+          },
+          {
+            "agent": "h4",
+            "day": 7,
+            "activity": "school",
+            "category": "school"
+          },
+          {
+            "agent": "h4",
+            "day": 8,
+            "activity": "school",
+            "category": "school"
+          },
+          {
+            "agent": "h4",
+            "day": 9,
+            "activity": "school",
+            "category": "school"
+          },
+          {
+            "agent": "h4",
+            "day": 10,
+            "activity": "school",
+            "category": "school"
+          },
+          {
+            "agent": "h4",
+            "day": 11,
+            "activity": "school",
+            "category": "school"
+          },
+          {
+            "agent": "h4",
+            "day": 14,
+            "activity": "school",
+            "category": "school"
+          },
+          {
+            "agent": "h4",
+            "day": 15,
+            "activity": "school",
+            "category": "school"
+          },
+          {
+            "agent": "h4",
+            "day": 16,
+            "activity": "school",
+            "category": "school"
+          },
+          {
+            "agent": "h4",
+            "day": 17,
+            "activity": "school",
+            "category": "school"
+          },
+          {
+            "agent": "h4",
+            "day": 18,
+            "activity": "school",
+            "category": "school"
+          },
+          {
+            "agent": "h4",
+            "day": 21,
+            "activity": "school",
+            "category": "school"
+          },
+          {
+            "agent": "h4",
+            "day": 22,
+            "activity": "school",
+            "category": "school"
+          },
+          {
+            "agent": "h4",
+            "day": 23,
+            "activity": "school",
+            "category": "school"
+          },
+          {
+            "agent": "h4",
+            "day": 24,
+            "activity": "school",
+            "category": "school"
+          },
+          {
+            "agent": "h4",
+            "day": 25,
+            "activity": "school",
+            "category": "school"
+          },
+          {
+            "agent": "h4",
+            "day": 28,
+            "activity": "school",
+            "category": "school"
+          },
+          {
+            "agent": "h4",
+            "day": 29,
+            "activity": "school",
+            "category": "school"
+          }
+        ]
+      },
+      "B": {
+        "name": "쌍용플레티넘밸류",
+        "area": "st-강남",
+        "one_way_minutes": 13.4,
+        "monthly_housing_commute_won": 5324960,
+        "monthly_housing_only_won": 5188560,
+        "commute_fares_won": 136400,
+        "reference_price_won": 1497000000,
+        "reference_deals": 7,
+        "reference_area_band_m2": [
+          75,
+          85
+        ],
+        "decision_provenance": {
+          "model": 177
+        },
+        "commute_days": {
+          "h1": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            7,
+            8,
+            9,
+            10,
+            11,
+            14,
+            15,
+            16,
+            17,
+            18,
+            21,
+            22,
+            23,
+            24,
+            25,
+            28,
+            29
+          ],
+          "h2": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            7,
+            8,
+            9,
+            10,
+            11,
+            14,
+            15,
+            16,
+            17,
+            18,
+            21,
+            22,
+            23,
+            24,
+            25,
+            28,
+            29
+          ],
+          "h3": [],
+          "h4": []
+        },
+        "school_days": {
+          "h1": [],
+          "h2": [],
+          "h3": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            7,
+            8,
+            9,
+            10,
+            11,
+            14,
+            15,
+            16,
+            17,
+            18,
+            21,
+            22,
+            23,
+            24,
+            25,
+            28,
+            29
+          ],
+          "h4": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            7,
+            8,
+            9,
+            10,
+            11,
+            14,
+            15,
+            16,
+            17,
+            18,
+            21,
+            22,
+            23,
+            24,
+            25,
+            28,
+            29
+          ]
+        },
+        "unavailable_records": []
+      }
+    },
+    "report": {
+      "ok": true,
+      "status": "pass",
+      "report": {
+        "persona": "combined:newlywed_couple+young_family",
+        "sentences": [
+          {
+            "home": "A",
+            "id": "A-C01",
+            "item_id": "C01",
+            "text_ko": "Door to work averaged 5.1 minutes one way.",
+            "claims": [
+              {
+                "field": "minutes",
+                "unit": "분",
+                "value": 5.1
+              }
+            ],
+            "evidence": []
+          },
+          {
+            "home": "B",
+            "id": "B-C01",
+            "item_id": "C01",
+            "text_ko": "Door to work averaged 13.4 minutes one way.",
+            "claims": [
+              {
+                "field": "minutes",
+                "unit": "분",
+                "value": 13.4
+              }
+            ],
+            "evidence": []
+          },
+          {
+            "home": "A",
+            "id": "A-C02",
+            "item_id": "C02",
+            "text_ko": "Loan payment plus maintenance for one month was 2,668,939 won.",
+            "claims": [
+              {
+                "field": "monthly_total",
+                "unit": "원",
+                "value": 2668939
+              }
+            ],
+            "evidence": []
+          },
+          {
+            "home": "B",
+            "id": "B-C02",
+            "item_id": "C02",
+            "text_ko": "Loan payment plus maintenance for one month was 5,188,560 won.",
+            "claims": [
+              {
+                "field": "monthly_total",
+                "unit": "원",
+                "value": 5188560
+              }
+            ],
+            "evidence": []
+          },
+          {
+            "home": "A",
+            "id": "A-N01",
+            "item_id": "N01",
+            "text_ko": "You averaged 5.1 minutes and your partner averaged 5.1 minutes.",
+            "claims": [
+              {
+                "field": "minutes",
+                "member": "h1",
+                "unit": "분",
+                "value": 5.1
+              },
+              {
+                "field": "minutes",
+                "member": "h2",
+                "unit": "분",
+                "value": 5.1
+              }
+            ],
+            "evidence": []
+          },
+          {
+            "home": "B",
+            "id": "B-N01",
+            "item_id": "N01",
+            "text_ko": "You averaged 13.4 minutes and your partner averaged 13.4 minutes.",
+            "claims": [
+              {
+                "field": "minutes",
+                "member": "h1",
+                "unit": "분",
+                "value": 13.4
+              },
+              {
+                "field": "minutes",
+                "member": "h2",
+                "unit": "분",
+                "value": 13.4
+              }
+            ],
+            "evidence": []
+          },
+          {
+            "home": "A",
+            "id": "A-F01",
+            "item_id": "F01",
+            "text_ko": "Childcare was 8.4 minutes away.",
+            "claims": [
+              {
+                "field": "minutes",
+                "unit": "분",
+                "value": 8.4
+              }
+            ],
+            "evidence": []
+          },
+          {
+            "home": "B",
+            "id": "B-F01",
+            "item_id": "F01",
+            "text_ko": "Childcare was 10.5 minutes away.",
+            "claims": [
+              {
+                "field": "minutes",
+                "unit": "분",
+                "value": 10.5
+              }
+            ],
+            "evidence": []
+          },
+          {
+            "home": "A",
+            "id": "A-C05",
+            "item_id": "C05",
+            "text_ko": "Grocery trips averaged 1.6 minutes.",
+            "claims": [
+              {
+                "field": "minutes",
+                "unit": "분",
+                "value": 1.6
+              }
+            ],
+            "evidence": []
+          },
+          {
+            "home": "B",
+            "id": "B-C05",
+            "item_id": "C05",
+            "text_ko": "Grocery trips averaged 3.8 minutes.",
+            "claims": [
+              {
+                "field": "minutes",
+                "unit": "분",
+                "value": 3.8
+              }
+            ],
+            "evidence": []
+          },
+          {
+            "home": "A",
+            "id": "A-C06",
+            "item_id": "C06",
+            "text_ko": "Day 2 at 17:26, walked home in 3.4 minutes after sunset.",
+            "claims": [],
+            "evidence": [
+              "t000006"
+            ]
+          },
+          {
+            "home": "B",
+            "id": "B-C06",
+            "item_id": "C06",
+            "text_ko": "Day 2 at 17:44, walked home in 4.9 minutes after sunset.",
+            "claims": [],
+            "evidence": [
+              "t000006"
+            ]
+          },
+          {
+            "home": "A",
+            "id": "A-F03",
+            "item_id": "F03",
+            "text_ko": "Park was 6.1 minutes away.",
+            "claims": [
+              {
+                "field": "minutes",
+                "unit": "분",
+                "value": 6.1
+              }
+            ],
+            "evidence": []
+          },
+          {
+            "home": "B",
+            "id": "B-F03",
+            "item_id": "F03",
+            "text_ko": "Park was 3.6 minutes away.",
+            "claims": [
+              {
+                "field": "minutes",
+                "unit": "분",
+                "value": 3.6
+              }
+            ],
+            "evidence": []
+          }
+        ]
+      },
+      "attempts": [
+        {
+          "attempt": 1,
+          "summary_ko": "검증 통과: 커버리지 100%",
+          "pass": true,
+          "status": "passed",
+          "reason_en": null,
+          "weighted_coverage": 1,
+          "must_coverage": 1
+        }
+      ],
+      "handoff": null,
+      "result": {
+        "pass": true,
+        "status": "passed",
+        "weighted_coverage": 1,
+        "must_coverage": 1,
+        "feedback_ko": [
+          "A: [MUST] C03 소음 (층간·도로·상가): 엔진이 아직 확인할 수 없는 필수 항목이에요 (미지원)",
+          "A: [MUST] F02 단지 출입구 주변 차량 안전: 엔진이 아직 확인할 수 없는 필수 항목이에요 (미지원)",
+          "B: [MUST] C03 소음 (층간·도로·상가): 엔진이 아직 확인할 수 없는 필수 항목이에요 (미지원)",
+          "B: [MUST] F02 단지 출입구 주변 차량 안전: 엔진이 아직 확인할 수 없는 필수 항목이에요 (미지원)"
+        ],
+        "failures": [],
+        "by_home": {
+          "A": {
+            "unsupported": [
+              {
+                "item_id": "C03",
+                "reason_ko": "엔진이 아직 확인할 수 없는 필수 항목이에요 (미지원)"
+              },
+              {
+                "item_id": "C04",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "C07",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "C08",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "C09",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "N02",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "N04",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "N05",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "F02",
+                "reason_ko": "엔진이 아직 확인할 수 없는 필수 항목이에요 (미지원)"
+              },
+              {
+                "item_id": "F04",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "F06",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              }
+            ],
+            "inapplicable": [
+              {
+                "item_id": "N01",
+                "reason_ko": "이 집 자료로 계산할 수 없어요"
+              },
+              {
+                "item_id": "N03",
+                "reason_ko": "이 집 기록에 해당 장면이 없어요"
+              },
+              {
+                "item_id": "F05",
+                "reason_ko": "이 집 자료로 계산할 수 없어요"
+              }
+            ],
+            "status": "passed",
+            "pass": true
+          },
+          "B": {
+            "unsupported": [
+              {
+                "item_id": "C03",
+                "reason_ko": "엔진이 아직 확인할 수 없는 필수 항목이에요 (미지원)"
+              },
+              {
+                "item_id": "C04",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "C07",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "C08",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "C09",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "N02",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "N04",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "N05",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "F02",
+                "reason_ko": "엔진이 아직 확인할 수 없는 필수 항목이에요 (미지원)"
+              },
+              {
+                "item_id": "F04",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "F06",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              }
+            ],
+            "inapplicable": [
+              {
+                "item_id": "N01",
+                "reason_ko": "이 집 자료로 계산할 수 없어요"
+              },
+              {
+                "item_id": "N03",
+                "reason_ko": "이 집 기록에 해당 장면이 없어요"
+              },
+              {
+                "item_id": "F05",
+                "reason_ko": "이 집 자료로 계산할 수 없어요"
+              }
+            ],
+            "status": "passed",
+            "pass": true
+          }
+        }
+      },
+      "usage": {
+        "prompt_tokens": 3396,
+        "completion_tokens": 2105,
+        "calls": 1
+      },
+      "persona": "combined:newlywed_couple+young_family"
+    },
+    "choice_examples": [
+      {
+        "label": "A",
+        "items": [
+          {
+            "id": "h4:d0:0960:park_or_home:00",
+            "agent": "h4",
+            "follow": 4,
+            "memberLabel": "아이 2",
+            "memberPreferences": null,
+            "day": 0,
+            "minute": 960,
+            "kind": "park_or_home",
+            "options": [
+              {
+                "key": "park",
+                "label": "송파근린공원",
+                "minutes": 6.7,
+                "distance_m": 442.49,
+                "poi_id": "w418335464"
+              },
+              {
+                "key": "home",
+                "label": "집",
+                "minutes": 0,
+                "distance_m": 0
+              }
+            ],
+            "default_key": "home",
+            "default_label": "집",
+            "chosen_label": "송파근린공원",
+            "chosen_minutes": 6.7,
+            "chosen_distance_m": 442.49,
+            "chosen_legs": [
+              {
+                "key": "park",
+                "label": "송파근린공원",
+                "minutes": 6.7,
+                "distance_m": 442.49,
+                "poi_id": "w418335464"
+              }
+            ],
+            "isDefaultChange": true,
+            "chosen_key": "park",
+            "chosen_by": "model",
+            "reason_ko": "주간 산책 루틴을 위한 방과 후 공원 산책",
+            "reason_en": "Weekly walk fits routine, park is 6.7 min away.",
+            "provider": "meta",
+            "model": "muse-spark-1.3"
+          },
+          {
+            "id": "h1:d0:1030.6:park_or_home:00",
+            "agent": "h1",
+            "follow": 1,
+            "memberLabel": "나",
+            "memberPreferences": null,
+            "day": 0,
+            "minute": 1030.6,
+            "kind": "park_or_home",
+            "options": [
+              {
+                "key": "park",
+                "label": "송파근린공원",
+                "minutes": 5.7,
+                "distance_m": 442.49,
+                "poi_id": "w418335464"
+              },
+              {
+                "key": "home",
+                "label": "집",
+                "minutes": 0,
+                "distance_m": 0
+              }
+            ],
+            "default_key": "home",
+            "default_label": "집",
+            "chosen_label": "송파근린공원",
+            "chosen_minutes": 5.7,
+            "chosen_distance_m": 442.49,
+            "chosen_legs": [
+              {
+                "key": "park",
+                "label": "송파근린공원",
+                "minutes": 5.7,
+                "distance_m": 442.49,
+                "poi_id": "w418335464"
+              }
+            ],
+            "isDefaultChange": true,
+            "chosen_key": "park",
+            "chosen_by": "model",
+            "reason_ko": "퇴근 후 저녁 산책으로 주간 루틴을 채우기 좋아서",
+            "reason_en": "Evening walk after work fits weekly routine nicely.",
+            "provider": "meta",
+            "model": "muse-spark-1.3"
+          },
+          {
+            "id": "h3:d1:0923:park_or_home:00",
+            "agent": "h3",
+            "follow": 3,
+            "memberLabel": "아이 1",
+            "memberPreferences": null,
+            "day": 1,
+            "minute": 923,
+            "kind": "park_or_home",
+            "options": [
+              {
+                "key": "park",
+                "label": "송파근린공원",
+                "minutes": 6.7,
+                "distance_m": 442.49,
+                "poi_id": "w418335464"
+              },
+              {
+                "key": "home",
+                "label": "집",
+                "minutes": 0,
+                "distance_m": 0
+              }
+            ],
+            "default_key": "home",
+            "default_label": "집",
+            "chosen_label": "송파근린공원",
+            "chosen_minutes": 6.7,
+            "chosen_distance_m": 442.49,
+            "chosen_legs": [
+              {
+                "key": "park",
+                "label": "송파근린공원",
+                "minutes": 6.7,
+                "distance_m": 442.49,
+                "poi_id": "w418335464"
+              }
+            ],
+            "isDefaultChange": true,
+            "chosen_key": "park",
+            "chosen_by": "model",
+            "reason_ko": "방과 후 주간 산책 루틴을 이어가기 위해",
+            "reason_en": "After school routine favors the weekly park walk.",
+            "provider": "meta",
+            "model": "muse-spark-1.3"
+          },
+          {
+            "id": "h2:d1:1037.6:park_or_home:00",
+            "agent": "h2",
+            "follow": 2,
+            "memberLabel": "배우자",
+            "memberPreferences": null,
+            "day": 1,
+            "minute": 1037.6,
+            "kind": "park_or_home",
+            "options": [
+              {
+                "key": "park",
+                "label": "송파근린공원",
+                "minutes": 5.7,
+                "distance_m": 442.49,
+                "poi_id": "w418335464"
+              },
+              {
+                "key": "home",
+                "label": "집",
+                "minutes": 0,
+                "distance_m": 0
+              }
+            ],
+            "default_key": "home",
+            "default_label": "집",
+            "chosen_label": "송파근린공원",
+            "chosen_minutes": 5.7,
+            "chosen_distance_m": 442.49,
+            "chosen_legs": [
+              {
+                "key": "park",
+                "label": "송파근린공원",
+                "minutes": 5.7,
+                "distance_m": 442.49,
+                "poi_id": "w418335464"
+              }
+            ],
+            "isDefaultChange": true,
+            "chosen_key": "park",
+            "chosen_by": "model",
+            "reason_ko": "퇴근 후 주간 산책 루틴을 위한 저녁 산책",
+            "reason_en": "Evening walk fits weekly routine after work",
+            "provider": "meta",
+            "model": "muse-spark-1.3"
+          }
+        ]
+      },
+      {
+        "label": "B",
+        "items": [
+          {
+            "id": "h4:d0:0945:park_or_home:00",
+            "agent": "h4",
+            "follow": 4,
+            "memberLabel": "아이 2",
+            "memberPreferences": null,
+            "day": 0,
+            "minute": 945,
+            "kind": "park_or_home",
+            "options": [
+              {
+                "key": "park",
+                "label": "역삼까치공원",
+                "minutes": 3.9,
+                "distance_m": 258.39,
+                "poi_id": "w805119749"
+              },
+              {
+                "key": "home",
+                "label": "집",
+                "minutes": 0,
+                "distance_m": 0
+              }
+            ],
+            "default_key": "home",
+            "default_label": "집",
+            "chosen_label": "역삼까치공원",
+            "chosen_minutes": 3.9,
+            "chosen_distance_m": 258.39,
+            "chosen_legs": [
+              {
+                "key": "park",
+                "label": "역삼까치공원",
+                "minutes": 3.9,
+                "distance_m": 258.39,
+                "poi_id": "w805119749"
+              }
+            ],
+            "isDefaultChange": true,
+            "chosen_key": "park",
+            "chosen_by": "model",
+            "reason_ko": "방과 후 주간 산책으로 공원에서 가볍게 걷고 싶어",
+            "reason_en": "Just home from school and wants weekly park stroll to unwind",
+            "provider": "meta",
+            "model": "muse-spark-1.3"
+          },
+          {
+            "id": "h1:d0:1048:park_or_home:01",
+            "agent": "h1",
+            "follow": 1,
+            "memberLabel": "나",
+            "memberPreferences": null,
+            "day": 0,
+            "minute": 1048,
+            "kind": "park_or_home",
+            "options": [
+              {
+                "key": "park",
+                "label": "역삼까치공원",
+                "minutes": 3.3,
+                "distance_m": 258.39,
+                "poi_id": "w805119749"
+              },
+              {
+                "key": "home",
+                "label": "집",
+                "minutes": 0,
+                "distance_m": 0
+              }
+            ],
+            "default_key": "home",
+            "default_label": "집",
+            "chosen_label": "역삼까치공원",
+            "chosen_minutes": 3.3,
+            "chosen_distance_m": 258.39,
+            "chosen_legs": [
+              {
+                "key": "park",
+                "label": "역삼까치공원",
+                "minutes": 3.3,
+                "distance_m": 258.39,
+                "poi_id": "w805119749"
+              }
+            ],
+            "isDefaultChange": true,
+            "chosen_key": "park",
+            "chosen_by": "model",
+            "reason_ko": "주간 산책 루틴 위해 258 m 공원 산책 선호",
+            "reason_en": "Take weekly park walk after work, 258 m away",
+            "provider": "meta",
+            "model": "muse-spark-1.3"
+          },
+          {
+            "id": "h3:d1:0923:park_or_home:00",
+            "agent": "h3",
+            "follow": 3,
+            "memberLabel": "아이 1",
+            "memberPreferences": null,
+            "day": 1,
+            "minute": 923,
+            "kind": "park_or_home",
+            "options": [
+              {
+                "key": "park",
+                "label": "역삼까치공원",
+                "minutes": 3.9,
+                "distance_m": 258.39,
+                "poi_id": "w805119749"
+              },
+              {
+                "key": "home",
+                "label": "집",
+                "minutes": 0,
+                "distance_m": 0
+              }
+            ],
+            "default_key": "home",
+            "default_label": "집",
+            "chosen_label": "역삼까치공원",
+            "chosen_minutes": 3.9,
+            "chosen_distance_m": 258.39,
+            "chosen_legs": [
+              {
+                "key": "park",
+                "label": "역삼까치공원",
+                "minutes": 3.9,
+                "distance_m": 258.39,
+                "poi_id": "w805119749"
+              }
+            ],
+            "isDefaultChange": true,
+            "chosen_key": "park",
+            "chosen_by": "model",
+            "reason_ko": "방과 후 주간 산책 루틴에 맞아 공원 선택",
+            "reason_en": "Fits after-school weekly walk routine after classes",
+            "provider": "meta",
+            "model": "muse-spark-1.3"
+          },
+          {
+            "id": "h2:d2:1178:park_or_home:03",
+            "agent": "h2",
+            "follow": 2,
+            "memberLabel": "배우자",
+            "memberPreferences": null,
+            "day": 2,
+            "minute": 1178,
+            "kind": "park_or_home",
+            "options": [
+              {
+                "key": "park",
+                "label": "역삼까치공원",
+                "minutes": 3.3,
+                "distance_m": 258.39,
+                "poi_id": "w805119749"
+              },
+              {
+                "key": "home",
+                "label": "집",
+                "minutes": 0,
+                "distance_m": 0
+              }
+            ],
+            "default_key": "home",
+            "default_label": "집",
+            "chosen_label": "역삼까치공원",
+            "chosen_minutes": 3.3,
+            "chosen_distance_m": 258.39,
+            "chosen_legs": [
+              {
+                "key": "park",
+                "label": "역삼까치공원",
+                "minutes": 3.3,
+                "distance_m": 258.39,
+                "poi_id": "w805119749"
+              }
+            ],
+            "isDefaultChange": true,
+            "chosen_key": "park",
+            "chosen_by": "model",
+            "reason_ko": "퇴근 후 주간 공원 산책 루틴에 맞는 선택",
+            "reason_en": "Fits weekly park walk routine after work and errands.",
+            "provider": "meta",
+            "model": "muse-spark-1.3"
+          }
+        ]
+      }
+    ],
+    "plan_summary": {
+      "A": {
+        "first_7_days": {
+          "trips": 58,
+          "travel_minutes": 269.20000000000016,
+          "travel_minutes_partial": false,
+          "commute_minutes": 185.5,
+          "commute_minutes_partial": false,
+          "by_member": {
+            "m1": {
+              "trips": 18,
+              "travel_minutes": 62.5,
+              "travel_minutes_partial": false,
+              "commute_minutes": 51.00000000000001,
+              "commute_minutes_partial": false
+            },
+            "m2": {
+              "trips": 22,
+              "travel_minutes": 69.2,
+              "travel_minutes_partial": false,
+              "commute_minutes": 51.00000000000001,
+              "commute_minutes_partial": false
+            },
+            "m3": {
+              "trips": 14,
+              "travel_minutes": 110.50000000000001,
+              "travel_minutes_partial": false,
+              "commute_minutes": 83.5,
+              "commute_minutes_partial": false
+            },
+            "m4": {
+              "trips": 4,
+              "travel_minutes": 27,
+              "travel_minutes_partial": false,
+              "commute_minutes": 0,
+              "commute_minutes_partial": false
+            }
+          },
+          "by_purpose": {
+            "commute": {
+              "trips": 20,
+              "travel_minutes": 66.00000000000001,
+              "travel_minutes_partial": false
+            },
+            "park": {
+              "trips": 16,
+              "travel_minutes": 99.60000000000001,
+              "travel_minutes_partial": false
+            },
+            "errand": {
+              "trips": 12,
+              "travel_minutes": 20.099999999999998,
+              "travel_minutes_partial": false
+            },
+            "school": {
+              "trips": 10,
+              "travel_minutes": 83.50000000000001,
+              "travel_minutes_partial": false
+            }
+          }
+        },
+        "full_period": {
+          "trips": 238,
+          "travel_minutes": 1045.0999999999976,
+          "travel_minutes_partial": false,
+          "commute_minutes": 816.1999999999996,
+          "commute_minutes_partial": false,
+          "by_member": {
+            "m1": {
+              "trips": 78,
+              "travel_minutes": 248.1,
+              "travel_minutes_partial": false,
+              "commute_minutes": 224.39999999999984,
+              "commute_minutes_partial": false
+            },
+            "m2": {
+              "trips": 98,
+              "travel_minutes": 308.09999999999985,
+              "travel_minutes_partial": false,
+              "commute_minutes": 224.39999999999984,
+              "commute_minutes_partial": false
+            },
+            "m3": {
+              "trips": 50,
+              "travel_minutes": 407.90000000000003,
+              "travel_minutes_partial": false,
+              "commute_minutes": 367.39999999999986,
+              "commute_minutes_partial": false
+            },
+            "m4": {
+              "trips": 12,
+              "travel_minutes": 81,
+              "travel_minutes_partial": false,
+              "commute_minutes": 0,
+              "commute_minutes_partial": false
+            }
+          },
+          "by_purpose": {
+            "commute": {
+              "trips": 88,
+              "travel_minutes": 290.3999999999998,
+              "travel_minutes_partial": false
+            },
+            "park": {
+              "trips": 48,
+              "travel_minutes": 292.5,
+              "travel_minutes_partial": false
+            },
+            "errand": {
+              "trips": 58,
+              "travel_minutes": 94.79999999999998,
+              "travel_minutes_partial": false
+            },
+            "school": {
+              "trips": 44,
+              "travel_minutes": 367.40000000000003,
+              "travel_minutes_partial": false
+            }
+          }
+        },
+        "day_coverage": {
+          "observed_days": 30,
+          "active_trip_days": 29,
+          "total_days": 30,
+          "coverage_source": "daily"
+        },
+        "missing": {
+          "members_without_trips": [],
+          "unavailable_records": 22,
+          "unavailable_days": 22,
+          "legs_missing_minutes": 0
+        },
+        "evidence": {
+          "trip_ids": [
+            "t000001",
+            "t000002",
+            "t000003",
+            "t000004",
+            "t000005",
+            "t000006",
+            "t000007",
+            "t000008",
+            "t000009",
+            "t000010",
+            "t000011",
+            "t000012",
+            "t000013",
+            "t000014",
+            "t000015",
+            "t000016",
+            "t000017",
+            "t000018",
+            "t000019",
+            "t000020",
+            "t000021",
+            "t000022",
+            "t000023",
+            "t000024",
+            "t000025",
+            "t000026",
+            "t000027",
+            "t000028",
+            "t000029",
+            "t000030",
+            "t000031",
+            "t000032",
+            "t000033",
+            "t000034",
+            "t000035",
+            "t000036",
+            "t000037",
+            "t000038",
+            "t000039",
+            "t000040",
+            "t000041",
+            "t000042",
+            "t000043",
+            "t000044",
+            "t000045",
+            "t000046",
+            "t000047",
+            "t000048",
+            "t000049",
+            "t000050",
+            "t000051",
+            "t000052",
+            "t000053",
+            "t000054",
+            "t000055",
+            "t000056",
+            "t000057",
+            "t000058",
+            "t000059",
+            "t000060",
+            "t000061",
+            "t000062",
+            "t000063",
+            "t000064",
+            "t000065",
+            "t000066",
+            "t000067",
+            "t000068",
+            "t000069",
+            "t000070",
+            "t000071",
+            "t000072",
+            "t000073",
+            "t000074",
+            "t000075",
+            "t000076",
+            "t000077",
+            "t000078",
+            "t000079",
+            "t000080",
+            "t000081",
+            "t000082",
+            "t000083",
+            "t000084",
+            "t000085",
+            "t000086",
+            "t000087",
+            "t000088",
+            "t000089",
+            "t000090",
+            "t000091",
+            "t000092",
+            "t000093",
+            "t000094",
+            "t000095",
+            "t000096",
+            "t000097",
+            "t000098",
+            "t000099",
+            "t000100",
+            "t000101",
+            "t000102",
+            "t000103",
+            "t000104",
+            "t000105",
+            "t000106",
+            "t000107",
+            "t000108",
+            "t000109",
+            "t000110",
+            "t000111",
+            "t000112",
+            "t000113",
+            "t000114",
+            "t000115",
+            "t000116",
+            "t000117",
+            "t000118",
+            "t000119",
+            "t000120",
+            "t000121",
+            "t000122",
+            "t000123",
+            "t000124",
+            "t000125",
+            "t000126",
+            "t000127",
+            "t000128",
+            "t000129",
+            "t000130",
+            "t000131",
+            "t000132",
+            "t000133",
+            "t000134",
+            "t000135",
+            "t000136",
+            "t000137",
+            "t000138",
+            "t000139",
+            "t000140",
+            "t000141",
+            "t000142",
+            "t000143",
+            "t000144",
+            "t000145",
+            "t000146",
+            "t000147",
+            "t000148",
+            "t000149",
+            "t000150",
+            "t000151",
+            "t000152",
+            "t000153",
+            "t000154",
+            "t000155",
+            "t000156",
+            "t000157",
+            "t000158",
+            "t000159",
+            "t000160",
+            "t000161",
+            "t000162",
+            "t000163",
+            "t000164",
+            "t000165",
+            "t000166",
+            "t000167",
+            "t000168",
+            "t000169",
+            "t000170",
+            "t000171",
+            "t000172",
+            "t000173",
+            "t000174",
+            "t000175",
+            "t000176",
+            "t000177",
+            "t000178",
+            "t000179",
+            "t000180",
+            "t000181",
+            "t000182",
+            "t000183",
+            "t000184",
+            "t000185",
+            "t000186",
+            "t000187",
+            "t000188",
+            "t000189",
+            "t000190",
+            "t000191",
+            "t000192",
+            "t000193",
+            "t000194",
+            "t000195",
+            "t000196",
+            "t000197",
+            "t000198",
+            "t000199",
+            "t000200"
+          ],
+          "trip_ids_truncated": true
+        }
+      },
+      "B": {
+        "first_7_days": {
+          "trips": 66,
+          "travel_minutes": 403.4999999999999,
+          "travel_minutes_partial": false,
+          "commute_minutes": 477.5,
+          "commute_minutes_partial": false,
+          "by_member": {
+            "m1": {
+              "trips": 16,
+              "travel_minutes": 70.59999999999998,
+              "travel_minutes_partial": false,
+              "commute_minutes": 134,
+              "commute_minutes_partial": false
+            },
+            "m2": {
+              "trips": 22,
+              "travel_minutes": 92.2,
+              "travel_minutes_partial": false,
+              "commute_minutes": 134,
+              "commute_minutes_partial": false
+            },
+            "m3": {
+              "trips": 14,
+              "travel_minutes": 96.59999999999997,
+              "travel_minutes_partial": false,
+              "commute_minutes": 81,
+              "commute_minutes_partial": false
+            },
+            "m4": {
+              "trips": 14,
+              "travel_minutes": 144.10000000000002,
+              "travel_minutes_partial": false,
+              "commute_minutes": 128.5,
+              "commute_minutes_partial": false
+            }
+          },
+          "by_purpose": {
+            "commute": {
+              "trips": 20,
+              "travel_minutes": 98.00000000000003,
+              "travel_minutes_partial": false
+            },
+            "park": {
+              "trips": 14,
+              "travel_minutes": 50.99999999999999,
+              "travel_minutes_partial": false
+            },
+            "errand": {
+              "trips": 12,
+              "travel_minutes": 45,
+              "travel_minutes_partial": false
+            },
+            "school": {
+              "trips": 20,
+              "travel_minutes": 209.50000000000006,
+              "travel_minutes_partial": false
+            }
+          }
+        },
+        "full_period": {
+          "trips": 292,
+          "travel_minutes": 1777.8000000000015,
+          "travel_minutes_partial": false,
+          "commute_minutes": 2101,
+          "commute_minutes_partial": false,
+          "by_member": {
+            "m1": {
+              "trips": 82,
+              "travel_minutes": 351.7999999999999,
+              "travel_minutes_partial": false,
+              "commute_minutes": 589.6,
+              "commute_minutes_partial": false
+            },
+            "m2": {
+              "trips": 94,
+              "travel_minutes": 394.9999999999999,
+              "travel_minutes_partial": false,
+              "commute_minutes": 589.6,
+              "commute_minutes_partial": false
+            },
+            "m3": {
+              "trips": 48,
+              "travel_minutes": 372.00000000000017,
+              "travel_minutes_partial": false,
+              "commute_minutes": 356.39999999999986,
+              "commute_minutes_partial": false
+            },
+            "m4": {
+              "trips": 68,
+              "travel_minutes": 658.9999999999993,
+              "travel_minutes_partial": false,
+              "commute_minutes": 565.4,
+              "commute_minutes_partial": false
+            }
+          },
+          "by_purpose": {
+            "commute": {
+              "trips": 88,
+              "travel_minutes": 431.1999999999994,
+              "travel_minutes_partial": false
+            },
+            "park": {
+              "trips": 60,
+              "travel_minutes": 214.8000000000001,
+              "travel_minutes_partial": false
+            },
+            "errand": {
+              "trips": 56,
+              "travel_minutes": 210,
+              "travel_minutes_partial": false
+            },
+            "school": {
+              "trips": 88,
+              "travel_minutes": 921.799999999999,
+              "travel_minutes_partial": false
+            }
+          }
+        },
+        "day_coverage": {
+          "observed_days": 30,
+          "active_trip_days": 28,
+          "total_days": 30,
+          "coverage_source": "daily"
+        },
+        "missing": {
+          "members_without_trips": [],
+          "unavailable_records": 0,
+          "unavailable_days": 0,
+          "legs_missing_minutes": 0
+        },
+        "evidence": {
+          "trip_ids": [
+            "t000001",
+            "t000002",
+            "t000003",
+            "t000004",
+            "t000005",
+            "t000006",
+            "t000007",
+            "t000008",
+            "t000009",
+            "t000010",
+            "t000011",
+            "t000012",
+            "t000013",
+            "t000014",
+            "t000015",
+            "t000016",
+            "t000017",
+            "t000018",
+            "t000019",
+            "t000020",
+            "t000021",
+            "t000022",
+            "t000023",
+            "t000024",
+            "t000025",
+            "t000026",
+            "t000027",
+            "t000028",
+            "t000029",
+            "t000030",
+            "t000031",
+            "t000032",
+            "t000033",
+            "t000034",
+            "t000035",
+            "t000036",
+            "t000037",
+            "t000038",
+            "t000039",
+            "t000040",
+            "t000041",
+            "t000042",
+            "t000043",
+            "t000044",
+            "t000045",
+            "t000046",
+            "t000047",
+            "t000048",
+            "t000049",
+            "t000050",
+            "t000051",
+            "t000052",
+            "t000053",
+            "t000054",
+            "t000055",
+            "t000056",
+            "t000057",
+            "t000058",
+            "t000059",
+            "t000060",
+            "t000061",
+            "t000062",
+            "t000063",
+            "t000064",
+            "t000065",
+            "t000066",
+            "t000067",
+            "t000068",
+            "t000069",
+            "t000070",
+            "t000071",
+            "t000072",
+            "t000073",
+            "t000074",
+            "t000075",
+            "t000076",
+            "t000077",
+            "t000078",
+            "t000079",
+            "t000080",
+            "t000081",
+            "t000082",
+            "t000083",
+            "t000084",
+            "t000085",
+            "t000086",
+            "t000087",
+            "t000088",
+            "t000089",
+            "t000090",
+            "t000091",
+            "t000092",
+            "t000093",
+            "t000094",
+            "t000095",
+            "t000096",
+            "t000097",
+            "t000098",
+            "t000099",
+            "t000100",
+            "t000101",
+            "t000102",
+            "t000103",
+            "t000104",
+            "t000105",
+            "t000106",
+            "t000107",
+            "t000108",
+            "t000109",
+            "t000110",
+            "t000111",
+            "t000112",
+            "t000113",
+            "t000114",
+            "t000115",
+            "t000116",
+            "t000117",
+            "t000118",
+            "t000119",
+            "t000120",
+            "t000121",
+            "t000122",
+            "t000123",
+            "t000124",
+            "t000125",
+            "t000126",
+            "t000127",
+            "t000128",
+            "t000129",
+            "t000130",
+            "t000131",
+            "t000132",
+            "t000133",
+            "t000134",
+            "t000135",
+            "t000136",
+            "t000137",
+            "t000138",
+            "t000139",
+            "t000140",
+            "t000141",
+            "t000142",
+            "t000143",
+            "t000144",
+            "t000145",
+            "t000146",
+            "t000147",
+            "t000148",
+            "t000149",
+            "t000150",
+            "t000151",
+            "t000152",
+            "t000153",
+            "t000154",
+            "t000155",
+            "t000156",
+            "t000157",
+            "t000158",
+            "t000159",
+            "t000160",
+            "t000161",
+            "t000162",
+            "t000163",
+            "t000164",
+            "t000165",
+            "t000166",
+            "t000167",
+            "t000168",
+            "t000169",
+            "t000170",
+            "t000171",
+            "t000172",
+            "t000173",
+            "t000174",
+            "t000175",
+            "t000176",
+            "t000177",
+            "t000178",
+            "t000179",
+            "t000180",
+            "t000181",
+            "t000182",
+            "t000183",
+            "t000184",
+            "t000185",
+            "t000186",
+            "t000187",
+            "t000188",
+            "t000189",
+            "t000190",
+            "t000191",
+            "t000192",
+            "t000193",
+            "t000194",
+            "t000195",
+            "t000196",
+            "t000197",
+            "t000198",
+            "t000199",
+            "t000200"
+          ],
+          "trip_ids_truncated": true
+        }
+      }
+    },
+    "assumptions": {
+      "transit_fare_won": 1500,
+      "basket_won": 30000,
+      "maintenance_won_month": 150000,
+      "other_fixed_won_month": 0,
+      "pay_day_of_month": 25,
+      "fixed_due_day_1based": 1,
+      "loan_rate_pct": 4,
+      "loan_years": 30,
+      "jeonse_loan_cap_won": 500000000
+    },
+    "record_sha256": "039c593dc7fc4484f37227c6168b55e0bf106fc8323fac0c8e7fd3ec6c6284ae",
+    "record_file": "ithaca-family-record.json"
+  },
+  "limits": [
+    "The principal video follows one actual saved couple run. The family is a separate illustrative household and run.",
+    "Inputs are hypothetical household conditions, not the founder’s actual finances.",
+    "Historical transaction references and area bands are not asking prices, available listings or exact unit sizes.",
+    "Workplaces near named stations, default schedules, loan terms and maintenance are reviewed simulation assumptions.",
+    "School routes use mapped POIs matched to stated levels, not assigned schools or catchment eligibility.",
+    "A 30-day window repeats routines under assumptions; it does not validate real-world predictive accuracy.",
+    "Model choices retain their actual provenance, allowed options and explanations. Fixed schedules and background residents are computed by code.",
+    "Report outcomes describe supported internal checks; missing or failed checks remain visible. They are not safety or fraud-prevention verdicts.",
+    "Waiting and saved 3D playback are edited for pacing. Presentation narration is separate TTS, not product Muse Voice output.",
+    "Excluded preflight recordings are not used for the final input, results, choices or verification."
+  ]
+}

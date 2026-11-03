@@ -2,7 +2,9 @@
 
 [← README](../README.md) · [한국어](verification.ko.md)
 
-The agent's work is checked by code before the customer sees it.
+The report combines deterministic numerical checks with a separate Muse evidence check. A passing result means supported statements agree with the saved simulation record; it does not establish real-world accuracy.
+
+**Current failure behavior (3 November):** a missing judge, a failed call, or a malformed verdict produces `unverified`. Required semantic checks cannot silently pass. The timeline exposes that incomplete outcome and offers a retry. Unsupported checklist items remain outside the verdict. The dated runs below are historical examples, not the current demo record.
 
 ```mermaid
 flowchart TD
@@ -25,6 +27,7 @@ flowchart TD
   N --> R{"0 failures · must 100%<br/>weighted coverage ≥ 80%<br/>in both homes?"}
   E --> R
   J --> R
+  J -- "missing, error or malformed verdict" --> UV["unverified · retry required"]
   R -- yes --> OK["통과"]
   R -- "no, tries left" --> FB["feedback_ko<br/>one line per failed sentence"]
   FB --> RW["Muse rewrites only the flagged sentences<br/>and calls submit_report again"]
@@ -39,7 +42,7 @@ flowchart TD
 - **Pass rule.** Zero failures, every *must* item covered, and weighted coverage ≥ 80 % (*must* weighs 3, *should* 1), in both homes. A failed report goes back to Muse with one line per failed sentence, up to 3 times. Then the customer gets the open question in the chat with **확인했어요** and **다시 검증하기**.
 - **Shown while it happens.** Each try streams to the chat as it finishes: `1차 반려 (88%) → 2차 반려 (88%) → 3차 반려 (88%) → 4차 통과 (100%)`, with the reason under every rejection (for example, the judge refused "걸어서" because the cited record has no travel mode, and a departure time that did not match the record). Each sentence carries its tag: 숫자 확인, 근거 n개 or 확인 필요.
 - **Says only what it did.** If a reply says the 30-day run has started but the agent never called the tool that starts it, the claim is caught and the run is started for real, so the words and the screen agree.
-- **Honest gaps.** An item the engine cannot back yet (noise, daylight, storage, defects, the morning rush) is shown as 미지원 and never counted as a pass. Newlywed couples, families with a young child and single first-jobbers get the checked comparison. For remote workers, three-generation families and dog owners the result opens with a 미지원 label and no model call is made for the report.
+- **Honest gaps.** An item the engine cannot back yet (noise, daylight, storage, defects, the morning rush) is shown as 미지원 and never counted as a pass. For a confirmed life plan, checklists compose from actual household conditions and observation codes. Remote work, children, older members and pets can coexist; supported checks remain and missing engine evidence stays unsupported.
 - **Field study** *(coming soon)*. Compare the simulator's findings with the real homes and real regrets of 10–20 residents and report the match rate.
 
 Status: built and on screen (stages 16a–16b for the scorer and claim checks, 29j1–29k3 for `submit_report`, the Muse judge, the two-home loop and the on-screen timeline). Live runs on 2026-11-01, Seoul newlywed couple, real Muse Spark 1.3: the first run took four tries, and its rejection reasons exposed three of our own bugs (member ids the engine did not know, a number-free sentence counted as covered, walking records sent to the judge without their mode). After stage 29k the same household passes on the first try at 100 %, every sentence carrying an engine-checked number or a cited record.
