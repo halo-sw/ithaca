@@ -1,14 +1,14 @@
 {
   "what": "Two real calls to muse-image-1.0 made through Ithaca's own handler (web/src/consult/diary-image.js createDiaryImageHandler) with a recording fetchImpl. The Authorization header is replaced with [REDACTED] and each returned image's base64 with its size and SHA-256; nothing else is edited.",
-  "captured_at": "2026-11-03T14:16:48.536Z",
+  "captured_at": "2026-11-03T14:22:21.189Z",
   "provider": "meta",
   "base_url": "https://api.meta.ai/v1",
   "model": "muse-image-1.0",
   "browser_sends": "Only { kind, minute, region }. The handler builds the prompt from a fixed scene list; no diary text or customer text is sent.",
   "calls": [
     {
-      "sent_at": "2026-11-03T14:16:48.536Z",
-      "latency_ms": 16809,
+      "sent_at": "2026-11-03T14:22:21.189Z",
+      "latency_ms": 20991,
       "request": {
         "method": "POST",
         "url": "https://api.meta.ai/v1/images/generations",
@@ -18,7 +18,7 @@
         },
         "body": {
           "model": "muse-image-1.0",
-          "prompt": "Flat editorial illustration, soft muted colours, no text, no logos, no real addresses, no identifiable people: a figure seen from behind walking to a subway entrance on a Korean apartment-district street, soft morning light",
+          "prompt": "Flat editorial illustration, soft muted colours, no text, no logos, no real addresses, no identifiable people: a figure seen from behind on the way to work along a Korean apartment-district street, soft morning light",
           "n": 1,
           "size": "1024x1024"
         }
@@ -26,25 +26,25 @@
       "response": {
         "status": 200,
         "body": {
-          "created": 1793715423,
+          "created": 1793715761,
           "data": [
             {
-              "b64_json": "[313412 bytes of webp, sha256 1747cb0ec5cae3c6e4b6d22a3108d937a48ddd6f81f2b6c2cbc4570a38d043a9]"
+              "b64_json": "[159932 bytes of webp, sha256 d0f2d43b734ab162d322fe3671abaed09fa4315449ac0477e11a727e6b32ea48]"
             }
           ],
           "output_format": "webp",
           "background": "opaque",
           "usage": {
-            "input_tokens": 10469,
-            "output_tokens": 1311,
-            "total_tokens": 11780
+            "input_tokens": 18751,
+            "output_tokens": 2147,
+            "total_tokens": 20898
           }
         }
       }
     },
     {
-      "sent_at": "2026-11-03T14:17:05.349Z",
-      "latency_ms": 13830,
+      "sent_at": "2026-11-03T14:22:42.187Z",
+      "latency_ms": 9869,
       "request": {
         "method": "POST",
         "url": "https://api.meta.ai/v1/images/generations",
@@ -62,18 +62,18 @@
       "response": {
         "status": 200,
         "body": {
-          "created": 1793715437,
+          "created": 1793715770,
           "data": [
             {
-              "b64_json": "[449356 bytes of webp, sha256 c307995464d28de5acb36c1cab2f532562667fe3d65bfabd178fda87d5b712a7]"
+              "b64_json": "[434082 bytes of webp, sha256 909bd76de884f80e347caa29b8b3913f1b52fb22414fdd5d60ccdaae613e47b8]"
             }
           ],
           "output_format": "webp",
           "background": "opaque",
           "usage": {
-            "input_tokens": 10234,
-            "output_tokens": 1132,
-            "total_tokens": 11366
+            "input_tokens": 10168,
+            "output_tokens": 1005,
+            "total_tokens": 11173
           }
         }
       }

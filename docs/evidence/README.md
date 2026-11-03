@@ -36,7 +36,7 @@ These files are unedited request/response pairs from real calls to Meta models, 
 
 | File | Model | Endpoint | Calls | Captured (UTC) |
 |---|---|---|---|---|
-| [`muse-image-2026-11-03.json`](muse-image-2026-11-03.json) | `muse-image-1.0` | `https://api.meta.ai/v1/images/generations` | 2, both HTTP 200 | 2026-11-03 14:16–14:17 |
+| [`muse-image-2026-11-03.json`](muse-image-2026-11-03.json) | `muse-image-1.0` | `https://api.meta.ai/v1/images/generations` | 2, both HTTP 200 | 2026-11-03 14:22:21 – 14:22:42 |
 
 - **The path.** Both calls went through Ithaca's own handler, `createDiaryImageHandler` in [`web/src/consult/diary-image.js`](../../web/src/consult/diary-image.js), with a recording `fetchImpl`.
 - **What the browser sends.** Only `{ kind, minute, region }`. The handler builds the prompt from a fixed scene list, so no diary or customer text reaches the model.
