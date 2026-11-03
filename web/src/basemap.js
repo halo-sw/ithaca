@@ -127,6 +127,110 @@ export function basemapUnderlayTiles({ toLonLat, W, H, z, provider = "vworld", m
   return out;
 }
 
+// 50a: load state for the CURRENT visible tiles, keyed by FULL
+// provider URL. Pending (absent) is not success; errors from another
+// view/provider never match fresh URLs, so they cannot disable them.
+export const BASEMAP_TILE_TIMEOUT_MS = 12000;
+export const BASEMAP_TILE_STATE_LIMIT = 240;
+
+// Full provider URLs for a visible tile list (normal or underlay).
+export function basemapTileUrlsFor(apiBase, tiles, provider) {
+  return (tiles || []).map((t) =>
+    basemapTileUrl(apiBase, t.z, t.y, t.x, { provider }));
+}
+
+// Aggregate load status over one render's visible URLs only.
+// stateByUrl maps full URL -> "loaded" | "error"; absent means pending.
+export function basemapLoadStatus(urls, stateByUrl) {
+  const list = urls || [];
+  const state = stateByUrl || {};
+  let loaded = 0;
+  let errors = 0;
+  for (const u of list) {
+    if (state[u] === "loaded") loaded += 1;
+    else if (state[u] === "error") errors += 1;
+  }
+  const pending = list.length - loaded - errors;
+  let status = "idle";
+  if (list.length === 0) status = "idle";
+  else if (loaded === list.length) status = "loaded";
+  else if (errors > 0 && loaded > 0) status = "partial";
+  else if (errors > 0 && pending > 0) status = "loading";
+  else if (errors > 0) status = "unavailable";
+  else status = "loading";
+  return { total: list.length, loaded, errors, pending, status };
+}
+
+// Failed URLs among the CURRENT visible list only — what Retry
+// re-requests. Successful tiles are never included.
+export function basemapFailedUrls(urls, stateByUrl) {
+  const state = stateByUrl || {};
+  return (urls || []).filter((u) => state[u] === "error");
+}
+
+// 50b: per-URL attempt identity — an image's late onLoad/onError
+// applies only when the attempt captured in its closure still matches
+// the URL's current remount nonce. A sibling URL's retry changes only
+// its own nonce, so this URL's still-current success stays accepted.
+// A URL with no nonce entry is on its first attempt (id 0).
+export function isBasemapTileAttemptCurrent(nonceByUrl, url, attempt) {
+  const m = nonceByUrl || {};
+  const cur = Object.prototype.hasOwnProperty.call(m, url) ? m[url] : 0;
+  return attempt === cur;
+}
+
+// Idempotent event application: same value returns the same object
+// reference (no setState loop). expectedGen/currentGen drop late
+// events from a previous retry/view when both are provided.
+export function applyBasemapTileEvent(stateByUrl, url, next, expectedGen, currentGen) {
+  if (expectedGen !== undefined && currentGen !== undefined
+    && expectedGen !== currentGen) return stateByUrl;
+  if (next !== "loaded" && next !== "error") return stateByUrl;
+  const prev = stateByUrl || {};
+  if (prev[url] === next) return prev;
+  return { ...prev, [url]: next };
+}
+
+// Bound retained state: keep every visible URL, then fill up to
+// limit with other entries. Never grows forever during pan.
+export function pruneBasemapTileState(stateByUrl, visibleUrls, limit = BASEMAP_TILE_STATE_LIMIT) {
+  const prev = stateByUrl || {};
+  const keys = Object.keys(prev);
+  const cap = Math.max(0, Number(limit) || 0);
+  if (keys.length <= cap) return prev;
+  const keep = new Set(visibleUrls || []);
+  const out = {};
+  for (const u of keep) {
+    if (Object.prototype.hasOwnProperty.call(prev, u)) out[u] = prev[u];
+  }
+  for (const k of keys) {
+    if (Object.keys(out).length >= cap) break;
+    if (!Object.prototype.hasOwnProperty.call(out, k)) out[k] = prev[k];
+  }
+  return out;
+}
+
+// Retry step: clear failed CURRENT-visible URLs back to pending and
+// bump their remount nonce; successful tiles keep state and nonce.
+// 50b: each bump is strictly increasing per URL (never 0 for a retried
+// URL), so the retired image's captured attempt can never match the
+// fresh one. Retained nonces are bounded exactly like tile state —
+// visible entries are always kept, so a live image's id is never
+// recycled while it can still fire.
+export function nextBasemapRetry(stateByUrl, nonceByUrl, visibleUrls) {
+  const prev = stateByUrl || {};
+  const nonce = nonceByUrl || {};
+  const failed = new Set(basemapFailedUrls(visibleUrls, prev));
+  if (failed.size === 0) return { state: prev, nonce };
+  const state = { ...prev };
+  const next = { ...nonce };
+  for (const u of failed) {
+    delete state[u];
+    next[u] = (Number(next[u]) || 0) + 1;
+  }
+  return { state, nonce: pruneBasemapTileState(next, visibleUrls, BASEMAP_TILE_STATE_LIMIT) };
+}
+
 // Screen-space zoom/pan around (cx, cy): apply maps stage px to
 // screen px, invert maps back.
 export function viewTransform({ zoom, panX, panY, cx, cy }) {

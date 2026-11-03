@@ -130,9 +130,11 @@ describe("31m SSR credit", () => {
     const html = renderToString(React.createElement(ChatMap, { map: testMap() }));
     const btn = html.match(/<button[^>]*aria-expanded="false"[^>]*>.*?<\/button>/s);
     assert.ok(btn, "credit button with aria-expanded=false");
-    assert.ok(btn[0].includes("© VWorld · © OpenStreetMap"), "short text in the button");
-    assert.ok(html.includes("지도 © 국토교통부 공간정보 오픈플랫폼(VWorld) · © OpenStreetMap contributors"),
+    assert.ok(btn[0].includes("© OpenStreetMap"), "short text in the button");
+    assert.ok(!btn[0].includes("VWorld"), "no unearned VWorld in SSR short credit");
+    assert.ok(html.includes("© OpenStreetMap contributors"),
       "desktop full text present");
+    assert.ok(!html.includes("국토교통부 공간정보 오픈플랫폼(VWorld)"), "no unearned VWorld in SSR full credit");
     assert.ok(html.includes("data-no-i18n"), "credit strings skip the DOM translator");
   });
 

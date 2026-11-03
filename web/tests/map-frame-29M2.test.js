@@ -301,10 +301,11 @@ describe("29M2 English station plates over VWorld", () => {
     assert.ok(/Stn<\/text>/.test(html), "English station plate text");
   }));
 
-  it("Korean keeps dots only over the VWorld basemap", () => withLang("ko", () => {
+  it("Korean SSR keeps nearby names while workplace pill names work", () => withLang("ko", () => {
     const html = renderToString(React.createElement(ChatMap, { map: stationMap() }));
     assert.ok(!/Stn<\/text>/.test(html), "no English plates in Korean");
-    assert.ok(!/>선릉역<\/text>/.test(html), "no Korean plates over VWorld");
+    assert.ok(/>선릉역<\/text>/.test(html), "SSR pending keeps Korean station labels");
+    assert.ok(/회사 · 판교/.test(html), "workplace pill names work");
   }));
 });
 
