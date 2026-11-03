@@ -94,11 +94,13 @@ describe("33a2 chatmap.jsx source pins", () => {
     assert.ok(src.includes("basemapUnderlayTiles"), "underlay wired");
     const g = src.indexOf('filter="url(#basemap-mute)"');
     assert.ok(g >= 0, "mute group");
-    const u = src.indexOf("underlay.filter", g);
-    const n = src.indexOf("tiles.filter", g);
+    const u = src.indexOf("underlay.map", g);
+    const n = src.indexOf("tiles.map", g);
     assert.ok(u > g && n > u, "underlay first, normal tiles on top");
   });
-  it("keeps basemapOn counting requested tiles", () => {
-    assert.ok(src.includes("failCount * 2 < tiles.length"), "basemapOn unchanged");
+  it("keeps basemapOn from current loaded tiles including underlay", () => {
+    assert.ok(src.includes("basemapOn"), "basemapOn present");
+    assert.ok(src.includes("underlay"), "underlay counts toward basemapOn");
+    assert.ok(!src.includes("failCount * 2 < tiles.length"), "no lifetime failure-count gate");
   });
 });

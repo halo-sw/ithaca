@@ -370,7 +370,7 @@ export function commutePathFor(network, boardStation, workStation) {
   return { legs, transfers: path.transfers || [] };
 }
 
-export function buildChatMap({ regions, network, tiles, green, candidates, picks, workplaceStation, workPlace, tenure }) {
+export function buildChatMap({ regions, network, tiles, green, ground, candidates, picks, workplaceStation, workPlace, tenure }) {
   const regionList = (regions && regions.regions) || regions || [];
   const regionBoxes = (Array.isArray(regionList) ? regionList : []).map((r) => ({
     id: r.id, label: r.label || r.id, bbox: r.bbox || null,
@@ -494,6 +494,7 @@ export function buildChatMap({ regions, network, tiles, green, candidates, picks
     tileWater,
     roads,
     green: { water: (green && green.water) || [], parks: (green && green.parks) || [] },
+    ground: ground || null,
     tenure: tenure || null,
   };
 }
