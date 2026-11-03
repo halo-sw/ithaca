@@ -4,6 +4,7 @@ const SAM_MODEL = "sam-3.1";
 const SAM_URL = META_API_BASE + "/responses";
 const PHOTO_MAX_BYTES = 4_000_000;
 const WINDOW_MIN_SCORE = 0.5;
+export const WINDOW_MIN_FRAC = 0.005;
 
 function parseSamBoxes(text) {
   const out = [];
@@ -56,7 +57,29 @@ function windowsSummary(boxes, minScore = WINDOW_MIN_SCORE) {
   }
   const frame = { w: boxes[0].frameW, h: boxes[0].frameH };
   const area = frame.w * frame.h;
-  const kept = boxes.filter((b) => b.score === null || b.score >= minScore);
+  const scored = boxes.filter((b) => b.score === null || b.score >= minScore);
+  const sized = scored.filter((b) => {
+    if (!(area > 0)) return true;
+    const w = b.bbox[2] - b.bbox[0];
+    const h = b.bbox[3] - b.bbox[1];
+    return w > 0 && h > 0 && (w * h) / area >= WINDOW_MIN_FRAC;
+  });
+  const boxArea = (b) => (b.bbox[2] - b.bbox[0]) * (b.bbox[3] - b.bbox[1]);
+  const interArea = (a, b) => {
+    const x0 = Math.max(a.bbox[0], b.bbox[0]);
+    const x1 = Math.min(a.bbox[2], b.bbox[2]);
+    const y0 = Math.max(a.bbox[1], b.bbox[1]);
+    const y1 = Math.min(a.bbox[3], b.bbox[3]);
+    return Math.max(0, x1 - x0) * Math.max(0, y1 - y0);
+  };
+  const nested = [];
+  for (const b of [...sized].sort((p, q) => boxArea(q) - boxArea(p))) {
+    const own = boxArea(b);
+    if (!(own > 0)) continue;
+    if (nested.some((k) => interArea(b, k) / own >= 0.9)) continue;
+    nested.push(b);
+  }
+  const kept = sized.filter((b) => nested.includes(b));
   const windows = kept.map((b) => {
     const w = b.bbox[2] - b.bbox[0];
     const h = b.bbox[3] - b.bbox[1];

@@ -5,7 +5,7 @@
 // check_listing), which owns the RTMS lookups.
 //
 // The app never fetches or scrapes portal sites (their terms forbid it).
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@astryxdesign/core/Button";
 import { Heading } from "@astryxdesign/core/Heading";
 import { HStack } from "@astryxdesign/core/HStack";
@@ -52,6 +52,7 @@ export function PasteCheck({ onAsk } = {}) {
   const [filled, setFilled] = useState({});
   const check = store.getState().listingCheck || null;
   const [photo, setPhoto] = useState(null);
+  const fileRef = useRef(null);
 
   const onPhoto = async (e) => {
     const file = e.target.files && e.target.files[0];
@@ -70,6 +71,8 @@ export function PasteCheck({ onAsk } = {}) {
       }
     } catch {
       setPhoto({ status: "error" });
+    } finally {
+      try { e.target.value = ""; } catch { /* ignore */ }
     }
   };
 
@@ -141,9 +144,9 @@ export function PasteCheck({ onAsk } = {}) {
       </HStack>
       {SAM_PHOTO_ENABLED && (
         <VStack gap={1}>
-          <Text>방 사진 추가 (선택)</Text>
-          <input type="file" accept="image/*" aria-label="방 사진 추가 (선택)" onChange={onPhoto} />
-          <Text type="supporting">사진은 창을 찾는 데만 쓰고 저장하지 않아요.</Text>
+          <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPhoto} />
+          <Button size="sm" variant="secondary" label="방 사진 추가 (선택)" onClick={() => fileRef.current && fileRef.current.click()} />
+          <Text type="supporting">사진은 창을 찾으려고 Meta SAM 3.1에만 보내요. Ithaca는 저장하지 않아요.</Text>
           {photo && photo.status === "reading" && (
             <Text type="supporting">사진에서 창을 찾는 중…</Text>
           )}

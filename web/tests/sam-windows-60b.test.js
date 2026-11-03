@@ -6,6 +6,7 @@ import {
   SAM_MODEL,
   PHOTO_MAX_BYTES,
   WINDOW_MIN_SCORE,
+  WINDOW_MIN_FRAC,
   parseSamBoxes,
   windowsSummary,
   buildSamBody,
@@ -92,6 +93,42 @@ describe("60b1 windowsSummary", () => {
     const s = windowsSummary(parseSamBoxes(MEASURED));
     assert.equal(s.windows.length, 2);
     assert.equal(s.unionFrac, 0.291);
+  });
+});
+
+describe("60b3 windowsSummary filters", () => {
+  it("drops a tiny nested latch, keeps the two windows", () => {
+    assert.equal(WINDOW_MIN_FRAC, 0.005);
+    const boxes = [
+      { id: 0, bbox: [261, 107, 718, 928], frameW: 1600, frameH: 1600, score: 0.922 },
+      { id: 1, bbox: [881, 113, 1343, 916], frameW: 1600, frameH: 1600, score: 0.918 },
+      { id: 2, bbox: [640, 742, 663, 778], frameW: 1600, frameH: 1600, score: 0.515 },
+    ];
+    const s = windowsSummary(boxes);
+    assert.equal(s.windows.length, 2);
+    assert.deepEqual(s.windows.map((w) => w.bbox), [
+      [261, 107, 718, 928],
+      [881, 113, 1343, 916],
+    ]);
+    assert.equal(s.unionFrac, 0.291);
+  });
+
+  it("drops a lone tiny box covering 0.3% of the frame", () => {
+    const boxes = [
+      { id: 0, bbox: [0, 0, 5, 6], frameW: 100, frameH: 100, score: 0.95 },
+    ];
+    const s = windowsSummary(boxes);
+    assert.equal(s.windows.length, 0);
+  });
+
+  it("drops a box 95% inside a bigger kept box", () => {
+    const boxes = [
+      { id: 0, bbox: [0, 0, 50, 50], frameW: 100, frameH: 100, score: 0.95 },
+      { id: 1, bbox: [2, 2, 48, 48], frameW: 100, frameH: 100, score: 0.95 },
+    ];
+    const s = windowsSummary(boxes);
+    assert.equal(s.windows.length, 1);
+    assert.deepEqual(s.windows[0].bbox, [0, 0, 50, 50]);
   });
 });
 

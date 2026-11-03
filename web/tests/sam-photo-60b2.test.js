@@ -82,8 +82,16 @@ describe("listings.jsx source", () => {
     );
     assert.ok(listingsSrc.includes("사진을 읽지 못했어요"));
     assert.ok(
-      listingsSrc.includes("사진은 창을 찾는 데만 쓰고 저장하지 않아요."),
+      listingsSrc.includes("사진은 창을 찾으려고 Meta SAM 3.1에만 보내요. Ithaca는 저장하지 않아요."),
     );
+  });
+  it("photo block uses a hidden input and a button", () => {
+    const start = listingsSrc.indexOf("SAM_PHOTO_ENABLED &&");
+    assert.ok(start >= 0);
+    const block = listingsSrc.slice(start, start + 4000);
+    assert.ok(block.includes("hidden onChange={onPhoto}"));
+    assert.ok(block.includes('label="방 사진 추가 (선택)"'));
+    assert.ok(block.includes("<Button"));
   });
   it("photo block has no 측정", () => {
     const start = listingsSrc.indexOf("SAM_PHOTO_ENABLED &&");
