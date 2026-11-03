@@ -1088,6 +1088,15 @@ body.printing-share #share-print { display: block !important; padding: var(--ui-
   padding: 0; border: none; display: flex; align-items: center;
   justify-content: center; color: var(--ds-ink-1); cursor: pointer; }
 .ui-chatmap-side > button[aria-busy="true"] { opacity: 0.55; }
+/* 50c: Retry carries text, not an icon — auto width with normal
+   horizontal padding, at least the icon-button height. */
+.ui-chatmap-side > button.ui-chatmap-retry { width: auto; min-height: calc(var(--ds-s-32) + var(--ds-s-8));
+  padding: 0 var(--ds-s-12); font-size: var(--ds-t-12); }
+/* 50c: the basemap status fits small phones and wraps instead of
+   clipping; icon buttons above keep their fixed 40 px size. */
+.ui-chatmap-side > .ui-chatmap-basemap-status { font-size: var(--ds-t-12);
+  max-width: min(240px, calc(100vw - var(--ds-s-16) * 2));
+  overflow-wrap: anywhere; text-wrap: wrap; }
 .ui-chatmap-side button svg { width: var(--ds-t-20);
   height: var(--ds-t-20); flex: none; }
 .ui-chatmap-zoom { padding: 0; display: flex; flex-direction: column; }

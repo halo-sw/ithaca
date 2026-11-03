@@ -112,7 +112,7 @@ describe("19g-2 centred price pills", () => {
 });
 
 describe("19g-3 workplace station keeps its dot, loses its label", () => {
-  it("ChatMap names the 회사 pill but not the station", () => {
+  it("SSR pending keeps the 회사 pill and station labels", () => {
     const solo = pin("1", 127.1, 37.4, { picked: true, letter: "A",
       candidate: { ...readyCandidate("1", "집1"),
         commute: { walk: { known: true, station: "야탑", minutes: 3 },
@@ -128,10 +128,9 @@ describe("19g-3 workplace station keeps its dot, loses its label", () => {
       regions: [], tenure: "jeonse" } }));
     assert.ok(html.includes("회사 · 판교"), "work pill still names the station");
     assert.ok(html.includes("<title>판교</title>"), "workplace dot kept");
-    assert.ok(!html.includes(">판교역</text>"), "no station-name label for it");
-    assert.ok(!html.includes(">판교</text>"), "no station-name label for it");
+    assert.ok(/역<\/text>/.test(html), "SSR pending keeps station labels");
     assert.ok(html.includes("<title>야탑</title>"), "picked home stop keeps its dot");
-    assert.ok(!html.includes(">야탑역</text>"), "no own name text over the VWorld basemap");
+    assert.ok(html.includes(">야탑역</text>"), "SSR pending keeps own name text");
   });
 });
 

@@ -14,7 +14,10 @@ import { fitMapView, fitInsetFromChrome, freeAreaOf, layoutMapPills, layoutStati
   tagSizePx, tagLines, tagPriceLine, tagFontPx, clusterSizePx, mapTenuresMixed,
   layoutChatStage, zoomStageFit,
   MAP_COLORS, MAP_FIT_MARGIN, BASEMAP_MUTE } from "../chatmap.js";
+import { projectMapGround, mapGroundAttribution } from "../map-ground.js";
 import { basemapApiBase, basemapTileUrl, basemapTiles, basemapUnderlayTiles, basemapProvider,
+  basemapTileUrlsFor, basemapLoadStatus, basemapFailedUrls, applyBasemapTileEvent,
+  pruneBasemapTileState, nextBasemapRetry, BASEMAP_TILE_TIMEOUT_MS, BASEMAP_TILE_STATE_LIMIT,
   viewTransform, zoomAt } from "../basemap.js";
 import { currentLang } from "../i18n/lang.js";
 import { romanizeName } from "../i18n/romanize.js";
@@ -245,9 +248,44 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
   // client coords — so a pointer-up on the same pin can open its
   // card even when the click event is retargeted elsewhere.
   const downPinRef = useRef(null);
-  // 25a: basemap tiles that failed to load are never rendered again.
-  const failedRef = useRef(new Set());
-  const [failCount, setFailCount] = useState(0);
+  // 50a: per-URL load state for visible tiles only ("loaded" |
+  // "error"; absent means pending). Keyed by FULL provider URL so
+  // errors from another view/provider never disable fresh tiles.
+  // Successful images stay mounted; retry only clears failed URLs.
+  const [tileState, setTileState] = useState({});
+  const [tileNonce, setTileNonce] = useState({});
+  const tileGenRef = useRef(0);
+  // 50b: retry epoch mirror for the timeout effect — a Retry in the
+  // same view must restart the hung-tile deadline.
+  const [retryEpoch, setRetryEpoch] = useState(0);
+  const retryEpochRef = useRef(0);
+  // 50b: per-URL attempt ids, mirrored in a ref so late image events
+  // can be judged synchronously (state may lag behind Retry).
+  const tileNonceRef = useRef({});
+  const markTile = (url, next, attempt) => {
+    // 50b: drop late events from a retired attempt — only the image
+    // carrying the URL's current nonce may write. A sibling URL's
+    // retry touches only its own nonce, so this URL's still-current
+    // success stays accepted.
+    const known = tileNonceRef.current;
+    const cur = Object.prototype.hasOwnProperty.call(known, url) ? known[url] : 0;
+    if (attempt !== undefined && attempt !== cur) return;
+    setTileState((prev) =>
+      pruneBasemapTileState(
+        applyBasemapTileEvent(prev, url, next),
+        visibleUrlsRef.current, BASEMAP_TILE_STATE_LIMIT));
+  };
+  const visibleUrlsRef = useRef([]);
+  const retryBasemap = () => {
+    tileGenRef.current += 1;
+    retryEpochRef.current = tileGenRef.current;
+    setRetryEpoch(tileGenRef.current);
+    const urls = visibleUrlsRef.current;
+    const { state, nonce } = nextBasemapRetry(tileState, tileNonceRef.current, urls);
+    tileNonceRef.current = nonce;
+    setTileState(pruneBasemapTileState(state, urls, BASEMAP_TILE_STATE_LIMIT));
+    setTileNonce(nonce);
+  };
   useEffect(() => {
     const el = mountRef.current;
     if (!el || typeof window === "undefined" || !window.ResizeObserver) return undefined;
@@ -551,6 +589,13 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
   // no log). The extent is the map's current lon/lat corners.
   const [exMinLon, exMaxLat] = toLonLatZ(0, 0);
   const [exMaxLon, exMinLat] = toLonLatZ(W, H);
+  // 50c: real neighbourhood geometry under the raster — one combined
+  // path per layer, clipped to the current lon/lat viewport. Buildings
+  // only project at neighbourhood scale (never 17k DOM nodes).
+  const groundView = [exMinLon, exMinLat, exMaxLon, exMaxLat];
+  const groundPaths = projectMapGround(m.ground, toXYz, groundView,
+    fit.metersPerPx / (Number(vt.zoom) || 1));
+  const groundAttr = mapGroundAttribution(m.ground, groundView);
   const onLocate = () => {
     const geo = (typeof navigator !== "undefined" && navigator.geolocation) || null;
     if (!geo) {
@@ -599,15 +644,56 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
   // 33a2: low-zoom underlay under the clipped normal tiles — same
   // view at min(z, 10), so out-of-area corners show the blurrier map
   // instead of bare ground. Skipped when it would duplicate the
-  // normal tiles (z ≤ 10) or for USGS (no bounds). Not counted in
-  // tiles, so basemapOn still counts only requested normal tiles.
+  // normal tiles (z ≤ 10) or for USGS (no bounds). The underlay is
+  // a fallback backdrop, not a requested detail tile — basemapOn and
+  // the load status count normal and underlay URLs separately.
   const tileKeys = new Set(tiles.map((t) => t.key));
   const underlay = (provider === "vworld" && apiBase !== null && tiles.length > 0)
     ? basemapUnderlayTiles({ toLonLat: toLonLatZ, W, H,
         z: tiles[0].z, provider }).filter((t) => !tileKeys.has(t.key))
     : [];
-  const basemapOn = (provider === "usgs" || apiBase !== null)
-    && failCount * 2 < tiles.length;
+  // 50a: load state for the CURRENT visible normal tiles and the
+  // underlay only. Pending is not success; another view/provider
+  // yields different URLs, so its errors cannot contaminate this one.
+  const visibleNormalUrls = basemapTileUrlsFor(apiBase, tiles, provider);
+  const visibleUnderlayUrls = basemapTileUrlsFor(apiBase, underlay, provider);
+  const visibleUrls = [...visibleNormalUrls, ...visibleUnderlayUrls];
+  visibleUrlsRef.current = visibleUrls;
+  const normalStatus = basemapLoadStatus(visibleNormalUrls, tileState);
+  const underlayStatus = basemapLoadStatus(visibleUnderlayUrls, tileState);
+  const basemapStatus = basemapLoadStatus(visibleUrls, tileState);
+  // 50b: hung requests become recoverable after a bounded timeout —
+  // pending visible URLs flip to error once, then Retry can remount
+  // them. One timer per visible set AND retry epoch — a Retry in the
+  // same view restarts the deadline. The deadline never resets on
+  // sibling loads. Obsolete snapshots are rejected, and the timer is
+  // always cleaned up on retry/unmount/view change.
+  useEffect(() => {
+    if (visibleUrls.length === 0) return undefined;
+    if (basemapStatus.pending === 0) return undefined;
+    const snapshot = visibleUrls;
+    const epoch = retryEpoch;
+    const id = setTimeout(() => {
+      // 50b: a retry (or view change) since this snapshot means a
+      // fresher timer owns the deadline — do nothing.
+      if (epoch !== retryEpochRef.current) return;
+      setTileState((prev) => {
+        // Only flip still-pending URLs; loaded/error stay as-is.
+        let next = prev;
+        for (const u of snapshot) {
+          if (next[u] !== undefined) continue;
+          next = { ...next, [u]: "error" };
+        }
+        if (next === prev) return prev;
+        return pruneBasemapTileState(next, snapshot, BASEMAP_TILE_STATE_LIMIT);
+      });
+    }, BASEMAP_TILE_TIMEOUT_MS);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleUrls.join("|"), retryEpoch]);
+  // Credit stays accurate when ANY displayed imagery comes from the
+  // provider — a loaded underlay still credits it when detail fails.
+  const basemapOn = normalStatus.loaded > 0 || underlayStatus.loaded > 0;
   // 29L5: the VWorld white basemap already prints station names, so
   // our own name plates would double them — dots only while it is
   // on. USGS (and basemap-off) keep our labels as 29L3 left them.
@@ -869,18 +955,42 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
   // 31m: the map credit — the full string on desktop (in the side
   // column), one short line on phones (≤ 480 px, CSS picks which
   // shows). Both live in data-no-i18n nodes built for the language.
-  const creditFull = !basemapOn
+  // 50c: visible register footprints add the MOLIT building-register
+  // source to the full credit; the OSM fallback credit never claims
+  // imagery before it loads.
+  const registerNote = groundAttr.hasRegister
+    ? (lang === "en" ? " · Buildings: MOLIT building register"
+      : " · 건물 외형: 국토교통부 건축물대장")
+    : "";
+  const creditFull = (!basemapOn
     ? "© OpenStreetMap contributors"
     : provider === "usgs"
-      ? "Map: USGS The National Map"
+      ? "Map: USGS The National Map · © OpenStreetMap contributors"
       : lang === "en"
         ? "Map © MOLIT Spatial Information Open Platform (VWorld) · © OpenStreetMap contributors"
-        : "지도 © 국토교통부 공간정보 오픈플랫폼(VWorld) · © OpenStreetMap contributors";
+        : "지도 © 국토교통부 공간정보 오픈플랫폼(VWorld) · © OpenStreetMap contributors") + registerNote;
   const creditShort = !basemapOn
     ? "© OpenStreetMap"
     : provider === "usgs"
-      ? "© USGS"
+      ? "© USGS · © OpenStreetMap"
       : "© VWorld · © OpenStreetMap";
+  // 50a: loading/unavailable/partial state in the credit column, in
+  // the current language. Pins and pan/zoom are never blocked; one
+  // Retry button re-requests failed visible URLs only (no query
+  // params, no blacklist, no auto flood).
+  const basemapWanted = visibleUrls.length > 0;
+  const basemapStatusText = !basemapWanted || basemapStatus.status === "loaded"
+    || basemapStatus.status === "idle" ? null
+    : basemapStatus.status === "partial"
+      ? (lang === "en" ? "Part of the basemap didn't load" : "지도의 일부를 불러오지 못했습니다")
+      : basemapStatus.status === "unavailable"
+        ? (lang === "en" ? "Basemap unavailable" : "지도 그림을 표시할 수 없습니다")
+        : (lang === "en" ? "Loading basemap…" : "지도 그림을 불러오는 중…");
+  const showBasemapRetry = basemapWanted && basemapStatus.errors > 0
+    && basemapFailedUrls(visibleUrls, tileState).length > 0;
+  const basemapRetryLabel = lang === "en" ? "Retry" : "다시 시도";
+  const basemapRetryHint = lang === "en"
+    ? "Retry failed basemap tiles" : "실패한 지도 타일 다시 불러오기";
   return (
     <div ref={mountRef} className="ui-chatmap" style={{ width: "100%", height: "100%", position: "relative" }}>
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%"
@@ -894,7 +1004,8 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
             <feDropShadow dx={0} dy={1} stdDeviation={2}
               floodColor="#000000" floodOpacity={0.25} />
           </filter>
-          <filter id="basemap-mute">
+          <filter id="basemap-mute" filterUnits="userSpaceOnUse"
+            x={0} y={0} width={W} height={H}>
             <feColorMatrix type="saturate" values={BASEMAP_MUTE.saturate} />
             <feComponentTransfer>
               <feFuncR type="linear" slope={BASEMAP_MUTE.slope} intercept={1 - BASEMAP_MUTE.slope} />
@@ -905,38 +1016,23 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
         </defs>
         <rect x={0} y={0} width={W} height={H} fill={MAP_COLORS.ground}
           data-layer="map-ground" />
-        <g filter="url(#basemap-mute)" opacity={currentLang() === "en" ? 0.45 : 1}>
-        {underlay.filter((t) => !failedRef.current.has(t.key)).map((t) => {
-          const [x0, y0] = toXYz(t.nw[0], t.nw[1]);
-          const [x1, y1] = toXYz(t.se[0], t.se[1]);
-          return (
-            <image key={`under/${t.key}`} href={basemapTileUrl(apiBase, t.z, t.y, t.x, { provider })}
-              x={Math.min(x0, x1)} y={Math.min(y0, y1)}
-              width={Math.abs(x1 - x0)} height={Math.abs(y1 - y0)}
-              preserveAspectRatio="none" pointerEvents="none"
-              onError={() => {
-                failedRef.current.add(t.key);
-              }} />
-          );
-        })}
-        {tiles.filter((t) => !failedRef.current.has(t.key)).map((t) => {
-          const [x0, y0] = toXYz(t.nw[0], t.nw[1]);
-          const [x1, y1] = toXYz(t.se[0], t.se[1]);
-          return (
-            <image key={t.key} href={basemapTileUrl(apiBase, t.z, t.y, t.x, { provider })}
-              x={Math.min(x0, x1)} y={Math.min(y0, y1)}
-              width={Math.abs(x1 - x0)} height={Math.abs(y1 - y0)}
-              preserveAspectRatio="none" pointerEvents="none"
-              onError={() => {
-                if (!failedRef.current.has(t.key)) {
-                  failedRef.current.add(t.key);
-                  setFailCount((c) => c + 1);
-                }
-              }} />
-          );
-        })}
-        </g>
-        {!basemapOn && (<>
+        {groundPaths.parks ? (
+          <path d={groundPaths.parks} fill={MAP_COLORS.park} fillRule="nonzero" />
+        ) : null}
+        {groundPaths.water ? (
+          <path d={groundPaths.water} fill={MAP_COLORS.water} fillRule="nonzero" />
+        ) : null}
+        {groundPaths.minor ? (
+          <path d={groundPaths.minor} fill="none" stroke={MAP_COLORS.road}
+            strokeWidth={fs(3)} strokeLinejoin="round" strokeLinecap="round" />
+        ) : null}
+        {groundPaths.major ? (
+          <path d={groundPaths.major} fill="none" stroke={MAP_COLORS.road}
+            strokeWidth={fs(5)} strokeLinejoin="round" strokeLinecap="round" />
+        ) : null}
+        {groundPaths.buildings ? (
+          <path d={groundPaths.buildings} fill={MAP_COLORS.roadCasing} fillRule="nonzero" />
+        ) : null}
         {(green.parks || []).map((ring, i) => (
           <polygon key={`pk${i}`} points={ptsAttr(ring, toXYz)} fill={MAP_COLORS.park} />
         ))}
@@ -975,7 +1071,36 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
             stroke={MAP_COLORS.road} strokeWidth={fs(3.5)}
             strokeLinejoin="round" strokeLinecap="round" />
         ))}
-        </>)}
+        <g filter="url(#basemap-mute)" opacity={0.9}>
+        {underlay.map((t) => {
+          const [x0, y0] = toXYz(t.nw[0], t.nw[1]);
+          const [x1, y1] = toXYz(t.se[0], t.se[1]);
+          const url = basemapTileUrl(apiBase, t.z, t.y, t.x, { provider });
+          const nonce = tileNonce[url] || 0;
+          return (
+            <image key={`under/${url}#${nonce}`} href={url}
+              x={Math.min(x0, x1)} y={Math.min(y0, y1)}
+              width={Math.abs(x1 - x0)} height={Math.abs(y1 - y0)}
+              preserveAspectRatio="none" pointerEvents="none"
+              onLoad={() => markTile(url, "loaded", nonce)}
+              onError={() => markTile(url, "error", nonce)} />
+          );
+        })}
+        {tiles.map((t) => {
+          const [x0, y0] = toXYz(t.nw[0], t.nw[1]);
+          const [x1, y1] = toXYz(t.se[0], t.se[1]);
+          const url = basemapTileUrl(apiBase, t.z, t.y, t.x, { provider });
+          const nonce = tileNonce[url] || 0;
+          return (
+            <image key={`${url}#${nonce}`} href={url}
+              x={Math.min(x0, x1)} y={Math.min(y0, y1)}
+              width={Math.abs(x1 - x0)} height={Math.abs(y1 - y0)}
+              preserveAspectRatio="none" pointerEvents="none"
+              onLoad={() => markTile(url, "loaded", nonce)}
+              onError={() => markTile(url, "error", nonce)} />
+          );
+        })}
+        </g>
         {(m.lines || []).map((l, i) => (
           <polyline key={`casing:${l.id}:${l.direction || ""}:${i}`} points={ptsAttr(l.pts, toXYz)} fill="none"
             stroke="#ffffff" strokeWidth={fs(4.5)}
@@ -1475,6 +1600,16 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
         <div className="ui-float ui-chatmap-credit is-desktop" data-no-i18n>
           {creditFull}
         </div>
+        {basemapStatusText && (
+          <div className="ui-float ui-chatmap-basemap-status" role="status" data-no-i18n>
+            {basemapStatusText}
+          </div>
+        )}
+        {showBasemapRetry && (
+          <button type="button" className="ui-float ui-chatmap-retry" data-no-i18n
+            aria-label={basemapRetryHint} title={basemapRetryHint}
+            onClick={retryBasemap}>{basemapRetryLabel}</button>
+        )}
       </div>
       {/* 31m: the phone credit (≤ 480 px, CSS shows it) — one short
         line bottom-left, clear of the tray. A tap expands the full
