@@ -108,6 +108,8 @@ import { buildReviewInput, requestPlanReview, findFreshReview,
   reviewSnapshot, sameSnapshot, createPlanGuard, isConfirmFresh,
   isConfirmedWorkerFresh,
   createConfirmedTransaction } from "../chat/life-plan-flow.js";
+import { createRevisionIntent, shouldTakeRevision,
+  withRevisionMessage } from "../chat/routine-revision.js";
 import { confirmLifePlan, applyLifePlan, summarizePlanRun } from "../life/plan.js";
 import { fetchDataJson, fetchDataText } from "../data-fetch.js";
 import { buildCustomMoneyDoc, buildUsRentMoneyDoc, verifyHomeFor } from "../chat/custom-money.js";
@@ -3308,6 +3310,10 @@ export function ChatScreen() {
   // once by the run body; never a reused global).
   const confirmedTxnRef = useRef(null);
   if (!confirmedTxnRef.current) confirmedTxnRef.current = createConfirmedTransaction();
+  // 49h: one-turn routine-revision intent, armed by Adjust and consumed
+  // exactly once by the next valid send (busy/replay blocks preserve it).
+  const reviseIntentRef = useRef(null);
+  if (!reviseIntentRef.current) reviseIntentRef.current = createRevisionIntent();
   const replyCountRef = useRef(0);
   const profileRef = useRef(null);
   useEffect(() => { profileRef.current = profile; }, [profile]);
@@ -4178,6 +4184,7 @@ export function ChatScreen() {
   }
 
   function handlePlanRevise() {
+    reviseIntentRef.current.arm();
     setComposer(LANG === "en" ? "Adjust my routine: " : "생활 패턴 조정: ");
     soon(() => {
       try {
@@ -4949,6 +4956,64 @@ export function ChatScreen() {
     if (planGuardRef.current && planGuardRef.current.busy) return;
     // 29a6: replay mode never calls the consult client — the composer is read-only while replaying.
     if (replayId || replaying) return;
+    // 49h: armed routine revision — the next valid send quotes the user
+    // once and requests a NEW plan for CURRENT picks/provider/profile +
+    // updated history. Consumed exactly once; never the generic turn,
+    // never the worker. Busy/replay blocks above preserve the intent.
+    if (shouldTakeRevision({ armed: reviseIntentRef.current.peek(), content, blocked: false })) {
+      reviseIntentRef.current.consume();
+      busyRef.current = true;
+      setBusy(true);
+      setError("");
+      setNoAnswerSaved(false);
+      setChipsNearBottom(true);
+      const uid = pushMsg({ role: "user", kind: "text", content });
+      setComposer("");
+      // React state is async — sync stateRef so buildReviewInput below
+      // already contains this message. Never duplicated (id-checked).
+      stateRef.current = { ...stateRef.current,
+        messages: withRevisionMessage(stateRef.current.messages,
+          { id: uid, role: "user", kind: "text", content }) };
+      try {
+        if (museLive === false) noticeKeylessOnce();
+        const st = stateRef.current;
+        const ids = [...(st.picks || [])];
+        const picked = ((st.candidatesData && st.candidatesData.result.candidates) || [])
+          .filter((c) => ids.includes(c.id));
+        if (picked.length < 2 || !st.profile) {
+          pushMsg({ role: "assistant", kind: "text",
+            content: currentLang() === "en"
+              ? "Please pick two homes and complete your profile, then send again."
+              : "비교할 집 두 곳을 골라 주시고 프로필을 완성해 주세요. 정해지면 다시 보내 주세요." });
+          return;
+        }
+        const gate = runGate(st.profile);
+        if (!gate.ok) {
+          pushMsg({ role: "assistant", kind: "text",
+            content: "회사 위치를 먼저 알려 주세요. 회사 근처 역이나 동네를 말씀해 주시면 그 길로 30일 살아 보기를 돌려요. 출근을 안 하시면 “출근 안 해요”라고 말씀해 주세요." });
+          return;
+        }
+        const blocked = picked.filter((c) => readinessNote(c));
+        if (blocked.length > 0) {
+          pushMsg({ role: "assistant", kind: "text",
+            content: `살아 보기를 못 하는 집이 있어요: ${blocked.map((c) => `${displayNameFor(c)} (${readinessNote(c)})`).join(" · ")}` });
+          return;
+        }
+        const providerInUse = providerRef.current;
+        const byoKeyForRun = (p) => {
+          try {
+            return loadByoKey(typeof sessionStorage !== "undefined" ? sessionStorage : null, p);
+          } catch { return ""; /* no storage — server key path */ }
+        };
+        await requestPlanFlow({ ids, picked, providerInUse, byoKeyForRun, forcePlan: true });
+      } catch (err) {
+        setError(String((err && err.message) || err));
+      } finally {
+        busyRef.current = false;
+        setBusy(false);
+      }
+      return;
+    }
     busyRef.current = true;
     setBusy(true);
     setError("");

@@ -1,0 +1,2 @@
+# 49h3: One-line VM realm assertion fix
+Read AGENTS. Edit only web/tests/plan-revision-49h.test.js. The real-send test's `assert.deepEqual(h.calls.lastPlan.ids, ["a", "b"]);` fails because ids belongs to vm realm. Convert actual to host array with `[...h.calls.lastPlan.ids]` in that assertion. No product edit or other change. Run `node --test web/tests/plan-revision-49h.test.js 2>&1 | tail -15` then stop. No search, no full suite, no git/build.
