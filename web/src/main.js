@@ -54,7 +54,8 @@ import { personMonthLog } from "./diary/person-log.js";
 import { PAINTED_ROOF_HEX, PAINTED_WALL_HEX, aviationBlink, eveningHomeFraction, facadeTintFor, globalHomeFraction, litFractionWithFallback, needsAviationLight, tourOfficeFraction } from "./render/facades.js";
 import { hashString, hashUnit } from "./palette.js";
 import { PAINTED_NIGHT_GROUND, PAINTED_NIGHT_ROAD_LIT, PAINTED_NIGHT_ROAD_WARM, PAINTED_NIGHT_ROOF, PAINTED_NIGHT_WALL, PAINTED_WATER, capLitFraction, lerpHex, nightEmissiveHex, nightTint, paintedFogRange, regionalFogRange, resolveLook, streetFogRange } from "./render/look.js";
-import { followPitchFor, routeMaterialsFor } from "./render/scene29L1.js";
+import { routeMaterialsFor } from "./render/scene29L1.js";
+import { FOLLOW_LIFT_MAX_M, initialFollowLiftState, updateFollowLift } from "./render/follow-camera.js";
 import { applyStopFade, makeFadeable } from "./render/fade.js";
 import { createRenderer } from "./render/renderer.js";
 import { createSkyRig } from "./render/rig.js";
@@ -2298,19 +2299,27 @@ async function bootSim() {
   // 29L1: the followed person is never hidden — each frame raycasts
   // camera→head against the blocks; while one covers them the camera
   // eases up toward a top-down limit, then eases back when clear.
-  let followLift = 0;
-  const FOLLOW_LIFT_MAX = 60;
+  // 45a: absolute occlusion lift (metres, 0–60), smoothed over real
+  // seconds with a short clear-view hold so edges do not chatter.
+  let followLiftState = initialFollowLiftState();
+  const FOLLOW_LIFT_MAX = FOLLOW_LIFT_MAX_M;
+  let lastJourneyActive = false;
+  function resetFollowLift() {
+    followLiftState = initialFollowLiftState();
+  }
   const followRay = new THREE.Raycaster();
   const followHead = new THREE.Vector3();
   const followToHead = new THREE.Vector3();
-  function followBlocked(head) {
+  const followFrom = new THREE.Vector3();
+  function followBlockedFrom(from, head) {
     const occluders = [...Object.values(wallMeshes || {}),
       podiumMesh, roofMesh].filter(Boolean);
     if (occluders.length === 0) return false;
-    followToHead.copy(head).sub(camera.position);
+    followFrom.copy(from);
+    followToHead.copy(head).sub(followFrom);
     const dist = followToHead.length();
     if (dist < 1e-6) return false;
-    followRay.set(camera.position, followToHead.normalize());
+    followRay.set(followFrom, followToHead.normalize());
     followRay.far = dist - 1;
     return followRay.intersectObjects(occluders, false).length > 0;
   }
@@ -2425,7 +2434,12 @@ async function bootSim() {
       return;
     }
     // The journey camera owns follow mode while a station ride plays.
-    if (paintJourney(dt)) {
+    const journeyActive = paintJourney(dt);
+    if (journeyActive !== lastJourneyActive) {
+      lastJourneyActive = journeyActive;
+      resetFollowLift();
+    }
+    if (journeyActive) {
       destPin.style.display = "none";
       rideStub.visible = false;
       if (forceCaption) {
@@ -2450,9 +2464,15 @@ async function bootSim() {
     // as setFollowPose above — OrbitControls stays out of it.
     controls.enableZoom = false;
     controls.enableRotate = false;
-    // Snap when far (a fast clock would lag behind); otherwise glide,
-    // so the followed member stays in frame at any speed.
-    if (snapFollow || controls.target.distanceTo(glook) > 60) {
+    // 45a: explicit seeks/member changes/resume place immediately;
+    // continuous playback only glides, never snaps for trailing behind.
+    // Occlusion is probed from the nominal goal (pre-lift); the lift
+    // offsets the goal before interpolation, never the smoothed camera.
+    followHead.set(x, heightAt(x, -y) + 2.5, -y);
+    followLiftState = updateFollowLift(followLiftState,
+      { blocked: followBlockedFrom(gpos, followHead), dt, maxLift: FOLLOW_LIFT_MAX });
+    gpos.y += followLiftState.lift;
+    if (snapFollow) {
       camera.position.copy(gpos);
       controls.target.copy(glook);
       snapFollow = false;
@@ -2461,12 +2481,6 @@ async function bootSim() {
       camera.position.lerp(gpos, k);
       controls.target.lerp(glook, k);
     }
-    // 29L1: raise the pitch/height while a building blocks the view of
-    // the followed member, ease back once the sight line is clear.
-    followHead.set(x, heightAt(x, -y) + 2.5, -y);
-    followLift = followPitchFor({ blocked: followBlocked(followHead),
-      pitch: followLift, maxPitch: FOLLOW_LIFT_MAX, basePitch: 0 });
-    camera.position.y += followLift;
     controls.enabled = true;
     if (forceCaption) {
       paintNow();
@@ -3012,7 +3026,7 @@ async function bootSim() {
     const stopPos = (sid) => coords.get(sid) || null;
     // The phase needs the destination load state, which needs the
     // direction: probe unloaded, then decide with the real gate.
-    const probe = journeyCameraState({ segments, minute: m, view: journeyView,
+    const probe = journeyCameraState({ segments, minute, view: journeyView,
       hasDetailDest: false });
     if (probe.phase === "street") return idle;
     const backHome = probe.dir === "back";
@@ -3022,7 +3036,7 @@ async function bootSim() {
     const board = stopPos(firstLeg.stopIds[0]);
     const dest = stopPos(lastLeg.stopIds[lastLeg.stopIds.length - 1]);
     const hasDetail = destDetailLoaded(dest, backHome);
-    const state = journeyCameraState({ segments, minute: m, view: journeyView,
+    const state = journeyCameraState({ segments, minute, view: journeyView,
       hasDetailDest: hasDetail });
     if (state.phase === "street") return idle;
     const span = state.dir === "back" ? segments.back
@@ -3547,6 +3561,8 @@ async function bootSim() {
     const hit = tripHit || awayHit;
     day = hit.day;
     minute = tripHit ? tripHit.depart_min : awayHit.start_min;
+    snapFollow = follow > 0;
+    resetFollowLift();
     if (String(hit.agent).startsWith("h")) {
       const idx = household.findIndex((a) => a.key === hit.agent);
       if (idx >= 0) {
@@ -3574,6 +3590,8 @@ async function bootSim() {
     },
     setDay: (next) => {
       day = Math.min(days - 1, Math.max(0, next));
+      snapFollow = follow > 0;
+      resetFollowLift();
       paintClock();
       paintFollow(0.016, true);
       ensureItinerary();
@@ -3581,12 +3599,15 @@ async function bootSim() {
     },
     setMinute: (next) => {
       minute = Math.min(1439, Math.max(0, next));
+      snapFollow = follow > 0;
+      resetFollowLift();
       paintClock();
       paintFollow(0.016, true);
     },
     setFollow: (next) => {
       follow = Math.min(household.length, Math.max(0, next));
       snapFollow = follow > 0;
+      resetFollowLift();
       followMode = "follow";
       store.set({ follow });
       applyFollowDim();
@@ -3602,6 +3623,7 @@ async function bootSim() {
       followYaw = 0;
       followMode = "follow";
       snapFollow = true;
+      resetFollowLift();
       if (!follow && household.length > 0) {
         follow = 1;
         store.set({ follow });
@@ -3619,6 +3641,7 @@ async function bootSim() {
       if (["auto", "low", "high"].includes(next)) {
         journeyView = next;
         store.set({ journeyView: next });
+        resetFollowLift();
         paintFollow(0.016, true);
       }
     },
@@ -3699,6 +3722,8 @@ async function bootSim() {
         store.set({ follow });
         applyFollowDim();
       }
+      snapFollow = follow > 0;
+      resetFollowLift();
       paintClock();
       paintFollow(0.016, true);
     },
@@ -3734,6 +3759,7 @@ async function bootSim() {
   const clock = new THREE.Clock();
   let frames = 0;
   let lastMinuteShown = -1;
+  let captionRefresh = false;
   renderer.setAnimationLoop(() => {
     const dt = Math.min(clock.getDelta(), 0.5);
     const t = clock.elapsedTime;
@@ -3755,7 +3781,7 @@ async function bootSim() {
       if (m !== lastMinuteShown) {
         lastMinuteShown = m;
         paintClock();
-        paintFollow(dt, true);
+        captionRefresh = true;
       }
     }
     placeAgents(day, minute);
@@ -3772,7 +3798,8 @@ async function bootSim() {
       trains: trainTable ? trainTable.trains : 0,
       ms: simVeh.ms + simPed.ms });
     updateLighting();
-    paintFollow(dt, false);
+    paintFollow(dt, captionRefresh);
+    captionRefresh = false;
     paintHighlightFrame();
     paintLabels20b();
     const jfTrain = journeyFrame();
@@ -3783,7 +3810,7 @@ async function bootSim() {
     // renderCtl.renderFrame.
     if (jfTrain.ride && (jfTrain.phase === "rising" || jfTrain.phase === "cruise"
         || jfTrain.phase === "descending" || jfTrain.phase === "boarding")) {
-      journeyLayer.setTrain(jfTrain.ride, minute - Math.floor(minute) + jfTrain.elapsed,
+      journeyLayer.setTrain(jfTrain.ride, jfTrain.elapsed,
         camera, (household[follow - 1] || {}).label);
     }
     // 17c/19e/19g: distance-scaled journey dots (≤ 14 px); the train
