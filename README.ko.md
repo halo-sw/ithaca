@@ -48,7 +48,7 @@
 | **설치 없이** | 브라우저 | 함께 쓰는 하루 한도 안에서 실시간 Muse가 도는 [공개 앱](https://halo-sw.github.io/ithaca/?lang=ko), 또는 키 없이 재생되는 [기록된 한 달](https://halo-sw.github.io/ithaca/?replay=seoul-couple&lang=ko) |
 | **[Docker](#docker로-실행하기)** | Docker | `localhost:8080`의 공개 빌드와 `localhost:8787`의 모델 중계 서버 |
 | **[소스에서](#소스에서-실행하기)** | Node 22 | 공개 사이트가 켠 기능을 모두 켠 Vite 개발 서버 |
-| **[데이터&nbsp;다시&nbsp;만들기(영어)](docs/development.md)** | Python 3.12, 원본 데이터 약 6 GB | OpenStreetMap과 건물 자료로 지역마다 데이터를 만드는 파이프라인 |
+| **[데이터&nbsp;다시&nbsp;만들기](docs/development.md)** | Python 3.12, 원본 데이터 약 6 GB | OpenStreetMap과 건물 자료로 지역마다 데이터를 만드는 파이프라인(안내는 영어) |
 
 **키는 없어도 돼요.** 키가 없으면 헤더에 **규칙 모드**가 떠요. 그래도 숫자는 엔진이 모두 계산하고, 기록된 한 달도 끝까지 재생돼요. 내 `META_API_KEY`를 넣으면 상담, 플랜, 하루하루의 선택, 리포트 검사, 음성 입력이 Muse Spark 1.3과 Muse Voice로 돌아요. Muse Spark Open은 내 Baseten 키가 있을 때만 돌아요.
 
