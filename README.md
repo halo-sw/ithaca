@@ -31,11 +31,11 @@ Built from scratch since [October 28, 2026](https://github.com/halo-sw/ithaca/co
   <a href="#1-project-introduction">Introduction</a> ·
   <a href="#2-service-summary">Summary</a> ·
   <a href="#3-problem-definition">Problem</a> ·
-  <a href="#4-how-the-muse-agents-work">How the Muse agents work</a> ·
-  <a href="#where-the-models-run">Where the models run</a> ·
-  <a href="#5-main-service-flow">Service flow</a> ·
+  <a href="#4-how-the-muse-agents-work">How&nbsp;the&nbsp;Muse&nbsp;agents&nbsp;work</a> ·
+  <a href="#where-the-models-run">Where&nbsp;the&nbsp;models&nbsp;run</a> ·
+  <a href="#5-main-service-flow">Service&nbsp;flow</a> ·
   <a href="#6-conclusion">Conclusion</a> ·
-  <a href="#7-expected-impact-and-next-steps">Next steps</a>
+  <a href="#7-expected-impact-and-next-steps">Next&nbsp;steps</a>
 </p>
 
 ## 1. Project introduction
