@@ -296,11 +296,11 @@ Muse Image가 그린 그림에는 “**Muse Image 일러스트 · 실제 장소 
 **제품은 Muse Code가 작성했어요. Claude Code와 Codex는 기획하고, Muse Code에게 무엇을 쓸지 지시했어요.** Halo는 두 오케스트레이터, Claude Code(Anthropic)와 Codex(OpenAI)와 함께 일했어요. 두 오케스트레이터는 일을 단계로 나누고, 문제의 원인을 찾고, 단계마다 [`briefs/`](briefs/)에 지시서를 썼어요. 지시서에는 보통 고칠 `file:line`과 그걸 증명할 테스트까지 적었어요. 전체 테스트와 빌드 실행, 화면 캡처, git 작업도 오케스트레이터가 했어요. 제품 코드, 테스트, 파이프라인 스크립트는 그 지시서를 받아 Muse Code(Meta)가 작성했어요. 이 규칙은 [AGENTS.md](AGENTS.md)에 있어요.
 
 <table>
-<thead><tr><th>누가</th><th>역할</th><th>작성한 것</th></tr></thead>
+<thead><tr><th>누가</th><th>맡은 일과 작성한 것</th></tr></thead>
 <tbody>
-<tr><td nowrap><b>Halo</b>(사람, 혼자)</td><td>방향, 제품 결정, 검토</td><td>체크리스트 테스트용 기준 채점기와 정답 데이터(<code>tools/verify_checklist.py</code>, <code>scenarios/verify/ground_truth.json</code>)</td></tr>
-<tr><td nowrap><b>Claude Code</b>(Anthropic)<br><b>Codex</b>(OpenAI)</td><td>오케스트레이터: 단계 기획, 지시서, 원인 진단, 테스트와 빌드 실행, git, 화면 캡처</td><td>지시서, 문서와 README, 녹화와 근거 파일, 영어 화면 문구 표, 빌드와 CI 설정</td></tr>
-<tr><td nowrap><b>Muse Code</b>(Meta,<br><code>muse-spark-1.3</code>)</td><td>구현</td><td>제품 코드, 테스트, 파이프라인 스크립트</td></tr>
+<tr><td nowrap><b>Halo</b><br>(사람, 혼자)</td><td><b>맡은 일:</b> 방향, 제품 결정, 검토<br><b>작성:</b> 체크리스트 테스트용 기준 채점기와 정답 데이터(<code>verify_checklist.py</code>, <code>ground_truth.json</code>)</td></tr>
+<tr><td nowrap><b>Claude Code</b><br>(Anthropic)<br><b>Codex</b><br>(OpenAI)</td><td><b>맡은 일:</b> 오케스트레이터. 단계 기획, 지시서, 원인 진단, 테스트와 빌드 실행, git, 화면 캡처<br><b>작성:</b> 지시서, 문서와 README, 녹화와 근거 파일, 영어 화면 문구 표, 빌드와 CI 설정</td></tr>
+<tr><td nowrap><b>Muse Code</b><br>(Meta)</td><td><b>맡은 일:</b> 구현(<code>muse-spark-1.3</code>의 Muse Code 에이전트 모드)<br><b>작성:</b> 제품 코드, 테스트, 파이프라인 스크립트</td></tr>
 </tbody>
 </table>
 
@@ -346,10 +346,10 @@ Muse Image가 그린 그림에는 “**Muse Image 일러스트 · 실제 장소 
 <table>
 <thead><tr><th>다음 단계</th><th>이유와 검증할 것</th></tr></thead>
 <tbody>
-<tr><td nowrap><b>후보 집 최대 다섯 곳</b></td><td>먼저 써 본 사람들은 후보를 다섯 곳쯤 추려요. 실행 시간과, 다섯 곳을 비교해도 읽기 쉬운지 검증해요</td></tr>
-<tr><td nowrap><b>학군, 범죄, 주변 상권을<br>비교에 더하기</b></td><td>먼저 써 본 사람들이 요청했어요. 공식 통계만 쓰고, 항목마다 출처, 기간, 단위, 지역 단위를 밝혀요. 치안이나 학교를 하나로 묶은 종합 점수는 만들지 않아요</td></tr>
-<tr><td nowrap>거주자 10–20명과 현장 연구</td><td>모델이 계산한 이동과 비용을 실제 루틴과 비교해요. 오차와 함께, 이 비교가 사람들이 던지는 질문을 바꾸는지 기록해요</td></tr>
-<tr><td nowrap>경로와 데이터 범위 넓히기</td><td>빠진 목적지, 직장 위치 정밀도, 교통 가정을 개선해요. 풀리지 않은 입력은 계속 보이게 둬요</td></tr>
+<tr><td nowrap><b>후보 집<br>최대 다섯 곳</b></td><td>먼저 써 본 사람들은 후보를 다섯 곳쯤 추려요. 실행 시간과, 다섯 곳을 비교해도 읽기 쉬운지 검증해요</td></tr>
+<tr><td nowrap><b>학군, 범죄,<br>주변 상권을<br>비교에 더하기</b></td><td>먼저 써 본 사람들이 요청했어요. 공식 통계만 쓰고, 항목마다 출처, 기간, 단위, 지역 단위를 밝혀요. 치안이나 학교를 하나로 묶은 종합 점수는 만들지 않아요</td></tr>
+<tr><td nowrap>거주자 10–20명과<br>현장 연구</td><td>모델이 계산한 이동과 비용을 실제 루틴과 비교해요. 오차와 함께, 이 비교가 사람들이 던지는 질문을 바꾸는지 기록해요</td></tr>
+<tr><td nowrap>경로와 데이터<br>범위 넓히기</td><td>빠진 목적지, 직장 위치 정밀도, 교통 가정을 개선해요. 풀리지 않은 입력은 계속 보이게 둬요</td></tr>
 <tr><td nowrap>사진 기반 도움</td><td>실제 치수나 환경에 대한 판단을 더하기 전에, 실제 방 사진으로 창 찾기를 평가해요</td></tr>
 </tbody>
 </table>

@@ -282,11 +282,11 @@ Agreement between two models is not an accuracy score. A passing report check me
 
 **Muse Code wrote the product. Claude Code and Codex planned it and told Muse Code what to write.** Halo worked with two orchestrators, Claude Code (Anthropic) and Codex (OpenAI). They split the work into stages, found the causes of problems and wrote a brief for each stage in [`briefs/`](briefs/), usually down to the `file:line` to change and the test that proves it. They also ran the full test suite and the build, captured screens and did the git work. Muse Code (Meta) wrote the product code, tests and pipeline scripts from those briefs. The rule is in [AGENTS.md](AGENTS.md).
 
-| Who | Role | Wrote |
-|---|---|---|
-| **Halo** (human, solo) | Direction, product decisions, review | The reference grader and its ground truth for the checklist test (`tools/verify_checklist.py`, `scenarios/verify/ground_truth.json`) |
-| **Claude Code** (Anthropic) and **Codex** (OpenAI) | Orchestrators: plan stages, write briefs, diagnose, run tests and builds, git, captures | Briefs, docs and READMEs, recordings and evidence files, the English UI text tables, build and CI configuration |
-| **Muse Code** (Meta, `muse-spark-1.3`) | Implementation | Product code, tests and pipeline scripts |
+| Who | Role and what they wrote |
+|---|---|
+| **Halo**<br>(human, solo) | **Role:** direction, product decisions, review<br>**Wrote:** the reference grader and its ground truth for the checklist test (`verify_checklist.py`, `ground_truth.json`) |
+| **Claude Code**<br>(Anthropic)<br>**Codex**<br>(OpenAI) | **Role:** orchestrators. Plan stages, write briefs, diagnose, run tests and builds, git, captures<br>**Wrote:** briefs, docs and READMEs, recordings and evidence files, the English UI text tables, build and CI configuration |
+| **Muse Code**<br>(Meta) | **Role:** implementation, as the agent mode of `muse-spark-1.3`<br>**Wrote:** the product code, tests and pipeline scripts |
 
 **Authorship audit, November 4.** We compared every code line added on `main` with Muse Code's own session records: the patches its edit tools saved and the shell commands it ran. The audit covers 133,828 lines of JavaScript, JSX, CSS, Python, HTML and configuration from all non-merge commits. Muse's session records are local files on Halo's machine, so the audit cannot be rerun from the repo alone.
 
