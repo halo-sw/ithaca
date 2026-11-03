@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { assetUrl, appUrl } from "../paths.js";
 import { appEntryUrl, chatUrl } from "../chat/urls.js";
+import { DEFAULT_RECORDING_ID } from "../chat/recording.js";
 import { currentLang } from "../i18n/lang.js";
 import { META_HQ_EXAMPLE, META_HQ_EXAMPLE_KO } from "../places-us.js";
 import { EXAMPLE_PROMPTS } from "./landing.jsx";
@@ -23,7 +24,7 @@ const META_HQ_PROMPT = META_HQ_EXAMPLE;
 const META_HQ_PROMPT_KO = META_HQ_EXAMPLE_KO;
 
 export function replayIdForLang(lang) {
-  return lang === "en" ? "menlo-month" : "seoul-couple";
+  return DEFAULT_RECORDING_ID;
 }
 
 export function replayEntryUrl(lang) {
