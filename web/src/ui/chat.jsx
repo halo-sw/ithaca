@@ -63,6 +63,7 @@ import { noAnswerAlertFor, noAnswerKey, clearedNoAnswer, saveNoAnswerKey,
 import { rotateChatSessionId } from "../chat/session-id.js";
 import { ModelPanel } from "./model-panel.jsx";
 import { buildChatMap, extractGreenRings, runCommuteModeOf } from "../chatmap.js";
+import { selectMapGroundAreaIds, loadMapGround } from "../map-ground.js";
 import { ChatMap } from "./chatmap.jsx";
 import { mapFilterChips, filterPatch } from "./map-filters.js";
 import { defaultOverrides, setOverride, resetOverride,
@@ -100,17 +101,26 @@ import {
   profileSummary, missingChips, regionsForNames, simReadyFor,
   homeForScenario, complexNameForCandidate, stationNames,
   runGate, profileHomeKinds, regionsForCurrency, regionsForDoc,
-  usSearchActive,
+  usSearchActive, decisionProvenance, missingRouteHomes,
 } from "../chat/engine.js";
+import { makeHouseholdDecisionExamples } from "../chat/decision-trace.js";
+import { LifePlanCard, LifePlanRunSummary } from "./life-plan.jsx";
+import { buildReviewInput, requestPlanReview, findFreshReview,
+  reviewSnapshot, sameSnapshot, createPlanGuard, isConfirmFresh,
+  isConfirmedWorkerFresh,
+  createConfirmedTransaction } from "../chat/life-plan-flow.js";
+import { createRevisionIntent, shouldTakeRevision,
+  withRevisionMessage } from "../chat/routine-revision.js";
+import { confirmLifePlan, applyLifePlan, summarizePlanRun } from "../life/plan.js";
 import { fetchDataJson, fetchDataText } from "../data-fetch.js";
 import { buildCustomMoneyDoc, buildUsRentMoneyDoc, verifyHomeFor } from "../chat/custom-money.js";
 import { personaFor, slimRunForReport } from "../verify/compare.js";
 import { newCustomId, saveCustomRun, loadCustomRun } from "../chat/idb.js";
 import { chatUrl, simMomentUrl, tourUrl, withoutEmbed, saveTranscript, loadTranscript,
   clearTranscript, parseChatSearch } from "../chat/urls.js";
-import { recordingUrl, validateRecording, replaySchedule, replayRunPlan, RECORDINGS } from "../chat/recording.js";
+import { recordingUrl, validateRecording, replaySchedule, replayRunPlan, restoreReplayRun, RECORDINGS, DEFAULT_RECORDING_ID } from "../chat/recording.js";
 import { ruleTurnPlan, isRunRequest } from "../chat/intent.js";
-import { postConsultStream, postDiary, postReportStream, loadScenario, basetenFallbackProvider } from "./consult-client.js";
+import { postConsultStream, postDiary, postReportStream, loadScenario, basetenFallbackProvider, postDecision, postLifePlan } from "./consult-client.js";
 import { loadProviderChoice, saveProviderChoice, isValidProvider,
   offerOpenWeights, providerLabel, openFallbackLine, recordedModelOf,
   OPEN_MODEL_HINT } from "./provider-switch.js";
@@ -906,7 +916,9 @@ export function reportUnlocked(messages) {
     || rep.status === "unsupported") return true;
   // 42a: a failed check never locks the result — the card already
   // says the check could not run and offers 다시 검증하기.
-  if (rep.status === "failed") return true;
+  // 47c: an unverified check also leaves the factual simulation
+  // open; this never marks the report verified.
+  if (rep.status === "failed" || rep.status === "unverified") return true;
   if (rep.status === "handoff") return rep.confirmed === true;
   return false;
 }
@@ -922,7 +934,14 @@ export function latestReportStatus(messages) {
   return rep.status;
 }
 
-function reportStepLabel(attempt, pass, coverage) {
+function reportStepLabel(attempt, pass, coverage, status, lang) {
+  if (status === "unverified") {
+    return lang === "en" ? `Attempt ${attempt}: check incomplete`
+      : `${attempt}차 검사 미완료`;
+  }
+  if (lang === "en") {
+    return `Attempt ${attempt}: ${pass ? "passed" : "rejected"} (${Math.round(coverage * 100)}% coverage)`;
+  }
   return `${attempt}차 ${pass ? "통과" : "반려"} (${Math.round(coverage * 100)}%)`;
 }
 
@@ -981,7 +1000,7 @@ export function ReportCheck({ report, names, onRetry, lang = LANG }) {
             <span title={a.summary_ko || ""}
               className={`ui-check-step${a.pass ? " is-pass" : " is-fail"}`}>
               {reportStepLabel(a.attempt ?? (i + 1), a.pass,
-                a.weighted_coverage ?? 0)}
+                a.weighted_coverage ?? 0, a.status, lang)}
             </span>
           </span>
         ))}
@@ -992,12 +1011,27 @@ export function ReportCheck({ report, names, onRetry, lang = LANG }) {
           </span>
         )}
       </div>
-      {attempts.map((a, i) => (!a.pass ? (
-        <span key={`reason-${a.attempt ?? i}`} className="ui-check-reason"
-          {...(currentLang() === "ko" ? { "data-no-i18n": true } : null)}>
-          {`${a.attempt ?? (i + 1)}차 반려 · ${String(a.summary_ko || "").replace(/^검증 실패:\s*/, "")}`}
-        </span>
-      ) : null))}
+      {attempts.map((a, i) => {
+        if (a && a.status === "unverified") {
+          const n = a.attempt ?? (i + 1);
+          const reason = lang === "en"
+            ? (a.reason_en || "the meaning check did not finish")
+            : String(a.summary_ko || "").replace(/^검증 미완료:\s*/, "");
+          const label = lang === "en" ? `Attempt ${n}: check incomplete` : `${n}차 검사 미완료`;
+          return (
+            <span key={`reason-${a.attempt ?? i}`} className="ui-check-reason"
+              {...(lang === "en" ? null : currentLang() === "ko" ? { "data-no-i18n": true } : null)}>
+              {reason ? `${label} · ${reason}` : label}
+            </span>
+          );
+        }
+        return (!a.pass ? (
+          <span key={`reason-${a.attempt ?? i}`} className="ui-check-reason"
+            {...(currentLang() === "ko" ? { "data-no-i18n": true } : null)}>
+            {`${a.attempt ?? (i + 1)}차 반려 · ${String(a.summary_ko || "").replace(/^검증 실패:\s*/, "")}`}
+          </span>
+        ) : null);
+      })}
     </VStack>
   );
   if (status === "checking" && attempts.length === 0) {
@@ -1021,6 +1055,25 @@ export function ReportCheck({ report, names, onRetry, lang = LANG }) {
       <VStack gap={2}>
         {timeline}
         <p><span className="ui-check-badge">미지원</span>{` 이 가족 유형(${(PERSONA_KO[report.persona] || report.persona || "")})은 아직 시뮬레이션 시나리오가 없어 비교 리포트를 검증할 수 없어요.`}</p>
+      </VStack>
+    );
+  }
+  if (status === "unverified") {
+    const en = lang === "en";
+    const numericRan = attempts.length > 0 && attempts.every((a) =>
+      a && a.weighted_coverage !== null && a.weighted_coverage !== undefined);
+    return (
+      <VStack gap={2}>
+        {timeline}
+        <p><span className="ui-check-badge">{en ? "Unverified" : "검증 미완료"}</span>{en
+          ? (numericRan
+            ? " The numeric checks ran, but the meaning check did not finish. This report has not passed. Retry verification."
+            : " The meaning check did not finish. This report has not passed. Retry verification.")
+          : (numericRan
+            ? " 숫자 검사는 끝났지만, 의미 검사가 끝나지 않았어요. 이 리포트는 통과하지 못했어요. 다시 검증해 주세요."
+            : " 의미 검사가 끝나지 않았어요. 이 리포트는 통과하지 못했어요. 다시 검증해 주세요.")}</p>
+        <Button size="sm" variant="secondary" label={en ? "Retry verification" : "다시 검증하기"}
+          onClick={() => onRetry && onRetry()} />
       </VStack>
     );
   }
@@ -1192,6 +1245,111 @@ export function plainRunError(message) {
   return "30일 살아 보기를 끝내지 못했어요. 다시 시도해 주세요.";
 }
 
+// 44b: household-decision display — real saved reasons only, never
+// invented. Counts come from the runs via decisionProvenance.
+function museProgressLine(m) {
+  const en = LANG === "en";
+  // 44b2: generated Korean member labels read English in en mode.
+  const rawWho = m.agentLabel || m.agent || "";
+  const who = en ? memberLabelEn(String(rawWho)) : rawWho;
+  const reason = en ? (m.reason_en || m.reason_ko) : (m.reason_ko || m.reason_en);
+  const head = en
+    ? `Muse is choosing · Home ${m.home} · Day ${m.day + 1} · ${who}`
+    : `Muse가 고르는 중 · ${m.home} · ${m.day + 1}일차 · ${who}`;
+  const counts = en
+    ? `choices ${m.completed} (Muse ${m.modelCount} · rules ${m.fallbackCount})`
+    : `선택 ${m.completed}개 (Muse ${m.modelCount} · 기본 ${m.fallbackCount})`;
+  return reason ? `${head} — ${counts} · “${reason}”` : `${head} — ${counts}`;
+}
+
+function decisionModeLine(data) {
+  const en = LANG === "en";
+  if (data.decisionMode !== "muse") {
+    return en ? "Rule-based simulation" : "규칙 기반 시뮬레이션";
+  }
+  const parts = (data.labels || []).map((l) => {
+    const p = (data.provenance && data.provenance[l]) || { model: 0, fallback: 0 };
+    return en ? `${l}: ${p.model} Muse, ${p.fallback} rule` : `${l} Muse ${p.model} · 기본 ${p.fallback}`;
+  });
+  return en ? `Muse choices — ${parts.join(" · ")}` : `Muse가 고른 선택 — ${parts.join(" · ")}`;
+}
+
+// 44b2: the row names the chosen option (shop name, Stay home),
+// never an internal key like s0/park. houseDecisions carries the
+// persisted option label; home stays language-aware at display time.
+export function decisionChoiceLabel(d) {
+  const en = LANG === "en";
+  const isHome = Array.isArray(d.plan) ? d.plan.length === 0 : d.chosen_key === "home";
+  if (isHome) return en ? "Stay home" : (d.chosen_label || "집");
+  return d.chosen_label || d.chosen_key || "";
+}
+
+export function decisionWhen(d) {
+  return LANG === "en"
+    ? `Day ${d.day + 1} ${hhmm(d.minute)}`
+    : `${d.day + 1}일차 ${hhmm(d.minute)}`;
+}
+
+function decisionPreviewText(d) {
+  const en = LANG === "en";
+  const reason = en ? (d.reason_en || d.reason_ko) : (d.reason_ko || d.reason_en);
+  const chosen = decisionChoiceLabel(d);
+  const src = d.chosen_by === "model" ? "Muse" : (en ? "rule" : "기본");
+  return reason ? `${chosen} — ${reason} · ${src}` : `${chosen} · ${src}`;
+}
+
+// 49b: detail lines for one saved decision example. Old transcript
+// payloads carry only reason/link (no options etc) — every line below
+// renders only when its saved value exists, so old rows keep working.
+function decisionExampleReason(d) {
+  const en = LANG === "en";
+  return en ? (d.reason_en || d.reason_ko || "") : (d.reason_ko || d.reason_en || "");
+}
+
+function decisionExampleOptionsLine(d) {
+  const en = LANG === "en";
+  const opts = Array.isArray(d.options) ? d.options : [];
+  if (opts.length === 0) return "";
+  const fmt = (o) => {
+    const label = (o && typeof o.label === "string" && o.label) || (o && o.key) || "";
+    const mins = o && typeof o.minutes === "number" && Number.isFinite(o.minutes) ? o.minutes : null;
+    return mins === null ? label : `${label} (${mins} ${en ? "min" : "분"})`;
+  };
+  return `${en ? "Options" : "선택지"}: ${opts.map(fmt).join(en ? " · " : " · ")}`;
+}
+
+function decisionExampleChosenLine(d) {
+  const en = LANG === "en";
+  const chosen = decisionChoiceLabel(d);
+  if (!chosen) return "";
+  const mins = typeof d.chosen_minutes === "number" && Number.isFinite(d.chosen_minutes)
+    ? d.chosen_minutes : null;
+  const dist = typeof d.chosen_distance_m === "number" && Number.isFinite(d.chosen_distance_m)
+    ? d.chosen_distance_m : null;
+  let extra = "";
+  if (mins !== null && dist !== null) extra = ` (${mins} ${en ? "min" : "분"} · ${dist} m)`;
+  else if (mins !== null) extra = ` (${mins} ${en ? "min" : "분"})`;
+  else if (dist !== null) extra = ` (${dist} m)`;
+  return `${en ? "Chosen" : "선택"}: ${chosen}${extra}`;
+}
+
+function decisionExampleDefaultLine(d) {
+  const en = LANG === "en";
+  const label = d.default_label || d.default_key || "";
+  if (!label || typeof d.default_key !== "string") return "";
+  return en
+    ? `Default (engine baseline, not observed): ${label}`
+    : `기본값(엔진 기준, 실제 관측 아님): ${label}`;
+}
+
+function decisionExampleSourceLine(d) {
+  const en = LANG === "en";
+  const isModel = d.chosen_by === "model";
+  return en
+    ? (isModel ? "Source: Muse" : "Source: rule fallback")
+    : (isModel ? "출처: Muse" : "출처: 기본 규칙");
+}
+
 export function SimulationCard({ data, example, onRetry, onScene, onReportRetry, onDiaryRetry, canRetryDiary }) {
   if (!data) return null;
   if (data.status === "running") {
@@ -1208,6 +1366,18 @@ export function SimulationCard({ data, example, onRetry, onScene, onReportRetry,
           <Text type="supporting" hasTabularNumbers>
             {p.label ? `${p.label} 실행 중… (${p.done}/${p.total})` : "준비 중…"}
           </Text>
+          {p.muse && (
+            <Text type="supporting" hasTabularNumbers>
+              {museProgressLine(p.muse)}
+            </Text>
+          )}
+          {p.decisionWait && Number.isFinite(Number(p.decisionWait.remainingSec)) && (
+            <Text type="supporting" hasTabularNumbers>
+              {(typeof navigator !== "undefined" && (navigator.language || "")).toLowerCase().startsWith("ko")
+                ? `Muse 요청 한도 · ${Math.ceil(Number(p.decisionWait.remainingSec))}초 후 이 달을 계속해요`
+                : `Muse request limit · resuming this month in ${Math.ceil(Number(p.decisionWait.remainingSec))} s`}
+            </Text>
+          )}
         </VStack>
       </Card>
     );
@@ -1261,6 +1431,57 @@ export function SimulationCard({ data, example, onRetry, onScene, onReportRetry,
           같은 식구가 두 집에서 30일씩 살아 봤어요. 고르는 건 고객님 몫이에요.
         </Text>
         <ResultSummary data={data} />
+        {data.decisionMode && (
+          <Text type="supporting">{decisionModeLine(data)}</Text>
+        )}
+        {data.lifePlanSummary && (
+          <LifePlanRunSummary summaries={data.lifePlanSummary} labels={labels} lang={LANG} />
+        )}
+        {Array.isArray(data.houseDecisions) && data.houseDecisions.length > 0 && (
+          <details className="ui-section">
+            <summary className="ui-section-head">
+              {LANG === "en" ? "How Muse chose" : "Muse가 고른 선택"}
+            </summary>
+            <VStack gap={1}>
+              <Text type="supporting">{LANG === "en"
+                ? "Examples cover household members and choice types, prioritizing changes from the engine baseline."
+                : "이번 실행의 예시: 가능한 구성원별로 하나씩, 다른 선택 유형을 포함합니다. 엔진 기준선과 다른 변경을 우선합니다."}</Text>
+              {data.houseDecisions.map((h) => (
+                <VStack gap={1} key={h.label}>
+                  {h.items.map((d, i) => (
+                    <VStack gap={1} key={d.id || i}>
+                      <SceneRowLink disc={h.label}
+                        when={decisionWhen(d)}
+                        text={decisionPreviewText(d)}
+                        url={personMomentUrl({ custom: data.customId, home: h.label,
+                          day: d.day + 1, minute: d.minute, follow: d.follow || 1, embed: true })}
+                        title={`${decisionWhen(d)} · ${h.label}`}
+                        onScene={onScene} noI18n={LANG === "en"} />
+                      {d.memberLabel ? (
+                        <Text type="supporting">{LANG === "en" ? memberLabelEn(String(d.memberLabel)) : d.memberLabel}{d.memberPreferences
+                          ? (LANG === "en" ? ` · Profile preference: ${d.memberPreferences}` : ` · 프로필 선호: ${d.memberPreferences}`)
+                          : ""}</Text>
+                      ) : null}
+                      {decisionExampleOptionsLine(d) ? (
+                        <Text type="supporting">{decisionExampleOptionsLine(d)}</Text>
+                      ) : null}
+                      {decisionExampleChosenLine(d) ? (
+                        <Text type="supporting">{decisionExampleChosenLine(d)}</Text>
+                      ) : null}
+                      {decisionExampleDefaultLine(d) ? (
+                        <Text type="supporting">{decisionExampleDefaultLine(d)}</Text>
+                      ) : null}
+                      {decisionExampleReason(d) ? (
+                        <Text type="supporting">{decisionExampleReason(d)}</Text>
+                      ) : null}
+                      <Text type="supporting">{decisionExampleSourceLine(d)}</Text>
+                    </VStack>
+                  ))}
+                </VStack>
+              ))}
+            </VStack>
+          </details>
+        )}
         {texts.length > 0 && (
           <VStack gap={2}>
             <span className="ui-result-sect">살아 보니</span>
@@ -1542,6 +1763,18 @@ export function CardMsg({ msg, handlers, toolRows, cardHi }) {
               onDiaryRetry={() => handlers.onDiaryRetry(msg.id)}
               canRetryDiary={handlers.diaryRetryReady} />
           </div>
+        )}
+        {msg.kind === "life_plan" && (
+          <VStack gap={2} data-plan-card={msg.id} id={`plan-card-${msg.id}`}>
+            <LifePlanCard plan={(data && data.plan) || null} input={(data && data.input) || null}
+              scenario={(data && data.baseScenario) || null} lang={LANG}
+              busy={!!(data && data.status === "loading") || !!(handlers && handlers.busy)}
+              confirmed={!!(data && data.status === "confirmed")}
+              error={(data && data.error) || null}
+              onConfirm={() => handlers.onPlanConfirm && handlers.onPlanConfirm(msg.id)}
+              onRevise={() => handlers.onPlanRevise && handlers.onPlanRevise(msg.id)}
+              onRetry={() => handlers.onPlanRetry && handlers.onPlanRetry(msg.id)} />
+          </VStack>
         )}
         {msg.kind === "handoff" && (
           <VStack gap={2}>
@@ -3047,24 +3280,62 @@ export function ChatScreen() {
   // 18: corridor ground tiles (real 시군구 boundaries + open water)
   // intersecting the current pins; the map paints fine without them.
   const [mapTiles, setMapTiles] = useState([]);
+  // 50c: real neighbourhood geometry (roads, water/parks, building
+  // footprints) for the workplace + candidate areas; the map paints
+  // fine without it.
+  const [mapGround, setMapGround] = useState(null);
+  // 50c: stable effect key for the workplace areas (station/region/text).
+  const workGroundKey = ((profile && profile.workplaces && profile.workplaces.value) || [])
+    .map((w) => (w && w.resolved && (w.resolved.station || w.resolved.region))
+      || (w && w.text) || "")
+    .join("|");
   useEffect(() => {
     const cands = (candidatesData && candidatesData.result
       && candidatesData.result.candidates) || [];
     const pts = cands.filter((c) => Number.isFinite(c.lon) && Number.isFinite(c.lat));
-    if (pts.length === 0) { setMapTiles([]); return undefined; }
+    if (pts.length === 0) { setMapTiles([]); setMapGround(null); return undefined; }
     const lons = pts.map((c) => c.lon);
     const lats = pts.map((c) => c.lat);
     const pad = 0.03;
     const bbox = [Math.min(...lons) - pad, Math.min(...lats) - pad,
       Math.max(...lons) + pad, Math.max(...lats) + pad];
     let stale = false;
+    // 50c: stale ground clears immediately on a new query; a late
+    // previous search never overwrites the current one.
+    setMapGround(null);
     loadCorridorTiles(fetchJson, bbox).then((tiles) => {
       if (!stale) setMapTiles(tiles || []);
     });
+    const ids = selectMapGroundAreaIds({
+      workplaces: (profile && profile.workplaces && profile.workplaces.value) || [],
+      candidates: cands, picks });
+    if (ids.length === 0) return () => { stale = true; };
+    loadMapGround(fetchJson, ids).then((g) => {
+      if (!stale) setMapGround(g);
+    }).catch(() => {
+      if (!stale) setMapGround(null);
+    });
     return () => { stale = true; };
-  }, [candidatesData]);
+  }, [candidatesData, picks, workGroundKey]);
   const idRef = useRef(0);
   const busyRef = useRef(false);
+  // 47g: the provider in effect, re-read on every render so late model
+  // responses are dropped when it changed mid-flight.
+  const providerRef = useRef(provider);
+  providerRef.current = provider;
+  const composerWrapRef = useRef(null);
+  // 47l: plan/run single-flight guard, independent of the chat
+  // composer's busy flag so an internal agent handoff is never dropped.
+  const planGuardRef = useRef(null);
+  if (!planGuardRef.current) planGuardRef.current = createPlanGuard();
+  // 47l: the one staged confirmed execution payload (consumed exactly
+  // once by the run body; never a reused global).
+  const confirmedTxnRef = useRef(null);
+  if (!confirmedTxnRef.current) confirmedTxnRef.current = createConfirmedTransaction();
+  // 49h: one-turn routine-revision intent, armed by Adjust and consumed
+  // exactly once by the next valid send (busy/replay blocks preserve it).
+  const reviseIntentRef = useRef(null);
+  if (!reviseIntentRef.current) reviseIntentRef.current = createRevisionIntent();
   const replyCountRef = useRef(0);
   const profileRef = useRef(null);
   useEffect(() => { profileRef.current = profile; }, [profile]);
@@ -3665,10 +3936,313 @@ export function ChatScreen() {
       content: "확인해 주셔서 고마워요. 확인이 필요한 문장은 표시해 둔 채로 결과를 열어 둘게요." });
   }
 
-  async function handleRun(idsOverride = null) {
+  // 47g: household life-plan review before any 30-day run. Live Muse
+  // mode funnels every run request (buttons, chips, start_life_run)
+  // through a life_plan review card first; only an explicit card
+  // confirmation (reviewId) reaches the worker. Keyless/offline stays
+  // an explicitly labelled rule run with no Muse plan claim.
+  // 47g: scroll to a life_plan card without touching layout.
+  function scrollToPlanCard(planId) {
+    try {
+      if (typeof document === "undefined" || !planId) return;
+      const el = document.querySelector(`[data-plan-card="${planId}"]`);
+      if (el && typeof el.scrollIntoView === "function") {
+        el.scrollIntoView({ block: "start", behavior: "smooth" });
+      }
+    } catch {
+      // The card stays where it is.
+    }
+  }
+
+  function profileTextOf(p) {
+    try {
+      return JSON.stringify(p || null);
+    } catch {
+      return "";
+    }
+  }
+
+  function stalePlanLine() {
+    return LANG === "en"
+      ? "Your details changed while I was planning — retry for a fresh plan. I never run an old plan."
+      : "계획을 만드는 사이에 조건이 바뀌었어요. 다시 시도하면 새 조건으로 만들게요. 예전 조건으로는 돌리지 않아요.";
+  }
+
+  // 47g: scene + base scenario for a plan request or a confirmation.
+  // No simulation card here — planning shows its own life_plan card.
+  async function loadBaseForPlan(st0, picked) {
+    const data = dataRef.current || await ensureData(null);
+    const areas = new Map();
+    for (const p of picked) {
+      if (!areas.has(p.scene)) areas.set(p.scene, await loadBoxArea(fetchJson, p.scene));
+    }
+    const homes = picked.map((p) => homeForScenario(p,
+      complexNameForCandidate(p, areas.get(p.scene)) || p.name));
+    const sc = await scenarioStep(fetchJson, st0.profile, homes, { ...data, areas });
+    setScenario(sc.value);
+    const buildId = addToolRow({ name: "build_scenario", ok: true,
+      summary: picked.map((p) => displayNameFor(p)).join(" · "), ms: sc.ms });
+    const labels = picked.map((_, i) => "ABC"[i]);
+    // 47l: no route gate here — planning may set commute:none or a member
+    // reference, and unresolved conditions surface as a review, not data.
+    // The applied scenario is route-checked in the run body (4138+).
+    return { scenValue: sc.value, homes, buildId, labels };
+  }
+
+  // 47g: live run request without a review — build the bounded input,
+  // reuse a fresh review card when one already matches, otherwise post
+  // one planner call and store the review. Never the worker.
+  async function requestPlanFlow({ ids, picked, providerInUse, byoKeyForRun, forcePlan }) {
+    const guard = planGuardRef.current;
+    if (!guard.tryAcquire()) return;
+    setWorkOpen(true);
+    setBusy(true);
+    try {
+      const st0 = stateRef.current;
+      let scenValue;
+      try {
+        ({ scenValue } = await loadBaseForPlan(st0, picked));
+      } catch (err) {
+        pushMsg({ role: "assistant", kind: "life_plan",
+          data: { status: "error", plan: null, input: null, pickedIds: [...ids],
+            provider: providerInUse, snapshot: null,
+            error: String((err && err.message) || err) },
+          example: st0.exampleId });
+        return;
+      }
+      const input = buildReviewInput({ scenario: scenValue, profile: st0.profile,
+        messages: st0.messages, lang: LANG });
+      const snapshot = reviewSnapshot({ profileText: profileTextOf(st0.profile),
+        pickedIds: ids, provider: providerInUse, messages: st0.messages });
+      // 47l2: re-check CURRENT conditions after the awaited preparation
+      // and BEFORE any post — a moved provider/picks/profile/user
+      // history goes stale with a retry, never an API call.
+      {
+        const cur0 = stateRef.current;
+        const curInput0 = buildReviewInput({ scenario: scenValue, profile: cur0.profile,
+          messages: cur0.messages, lang: LANG });
+        const curSnap0 = reviewSnapshot({ profileText: profileTextOf(cur0.profile),
+          pickedIds: cur0.picks, provider: providerRef.current, messages: cur0.messages });
+        if (providerRef.current !== providerInUse
+          || curInput0.input_signature !== input.input_signature
+          || !sameSnapshot(curSnap0, snapshot)) {
+          pushMsg({ role: "assistant", kind: "life_plan",
+            data: { status: "stale", plan: null, input: null,
+              pickedIds: [...(cur0.picks || [])], provider: providerRef.current,
+              snapshot: curSnap0, error: stalePlanLine() },
+            example: cur0.exampleId });
+          return;
+        }
+      }
+      if (!forcePlan) {
+        const fresh = findFreshReview(stateRef.current.messages,
+          { inputSignature: input.input_signature, provider: providerInUse, snapshot });
+        if (fresh && fresh.data && fresh.data.status === "review" && fresh.data.plan) {
+          soon(() => scrollToPlanCard(fresh.id));
+          return;
+        }
+      }
+      const planId = pushMsg({ role: "assistant", kind: "life_plan",
+        data: { status: "loading", plan: null, input, baseScenario: scenValue,
+          pickedIds: [...ids], provider: providerInUse, snapshot, error: null },
+        example: st0.exampleId });
+      soon(() => scrollToPlanCard(planId));
+      let plan = null;
+      let usage = null;
+      try {
+        const scen = scenValue;
+        const prof = st0.profile;
+        const hist = st0.messages;
+        const byoKey = byoKeyForRun(providerInUse);
+        const out = await requestPlanReview({ postPlan: async () => {
+          const r = await postLifePlan({ provider: providerInUse, scenario: scen,
+            profile: prof, messages: hist, lang: LANG, byoKey });
+          return { plan: r.plan, input_signature: r.input_signature,
+            usage: { ...((r && r.usage) || {}), latencyMs: r.latencyMs } };
+        } }, { input, provider: providerInUse });
+        plan = out.plan;
+        usage = out.usage;
+      } catch (err) {
+        setMessages((prev) => prev.map((m) => (m.id === planId
+          ? { ...m, data: { ...m.data, status: "error",
+            error: String((err && err.message) || err) } }
+          : m)));
+        return;
+      }
+      // A late response is accepted only when nothing moved: same
+      // provider, same input signature, same snapshot. Otherwise the
+      // card goes stale with a retry — never an auto re-run.
+      const cur = stateRef.current;
+      const curInput = buildReviewInput({ scenario: scenValue, profile: cur.profile,
+        messages: cur.messages, lang: LANG });
+      const curSnap = reviewSnapshot({ profileText: profileTextOf(cur.profile),
+        pickedIds: cur.picks, provider: providerRef.current, messages: cur.messages });
+      if (providerRef.current !== providerInUse
+        || curInput.input_signature !== input.input_signature
+        || !sameSnapshot(curSnap, snapshot)) {
+        setMessages((prev) => prev.map((m) => (m.id === planId
+          ? { ...m, data: { ...m.data, status: "stale", plan: null, error: stalePlanLine() } }
+          : m)));
+        return;
+      }
+      setMessages((prev) => prev.map((m) => (m.id === planId
+        ? { ...m, data: { ...m.data, status: "review", plan, usage } }
+        : m)));
+      if (usage) {
+        setUsageLog((log) => recordTurn(log, { provider: providerInUse,
+          model: usage.model || providerInUse, input: usage.prompt_tokens || 0,
+          output: usage.completion_tokens || 0, reasoning: usage.reasoning_tokens || 0,
+          latencyMs: usage.latencyMs || 0 }));
+      }
+    } finally {
+      guard.release();
+      setBusy(busyRef.current || guard.busy);
+    }
+  }
+
+  // 47g: explicit card confirmation only. Rebuilds the input fresh,
+  // re-verifies provider/signature/snapshot/questions, then confirms +
+  // applies and runs the shared simulation body on the applied
+  // scenario. A stale review builds a new plan with a message —
+  // never runs the old conditions.
+  async function confirmPlanFlow({ reviewMsg, byoKeyForRun }) {
+    const guard = planGuardRef.current;
+    if (!guard.tryAcquire()) return;
+    setWorkOpen(true);
+    setBusy(true);
+    // Stale-handoff helper: releases the guard exactly once before
+    // delegating to a fresh plan request (which acquires it itself).
+    let handedOff = false;
+    const handOffToFreshPlan = async (ids, picked, providerNow) => {
+      handedOff = true;
+      guard.release();
+      setBusy(busyRef.current || guard.busy);
+      await requestPlanFlow({ ids, picked, providerInUse: providerNow,
+        byoKeyForRun, forcePlan: true });
+    };
+    try {
+      const stored = (reviewMsg && reviewMsg.data) || {};
+      // Resolve CURRENT conditions for the preparation call.
+      const pre = stateRef.current;
+      const prePicked = ((((pre.candidatesData || {}).result || {}).candidates) || [])
+        .filter((c) => (pre.picks || []).includes(c.id));
+      let scenValue;
+      try {
+        ({ scenValue } = await loadBaseForPlan(pre, prePicked));
+      } catch (err) {
+        pushMsg({ role: "assistant", kind: "life_plan",
+          data: { status: "error", plan: stored.plan || null, input: stored.input || null,
+            pickedIds: [...(pre.picks || [])], provider: providerRef.current,
+            snapshot: stored.snapshot || null,
+            error: String((err && err.message) || err) },
+          example: pre.exampleId });
+        return;
+      }
+      // Re-read CURRENT state after every await: any moved condition
+      // marks the review stale and builds a fresh plan for the current
+      // inputs — never a run of the old ids.
+      const cur = stateRef.current;
+      const curIds = [...(cur.picks || [])];
+      const curPicked = ((((cur.candidatesData || {}).result || {}).candidates) || [])
+        .filter((c) => curIds.includes(c.id));
+      const providerNow = providerRef.current;
+      const input = buildReviewInput({ scenario: scenValue, profile: cur.profile,
+        messages: cur.messages, lang: LANG });
+      const snapshot = reviewSnapshot({ profileText: profileTextOf(cur.profile),
+        pickedIds: curIds, provider: providerNow, messages: cur.messages });
+      const { fresh } = isConfirmFresh({ stored, input, snapshot, provider: providerNow });
+      if (!fresh) {
+        pushMsg({ role: "assistant", kind: "text",
+          content: LANG === "en"
+            ? "That plan no longer matches your current details, so I will make a fresh one. I never run old conditions."
+            : "조건이 바뀌어서 새 생활 플랜을 만들게요. 예전 조건으로는 돌리지 않아요." });
+        await handOffToFreshPlan(curIds, curPicked, providerNow);
+        return;
+      }
+      let confirmed;
+      let applied;
+      try {
+        confirmed = confirmLifePlan(stored.plan, input);
+        applied = applyLifePlan(scenValue, confirmed, input);
+      } catch (err) {
+        confirmedTxnRef.current.clear();
+        pushMsg({ role: "assistant", kind: "text",
+          content: String((err && err.message) || err) });
+        return;
+      }
+      // Stage the explicit transaction payload, then hand it to the
+      // shared run body as an argument — no global is left behind for
+      // a later run, and a second confirm cannot stage over it.
+      // 47l2: the confirmed payload carries the review input +
+      // snapshot + provider so the run body can re-verify freshness
+      // after its own awaited loads, before touching the worker.
+      if (!confirmedTxnRef.current.stage({ plan: confirmed, reviewId: reviewMsg.id,
+        applied, ids: curIds, input, snapshot, provider: providerNow })) return;
+      const payload = confirmedTxnRef.current.consume();
+      handedOff = true;
+      guard.release();
+      setBusy(busyRef.current || guard.busy);
+      await handleRun(null, null, false, payload);
+    } finally {
+      confirmedTxnRef.current.clear();
+      if (!handedOff) guard.release();
+      setBusy(busyRef.current || guard.busy);
+    }
+  }
+
+  // 47g: the review card's own buttons. Confirm re-enters handleRun
+  // with the stored review id (never arbitrary model args); retry
+  // forces a new planner call for the current inputs; revise fills
+  // the existing composer with a localized starter and focuses it.
+  function handlePlanConfirm(messageId) {
+    const m = (stateRef.current.messages || []).find((x) => x && x.id === messageId);
+    if (!m || m.kind !== "life_plan" || !m.data) return;
+    // 47l: the run resolves CURRENT picks inside — never stored ids.
+    void handleRun(null, messageId);
+  }
+
+  function handlePlanRetry() {
+    void handleRun(null, null, true);
+  }
+
+  function handlePlanRevise() {
+    reviseIntentRef.current.arm();
+    setComposer(LANG === "en" ? "Adjust my routine: " : "생활 패턴 조정: ");
+    soon(() => {
+      try {
+        const root = composerWrapRef.current;
+        const el = root && root.querySelector
+          ? root.querySelector("textarea, [contenteditable='true'], input") : null;
+        if (el && typeof el.focus === "function") el.focus();
+      } catch {
+        // The starter text is set either way.
+      }
+    });
+  }
+
+  async function handleRun(idsOverride = null, reviewId = null, forcePlan = false, confirmedDirect = null) {
+    const guard = planGuardRef.current;
+    // 47l: single-flight on the plan/run guard — never the chat composer
+    // flag, so an agent tool run action inside a busy send() still runs.
+    // 47l2: the confirmed handoff released the guard synchronously
+    // before calling here, so this body ALWAYS acquires it — a second
+    // confirm/run overlapping this one is rejected below. The explicit
+    // payload only selects the applied scenario, never a guard bypass.
+    const hasConfirmedPayload = !!(confirmedDirect && confirmedDirect.applied && confirmedDirect.plan);
+    if (guard.busy) return;
     setWorkOpen(true);
     const st = stateRef.current;
-    const ids = Array.isArray(idsOverride) ? idsOverride : st.picks;
+    const reviewMsg = reviewId
+      ? (st.messages || []).find((m) => m && m.id === reviewId && m.kind === "life_plan")
+      : null;
+    if (reviewId && (!reviewMsg || !reviewMsg.data)) return;
+    // 47l: always CURRENT picks — an old AB review never runs after the
+    // user changed to AC.
+    const ids = (confirmedDirect && Array.isArray(confirmedDirect.ids) && confirmedDirect.ids.length > 0)
+      ? confirmedDirect.ids
+      : (reviewMsg
+        ? [...(st.picks || [])]
+        : (Array.isArray(idsOverride) ? idsOverride : st.picks));
     const picked = ((st.candidatesData && st.candidatesData.result.candidates) || [])
       .filter((c) => ids.includes(c.id));
     if (picked.length < 2 || !st.profile) return;
@@ -3686,7 +4260,27 @@ export function ChatScreen() {
         content: `살아 보기를 못 하는 집이 있어요: ${blocked.map((c) => `${displayNameFor(c)} (${readinessNote(c)})`).join(" · ")}` });
       return;
     }
-    busyRef.current = true;
+    // 47g: Muse path and key loader are decided before any card, so
+    // planning never shows a simulation progress card.
+    const providerInUse = provider;
+    const byoKeyForRun = (p) => {
+      try {
+        return loadByoKey(typeof sessionStorage !== "undefined" ? sessionStorage : null, p);
+      } catch { return ""; /* no storage — server key path */ }
+    };
+    const museLiveMode = LIVE_API && shouldCallMuse({ museLive: getMuseLive() });
+    if (reviewMsg) {
+      await confirmPlanFlow({ reviewMsg, byoKeyForRun });
+      return;
+    }
+    if (museLiveMode && !hasConfirmedPayload) {
+      await requestPlanFlow({ ids, picked, providerInUse, byoKeyForRun, forcePlan });
+      return;
+    }
+    // 47l2: single-flight including confirmed execution — the handoff
+    // released before calling, so this acquire owns the whole worker run.
+    if (!guard.tryAcquire()) return;
+    const guardHeld = true;
     setBusy(true);
     const simId = pushMsg({ role: "assistant", kind: "simulation", replace: true,
       data: { status: "running", progress: { done: 0, total: picked.length, label: "" } },
@@ -3725,16 +4319,92 @@ export function ChatScreen() {
       const homes = picked.map((p) => homeForScenario(p,
         complexNameForCandidate(p, areas.get(p.scene)) || p.name));
       const sc = await scenarioStep(fetchJson, st.profile, homes, { ...data, areas });
-      const scenValue = sc.value;
+      // 47l: a confirmed run uses the explicit handoff payload's
+      // applied scenario, never the base rebuilt above; the payload is
+      // single-use and never retained for a later run.
+      const extras = hasConfirmedPayload ? confirmedDirect : null;
+      const scenValue = extras ? extras.applied : sc.value;
+      // 47l2: freshness is re-checked on the freshly built scenario
+      // BEFORE the applied scenario or the worker is used — never the
+      // applied signature against the base input (the base input was
+      // signed before apply). A moved home/provider/profile/user
+      // history marks the review stale with a retry: never the worker,
+      // never an invented stale success.
+      if (extras) {
+        const curRun = stateRef.current;
+        const curRunIds = [...(curRun.picks || [])];
+        const freshInput = buildReviewInput({ scenario: sc.value, profile: curRun.profile,
+          messages: curRun.messages, lang: LANG });
+        const freshSnap = reviewSnapshot({ profileText: profileTextOf(curRun.profile),
+          pickedIds: curRunIds, provider: providerRef.current, messages: curRun.messages });
+        const stillFresh = isConfirmedWorkerFresh({ extras, input: freshInput,
+            snapshot: freshSnap, provider: providerRef.current })
+          && curRunIds.slice().sort().join(",") === [...extras.ids].sort().join(",");
+        if (!stillFresh) {
+          setMessages((prev) => prev.map((m) => (m && m.id === extras.reviewId
+            ? { ...m, data: { ...m.data, status: "stale", error: stalePlanLine() } } : m)));
+          pushMsg({ role: "assistant", kind: "text",
+            content: LANG === "en"
+              ? "That plan no longer matches your current details, so I will not run it. Confirm the fresh plan to try again."
+              : "조건이 바뀌어서 확정된 플랜을 실행하지 않았어요. 새 플랜을 확인한 뒤 다시 시도해 주세요." });
+          return;
+        }
+      }
       setScenario(scenValue);
       const buildId = addToolRow({ name: "build_scenario", ok: true,
         summary: picked.map((p) => displayNameFor(p)).join(" · "), ms: sc.ms });
       const labels = picked.map((_, i) => "ABC"[i]);
-      const runner = createWorkerRunner(() => new Worker(new URL("../sim-worker.js", import.meta.url), { type: "module" }));
+      // 44b2: never generate a misleading month — a working adult
+      // whose station ride has no real minutes for a home stops here
+      // with a missing-route-data error, before any model choice call.
+      const missingRoutes = missingRouteHomes(scenValue, labels);
+      if (missingRoutes.length > 0) {
+        const missingHomes = [...new Set(missingRoutes.map((m) => m.home))].join("·");
+        throw new Error(LANG === "en"
+          ? `Missing route data for home ${missingHomes}: the rail timetable did not load. Try again shortly.`
+          : `출근길 시간이 확인되지 않은 집이 있어요(${missingHomes}). 노선 자료를 불러오지 못했으니 잠시 후 다시 시도해 주세요.`);
+      }
+      // 44b: real household choices when the model path is live
+      // (one guarded /api/consult call per branch, engine loop in
+      // the worker); keyless/offline stays an explicitly labelled
+      // rule run. Keys stay in main-thread headers, never in worker
+      // messages. A decision failure stops the run with an error
+      // card — the month is never filled by silent rules.
+      const museDecisions = LIVE_API && shouldCallMuse({ museLive: getMuseLive() });
+      const byoKeyForRun = (p) => {
+        try {
+          return loadByoKey(typeof sessionStorage !== "undefined" ? sessionStorage : null, p);
+        } catch { return ""; /* no storage — server key path */ }
+      };
+      let museProgress = null;
+      const runner = createWorkerRunner(() => new Worker(new URL("../sim-worker.js", import.meta.url), { type: "module" }),
+        museDecisions
+          ? { decisionMode: "muse",
+              decide: (context, opts) => postDecision({ provider, context, byoKey: byoKeyForRun(provider) }, opts)
+                .then((out) => out.entry) }
+          : {});
       const { runs, compare, ms } = await runStep(
-        (s, l, onP) => runner(s, l, (pg) => setProgress(
-          { done: pg.done + 1, total: picked.length + 1, label: pg.label })),
+        (s, l, onP) => runner(s, l, (pg) => {
+          if (pg && pg.decision) museProgress = pg.decision;
+          if (!pg || typeof pg.done !== "number") {
+            if (pg && pg.decisionWait) {
+              setProgress((prev) => ({ ...(prev || { done: 0, total: picked.length + 1, label: "" }),
+                ...(museProgress ? { muse: museProgress } : {}),
+                decisionWait: pg.decisionWait }));
+            }
+            return;
+          }
+          setProgress({ done: pg.done + 1, total: picked.length + 1, label: pg.label,
+            ...(museProgress ? { muse: museProgress } : {}),
+            ...(pg && pg.decisionWait ? { decisionWait: pg.decisionWait } : {}) });
+        }),
         scenValue, labels);
+      // 47l: the per-home summary is computed exactly once here, from
+      // the actual runs + the confirmed plan — before anything is saved
+      // or rendered, so no summary ever precedes its runs.
+      const lifeSummaries = extras
+        ? Object.fromEntries(labels.map((l) => [l, summarizePlanRun(runs[l], extras.plan)]))
+        : null;
       // 41g: stamp the 30-day run's last-mile mode onto the picked
       // candidates so the pin and card headline use it.
       labels.forEach((l, i) => {
@@ -3780,6 +4450,7 @@ export function ChatScreen() {
       const customId = newCustomId();
       await saveCustomRun({ id: customId, scenario: scenValue, runs, labels,
         moneyDoc, moneyMissing,
+        ...(extras ? { lifePlan: extras.plan, lifePlanSummary: lifeSummaries } : {}),
         names: Object.fromEntries(picked.map((p, i) => [labels[i], displayNameFor(p)])) });
       const moments = labels.map((l) => ({ label: l, ...firstMomentOfRun(runs[l]) }));
       const anchors = labels.map((l) => ({ label: l,
@@ -3836,7 +4507,25 @@ export function ChatScreen() {
         ? (wp0.resolved.station
           || (wp0.resolved.place && wp0.resolved.place.name) || null)
         : (wp0 && wp0.text) || null;
+      // 44b: provenance counts read off the finished runs (never a
+      // rule run called a Muse run), plus saved household decision
+      // examples per home (49b helper) — plain data, so the transcript
+      // reload carries them.
+      const decisionMode = museDecisions ? "muse" : "rule";
+      const provenance = decisionProvenance(runs, labels);
+      const houseMembers = scenValue && scenValue.household
+        && Array.isArray(scenValue.household.members)
+        ? scenValue.household.members : null;
+      const houseDecisions = labels.map((l) => {
+        const run = runs[l];
+        const items = makeHouseholdDecisionExamples(run || {}, houseMembers);
+        return { label: l, items };
+      });
+      // 47l: a confirmed run carries its plan and the summary computed
+      // above from the actual runs; rule runs omit both (no Muse claim).
       const payload = { status: "done", compare, moments, labels, customId, personLog,
+        decisionMode, provenance, houseDecisions,
+        ...(extras ? { lifePlan: extras.plan, lifePlanSummary: lifeSummaries } : {}),
         start_date: (scenValue && scenValue.start_date) || "2026-11-02",
         ...(wpName ? { workplace: wpName } : {}),
         // 29M1: English reports and headers read Muse's registered home
@@ -3855,13 +4544,20 @@ export function ChatScreen() {
           tool_calls: [{ id: buildId, name: "build_scenario" },
             { id: runId, name: "run_simulation" }, { id: cmpId, name: "compare" }] }
         : m)));
+      // 47g: the review card flips to confirmed only now that apply
+      // succeeded — the full plan stays in its data.
+      if (extras) {
+        setMessages((prev) => prev.map((m) => (m.id === extras.reviewId
+          ? { ...m, data: { ...m.data, status: "confirmed", plan: extras.plan } }
+          : m)));
+      }
       // 18d: the finished result replaces the progress in the same
       // card — keep it in view.
       soon(() => scrollChatToSim(simId));
       // 29j3: the comparison report goes through the verify step
       // without blocking the result card or the diary.
       {
-        const persona = personaFor(st.profile, { noCommute });
+        const persona = personaFor(st.profile, { noCommute, scenario: scenValue });
         const reportHomes = Object.fromEntries(
           labels.map((l) => [l, verifyHomeFor(moneyDoc, l)]));
         const slim = Object.fromEntries(
@@ -3925,8 +4621,8 @@ export function ChatScreen() {
       setMessages((prev) => prev.map((m) => (m.id === simId
         ? { ...m, data: { status: "error", error: String((err && err.message) || err) } } : m)));
     } finally {
-      busyRef.current = false;
-      setBusy(false);
+      if (guardHeld) guard.release();
+      setBusy(busyRef.current || guard.busy);
     }
   }
 
@@ -4277,8 +4973,69 @@ export function ChatScreen() {
   async function send(text) {
     const content = String(text || "").trim();
     if (!content || busyRef.current) return;
+    // 47l: a plan/run transaction in flight single-flights on its own
+    // guard — the composer waits instead of interleaving with it.
+    if (planGuardRef.current && planGuardRef.current.busy) return;
     // 29a6: replay mode never calls the consult client — the composer is read-only while replaying.
     if (replayId || replaying) return;
+    // 49h: armed routine revision — the next valid send quotes the user
+    // once and requests a NEW plan for CURRENT picks/provider/profile +
+    // updated history. Consumed exactly once; never the generic turn,
+    // never the worker. Busy/replay blocks above preserve the intent.
+    if (shouldTakeRevision({ armed: reviseIntentRef.current.peek(), content, blocked: false })) {
+      reviseIntentRef.current.consume();
+      busyRef.current = true;
+      setBusy(true);
+      setError("");
+      setNoAnswerSaved(false);
+      setChipsNearBottom(true);
+      const uid = pushMsg({ role: "user", kind: "text", content });
+      setComposer("");
+      // React state is async — sync stateRef so buildReviewInput below
+      // already contains this message. Never duplicated (id-checked).
+      stateRef.current = { ...stateRef.current,
+        messages: withRevisionMessage(stateRef.current.messages,
+          { id: uid, role: "user", kind: "text", content }) };
+      try {
+        if (museLive === false) noticeKeylessOnce();
+        const st = stateRef.current;
+        const ids = [...(st.picks || [])];
+        const picked = ((st.candidatesData && st.candidatesData.result.candidates) || [])
+          .filter((c) => ids.includes(c.id));
+        if (picked.length < 2 || !st.profile) {
+          pushMsg({ role: "assistant", kind: "text",
+            content: currentLang() === "en"
+              ? "Please pick two homes and complete your profile, then send again."
+              : "비교할 집 두 곳을 골라 주시고 프로필을 완성해 주세요. 정해지면 다시 보내 주세요." });
+          return;
+        }
+        const gate = runGate(st.profile);
+        if (!gate.ok) {
+          pushMsg({ role: "assistant", kind: "text",
+            content: "회사 위치를 먼저 알려 주세요. 회사 근처 역이나 동네를 말씀해 주시면 그 길로 30일 살아 보기를 돌려요. 출근을 안 하시면 “출근 안 해요”라고 말씀해 주세요." });
+          return;
+        }
+        const blocked = picked.filter((c) => readinessNote(c));
+        if (blocked.length > 0) {
+          pushMsg({ role: "assistant", kind: "text",
+            content: `살아 보기를 못 하는 집이 있어요: ${blocked.map((c) => `${displayNameFor(c)} (${readinessNote(c)})`).join(" · ")}` });
+          return;
+        }
+        const providerInUse = providerRef.current;
+        const byoKeyForRun = (p) => {
+          try {
+            return loadByoKey(typeof sessionStorage !== "undefined" ? sessionStorage : null, p);
+          } catch { return ""; /* no storage — server key path */ }
+        };
+        await requestPlanFlow({ ids, picked, providerInUse, byoKeyForRun, forcePlan: true });
+      } catch (err) {
+        setError(String((err && err.message) || err));
+      } finally {
+        busyRef.current = false;
+        setBusy(false);
+      }
+      return;
+    }
     busyRef.current = true;
     setBusy(true);
     setError("");
@@ -4367,7 +5124,7 @@ export function ChatScreen() {
 
   // 29a6: replay helpers — skip reveals all now, exit keeps the language.
   function replayIdForChat() {
-    return LANG === "en" ? "menlo-month" : "seoul-couple";
+    return DEFAULT_RECORDING_ID;
   }
   function skipReplay() {
     const timers = replayTimers.current || [];
@@ -4484,17 +5241,10 @@ export function ChatScreen() {
           replayPlan.current = plan;
           replayRunReady.current = plan ? (async () => {
             try {
-              const existing = await loadCustomRun(plan.customId);
-              if (existing) return true;
               const runner = createWorkerRunner(
                 () => new Worker(new URL("../sim-worker.js", import.meta.url), { type: "module" }));
-              const { runs } = await runStep(
-                (s, l, onP) => runner(s, l, onP || (() => {})),
-                plan.scenario, plan.labels);
-              await saveCustomRun({ id: plan.customId, scenario: plan.scenario,
-                runs, labels: plan.labels, moneyDoc: plan.moneyDoc,
-                moneyMissing: plan.moneyMissing, names: plan.names });
-              return true;
+              return await restoreReplayRun(plan, { loadCustomRun, saveCustomRun,
+                runWorker: (s, l, onP) => runner(s, l, onP || (() => {})) });
             } catch {
               return false;
             }
@@ -4804,6 +5554,10 @@ export function ChatScreen() {
     onPreview3D: handlePreview3D,
     onJeonse: handleJeonse,
     onRun: handleRun,
+    busy,
+    onPlanConfirm: handlePlanConfirm,
+    onPlanRevise: handlePlanRevise,
+    onPlanRetry: handlePlanRetry,
     onReportRetry,
     onDiaryRetry,
     diaryRetryReady,
@@ -5001,7 +5755,7 @@ export function ChatScreen() {
                   {noAnswerSaved && !noAnswerVisible && (
                     <p className="ui-noanswer-ok">{NO_ANSWER_SUCCESS}</p>
                   )}
-                  <ChatComposer onSubmit={send} isDisabled={busy || !!replayId}
+                  <ChatComposer ref={composerWrapRef} onSubmit={send} isDisabled={busy || !!replayId}
                     value={composer} onChange={setComposer}
                     sendActions={canVoice ? (
                       <MicButton onText={appendVoiceText}
@@ -5094,6 +5848,7 @@ export function ChatScreen() {
               network: dataRef.current?.network || null,
               tiles: mapTiles,
               green: mergeGreenBoxes(dataRef.current?.greenBoxes),
+              ground: mapGround,
               // 42a: while the run is active the map shows only the
               // picked homes + workplace (fit to them).
               candidates: runStage.running
@@ -5257,7 +6012,7 @@ export function ChatEmpty({ onSend, onListing, onExample, replayId }) {
     onListing,
     onExample,
     openReplay: () => {
-      try { window.location.href = appUrl("?replay=" + (LANG === "en" ? "menlo-month" : "seoul-couple")); } catch { /* keep the thread as it is */ }
+      try { window.location.href = appUrl("?replay=" + DEFAULT_RECORDING_ID + "&lang=" + LANG); } catch { /* keep the thread as it is */ }
     },
     metaText: LANG === "en" ? META_HQ_TEXT : META_HQ_TEXT_KO,
   };

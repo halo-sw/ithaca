@@ -48,8 +48,19 @@ import { currentLang } from "../i18n/lang.js";
 // 26e: the screens below carry no area bbox; a USD moneyDoc marks a US
 // run, so the aerial credit maps it to a country-only area (Korean
 // runs keep AERIAL_CREDIT).
+// 45c3: prefer the loaded area's own country/bbox/id (tour has no
+// moneyDoc); money USD stays only as a backward-compatible fallback.
 function areaForCredit(state) {
-  return state.money && state.money.currency === "USD" ? { country: "US" } : null;
+  const a = state && state.area;
+  const moneyUs = !!(state && state.money && state.money.currency === "USD");
+  if (a && typeof a === "object") {
+    if (a.country || a.bbox) return a;
+    if (typeof a.id === "string" && a.id) {
+      if (a.id === "us-menlo" || a.id.startsWith("us-")) return { id: a.id, country: "US" };
+      if (!moneyUs) return a;
+    }
+  }
+  return moneyUs ? { country: "US" } : null;
 }
 import { priorityValues, myScore } from "../priorities.js";
 
@@ -390,10 +401,21 @@ function heroSentence(state, lang) {
 // own one-line wording (walk remain, stay remain, work end time).
 export function heroBig(state) {
   const n = state.now;
-  const left = state.journey && Number.isFinite(state.journey.minutesLeft)
-    ? state.journey.minutesLeft
-    : n.ride && Number.isFinite(n.ride.minutesLeft) ? n.ride.minutesLeft : null;
-  if (left !== null) return `${Math.ceil(left)}분 남음`;
+  // The current leg's own number wins: a stale journey hold banner
+  // (minutesLeft 0) must not override the real trip/away being shown.
+  if (Number.isFinite(n.remainingMinutes)) {
+    if (/곧 도착/.test(n.now || "")) return "곧 도착";
+    if (n.state === "place") return `${Math.ceil(n.remainingMinutes)}분 머묾`;
+    return `${Math.ceil(n.remainingMinutes)}분 남음`;
+  }
+  // Legacy cards without the field: journey/ride payloads count only
+  // while actually riding; otherwise read the engine's own wording.
+  if (n.state === "ride") {
+    const left = state.journey && Number.isFinite(state.journey.minutesLeft)
+      ? state.journey.minutesLeft
+      : n.ride && Number.isFinite(n.ride.minutesLeft) ? n.ride.minutesLeft : null;
+    if (left !== null) return `${Math.ceil(left)}분 남음`;
+  }
   const m = /(\d+(?:\.\d+)?)분 남음/.exec(n.now);
   if (m) return `${Math.ceil(Number(m[1]))}분 남음`;
   if (/곧 도착/.test(n.now)) return "곧 도착";
@@ -789,11 +811,15 @@ export function howCalculatedLines(cmp) {
   const lines = [];
   const j = (cmp && cmp.judgment) || {};
   const modelN = (s) => (s && s.model) || 0;
-  const total = modelN(j.a) + modelN(j.b);
+  const ja = j.A ?? j.a;
+  const jb = j.B ?? j.b;
+  const aN = modelN(ja);
+  const bN = modelN(jb);
+  const total = aN + bN;
   if (total === 0) {
     lines.push(`이 ${cmp.days || 30}일은 정해 둔 생활 규칙으로 만들었어요. Muse 판단이 들어간 날: 0일`);
   } else {
-    lines.push(`정해 둔 생활 규칙대로 만들었고, Muse가 정한 장면이 A ${modelN(j.a)}개 · B ${modelN(j.b)}개 있어요`);
+    lines.push(`정해 둔 생활 규칙대로 만들었고, Muse가 정한 장면이 A ${aN}개 · B ${bN}개 있어요`);
   }
   lines.push("걸어서 직접 잰 시간은 도보 그래프로 잰 값이고, 차·지하철을 탄 시간과 횟수는 미리 정해 둔 값이에요");
   lines.push(FATIGUE_MODEL_NOTE);
@@ -1046,10 +1072,14 @@ export function SimCredit({ state }) {
       </div>
     );
   }
+  // 45c3: Korean short form keeps USGS on US areas, VWorld otherwise.
+  const krCredit = aerialCreditFor(areaForCredit(state));
   const full = photo
-    ? `${aerialCreditFor(areaForCredit(state))} · © OpenStreetMap`
+    ? `${krCredit} · © OpenStreetMap`
     : "© OpenStreetMap";
-  const short = photo ? "© VWorld · © OpenStreetMap" : "© OpenStreetMap";
+  const short = !photo ? "© OpenStreetMap"
+    : krCredit === USGS_CREDIT ? `${USGS_CREDIT} · © OpenStreetMap`
+    : "© VWorld · © OpenStreetMap";
   return (
     <div className="ui-simcredit" data-testid="sim-credit" data-no-i18n title={full}>
       <span className="ui-simcredit-full">{full}</span>
@@ -1061,7 +1091,9 @@ export function SimCredit({ state }) {
 function AttrLine({ state }) {
   // 26e: a USD run (moneyDoc currency) hides the Korean source line and
   // shows the US line instead.
-  const isUsd = state.money && state.money.currency === "USD";
+  // 45c3: the loaded area's own country/bbox/id marks a US run too (the
+  // Menlo tour has no moneyDoc); no Korean GIS/VWorld credit on US.
+  const isUsd = aerialCreditFor(areaForCredit(state)) === USGS_CREDIT;
   const money = state.compareTab === "money" || state.compareTab === "quality"
     || state.compareTab === "worthit" || state.compareTab === "support";
   const jeonse = state.compareTab === "jeonse";

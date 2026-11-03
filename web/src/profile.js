@@ -240,28 +240,63 @@ function findMembers(text) {
   const one = ["혼자", "신입", "1인", "나 혼자", "자취"];
   // English cues (24b): word-bounded, case-insensitive, Korean first.
   const enTwo = /\b(?:couple|married|newlywed|my\s+(?:wife|husband|partner|spouse)|two of us|both work)\b/i.exec(text);
+  const enTwoWorkingParents = /\btwo\s+working\s+parents\b/i.exec(text);
   const enOne = /\b(?:alone|by myself|single|on my own|just me)\b/i.exec(text);
   const enChild = /\b(?:kid|kids|child|children|son|daughter|baby|toddler|elementary)\b/i.exec(text);
-  const members = [];
-  let evidence = null;
-  if (two.some((w) => text.includes(w)) || enTwo) {
-    evidence = two.some((w) => text.includes(w))
-      ? two.find((w) => text.includes(w))
-      : enTwo[0];
-    members.push({ role: "adult" }, { role: "adult" });
-  } else if (one.some((w) => text.includes(w)) || enOne) {
-    evidence = one.some((w) => text.includes(w))
-      ? one.find((w) => text.includes(w))
-      : enOne[0];
-    members.push({ role: "adult" });
-  }
-  if (child.some((w) => text.includes(w)) || enChild) {
-    const cw = child.some((w) => text.includes(w))
+  // 44a: explicit two-children counts (verbatim evidence preserved).
+  const koTwoChild = /(자녀|아이|아기|애기|어린이)\s*(두\s*명|2\s*명|둘)/.exec(text);
+  const enTwoChild = /\b(two|2)\s+(?:elementary-school\s+|elementary\s+|primary-school\s+|primary\s+school\s+)?(?:children|child|kids|kid)\b/i.exec(text);
+  // 44a: school only when explicitly stated — never inferred from role.
+  const schoolCue = /초등학생|초등학교/.test(text)
+    || /\belementary\b|primary-school|primary\s+school|school-age/i.test(text);
+  let childCount = 0;
+  let childEvidence = null;
+  if (koTwoChild) {
+    childCount = 2;
+    childEvidence = koTwoChild[0];
+  } else if (enTwoChild) {
+    childCount = 2;
+    childEvidence = enTwoChild[0];
+  } else if (child.some((w) => text.includes(w)) || enChild) {
+    childCount = 1;
+    childEvidence = child.some((w) => text.includes(w))
       ? child.find((w) => text.includes(w))
       : enChild[0];
-    evidence = evidence ? `${evidence}·${cw}` : cw;
+  }
+  const childSchool = childCount > 0 && schoolCue;
+  // 44a: a bare "family of four" never implies composition. Adults come
+  // only from explicit cues; a lone-parent word wins over the "두 명"
+  // inside a child count (혼자 아이 두 명 = 1 adult + 2 children).
+  const oneHit = one.some((w) => text.includes(w)) ? one.find((w) => text.includes(w))
+    : enOne ? enOne[0] : null;
+  const members = [];
+  let evidence = null;
+  let adultCount = 0;
+  if (oneHit) {
+    adultCount = 1;
+    evidence = oneHit;
+  } else if (enTwoWorkingParents) {
+    adultCount = 2;
+    evidence = enTwoWorkingParents[0];
+  } else {
+    const adultText = childEvidence && childCount === 2
+      ? text.replace(childEvidence, "")
+      : text;
+    const twoHit = two.some((w) => adultText.includes(w))
+      ? two.find((w) => adultText.includes(w)) : null;
+    const enTwoHit = /\b(?:couple|married|newlywed|my\s+(?:wife|husband|partner|spouse)|two of us|both work)\b/i.exec(adultText);
+    if (twoHit || enTwoHit) {
+      adultCount = 2;
+      evidence = twoHit || enTwoHit[0];
+    }
+  }
+  for (let a = 0; a < adultCount; a += 1) members.push({ role: "adult" });
+  if (childCount > 0) {
+    evidence = evidence ? `${evidence}·${childEvidence}` : childEvidence;
     if (members.length === 0) members.push({ role: "adult" });
-    members.push({ role: "child" });
+    for (let c = 0; c < childCount; c += 1) {
+      members.push(childSchool ? { role: "child", school: true } : { role: "child" });
+    }
   }
   // 38e: seniors living together (Korean first, then English).
   // Two-cues name the pair; single words add one each (deduped).
@@ -363,10 +398,40 @@ function findOfficeDays(text) {
     if (n !== null && n >= 1 && n <= 4) return { value: n, evidence: m[0] };
   }
   if (sawDated) return null;
-  const remoteKo = /(완전 재택|재택근무|풀재택|재택)/.exec(src);
-  if (remoteKo) return { value: 0, evidence: remoteKo[0] };
-  const remoteEn = /(work from home|fully remote|\bWFH\b|\bremote\b)/i.exec(src);
-  if (remoteEn) return { value: 0, evidence: remoteEn[0] };
+  // 49g: a negated remote cue ("zero remote", "no WFH", "재택 안 해요",
+  // "재택 없음") never implies full remote. Each remote hit is judged in
+  // its own local window; a member-specific negated clause (e.g. parents
+  // with zero remote days) must not become a household 0.
+  const negatedAt = (idx, len) => {
+    const before = src.slice(Math.max(0, idx - 20), idx);
+    const after = src.slice(idx + len, idx + len + 20);
+    if (/\b(zero|no|not|never|none|without|0)\s*$/i.test(before)) return true;
+    if (/^\s*(0|zero|none)\b/i.test(after)) return true;
+    if (/ zero| no| none|\b0\b/i.test(after.slice(0, 14))) {
+      if (/\b(zero|none|0)\b/i.test(after.slice(0, 14))) return true;
+    }
+    if (/(안|못|없이|없음|없어|아님|아니)\s*$/.test(before)) return true;
+    if (/^\s*(?:[을를은는이가]\s*)?(안|못|없이|없음|없어|아님|아니)/.test(after)) return true;
+    return false;
+  };
+  const koHits = [];
+  {
+    const re = /(완전 재택|재택근무|풀재택|재택)/g;
+    let h;
+    while ((h = re.exec(src)) !== null) koHits.push(h);
+  }
+  for (const h of koHits) {
+    if (!negatedAt(h.index, h[0].length)) return { value: 0, evidence: h[0] };
+  }
+  const enHits = [];
+  {
+    const re = /(work from home|fully remote|\bWFH\b|\bremote\b)/gi;
+    let h;
+    while ((h = re.exec(src)) !== null) enHits.push(h);
+  }
+  for (const h of enHits) {
+    if (!negatedAt(h.index, h[0].length)) return { value: 0, evidence: h[0] };
+  }
   return null;
 }
 
@@ -816,6 +881,79 @@ function cashTiedAfter(src, end) {
   if (/\d/.test(ahead)) return false;
   return true;
 }
+// 49g: shared trailing magnitude under a salary anchor reads each bare
+// number with that magnitude ("salaries are 50 and 45 million won" ->
+// [50000000, 45000000]). Only near a salary/income anchor; literal bare
+// substrings stay the evidence, in text order. Never fires for dollars,
+// savings cues, or a budget cue between the anchor and the list.
+function expandSharedSalaryMagnitudes(src, monies) {
+  const s = String(src || "");
+  let anchor = null;
+  for (const re of SALARY_ANCHORS) {
+    const m = re.exec(s);
+    if (m && (!anchor || m.index < anchor.index)) anchor = m;
+  }
+  if (!anchor) return monies;
+  const at = anchor.index;
+  const end = at + anchor[0].length;
+  const spans = [];
+  let cursor = 0;
+  for (const money of monies) {
+    const pos = s.indexOf(money.evidence, cursor);
+    if (pos < 0) continue;
+    spans.push({ money, pos, end: pos + money.evidence.length });
+    cursor = pos + money.evidence.length;
+  }
+  const covered = (a, b) => spans.some((o) => a < o.end && b > o.pos);
+  const multOf = (mag) => {
+    const t = String(mag || "").toLowerCase();
+    if (t === "k") return 1000;
+    if (t === "m" || t === "million" || t === "millions") return 1000000;
+    if (t === "b" || t === "billion" || t === "billions") return 1000000000;
+    return 0;
+  };
+  const added = [];
+  const re = /\b\d+(?:\.\d+)?(?:\s*(?:,|·|・|\/|&|and|or)\s*\d+(?:\.\d+)?)+\s*(?:M\b|B\b|K\b|millions?\b|billions?\b)(?:\s*won\b)?/gi;
+  let m;
+  while ((m = re.exec(s)) !== null) {
+    const listStart = m.index;
+    const listEnd = m.index + m[0].length;
+    const d = listStart >= end ? listStart - end : at - listEnd;
+    if (d < 0 || d > 24) continue;
+    const context = s.slice(Math.max(0, listStart - 8), listEnd + 8);
+    if (/[$]|dollar|USD|달러/i.test(context)) continue;
+    const between = listStart >= end
+      ? s.slice(end, listStart)
+      : s.slice(listEnd, at);
+    if (/(savings|saved|cash|in the bank|budget|deposit|price|rent|house|보증금|매매|전세|월세|저축|현금|모은|자기자본)/i.test(between)) continue;
+    const magM = /(M\b|B\b|K\b|millions?\b|billions?\b)(?:\s*won\b)?\s*$/i.exec(m[0]);
+    if (!magM) continue;
+    const mult = multOf(magM[1]);
+    if (!mult) continue;
+    const nums = [];
+    const numRe = /\d+(?:\.\d+)?/g;
+    let nm;
+    while ((nm = numRe.exec(m[0])) !== null) nums.push({ num: nm[0], off: nm.index });
+    for (let i = 0; i + 1 < nums.length; i++) {
+      const pos = listStart + nums[i].off;
+      const epos = pos + nums[i].num.length;
+      if (covered(pos, epos)) continue;
+      if (added.some((o) => pos < o.end && epos > o.pos)) continue;
+      if (cashTiedBefore(s, pos) || cashTiedAfter(s, epos)) continue;
+      const n = Number(nums[i].num);
+      if (!Number.isFinite(n) || n <= 0) continue;
+      const won = Math.round(n * mult);
+      added.push({ money: { won, evidence: nums[i].num, currency: "KRW" }, pos, end: epos });
+      spans.push({ money: null, pos, end: epos });
+    }
+  }
+  if (added.length === 0) return monies;
+  return spans
+    .filter((o) => o.money)
+    .concat(added)
+    .sort((a, b) => a.pos - b.pos)
+    .map((o) => o.money);
+}
 function salaryListAfterAnchor(text, monies) {
   const src = String(text || "");
   let anchor = null;
@@ -904,7 +1042,8 @@ export function extract_profile(text, current = null, opts = {}) {
   // order; a second anchor for the partner sets the second pay.
   // 41l: a chain element tied to a savings cue is cash only — it
   // never reads as salary (both languages).
-  const salaryChainRaw = salaryListAfterAnchor(src, krwMonies);
+  const expandedKrw = expandSharedSalaryMagnitudes(src, krwMonies);
+  const salaryChainRaw = salaryListAfterAnchor(src, expandedKrw);
   const salaryChain = salaryChainRaw && salaryChainRaw.length > 0
     ? salaryChainRaw.filter((o) => !cashTiedBefore(src, o.pos) && !cashTiedAfter(src, o.end))
     : null;
@@ -970,8 +1109,10 @@ export function extract_profile(text, current = null, opts = {}) {
   const commuteHit = (() => {
     const m = /(\d+)\s*분\s*(?:이내|안에|까지|컷)/.exec(src);
     if (m) return { value: Number(m[1]), evidence: m[0] };
-    const e = /(?:within|under|at most|max(?:imum)?|no more than)\s*(\d+)\s*(?:min|mins|minutes)/i.exec(src)
-      || /(\d+)\s*(?:min|mins|minutes)\s*(?:or less|max|at most|commute)/i.exec(src);
+    // 49g: hyphen form ("45-minute") needs an explicit commute/limit
+    // cue nearby; a bare minute count never reads as a commute cap.
+    const e = /(?:within|under|at most|max(?:imum)?|no more than)\s*(\d+)\s*-?\s*(?:minutes?|mins?)\b/i.exec(src)
+      || /(\d+)\s*-?\s*(?:minutes?|mins?)\b.{0,24}\b(?:or less|max|at most|commute|limit)\b/i.exec(src);
     if (!e) return null;
     return { value: Number(e[1]), evidence: e[0] };
   })();
@@ -1305,7 +1446,9 @@ for (const [en, ko] of Object.entries({
 export function memberLabelEn(label) {
   if (typeof label !== "string" || !label) return label;
   if (MEMBER_LABEL_EN[label]) return MEMBER_LABEL_EN[label];
-  let m = /^함께 사는 사람 (\d+)$/.exec(label);
+  let m = /^아이 (\d+)$/.exec(label);
+  if (m) return `Your child ${m[1]}`;
+  m = /^함께 사는 사람 (\d+)$/.exec(label);
   if (m) return `Housemate ${m[1]}`;
   m = /^구성원 (\d+)$/.exec(label);
   if (m) return `Member ${m[1]}`;
@@ -1332,7 +1475,9 @@ export function memberLabelKo(label) {
   if (typeof label !== "string" || !label) return label;
   const hit = MEMBER_LABEL_KO[label.toLowerCase()];
   if (hit) return hit;
-  let m = /^housemate (\d+)$/i.exec(label);
+  let m = /^your child (\d+)$/i.exec(label);
+  if (m) return `아이 ${m[1]}`;
+  m = /^housemate (\d+)$/i.exec(label);
   if (m) return `함께 사는 사람 ${m[1]}`;
   m = /^member (\d+)$/i.exec(label);
   if (m) return `구성원 ${m[1]}`;
@@ -1358,6 +1503,9 @@ export function scenarioFromProfile(profile, homes, opts = {}) {
   const network = opts.network || null;
   const schedule = opts.schedule || null;
 
+  // 47d2: officeDays read early so member mapping below can honour it.
+  const officeDaysEarly = v("officeDays");
+  const odEarly = Number.isInteger(officeDaysEarly) ? officeDaysEarly : null;
   const scenarioHomes = list.map((home, i) => {
     const label = HOME_LABELS[i];
     if (!home.scene) {
@@ -1384,21 +1532,33 @@ export function scenarioFromProfile(profile, homes, opts = {}) {
 
   // 26d: members with a resolved place commute without a station —
   // only station_ride members need the home station walk times.
-  // 42e: look the workplace up by member id (entries carry .member),
-  // falling back to the shared/first entry — positional indexing alone
-  // strands a member whenever the array order shifts.
+  // 47d2: exact member mapping only; a shared entry (member undefined)
+  // may apply to adults. No first-adult fallback — a member without
+  // their own work is unresolved, never assigned another's commute.
   const workplaceFor = (idx) => {
     if (!Array.isArray(workplaces) || workplaces.length === 0) return null;
-    return workplaces.find((w) => w && w.member === idx)
-      || workplaces.find((w) => w && (w.member === 0 || w.member === undefined))
-      || workplaces[0] || null;
+    const own = workplaces.find((w) => w && w.member === idx);
+    if (own) return own;
+    return workplaces.find((w) => w && w.member === undefined) || null;
   };
-  const needsStation = members.some((m, i) => {
+  // 47d2: member-specific home_office wins over the global officeDays;
+  // an explicit false keeps that member commuting when others go remote.
+  const memberRemote = (m) => {
+    if (m && m.home_office === true) return true;
+    if (m && m.home_office === false) return false;
+    return odEarly === 0;
+  };
+  const memberNeedsStation = (m, i) => {
     if ((m.role || "adult") === "child") return false;
+    if (memberRemote(m)) return false;
     const wp = workplaceFor(i);
-    const place = wp && wp.resolved && wp.resolved.place;
-    return !(place && Number.isFinite(place.lon) && Number.isFinite(place.lat));
-  });
+    if (!wp || !wp.resolved) return false;
+    if (wp.noCommute === true) return false;
+    const place = wp.resolved.place;
+    if (place && Number.isFinite(place.lon) && Number.isFinite(place.lat)) return false;
+    return !!(wp.resolved.station);
+  };
+  const needsStation = members.some((m, i) => memberNeedsStation(m, i));
   const stationName = {};
   for (const h of scenarioHomes) {
     const home = list[scenarioHomes.indexOf(h)];
@@ -1419,21 +1579,24 @@ export function scenarioFromProfile(profile, homes, opts = {}) {
     return d ? d.minutes : null;
   };
   const commuteKnown = v("commuteMax");
-  // 38e: hybrid/full-remote days and pets from the customer profile.
+  // 47d2: hybrid office days from the customer profile (pets carry no
+  // automatic routines). Member-explicit fields win over this global.
   const officeDays = v("officeDays");
   const od = Number.isInteger(officeDays) ? officeDays : null;
-  const pets = v("pets");
-  const hasDog = !!(pets && pets.kind === "dog");
-  const hasCatPet = !!(pets && (pets.kind === "cat" || pets.kind === "pet"));
-  const firstAdultIdx = members.findIndex((mm) => {
-    const r = (mm && mm.role) || "adult";
-    return r !== "senior" && r !== "child";
-  });
   const OFFICE_WORKDAYS = { 1: ["Wed"], 2: ["Tue", "Thu"],
     3: ["Mon", "Wed", "Fri"], 4: ["Mon", "Tue", "Thu", "Fri"] };
+  // 47d2: copy only explicitly provided member fields; scenario base
+  // values stay generic assumptions (errands 1/1, park 1, others 0).
+  const VALID_DAYS = new Set(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]);
+  const copyDays = (list) => (Array.isArray(list) && list.length > 0
+    && list.every((d) => VALID_DAYS.has(d)) ? [...list] : null);
+  const copyInt = (n, lo, hi) => (Number.isInteger(n) && n >= lo && n <= hi ? n : null);
   // 29N3: set when a member rides Caltrain — the run's destination
   // area is the Meta HQ box (us-menlo).
   let usDestArea = null;
+  // 44a: siblings need distinct scenario labels (아이 1, 아이 2).
+  const childTotal = members.filter((mm) => ((mm && mm.role) || "adult") === "child").length;
+  let childSeen = 0;
   const membersOut = members.map((m, i) => {
     const wp = workplaceFor(i);
     const dest = wp && wp.resolved && wp.resolved.station ? wp.resolved.station : null;
@@ -1447,38 +1610,73 @@ export function scenarioFromProfile(profile, homes, opts = {}) {
       park_walks_per_week: 1,
       clinic_visits_per_month: 0,
     };
-    // 38e: seniors never commute — daily park walks, monthly clinic.
-    if ((m.role || "adult") === "senior") {
-      out.work = { type: "none" };
-      out.park_walks_per_week = 7;
-      out.clinic_visits_per_month = 2;
-      out.errands_per_week = { supermarket: 1, convenience: 2 };
-      return out;
+    // 47d2: copy explicitly provided member fields; nothing else
+    // becomes a stated fact (no senior/remote/pet stereotypes).
+    if (typeof m.preferences === "string" && m.preferences.length > 0) {
+      out.preferences = m.preferences.slice(0, 500);
     }
+    const explicitWorkdays = copyDays(m.workdays);
+    if (explicitWorkdays) out.workdays = explicitWorkdays;
+    const explicitSchooldays = copyDays(m.schooldays);
+    if (explicitSchooldays) out.schooldays = explicitSchooldays;
+    if (m.errands_per_week && typeof m.errands_per_week === "object") {
+      const s = copyInt(m.errands_per_week.supermarket, 0, 7);
+      const c = copyInt(m.errands_per_week.convenience, 0, 7);
+      if (s !== null && c !== null) out.errands_per_week = { supermarket: s, convenience: c };
+    }
+    const pw = copyInt(m.park_walks_per_week, 0, 7);
+    if (pw !== null) out.park_walks_per_week = pw;
+    const cv = copyInt(m.clinic_visits_per_month, 0, 31);
+    if (cv !== null) out.clinic_visits_per_month = cv;
+    const cf = copyInt(m.cafe_visits_per_week, 0, 5);
+    if (cf !== null) out.cafe_visits_per_week = cf;
+    const vv = copyInt(m.vet_visits_per_month, 0, 4);
+    if (vv !== null) out.vet_visits_per_month = vv;
+    if (typeof m.home_office === "boolean") out.home_office = m.home_office;
+    if (typeof m.dog_walk_morning === "boolean") out.dog_walk_morning = m.dog_walk_morning;
     if ((m.role || "adult") === "child") {
       out.work = { type: "none" };
-      out.schooldays = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+      if (!explicitSchooldays) out.schooldays = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+      // 47d2: school age never establishes a destination — a stated
+      // school need starts unresolved, never as the nearest school.
+      if (m.school === true) {
+        out.school = { mode: "unresolved", level: m.school_level || "unknown" };
+      } else if (m.school && typeof m.school === "object"
+        && (m.school.mode === "unresolved" || m.school.mode === "nearby")) {
+        out.school = { mode: m.school.mode, level: m.school.level || "unknown" };
+      } else if (m.school === false) {
+        out.school = false;
+      }
+      if (childTotal > 1) {
+        childSeen += 1;
+        const explicit = typeof m.label === "string" && m.label
+          && !/^구성원 \d+$/.test(m.label);
+        if (!explicit) out.label = `아이 ${childSeen}`;
+      }
       return out;
     }
-    // 38e: hybrid office days + pets (seniors/children returned above).
-    if (od === 0) {
-      out.home_office = true;
+    // 47d2: remote/no-commute resolution. Member-explicit home_office
+    // wins over the global officeDays; no member is retired by
+    // inference — a senior/adult without their own work stays
+    // work_unresolved until the customer confirms no commute.
+    const remote = memberRemote(m);
+    const noCommute = !!(wp && wp.noCommute === true);
+    if (remote || noCommute) {
+      if (remote) out.home_office = true;
       out.work = { type: "none" };
-      out.cafe_visits_per_week = 2;
-    } else if (od !== null && OFFICE_WORKDAYS[od]) {
+      return out; // resolved no-commute: never a commute, no station needed
+    }
+    if (!explicitWorkdays && od !== null && OFFICE_WORKDAYS[od]) {
       out.workdays = [...OFFICE_WORKDAYS[od]];
-      out.cafe_visits_per_week = Math.min(2, 5 - od);
     }
-    if (i === firstAdultIdx) {
-      if (hasDog) {
-        out.dog_walk_morning = true;
-        out.park_walks_per_week = 7;
-        out.vet_visits_per_month = 1;
-      } else if (hasCatPet) {
-        out.vet_visits_per_month = 1;
-      }
+    const placeEarly = wp && wp.resolved && wp.resolved.place;
+    const hasOwnWork = !!(wp && wp.resolved
+      && (dest || (placeEarly && Number.isFinite(placeEarly.lon) && Number.isFinite(placeEarly.lat))));
+    if (!hasOwnWork) {
+      out.work = { type: "none" };
+      out.work_unresolved = true;
+      return out;
     }
-    if (od === 0) return out; // full remote: never a commute
     // 26d: a resolved place (e.g. Meta HQ) commutes by walk/bike from
     // lon/lat — no station walk needed. Korean station workplaces below
     // are unchanged.

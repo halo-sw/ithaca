@@ -9,12 +9,16 @@ import { readFile, readdir } from "node:fs/promises";
 import { fetchDataText } from "../data-fetch.js";
 import { join } from "node:path";
 import { providerConfig, completeWithTools } from "../judge/providers.js";
+import { buildPrompt } from "../judge/context.js";
+import { emptyUsage, judgeSingle } from "../judge/run.js";
 import { writeDiary } from "./diary.js";
 import { writeReport } from "./report.js";
 import { judgeHome } from "../judge/run.js";
 import { runTurn } from "./agent.js";
 import { BYOK_HEADER, resolveProxyKey, redactSecrets } from "./byok.js";
 import { createRunCache } from "./tools.js";
+import { buildLifePlanInput } from "../life/plan.js";
+import { writeLifePlan } from "./life-plan.js";
 import { createCsvBackend } from "../money/rtms.js";
 import { normalizeSnapshot, createHousingApi, HOUSING_KEY_ENV } from "../money/housing.js";
 import { parseInterstationCsv } from "../transit/schedule.js";
@@ -25,6 +29,97 @@ export const CONSULT_BODY_MAX = 1048576; // 1 MB (scenario + history)
 // One NDJSON line for the streaming consult response.
 export function ndjsonLine(ev) {
   return `${JSON.stringify(ev)}\n`;
+}
+
+// 44b: one guarded household branch decision (the live 30-day run
+// asks once per branch; the engine loop stays in the browser worker).
+// Bounds keep one call cheap and reject malformed shells BEFORE any
+// provider call: at most 30 options, 3 memory rows, 200 trips, finite
+// numbers, and a default_key naming one of the options.
+export const DECISION_KINDS = new Set([
+  "shop_choice", "park_or_home", "station_route", "weekend_plan",
+]);
+export const DECISION_MAX_OPTIONS = 30;
+export const DECISION_MAX_MEMORY = 3;
+export const DECISION_MAX_TRIPS = 200;
+
+function finiteNumber(value) {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+export function validateDecisionContext(body) {
+  const context = body && body.context;
+  if (!context || typeof context !== "object" || Array.isArray(context)) {
+    throw new Error("context must be an object");
+  }
+  if (!context.member || typeof context.member !== "object" || Array.isArray(context.member)) {
+    throw new Error("context.member must be an object");
+  }
+  const shell = context.shell;
+  if (!shell || typeof shell !== "object" || Array.isArray(shell)) {
+    throw new Error("context.shell must be an object");
+  }
+  if (!DECISION_KINDS.has(shell.kind)) {
+    throw new Error("context.shell.kind must be one of shop_choice, park_or_home, station_route, weekend_plan");
+  }
+  if (!Array.isArray(shell.options)
+      || shell.options.length < 1 || shell.options.length > DECISION_MAX_OPTIONS) {
+    throw new Error("context.shell.options must be an array of 1–30");
+  }
+  const keys = new Set();
+  for (const option of shell.options) {
+    if (!option || typeof option.key !== "string" || option.key === "") {
+      throw new Error("each option must be an object with a key");
+    }
+    keys.add(option.key);
+    for (const field of ["minutes", "distance_m"]) {
+      if (option[field] !== undefined && option[field] !== null && !finiteNumber(option[field])) {
+        throw new Error(`option ${field} must be finite`);
+      }
+    }
+  }
+  if (typeof shell.default_key !== "string" || !keys.has(shell.default_key)) {
+    throw new Error("context.shell.default_key must be one of the option keys");
+  }
+  for (const field of ["day", "minute"]) {
+    if (!finiteNumber(shell[field])) {
+      throw new Error(`context.shell.${field} must be finite`);
+    }
+  }
+  const memory = context.memory === undefined ? [] : context.memory;
+  if (!Array.isArray(memory) || memory.length > DECISION_MAX_MEMORY) {
+    throw new Error("context.memory must be an array of at most 3");
+  }
+  const tripsToday = context.tripsToday === undefined ? [] : context.tripsToday;
+  if (!Array.isArray(tripsToday) || tripsToday.length > DECISION_MAX_TRIPS) {
+    throw new Error("context.tripsToday must be an array of at most 200");
+  }
+  for (const trip of tripsToday) {
+    for (const field of ["depart_min", "arrive_min", "minutes", "distance_m"]) {
+      if (trip && trip[field] !== undefined && trip[field] !== null && !finiteNumber(trip[field])) {
+        throw new Error("context.tripsToday numbers must be finite");
+      }
+    }
+  }
+  // 47d2: bounded validation for plan-carried member fields; never dropped.
+  if (context.member.preferences !== undefined
+      && (typeof context.member.preferences !== "string" || context.member.preferences.length > 500)) {
+    throw new Error("context.member.preferences must be a string of at most 500 chars");
+  }
+  if (context.member.plan_context !== undefined
+      && (typeof context.member.plan_context !== "string" || context.member.plan_context.length > 1200)) {
+    throw new Error("context.member.plan_context must be a string of at most 1200 chars");
+  }
+  return {
+    member: context.member,
+    agentLabel: typeof context.agentLabel === "string" ? context.agentLabel : "",
+    date: typeof context.date === "string" ? context.date : "",
+    weekday: typeof context.weekday === "string" ? context.weekday : "",
+    minute: shell.minute,
+    tripsToday,
+    memory,
+    shell,
+  };
 }
 
 export function validateReportBody(body) {
@@ -357,6 +452,109 @@ export function createConsultHandler({ dataDir, scenDir, rawDir = null, fetchImp
         err.code = "missing_key";
         throw err;
       }
+      // 47e: authenticated household life-plan generation. Key handling
+      // above is unchanged (BYOK header wins, else the server env key).
+      // Personal input is never logged or persisted. Validation failures
+      // are 400; any provider/model failure is a generic 503 with no raw
+      // provider error, body, or user quote.
+      if (body.task === "life_plan") {
+        const planLang = body.lang === "ko" ? "ko" : "en";
+        if (!body.scenario || typeof body.scenario !== "object" || Array.isArray(body.scenario)) {
+          throw new Error("life-plan scenario must be an object");
+        }
+        const planMembers = body.scenario.household && body.scenario.household.members;
+        if (!Array.isArray(planMembers) || planMembers.length < 1 || planMembers.length > 8) {
+          throw new Error("life-plan household.members must be an array of 1–8 members");
+        }
+        const planHomes = Array.isArray(body.scenario.homes) ? body.scenario.homes
+          : Array.isArray(body.scenario.selected_homes) ? body.scenario.selected_homes
+          : body.scenario.candidates;
+        if (!Array.isArray(planHomes) || planHomes.length < 1 || planHomes.length > 3) {
+          throw new Error("life-plan homes must be an array of 1–3 homes");
+        }
+        if (!Number.isInteger(body.scenario.days) || body.scenario.days < 1 || body.scenario.days > 366) {
+          throw new Error("life-plan days must be an integer 1–366");
+        }
+        const planStart = body.scenario.start_date;
+        if (typeof planStart !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(planStart) ||
+          Number.isNaN(Date.parse(planStart)) ||
+          new Date(`${planStart}T00:00:00Z`).toISOString().slice(0, 10) !== planStart) {
+          throw new Error("life-plan start_date must be a valid YYYY-MM-DD date");
+        }
+        if (body.profile !== undefined &&
+          (typeof body.profile !== "object" || body.profile === null || Array.isArray(body.profile))) {
+          throw new Error("life-plan profile must be an object");
+        }
+        if (body.messages !== undefined && !Array.isArray(body.messages)) {
+          throw new Error("life-plan messages must be an array");
+        }
+        // buildLifePlanInput bounds user history to the last 12 user
+        // messages; anything it rejects is a 400 (generic message, no
+        // user content echoed).
+        let planInput;
+        try {
+          planInput = buildLifePlanInput({
+            scenario: body.scenario,
+            profile: body.profile || {},
+            messages: body.messages || [],
+            lang: planLang,
+          });
+        } catch {
+          throw new Error("life-plan input must be valid");
+        }
+        let plan;
+        let planUsage;
+        try {
+          const out = await writeLifePlan({
+            call: (args) => completeWithTools({ ...args, fetchImpl: fetchImpl || fetch, apiKey }),
+            provider,
+            input: planInput,
+            lang: planLang,
+          });
+          plan = out.plan;
+          planUsage = out.usage;
+        } catch {
+          const outage = new Error("Life plan could not be prepared. Please retry.");
+          outage.code = "plan_unavailable";
+          outage.httpStatus = 503;
+          throw outage;
+        }
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ ok: true, plan, input_signature: planInput.input_signature, usage: planUsage }));
+        return;
+      }
+      // 44b: one guarded household branch for the live 30-day run.
+      // The resolved key (BYOK header wins, else the server env key)
+      // is forwarded to the provider only — never logged, stored or
+      // echoed. Guard fallbacks are returned explicitly as
+      // rule_fallback entries; errors carry no prompt or model text.
+      if (body.task === "decision") {
+        const decided = validateDecisionContext(body);
+        const prompt = buildPrompt(decided);
+        const usage = emptyUsage();
+        const entry = await judgeSingle({
+          provider,
+          prompt,
+          shell: decided.shell,
+          ctx: decided,
+          usage,
+          providerOpts: { apiKey },
+          fetchImpl: fetchImpl || fetch,
+        });
+        // 44b2: a provider outage must stop the live run, never fill
+        // it with silent rules. Guard-rejected model replies (bad
+        // choice/number/topic) stay explicit rule_fallback entries.
+        if (entry && entry.fallback_cause === "provider_error") {
+          const outage = new Error(
+            "Muse decision temporarily unavailable — try again shortly");
+          outage.code = "decision_unavailable";
+          outage.httpStatus = 503;
+          throw outage;
+        }
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ ok: true, entry, usage }));
+        return;
+      }
       if (body.task === "diary") {
         if (!Array.isArray(body.digests) || body.digests.length < 1 || body.digests.length > 3) {
           throw new Error("digests must be an array of 1–3");
@@ -480,11 +678,14 @@ export function createConsultHandler({ dataDir, scenDir, rawDir = null, fetchImp
       res.end(JSON.stringify(out)); // out.ok is true here
     } catch (err) {
       const missing = err && err.code === "missing_key";
+      // 44b2: a live-decision outage is temporary — 503 so the run
+      // stops instead of filling an outage with rules.
+      const transient = err && (err.httpStatus === 503 || err.code === "decision_unavailable");
       // 13: the key must never appear in errors — redact everything.
       const byok = req.headers ? (req.headers[BYOK_HEADER] || req.headers[BYOK_HEADER.toLowerCase()]) : null;
       const msg = redactSecrets(String((err && err.message) || err),
         [typeof byok === "string" ? byok : ""]);
-      res.statusCode = missing ? 503
+      res.statusCode = (missing || transient) ? 503
         : /body too large|must be|unknown|required|not valid JSON|Unexpected/.test(msg) ? 400 : 500;
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify({ ok: false, error: msg.slice(0, 500) }));

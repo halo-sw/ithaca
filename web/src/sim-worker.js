@@ -10,6 +10,7 @@
 // ({progress: {done, total, label}}). Callers must ignore progress
 // posts (they carry no runs).
 import { simulate } from "./engine/simulate.js";
+import { runHouseholdLoop } from "./judge/household.js";
 import { assetUrl } from "./paths.js";
 import { fetchDataJson } from "./data-fetch.js";
 
@@ -55,14 +56,52 @@ async function loadRegion(homes) {
   return region;
 }
 
+// 44b: Muse decisions arrive one branch at a time. With
+// decisionMode:'muse' the worker runs the household loop and emits
+// {decisionRequest:{requestId, context}} per branch, awaiting the
+// matched main-thread answer. Main-thread answers
+// ({decisionAnswer:{requestId, entry}} or
+// {decisionError:{requestId, error}}) resolve the pending branch only
+// — they never start a run. A decision error stops the whole run;
+// the month is never quietly continued by rules. Keys never enter
+// worker messages or outputs: the main thread keeps them.
+let seq = 0;
+const pendingDecisions = new Map();
+let running = false;
+
+function askMain(post, context) {
+  const requestId = `d${seq++}`;
+  post({ decisionRequest: { requestId, context } });
+  return new Promise((resolve, reject) => {
+    pendingDecisions.set(requestId, { resolve, reject });
+  });
+}
+
 self.onmessage = async (e) => {
-  const { scenario: name, scenarioInline, labels } = e.data || {};
+  const d = e.data || {};
   const post = (msg) => self.postMessage(msg);
+  if (d && (d.decisionAnswer || d.decisionError)) {
+    const msg = d.decisionAnswer || d.decisionError;
+    const waiter = msg && pendingDecisions.get(msg.requestId);
+    pendingDecisions.delete(msg && msg.requestId);
+    if (waiter) {
+      if (d.decisionAnswer) waiter.resolve(d.decisionAnswer.entry);
+      else waiter.reject(new Error(String((msg && msg.error) || "decision failed")));
+    }
+    return; // an answer is never a new run
+  }
+  if (running) {
+    post({ ok: false, error: "sim worker busy" });
+    return;
+  }
+  running = true;
   try {
+    const { scenario: name, scenarioInline, labels, decisionMode } = d;
     const scen = scenarioInline || await fetchJson(assetUrl(`/scenarios/${name}.json`));
     const region = await loadRegion(scen.homes);
     const runs = {};
     const list = Array.isArray(labels) ? labels : [];
+    const muse = decisionMode === "muse";
     for (let i = 0; i < list.length; i++) {
       const label = list[i];
       post({ ok: true, progress: { done: i, total: list.length, label } });
@@ -80,12 +119,31 @@ self.onmessage = async (e) => {
           destArea = null;
         }
       }
-      runs[label] = simulate(area, structuredClone(scen), label,
-        { ...(region ? { region } : {}), ...(destArea ? { destArea } : {}) });
+      if (!muse) {
+        runs[label] = simulate(area, structuredClone(scen), label,
+          { ...(region ? { region } : {}), ...(destArea ? { destArea } : {}) });
+      } else {
+        const judged = await runHouseholdLoop({
+          area,
+          scenarioRaw: structuredClone(scen),
+          homeLabel: label,
+          ...(region ? { region } : {}),
+          ...(destArea ? { destArea } : {}),
+          judgeOne: ({ ctx }) => askMain(post, ctx),
+          onProgress: (info) => post({
+            ok: true,
+            progress: { done: i, total: list.length, label, decision: info },
+          }),
+        });
+        runs[label] = judged.run;
+      }
       post({ ok: true, progress: { done: i + 1, total: list.length, label } });
     }
     post({ ok: true, runs });
   } catch (err) {
     post({ ok: false, error: String((err && err.message) || err) });
+  } finally {
+    pendingDecisions.clear();
+    running = false;
   }
 };

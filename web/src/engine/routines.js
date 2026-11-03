@@ -22,11 +22,13 @@
 // happening and why (stage 7, Part A).
 
 import { destForHome, nameForHome, rideMinutesForHome, waitMinutesForHome, weekdayOf, WEEKDAYS, dateOf } from "./scenario.js";
+import { isHomeOfficeDay } from "./work-schedule.js";
 import { MAX_ANCHOR_M, nearestRoundTrip, poisByName, stationsByName } from "./places.js";
 import { ruleDefault, WEEKEND_HOME } from "./decisions.js";
 import { criterionDefault, defaultFlat, resolveCriteria } from "./criteria.js";
 import { CAPACITY_PCT, buildRides, rideLegFatigue, walkFatigue } from "./journey.js";
 import { bboxContains, resolveWorkplace, stationCoords } from "./workplace.js";
+import { schoolLevel } from "../education.js";
 
 export const MORNING_ANCHOR = criterionDefault("C-commute-depart", "morning_anchor_min"); // 07:30 + jitter
 export const SCHOOL_ANCHOR = criterionDefault("C-commute-depart", "school_anchor_min"); // 08:00 + jitter
@@ -756,6 +758,9 @@ export function planAgent(agent, day, ctx) {
     unavailable("commute", "bike", `${name}까지 걷기·자전거 상한을 넘어요`);
   }
 
+  const planConfirmed = agent.household && typeof agent.plan_context === "string" && agent.plan_context.length > 0;
+  const schedCause = planConfirmed ? "routine" : (agent.household ? "input" : "routine");
+
   // --- morning dog walk (every day, before any commute) ---
   // Nearest park round trip + dwell, then home. Starts at the
   // dog-walk anchor; when today's commute departs earlier the walk
@@ -771,13 +776,14 @@ export function planAgent(agent, day, ctx) {
       let depart = F.dog_walk_start_min;
       const workNow = agent.work;
       if ((agent.workdays || []).includes(weekday) && workNow
-        && workNow.type !== "none" && !agent.home_office) {
+        && workNow.type !== "none" && !isHomeOfficeDay(agent, weekday)) {
         depart = Math.min(depart, F.morning_anchor_min + schedule.departJitter[day] - span);
       }
       depart = Math.max(0, depart);
-      const cause = makeCause(agent.household ? "input" : "routine",
+      const cause = makeCause(schedCause,
         ["C-dog-walk", "C-walk-speed", "C-walk-route", "C-fatigue-load"],
-        agent.household ? "고객 입력: 매일 아침 강아지 산책" : "매일 아침 강아지 산책");
+        planConfirmed ? "확정 계획: 매일 아침 강아지 산책"
+          : (agent.household ? "고객 입력: 매일 아침 강아지 산책" : "매일 아침 강아지 산책"));
       const out = addTrip(depart, cands[0].route, homeEnd(), poiEnd(cands[0].place), "park", cause);
       addAway(out.arrive_min, out.arrive_min + F.dog_walk_dwell_min, "park",
         `${cands[0].place.name} 강아지 산책`, null, cause);
@@ -785,9 +791,12 @@ export function planAgent(agent, day, ctx) {
     }
   }
 
-  const work = agent.work;
-  const commutingToday = agent.workdays.includes(weekday) && work.type !== "none" && !agent.home_office;
-  if (commutingToday) {
+  const work = agent.work || { type: "none" };
+  const commutingToday = (agent.workdays || []).includes(weekday) && work.type !== "none" && !isHomeOfficeDay(agent, weekday);
+  const unresolvedCommute = agent.household && agent.work_unresolved === true && (agent.workdays || []).includes(weekday) && !isHomeOfficeDay(agent, weekday);
+  if (unresolvedCommute) {
+    unavailable("commute", "workplace", "근무지 입력 없음");
+  } else if (commutingToday) {
     const depart = F.morning_anchor_min + schedule.departJitter[day];
     if (work.type === "station_ride") {
       if (work.place) commutePlace(work, depart);
@@ -837,24 +846,43 @@ export function planAgent(agent, day, ctx) {
     }
   }
 
-  if (agent.school && agent.schooldays.includes(weekday)) {
+  // 47d2: school is false (off), legacy true (nearest proxy, old
+  // recordings), or {mode, level}. Unresolved writes unavailable with
+  // no route; nearby filters POIs by schoolLevel and never falls back
+  // to another type; the label says route assumption, not assignment.
+  const schoolMode = agent.school === true ? "legacy"
+    : (agent.school && typeof agent.school === "object" ? agent.school.mode : null);
+  if (schoolMode && agent.schooldays.includes(weekday)) {
     const anchored = clock === null;
     const depart = anchored ? F.school_anchor_min + schedule.departJitter[day] : clock + F.after_gap_min;
-    const cands = nearestRoundTrip(router, agent.home_node, places.schools, 1);
-    if (cands.length === 0) {
+    if (schoolMode === "unresolved") {
       unavailable("school", "school");
     } else {
-      const cause = makeCause("routine",
-        ["C-commute-depart", "C-walk-speed", "C-walk-route", "C-work-days",
-          "C-fatigue-load", "C-fatigue-recovery"],
-        anchored ? `${wk} 등교일 · ${anchorText(F.school_anchor_min, depart)}`
-          : `앞 일정 종료 후 ${F.after_gap_min}분 뒤 출발`);
-      const out = addTrip(depart, cands[0].route, homeEnd(), poiEnd(cands[0].place), "school", cause);
-      const awayEnd = out.arrive_min + F.schoolday_minutes;
-      addAway(out.arrive_min, awayEnd, "school", `${cands[0].place.name} 등교`, {
-        schoolday_minutes: F.schoolday_minutes, seated_minutes: F.schoolday_minutes,
-      }, cause);
-      addTrip(awayEnd, cands[0].back, poiEnd(cands[0].place), homeEnd(), "school", cause);
+      const level = schoolMode === "legacy" ? null
+        : (agent.school && agent.school.level) || "unknown";
+      const pool = schoolMode === "legacy" ? places.schools
+        : (places.schools || []).filter((p) => schoolLevel(p && p.name) === level);
+      if (pool.length === 0) {
+        unavailable("school", "school");
+      } else {
+        const cands = nearestRoundTrip(router, agent.home_node, pool, 1);
+        if (cands.length === 0) {
+          unavailable("school", "school");
+        } else {
+          const cause = makeCause("routine",
+            ["C-commute-depart", "C-walk-speed", "C-walk-route", "C-work-days",
+              "C-fatigue-load", "C-fatigue-recovery"],
+            anchored ? `${wk} 등교일 · ${anchorText(F.school_anchor_min, depart)}`
+              : `앞 일정 종료 후 ${F.after_gap_min}분 뒤 출발`);
+          const nearNote = schoolMode === "nearby" ? " (가까운 학교 경로 가정, 배정 아님)" : "";
+          const out = addTrip(depart, cands[0].route, homeEnd(), poiEnd(cands[0].place), "school", cause);
+          const awayEnd = out.arrive_min + F.schoolday_minutes;
+          addAway(out.arrive_min, awayEnd, "school", `${cands[0].place.name} 등교${nearNote}`, {
+            schoolday_minutes: F.schoolday_minutes, seated_minutes: F.schoolday_minutes,
+          }, cause);
+          addTrip(awayEnd, cands[0].back, poiEnd(cands[0].place), homeEnd(), "school", cause);
+        }
+      }
     }
   }
 
@@ -873,7 +901,8 @@ export function planAgent(agent, day, ctx) {
       continue;
     }
     const freq = agent.errands_per_week[cat];
-    const schedNote = agent.household ? `고객 입력 주 ${freq}회` : `주 ${freq}회 일정`;
+    const schedNote = planConfirmed ? `주 ${freq}회 확정 계획`
+      : (agent.household ? `고객 입력 주 ${freq}회` : `주 ${freq}회 일정`);
     let dest = cands[0];
     let decision = null;
     if (cands.length >= 2) {
@@ -889,11 +918,13 @@ export function planAgent(agent, day, ctx) {
         ["C-decide-kinds", "C-grocery-freq", "C-walk-speed", "C-walk-route", "C-shop-dwell",
           "C-fatigue-load"],
         `장보기처 판단 → ${dest.place.name} 선택 (${schedNote})`, decision.id)
-      : makeCause(agent.household ? "input" : "routine",
+      : makeCause(schedCause,
         ["C-grocery-freq", "C-walk-speed", "C-walk-route", "C-shop-dwell", "C-fatigue-load"],
-        agent.household
-          ? `고객 입력: 주 ${freq}회 장보기 · 가장 가까운 ${SHOP_CAT_KO[cat]}`
-          : `주간 일정: 주 ${freq}회 장보기 · 가장 가까운 ${SHOP_CAT_KO[cat]}`);
+        planConfirmed
+          ? `확정 계획: 주 ${freq}회 장보기 · 가장 가까운 ${SHOP_CAT_KO[cat]}`
+          : (agent.household
+            ? `고객 입력: 주 ${freq}회 장보기 · 가장 가까운 ${SHOP_CAT_KO[cat]}`
+            : `주간 일정: 주 ${freq}회 장보기 · 가장 가까운 ${SHOP_CAT_KO[cat]}`));
     const out = addTrip(depart, dest.route, homeEnd(), poiEnd(dest.place), "errand", cause);
     addAway(out.arrive_min, out.arrive_min + F.shop_dwell_min, "errand", `${dest.place.name} 장보기`, {
       shop_category: cat,
@@ -909,9 +940,10 @@ export function planAgent(agent, day, ctx) {
       unavailable("clinic", "clinic");
     } else {
       const freq = agent.clinic_visits_per_month;
-      const cause = makeCause(agent.household ? "input" : "routine",
+      const cause = makeCause(schedCause,
         ["C-clinic-freq", "C-clinic-dwell", "C-walk-speed", "C-walk-route", "C-fatigue-load"],
-        agent.household ? `고객 입력: 월 ${freq}회 병원` : `월간 일정: 월 ${freq}회 병원`);
+        planConfirmed ? `확정 계획: 월 ${freq}회 병원`
+          : (agent.household ? `고객 입력: 월 ${freq}회 병원` : `월간 일정: 월 ${freq}회 병원`));
       const out = addTrip(depart, cands[0].route, homeEnd(), poiEnd(cands[0].place), "clinic", cause);
       addAway(out.arrive_min, out.arrive_min + F.clinic_dwell_min, "clinic", `${cands[0].place.name} 진료`, null, cause);
       addTrip(out.arrive_min + F.clinic_dwell_min, cands[0].back, poiEnd(cands[0].place), homeEnd(), "clinic", cause);
@@ -925,9 +957,10 @@ export function planAgent(agent, day, ctx) {
       unavailable("vet", "vet");
     } else {
       const freq = agent.vet_visits_per_month;
-      const cause = makeCause(agent.household ? "input" : "routine",
+      const cause = makeCause(schedCause,
         ["C-vet-freq", "C-vet-dwell", "C-walk-speed", "C-walk-route", "C-fatigue-load"],
-        agent.household ? `고객 입력: 월 ${freq}회 동물병원` : `월간 일정: 월 ${freq}회 동물병원`);
+        planConfirmed ? `확정 계획: 월 ${freq}회 동물병원`
+          : (agent.household ? `고객 입력: 월 ${freq}회 동물병원` : `월간 일정: 월 ${freq}회 동물병원`));
       const out = addTrip(depart, cands[0].route, homeEnd(), poiEnd(cands[0].place), "vet", cause);
       addAway(out.arrive_min, out.arrive_min + F.vet_dwell_min, "vet", `${cands[0].place.name} 진료`, null, cause);
       addTrip(out.arrive_min + F.vet_dwell_min, cands[0].back, poiEnd(cands[0].place), homeEnd(), "vet", cause);
@@ -938,16 +971,17 @@ export function planAgent(agent, day, ctx) {
   // coworking round trip + dwell, then home. Only on days the member
   // does not commute; a home_office workday counts as a home day.
   if (!householdWeekend && schedule.cafeDays.has(day) && !commutingToday
-    && (agent.home_office || (work && work.type !== "none"))) {
+    && (isHomeOfficeDay(agent, weekday) || (work && work.type !== "none"))) {
     const depart = Math.max(F.cafe_start_min, slotAfter());
     const cands = nearestRoundTrip(router, agent.home_node, places.cafes, 1);
     if (cands.length === 0) {
       unavailable("cafe", "cafe");
     } else {
       const freq = agent.cafe_visits_per_week;
-      const cause = makeCause(agent.household ? "input" : "routine",
+      const cause = makeCause(schedCause,
         ["C-cafe-freq", "C-cafe-dwell", "C-walk-speed", "C-walk-route", "C-fatigue-load"],
-        agent.household ? `고객 입력: 재택 날 주 ${freq}회 카페 작업` : `주간 일정: 재택 날 주 ${freq}회 카페 작업`);
+        planConfirmed ? `확정 계획: 재택 날 주 ${freq}회 카페 작업`
+          : (agent.household ? `고객 입력: 재택 날 주 ${freq}회 카페 작업` : `주간 일정: 재택 날 주 ${freq}회 카페 작업`));
       const out = addTrip(depart, cands[0].route, homeEnd(), poiEnd(cands[0].place), "cafe", cause);
       addAway(out.arrive_min, out.arrive_min + F.cafe_dwell_min, "cafe", `${cands[0].place.name} 작업`, null, cause);
       addTrip(out.arrive_min + F.cafe_dwell_min, cands[0].back, poiEnd(cands[0].place), homeEnd(), "cafe", cause);
@@ -972,9 +1006,11 @@ export function planAgent(agent, day, ctx) {
         const cause = makeCause("decision",
           ["C-decide-kinds", "C-park-habit", "C-walk-speed", "C-walk-route", "C-park-dwell",
             "C-daily-rhythm", "C-fatigue-load"],
-          agent.household
-            ? `저녁 산책 판단 → ${cands[0].place.name} 선택 (고객 입력 주 ${freq}회 중)`
-            : `저녁 산책 판단 → ${cands[0].place.name} 선택 (주 ${freq}회 일정 중)`,
+          planConfirmed
+            ? `저녁 산책 판단 → ${cands[0].place.name} 선택 (주 ${freq}회 확정 계획 중)`
+            : (agent.household
+              ? `저녁 산책 판단 → ${cands[0].place.name} 선택 (고객 입력 주 ${freq}회 중)`
+              : `저녁 산책 판단 → ${cands[0].place.name} 선택 (주 ${freq}회 일정 중)`),
           rec.id);
         const out = addTrip(minute, cands[0].route, homeEnd(), poiEnd(cands[0].place), "park", cause);
         addAway(out.arrive_min, out.arrive_min + F.park_dwell_min, "park", `${cands[0].place.name} 산책`, null, cause);

@@ -1,0 +1,1159 @@
+{
+  "revision": 8,
+  "recorded_at": "2026-11-03 KST",
+  "code_commit": "b07eaa53f91206a370a8f6e45cc9fcbd78ddf863",
+  "couple": {
+    "id": "cmvzm1bok85ad",
+    "savedAt": "2026-11-02T18:46:32.036Z",
+    "seed": 2284491603,
+    "input": "We are a couple working near Pangyo Station. Purchase budget: 700 million won. Savings: 200 million won. Annual salaries: 50 million won and 50 million won.",
+    "profile": {
+      "members": {
+        "value": [
+          {
+            "role": "adult"
+          },
+          {
+            "role": "adult"
+          }
+        ],
+        "source": "customer",
+        "note": "함께 사는 사람",
+        "evidence": "couple"
+      },
+      "workplaces": {
+        "value": [
+          {
+            "member": 0,
+            "text": "Pangyo",
+            "resolved": {
+              "station": "판교",
+              "station_en": "Pangyo Stn"
+            }
+          }
+        ],
+        "source": "customer",
+        "note": "직장 근처역: 판교",
+        "evidence": "working near Pangyo Station"
+      },
+      "salaryAnnual": {
+        "value": [
+          50000000,
+          50000000
+        ],
+        "source": "customer",
+        "note": "세전 연봉이에요. 실수령은 따로 계산해요.",
+        "evidence": "50 million won and 50 million won"
+      },
+      "takehomeMonthly": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "cash": {
+        "value": 200000000,
+        "source": "customer",
+        "note": "모은 돈",
+        "evidence": "200 million won"
+      },
+      "debts": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "tenure": {
+        "value": "trade",
+        "source": "customer",
+        "note": "매매",
+        "evidence": "Purchase"
+      },
+      "depositMax": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "monthlyMax": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "priceMax": {
+        "value": 700000000,
+        "source": "customer",
+        "note": "매매가 상한",
+        "evidence": "700 million won"
+      },
+      "sizeMin": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "commuteMax": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "officeDays": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "pets": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "priorities": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "mustHaves": {
+        "value": [],
+        "source": "asked",
+        "note": ""
+      },
+      "home_kinds": {
+        "value": [],
+        "source": "asked",
+        "note": ""
+      },
+      "currency": {
+        "value": "KRW",
+        "source": "default",
+        "note": ""
+      }
+    },
+    "members": [
+      {
+        "id": "m1",
+        "label": "나",
+        "role": "adult",
+        "workdays": [
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu",
+          "Fri"
+        ],
+        "work": {
+          "type": "station_ride",
+          "station_name": {
+            "A": "판교",
+            "B": "단대오거리"
+          },
+          "ride_minutes": {
+            "A": 0,
+            "B": 19.4
+          },
+          "ride_minutes_source": "derived",
+          "needs_user_input": false,
+          "destination_station": "판교",
+          "place": {
+            "name": "Work (assumed: near Pangyo Stn)",
+            "station": "판교"
+          }
+        },
+        "errands_per_week": {
+          "supermarket": 1,
+          "convenience": 1
+        },
+        "park_walks_per_week": 1,
+        "clinic_visits_per_month": 0
+      },
+      {
+        "id": "m2",
+        "label": "배우자",
+        "role": "adult",
+        "workdays": [
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu",
+          "Fri"
+        ],
+        "work": {
+          "type": "station_ride",
+          "station_name": {
+            "A": "판교",
+            "B": "단대오거리"
+          },
+          "ride_minutes": {
+            "A": 0,
+            "B": 19.4
+          },
+          "ride_minutes_source": "derived",
+          "needs_user_input": false,
+          "destination_station": "판교",
+          "place": {
+            "name": "Work (assumed: near Pangyo Stn)",
+            "station": "판교"
+          }
+        },
+        "errands_per_week": {
+          "supermarket": 1,
+          "convenience": 1
+        },
+        "park_walks_per_week": 1,
+        "clinic_visits_per_month": 0
+      }
+    ],
+    "homes": {
+      "A": {
+        "name": "판교역 근처 오피스텔 (647)",
+        "area": "pangyo",
+        "one_way_minutes": 4.8,
+        "monthly_housing_commute_won": 509790,
+        "monthly_housing_only_won": 509790,
+        "commute_fares_won": 0,
+        "reference_price_won": 262000000,
+        "reference_deals": 7,
+        "transaction_area_band_m2": [
+          25,
+          35
+        ],
+        "provenance": {
+          "model": 69,
+          "fallback": 0,
+          "rule": 0
+        }
+      },
+      "B": {
+        "name": "미래하이빌",
+        "area": "st-단대오거리",
+        "one_way_minutes": 23.9,
+        "monthly_housing_commute_won": 1051817,
+        "monthly_housing_only_won": 915417,
+        "commute_fares_won": 136400,
+        "reference_price_won": 355000000,
+        "reference_deals": 1,
+        "transaction_area_band_m2": [
+          55,
+          65
+        ],
+        "provenance": {
+          "model": 65,
+          "fallback": 0,
+          "rule": 0
+        }
+      }
+    },
+    "report": {
+      "ok": true,
+      "status": "pass",
+      "report": {
+        "persona": "newlywed_couple",
+        "sentences": [
+          {
+            "home": "A",
+            "id": "A-C01-1",
+            "item_id": "C01",
+            "text_ko": "Door to door work trip averaged 4.8 minutes one way.",
+            "claims": [
+              {
+                "field": "minutes",
+                "unit": "분",
+                "value": 4.8
+              }
+            ]
+          },
+          {
+            "home": "B",
+            "id": "B-C01-1",
+            "item_id": "C01",
+            "text_ko": "Door to door work trip averaged 23.9 minutes one way.",
+            "claims": [
+              {
+                "field": "minutes",
+                "unit": "분",
+                "value": 23.9
+              }
+            ]
+          },
+          {
+            "home": "A",
+            "id": "A-C02-1",
+            "item_id": "C02",
+            "text_ko": "Loan payment plus maintenance for one month was 509,790 won.",
+            "claims": [
+              {
+                "field": "monthly_total",
+                "unit": "원",
+                "value": 509790
+              }
+            ]
+          },
+          {
+            "home": "B",
+            "id": "B-C02-1",
+            "item_id": "C02",
+            "text_ko": "Loan payment plus maintenance for one month was 915,417 won.",
+            "claims": [
+              {
+                "field": "monthly_total",
+                "unit": "원",
+                "value": 915417
+              }
+            ]
+          },
+          {
+            "home": "A",
+            "id": "A-C05-1",
+            "item_id": "C05",
+            "text_ko": "Actual grocery trips averaged 2.7 minutes.",
+            "claims": [
+              {
+                "field": "minutes",
+                "unit": "분",
+                "value": 2.7
+              }
+            ]
+          },
+          {
+            "home": "B",
+            "id": "B-C05-1",
+            "item_id": "C05",
+            "text_ko": "Actual grocery trips averaged 12.5 minutes.",
+            "claims": [
+              {
+                "field": "minutes",
+                "unit": "분",
+                "value": 12.5
+              }
+            ]
+          },
+          {
+            "home": "A",
+            "id": "A-C06-1",
+            "item_id": "C06",
+            "text_ko": "Day 5 17:27 walked home in 4.8 minutes after sunset.",
+            "claims": [
+              {
+                "field": "minutes",
+                "unit": "분",
+                "value": 4.8
+              }
+            ],
+            "evidence": [
+              "t000018"
+            ]
+          },
+          {
+            "home": "B",
+            "id": "B-C06-1",
+            "item_id": "C06",
+            "text_ko": "Day 1 18:02 walked home in 4.5 minutes after sunset.",
+            "claims": [
+              {
+                "field": "minutes",
+                "unit": "분",
+                "value": 4.5
+              }
+            ],
+            "evidence": [
+              "t000002"
+            ]
+          },
+          {
+            "home": "A",
+            "id": "A-N01-1",
+            "item_id": "N01",
+            "text_ko": "You averaged 4.8 minutes one way and your partner averaged 4.8 minutes one way.",
+            "claims": [
+              {
+                "field": "minutes",
+                "member": "h1",
+                "unit": "분",
+                "value": 4.8
+              },
+              {
+                "field": "minutes",
+                "member": "h2",
+                "unit": "분",
+                "value": 4.8
+              }
+            ]
+          },
+          {
+            "home": "B",
+            "id": "B-N01-1",
+            "item_id": "N01",
+            "text_ko": "You averaged 23.9 minutes one way and your partner averaged 23.9 minutes one way.",
+            "claims": [
+              {
+                "field": "minutes",
+                "member": "h1",
+                "unit": "분",
+                "value": 23.9
+              },
+              {
+                "field": "minutes",
+                "member": "h2",
+                "unit": "분",
+                "value": 23.9
+              }
+            ]
+          }
+        ]
+      },
+      "attempts": [
+        {
+          "attempt": 1,
+          "summary_ko": "검증 통과: 커버리지 100%",
+          "pass": true,
+          "weighted_coverage": 1,
+          "must_coverage": 1
+        }
+      ],
+      "handoff": null,
+      "result": {
+        "pass": true,
+        "weighted_coverage": 1,
+        "must_coverage": 1,
+        "feedback_ko": [
+          "A: [MUST] C03 소음 (층간·도로·상가): 엔진이 아직 확인할 수 없는 필수 항목이에요 (미지원)",
+          "B: [MUST] C03 소음 (층간·도로·상가): 엔진이 아직 확인할 수 없는 필수 항목이에요 (미지원)"
+        ],
+        "failures": [],
+        "by_home": {
+          "A": {
+            "unsupported": [
+              {
+                "item_id": "C03",
+                "reason_ko": "엔진이 아직 확인할 수 없는 필수 항목이에요 (미지원)"
+              },
+              {
+                "item_id": "C04",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "C07",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "C08",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "C09",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "N02",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "N04",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "N05",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              }
+            ],
+            "inapplicable": [
+              {
+                "item_id": "N01",
+                "reason_ko": "이 집 자료로 계산할 수 없어요"
+              },
+              {
+                "item_id": "N03",
+                "reason_ko": "이 집 기록에 해당 장면이 없어요"
+              }
+            ]
+          },
+          "B": {
+            "unsupported": [
+              {
+                "item_id": "C03",
+                "reason_ko": "엔진이 아직 확인할 수 없는 필수 항목이에요 (미지원)"
+              },
+              {
+                "item_id": "C04",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "C07",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "C08",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "C09",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "N02",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "N04",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "N05",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              }
+            ],
+            "inapplicable": [
+              {
+                "item_id": "N01",
+                "reason_ko": "이 집 자료로 계산할 수 없어요"
+              },
+              {
+                "item_id": "N03",
+                "reason_ko": "이 집 기록에 해당 장면이 없어요"
+              }
+            ]
+          }
+        }
+      },
+      "usage": {
+        "prompt_tokens": 3245,
+        "completion_tokens": 2210,
+        "calls": 1
+      },
+      "persona": "newlywed_couple"
+    },
+    "assumptions": {
+      "transit_fare_won": 1500,
+      "basket_won": 30000,
+      "maintenance_won_month": 150000,
+      "other_fixed_won_month": 0,
+      "pay_day_of_month": 25,
+      "fixed_due_day_1based": 1,
+      "loan_rate_pct": 4,
+      "loan_years": 30,
+      "jeonse_loan_cap_won": 500000000
+    },
+    "record_sha256": "b101801c6a919b4d3b55059dda68420f66e867945d2fd1f022822f70a112b9f0",
+    "record_file": "ithaca-couple-record.json",
+    "display": {
+      "commuteA": "5 min",
+      "commuteB": "24 min",
+      "monthA": "₩510,000",
+      "monthB": "₩1,052,000",
+      "areaA": "25–35 m²",
+      "areaB": "55–65 m²"
+    },
+    "decision": {
+      "when": "HOME A · DAY 1 · 17:54",
+      "reason": "Back from work and prefers a quick nearby stop",
+      "choice": "No Brand · 2.7 min walking · selected from 2 nearby shops",
+      "record_id": "h1:d0:1074:shop_choice:00"
+    }
+  },
+  "family": {
+    "id": "cmvzm6kczd730",
+    "savedAt": "2026-11-02T18:50:36.563Z",
+    "seed": 1925820947,
+    "input": "We are a family of four: two working parents and two elementary-school children. We work near Pangyo Station. Buying an apartment under 900 million won. Savings: 300 million won. Annual salaries: 60 million won and 60 million won. Minimum size: 74 sqm.",
+    "profile": {
+      "members": {
+        "value": [
+          {
+            "role": "adult"
+          },
+          {
+            "role": "adult"
+          },
+          {
+            "role": "child",
+            "school": true
+          },
+          {
+            "role": "child",
+            "school": true
+          }
+        ],
+        "source": "customer",
+        "note": "함께 사는 사람",
+        "evidence": "two working parents·two elementary-school children"
+      },
+      "workplaces": {
+        "value": [
+          {
+            "member": 0,
+            "text": "Pangyo",
+            "resolved": {
+              "station": "판교",
+              "station_en": "Pangyo Stn"
+            }
+          }
+        ],
+        "source": "customer",
+        "note": "직장 근처역: 판교",
+        "evidence": "work near Pangyo Station"
+      },
+      "salaryAnnual": {
+        "value": [
+          60000000,
+          60000000
+        ],
+        "source": "customer",
+        "note": "세전 연봉이에요. 실수령은 따로 계산해요.",
+        "evidence": "60 million won and 60 million won"
+      },
+      "takehomeMonthly": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "cash": {
+        "value": 300000000,
+        "source": "customer",
+        "note": "모은 돈",
+        "evidence": "300 million won"
+      },
+      "debts": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "tenure": {
+        "value": "trade",
+        "source": "customer",
+        "note": "매매",
+        "evidence": "Buying"
+      },
+      "depositMax": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "monthlyMax": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "priceMax": {
+        "value": 900000000,
+        "source": "customer",
+        "note": "매매가 상한",
+        "evidence": "900 million won"
+      },
+      "sizeMin": {
+        "value": 74,
+        "source": "customer",
+        "note": "최소 면적(㎡)",
+        "evidence": "74 sqm"
+      },
+      "commuteMax": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "officeDays": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "pets": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "priorities": {
+        "value": null,
+        "source": "asked",
+        "note": ""
+      },
+      "mustHaves": {
+        "value": [],
+        "source": "asked",
+        "note": ""
+      },
+      "home_kinds": {
+        "value": [
+          "아파트"
+        ],
+        "source": "customer",
+        "note": "원하는 집 유형",
+        "evidence": "apartment"
+      },
+      "currency": {
+        "value": "KRW",
+        "source": "default",
+        "note": ""
+      }
+    },
+    "members": [
+      {
+        "id": "m1",
+        "label": "나",
+        "role": "adult",
+        "workdays": [
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu",
+          "Fri"
+        ],
+        "work": {
+          "type": "station_ride",
+          "station_name": {
+            "A": "둔촌오륜",
+            "B": "한양대"
+          },
+          "ride_minutes": {
+            "A": 36.6,
+            "B": 43.3
+          },
+          "ride_minutes_source": "derived",
+          "needs_user_input": false,
+          "destination_station": "판교",
+          "place": {
+            "name": "Work (assumed: near Pangyo Stn)",
+            "station": "판교"
+          }
+        },
+        "errands_per_week": {
+          "supermarket": 1,
+          "convenience": 1
+        },
+        "park_walks_per_week": 1,
+        "clinic_visits_per_month": 0
+      },
+      {
+        "id": "m2",
+        "label": "배우자",
+        "role": "adult",
+        "workdays": [
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu",
+          "Fri"
+        ],
+        "work": {
+          "type": "station_ride",
+          "station_name": {
+            "A": "둔촌오륜",
+            "B": "한양대"
+          },
+          "ride_minutes": {
+            "A": 36.6,
+            "B": 43.3
+          },
+          "ride_minutes_source": "derived",
+          "needs_user_input": false,
+          "destination_station": "판교",
+          "place": {
+            "name": "Work (assumed: near Pangyo Stn)",
+            "station": "판교"
+          }
+        },
+        "errands_per_week": {
+          "supermarket": 1,
+          "convenience": 1
+        },
+        "park_walks_per_week": 1,
+        "clinic_visits_per_month": 0
+      },
+      {
+        "id": "m3",
+        "label": "아이 1",
+        "role": "child",
+        "workdays": [
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu",
+          "Fri"
+        ],
+        "work": {
+          "type": "none"
+        },
+        "errands_per_week": {
+          "supermarket": 1,
+          "convenience": 1
+        },
+        "park_walks_per_week": 1,
+        "clinic_visits_per_month": 0,
+        "schooldays": [
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu",
+          "Fri"
+        ],
+        "school": true
+      },
+      {
+        "id": "m4",
+        "label": "아이 2",
+        "role": "child",
+        "workdays": [
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu",
+          "Fri"
+        ],
+        "work": {
+          "type": "none"
+        },
+        "errands_per_week": {
+          "supermarket": 1,
+          "convenience": 1
+        },
+        "park_walks_per_week": 1,
+        "clinic_visits_per_month": 0,
+        "schooldays": [
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu",
+          "Fri"
+        ],
+        "school": true
+      }
+    ],
+    "homes": {
+      "A": {
+        "name": "오륜하이츠",
+        "area": "st-둔촌오륜",
+        "one_way_minutes": 47.5,
+        "monthly_housing_commute_won": 3151855,
+        "monthly_housing_only_won": 2997855,
+        "commute_fares_won": 154000,
+        "reference_price_won": 865000000,
+        "reference_deals": 1,
+        "transaction_area_band_m2": [
+          115,
+          125
+        ],
+        "provenance": {
+          "model": 44,
+          "fallback": 0,
+          "rule": 0
+        }
+      },
+      "B": {
+        "name": "벽산",
+        "area": "st-한양대",
+        "one_way_minutes": 57.1,
+        "monthly_housing_commute_won": 3126195,
+        "monthly_housing_only_won": 2963395,
+        "commute_fares_won": 162800,
+        "reference_price_won": 860000000,
+        "reference_deals": 5,
+        "transaction_area_band_m2": [
+          75,
+          85
+        ],
+        "provenance": {
+          "model": 132,
+          "fallback": 0,
+          "rule": 0
+        }
+      }
+    },
+    "report": {
+      "ok": true,
+      "status": "pass",
+      "report": {
+        "persona": "young_family",
+        "sentences": [
+          {
+            "claims": [
+              {
+                "field": "minutes",
+                "unit": "분",
+                "value": 47.5
+              }
+            ],
+            "home": "A",
+            "id": "A-C01",
+            "item_id": "C01",
+            "text_ko": "Work door to door averaged 47.5 minutes one way."
+          },
+          {
+            "claims": [
+              {
+                "field": "monthly_total",
+                "unit": "원",
+                "value": 2997855
+              }
+            ],
+            "home": "A",
+            "id": "A-C02",
+            "item_id": "C02",
+            "text_ko": "Loan payment plus maintenance for one month was 2,997,855 won."
+          },
+          {
+            "claims": [
+              {
+                "field": "minutes",
+                "unit": "분",
+                "value": 9.7
+              }
+            ],
+            "home": "A",
+            "id": "A-F01",
+            "item_id": "F01",
+            "text_ko": "Childcare was 9.7 minutes away."
+          },
+          {
+            "claims": [
+              {
+                "field": "minutes",
+                "unit": "분",
+                "value": 7.6
+              }
+            ],
+            "home": "A",
+            "id": "A-C05",
+            "item_id": "C05",
+            "text_ko": "Grocery trips averaged 7.6 minutes."
+          },
+          {
+            "claims": [
+              {
+                "field": "minutes",
+                "unit": "분",
+                "value": 10.3
+              }
+            ],
+            "evidence": [
+              "t000002"
+            ],
+            "home": "A",
+            "id": "A-C06",
+            "item_id": "C06",
+            "text_ko": "Day 1 at 18:28 walked home in 10.3 minutes after sunset."
+          },
+          {
+            "claims": [
+              {
+                "field": "minutes",
+                "unit": "분",
+                "value": 57.1
+              }
+            ],
+            "home": "B",
+            "id": "B-C01",
+            "item_id": "C01",
+            "text_ko": "Work door to door averaged 57.1 minutes one way."
+          },
+          {
+            "claims": [
+              {
+                "field": "monthly_total",
+                "unit": "원",
+                "value": 2963395
+              }
+            ],
+            "home": "B",
+            "id": "B-C02",
+            "item_id": "C02",
+            "text_ko": "Loan payment plus maintenance for one month was 2,963,395 won."
+          },
+          {
+            "claims": [
+              {
+                "field": "minutes",
+                "unit": "분",
+                "value": 20.7
+              }
+            ],
+            "home": "B",
+            "id": "B-F01",
+            "item_id": "F01",
+            "text_ko": "Childcare was 20.7 minutes away."
+          },
+          {
+            "claims": [
+              {
+                "field": "minutes",
+                "unit": "분",
+                "value": 14.1
+              }
+            ],
+            "home": "B",
+            "id": "B-C05",
+            "item_id": "C05",
+            "text_ko": "Grocery trips averaged 14.1 minutes."
+          },
+          {
+            "claims": [
+              {
+                "field": "minutes",
+                "unit": "분",
+                "value": 13.8
+              }
+            ],
+            "evidence": [
+              "t000002"
+            ],
+            "home": "B",
+            "id": "B-C06",
+            "item_id": "C06",
+            "text_ko": "Day 1 at 18:47 walked home in 13.8 minutes after sunset."
+          },
+          {
+            "claims": [
+              {
+                "field": "minutes",
+                "unit": "분",
+                "value": 11.2
+              }
+            ],
+            "home": "B",
+            "id": "B-F03",
+            "item_id": "F03",
+            "text_ko": "Playground was 11.2 minutes away."
+          }
+        ]
+      },
+      "attempts": [
+        {
+          "attempt": 1,
+          "summary_ko": "검증 통과: 커버리지 100%",
+          "pass": true,
+          "weighted_coverage": 1,
+          "must_coverage": 1
+        }
+      ],
+      "handoff": null,
+      "result": {
+        "pass": true,
+        "weighted_coverage": 1,
+        "must_coverage": 1,
+        "feedback_ko": [
+          "A: [MUST] C03 소음 (층간·도로·상가): 엔진이 아직 확인할 수 없는 필수 항목이에요 (미지원)",
+          "A: [MUST] F02 단지 출입구 주변 차량 안전: 엔진이 아직 확인할 수 없는 필수 항목이에요 (미지원)",
+          "B: [MUST] C03 소음 (층간·도로·상가): 엔진이 아직 확인할 수 없는 필수 항목이에요 (미지원)",
+          "B: [MUST] F02 단지 출입구 주변 차량 안전: 엔진이 아직 확인할 수 없는 필수 항목이에요 (미지원)"
+        ],
+        "failures": [],
+        "by_home": {
+          "A": {
+            "unsupported": [
+              {
+                "item_id": "C03",
+                "reason_ko": "엔진이 아직 확인할 수 없는 필수 항목이에요 (미지원)"
+              },
+              {
+                "item_id": "C04",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "C07",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "C08",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "C09",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "F02",
+                "reason_ko": "엔진이 아직 확인할 수 없는 필수 항목이에요 (미지원)"
+              },
+              {
+                "item_id": "F04",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "F06",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              }
+            ],
+            "inapplicable": [
+              {
+                "item_id": "F03",
+                "reason_ko": "이 집 자료로 계산할 수 없어요"
+              },
+              {
+                "item_id": "F05",
+                "reason_ko": "이 집 자료로 계산할 수 없어요"
+              }
+            ]
+          },
+          "B": {
+            "unsupported": [
+              {
+                "item_id": "C03",
+                "reason_ko": "엔진이 아직 확인할 수 없는 필수 항목이에요 (미지원)"
+              },
+              {
+                "item_id": "C04",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "C07",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "C08",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "C09",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "F02",
+                "reason_ko": "엔진이 아직 확인할 수 없는 필수 항목이에요 (미지원)"
+              },
+              {
+                "item_id": "F04",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              },
+              {
+                "item_id": "F06",
+                "reason_ko": "엔진이 아직 확인할 수 없어요 (미지원)"
+              }
+            ],
+            "inapplicable": [
+              {
+                "item_id": "F05",
+                "reason_ko": "이 집 자료로 계산할 수 없어요"
+              }
+            ]
+          }
+        }
+      },
+      "usage": {
+        "prompt_tokens": 3137,
+        "completion_tokens": 2452,
+        "calls": 1
+      },
+      "persona": "young_family"
+    },
+    "assumptions": {
+      "transit_fare_won": 1500,
+      "basket_won": 30000,
+      "maintenance_won_month": 150000,
+      "other_fixed_won_month": 0,
+      "pay_day_of_month": 25,
+      "fixed_due_day_1based": 1,
+      "loan_rate_pct": 4,
+      "loan_years": 30,
+      "jeonse_loan_cap_won": 500000000
+    },
+    "record_sha256": "7830b3a1b66ce6f7427e401da3766347d087f6e73b9a82e806fbba3b0d40ce49",
+    "record_file": "ithaca-family-record.json"
+  },
+  "limits": [
+    "All principal results and choices come from couple run cmvzm1bok85ad.",
+    "Four-person family is a separate run cmvzm6kczd730.",
+    "Financial inputs are examples, not the founder’s personal finances.",
+    "Transaction prices and area bands describe historical records, not available asking prices or exact unit size.",
+    "Workplace is assumed near Pangyo Station; routes, wait and transit coverage remain modeled.",
+    "Crowding combines measured historical Seoul Metro data with explicit assumptions where coverage is missing. No observed seating probability is claimed.",
+    "Loan interest 4%, term 30 years, maintenance 150000 KRW/month are assumptions. Taxes, payroll and borrowing eligibility require external confirmation.",
+    "Report first-pass success covers supported consistency checks; unsupported noise/daylight and other items are excluded. It does not establish real-world accuracy.",
+    "Family school routes are nearest-POI proxies, not enrollment assignments; school-level and catchment matching are not implemented. The saved routes use secondary-school POIs despite elementary-school input.",
+    "Household options are chosen by live Muse; fixed work/school schedules and background residents remain rules. A reason is the model’s explanation, not evidence of a real person’s preference.",
+    "Screen recording replays the same saved runs; model waits and playback are edited for pacing. Presentation voice is separately synthesized, not Muse Voice output.",
+    "The current report checker does not make a judge-call exception block a pass. The UI outcome is preserved, but per-call semantic judge completion is not independently exposed in this captured response."
+  ],
+  "playback_commit": "c57dc04"
+}

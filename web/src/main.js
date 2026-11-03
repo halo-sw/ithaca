@@ -16,8 +16,9 @@ import { loadArea, originOf } from "./load.js";
 import { fetchDataJson } from "./data-fetch.js";
 import { assetUrl, STATIC_SITE, LIVE_API } from "./paths.js";
 import { NAIP_CREDIT, aerialCreditFor, drapeAerial, drapeCorridorAerial, drapeIsomapSharp, isUsArea } from "./aerial/drape.js";
+import { createAerialDetail } from "./aerial/detail.js";
 import { hideIsomapChrome, hideIsomapThing, isomapCameraOffset, isomapOrthoFrustum, parseIsomapParams } from "./isomap.js";
-import { drapeAreaOnce } from "./area-ground.js";
+import { drapeAreaOnce, forgetAreaDrape } from "./area-ground.js";
 import { compare as compareRuns } from "./engine/simulate.js";
 import { oneWayByLabel } from "./verify/numbers.js";
 import { CRITERIA_GROUPS, criterionDefault, criterionValuesLine, resolveCriteria } from "./engine/criteria.js";
@@ -33,7 +34,8 @@ import { sceneEvidence } from "./evidence.js";
 import { currentLang } from "./i18n/lang.js";
 import { memberEnFor } from "./ui/scene-chrome.js";
 import { destInLoadedAreas, pickStationArea } from "./station-areas.js";
-import { DECISION_KIND_KO, SIM_TICK_S, SPEEDS, agentLabelOf, chosenLabel, dayDecisions, decisionBadge, formatClock, homeOccupancy, indexRun, latestDecision, optionsLine, parseTParam, sampleAgent, shouldAutoplay, simInstant, tripFractions } from "./sim.js";
+import { DECISION_KIND_KO, SIM_TICK_S, SPEEDS, agentLabelOf, chosenLabel, dayDecisions, decisionBadge, formatClock, homeOccupancy, indexRun, judgeReasonText, latestDecision, optionsLine, parseTParam, playbackDecisionBadge, sampleAgent, shouldAutoplay, tripFractions } from "./sim.js";
+import { sceneInstant } from "./scene/time.js";
 import { memberLabelFor } from "./profile.js";
 import { DWELL_S, legGlideDuration, pathWaypoints, seekState, selectTourStops, tourSchedule } from "./tour.js";
 import { TREE_CANOPY_R, TREE_CANOPY_Y, TREE_TRUNK_H, TREE_TRUNK_R_BOTTOM, TREE_TRUNK_R_TOP, placeTrees } from "./trees.js";
@@ -53,8 +55,10 @@ import { personMonthLog } from "./diary/person-log.js";
 // the rig/material builders (night emissive via aLit, not glow quads).
 import { PAINTED_ROOF_HEX, PAINTED_WALL_HEX, aviationBlink, eveningHomeFraction, facadeTintFor, globalHomeFraction, litFractionWithFallback, needsAviationLight, tourOfficeFraction } from "./render/facades.js";
 import { hashString, hashUnit } from "./palette.js";
-import { PAINTED_NIGHT_GROUND, PAINTED_NIGHT_ROAD_LIT, PAINTED_NIGHT_ROAD_WARM, PAINTED_NIGHT_ROOF, PAINTED_NIGHT_WALL, PAINTED_WATER, capLitFraction, lerpHex, nightEmissiveHex, nightTint, paintedFogRange, regionalFogRange, resolveLook, streetFogRange } from "./render/look.js";
-import { followPitchFor, routeMaterialsFor } from "./render/scene29L1.js";
+import { PAINTED_NIGHT_GROUND, PAINTED_NIGHT_ROAD_LIT, PAINTED_NIGHT_ROAD_WARM, PAINTED_NIGHT_ROOF, PAINTED_NIGHT_WALL, PAINTED_WATER, capLitFraction, lerpHex, nightTint, paintedFogRange, regionalFogRange, resolveLook, streetFogRange } from "./render/look.js";
+import { patchSurfaceNight, setSurfaceNightFactor } from "./render/surface-night.js";
+import { routeMaterialsFor } from "./render/scene29L1.js";
+import { FOLLOW_LIFT_MAX_M, initialFollowLiftState, updateFollowLift } from "./render/follow-camera.js";
 import { applyStopFade, makeFadeable } from "./render/fade.js";
 import { createRenderer } from "./render/renderer.js";
 import { createSkyRig } from "./render/rig.js";
@@ -63,6 +67,7 @@ import { buildStreetMeshes } from "./render/streetmeshes.js";
 import { agentMaterial, facadeMaterial, groundMaterial, markingMaterial, roofMaterial, setGlobalNight, setNightGain, setWaterTime, trunkMaterial, vegetationMaterial, waterMaterial } from "./render/textures.js";
 // Stage 14: terrain + OSM road/forest/tree scene layers.
 import { flatHeightAt, makeHeightAt, seatOnTerrain } from "./scene/height.js";
+import { areaExtent } from "./scene/extent.js";
 import { loadScene, toTypedMesh } from "./scene/load.js";
 import { MASK_SIZE, buildTerrainMesh, paintLandMask } from "./scene/terrain.js";
 import { MARKINGS_HIDE_M, buildRoadMarkings, buildRoadMeshes, buildWaterRibbons } from "./scene/roads.js";
@@ -147,18 +152,18 @@ const LOOK = resolveLook(PARAMS, STYLE);
 const areaId = PARAMS.get("area") || DEFAULT_AREA;
 
 // Tour sun from ?time=HH:MM (validated) or the fixed afternoon default.
-function tourSun() {
+// Local scene time (45b): the same wall clock is a different absolute
+// instant in Menlo Park than in Seoul.
+function tourSun(area) {
   const m = /^(\d{1,2}):(\d{2})$/.exec(PARAMS.get("time") || "");
   if (m) {
     const hh = Number(m[1]);
     const mm = Number(m[2]);
     if (hh <= 23 && mm <= 59) {
-      const stamp = `2026-10-15T${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00+09:00`;
-      const date = new Date(stamp);
-      if (!Number.isNaN(date.getTime())) return { date, minute: hh * 60 + mm };
+      return { date: sceneInstant(TOUR_DATE_ISO, 0, hh * 60 + mm, area), minute: hh * 60 + mm };
     }
   }
-  return { date: SUN_DATE, minute: SUN_MINUTE };
+  return { date: sceneInstant(TOUR_DATE_ISO, 0, SUN_MINUTE, area), minute: SUN_MINUTE };
 }
 
 function toGeometry(data) {
@@ -299,12 +304,17 @@ function buildWorld(area, scene14, opts = {}) {
   // Painted: the fringe matches the warm ground so the box edge never
   // shows a grey ring; photo keeps today's darker fringe.
   const baseDayColor = STYLE === "painted" ? LOOK.terrainBase : BASE_GROUND;
+  // 45c1: the fringe covers the bbox + terrain grid + every buffered
+  // building ring, so the ground never sits inside its own buildings.
+  const homeExt = areaExtent({ bbox: area.bbox, origin,
+    terrain: scene14 ? scene14.terrain : null,
+    demMin: scene14 ? scene14.meta.dem.min_m : null, buildings: area.buildings });
   const base = new THREE.Mesh(
-    new THREE.PlaneGeometry(span * 1.5, span * 1.5),
+    new THREE.PlaneGeometry(homeExt.width, homeExt.depth),
     new THREE.MeshStandardMaterial({ color: baseDayColor, roughness: 1, metalness: 0 })
   );
   base.rotation.x = -Math.PI / 2;
-  base.position.set(cx, scene14 ? demMin - 1 : -0.05, -cy);
+  base.position.set(homeExt.cx, homeExt.baseY, -homeExt.cy);
   base.receiveShadow = true;
   scene.add(base);
   // Stage-14 terrain: full-res grid + canvas land mask (one draw call).
@@ -442,6 +452,12 @@ function buildWorld(area, scene14, opts = {}) {
   // ?ground=paint, the painted ground stays as it is. Never logs URLs.
   // 26e: US areas fetch USGS tiles directly, so they drape on a static
   // build too.
+  // 46c2: high-detail aerial overlay; detail=0 is a diagnostic off-switch (no UI).
+  const aerialDetail = (PARAMS.get("ground") !== "paint" && PARAMS.get("detail") !== "0" &&
+    PARAMS.get("mode") !== "isomap" && PARAMS.get("isomap") !== "1" && (LIVE_API || isUsArea(area)))
+    ? createAerialDetail({ THREE, renderer, origin, usArea: isUsArea(area), look: LOOK,
+      onReady: (m) => console.log(`[aerial-detail] source=${m.source} size=${m.size}`) })
+    : null;
   if ((LIVE_API || isUsArea(area)) && PARAMS.get("ground") !== "paint") {
     // 36f: the home drape goes through the shared once-per-area
     // helper — the second (workplace) area uses the same function.
@@ -452,6 +468,9 @@ function buildWorld(area, scene14, opts = {}) {
       onOk: (id, r) => {
         console.log(`[aerial] ok ${r.tiles} tiles z${r.zoom}`);
         store.set({ aerial: true });
+        if (aerialDetail) aerialDetail.register([terrainMesh, groundMesh, roofMesh, base]);
+        if (aerialDetail) aerialDetail.enable();
+        applyPaintedNight(undefined, true);
       } })
       .then((r) => {
         if (!r || !r.ok) console.log("[aerial] off (no key)");
@@ -684,21 +703,26 @@ function buildWorld(area, scene14, opts = {}) {
     }
   }
   let lastNightT = -1;
-  function applyPaintedNight(nightF) {
+  function applyPaintedNight(nightF, force = false) {
     if (STYLE !== "painted") return;
+    // 45c1: a midnight deep link adds black daytime materials after the
+    // initial lighting update — new entries arrive with force so they
+    // catch the stored night factor immediately.
+    if (nightF === undefined || nightF === null) nightF = lastNightT < 0 ? 0 : lastNightT;
     const t = Math.min(1, Math.max(0, Number(nightF) || 0));
-    if (Math.abs(t - lastNightT) < 0.005) return;
+    if (!force && Math.abs(t - lastNightT) < 0.005) return;
     lastNightT = t;
-    for (const { mat, day, direct, night, base, glow } of nightMats) {
+    // 48a: textured night ambient (surface-night.js) replaces the old flat
+    // emissive fill: albedo-driven, window-patch safe, same table day/night.
+    setSurfaceNightFactor(t);
+    for (const { mat, day, direct, night, base } of nightMats) {
+      patchSurfaceNight(mat);
       const target = night === undefined ? PAINTED_NIGHT_GROUND : night;
       if (direct) mat.color.setHex(lerpHex(day, target, t));
       else {
         const k = nightTint(day, target, t);
         if (base) mat.color.setRGB(base[0] * k[0], base[1] * k[1], base[2] * k[2]);
         else mat.color.setRGB(...k);
-      }
-      if (mat.emissive) {
-        mat.emissive.setHex(lerpHex(0x000000, nightEmissiveHex({ night, glow }), t));
       }
     }
   }
@@ -716,7 +740,7 @@ function buildWorld(area, scene14, opts = {}) {
     trees, treeMeshes, fillTrees, streetMeshes, crowd, crowdMeshes,
     dummy, heightAt,
     ground0, terrainMesh, sceneRoadMeshes, sceneWaterMesh, sceneMarkingsMesh,
-    nightMats, applyPaintedNight, aviationMat,
+    nightMats, applyPaintedNight, aviationMat, aerialDetail,
   };
 }
 
@@ -815,7 +839,7 @@ async function bootTour(uiMode = "tour") {
     maxHeightM,
     streetMeshes, crowdMeshes, trees, treeMeshes, fillTrees, waterMesh,
     sceneWaterMesh, sceneMarkingsMesh, dummy, heightAt,
-    applyPaintedNight, aviationMat } = buildWorld(area, scene14,
+    applyPaintedNight, aviationMat, aerialDetail } = buildWorld(area, scene14,
       { treeDateISO: TOUR_DATE_ISO });
   // World position with terrain height (tour route + stops ride +2 m).
   const w2hg = (lon, lat, lift = 2) => {
@@ -885,7 +909,7 @@ async function bootTour(uiMode = "tour") {
   if (uiMode === "tour") {
     buildUI(area, plan, !!scene14, fillTrees);
   } else {
-    store.set({ area: { id: areaId, label: area.label || areaId } });
+    store.set({ area: { id: areaId, label: area.label || areaId, country: area.country, bbox: area.bbox } });
     document.title = uiMode === "chat" ? "Ithaca — 대화" : "Ithaca";
   }
   if (uiMode === "chat") registerChatActions();
@@ -893,7 +917,7 @@ async function bootTour(uiMode = "tour") {
   document.getElementById("fade").classList.add("clear");
 
   // --- tour sun/sky (?time=HH:MM override; static through the tour) ---
-  const { date: tourDate, minute: tourMinute } = tourSun();
+  const { date: tourDate, minute: tourMinute } = tourSun(area);
   const fillTourLit = makeLitFiller(litMeshes, householdsById, { residentialById, tour: true });
   let tourEmissive = 0;
   // 29L1: beacons only after dark — same sky phase the rig already uses.
@@ -1017,6 +1041,7 @@ async function bootTour(uiMode = "tour") {
       sceneMarkingsMesh.visible = (tourFramedWidth ?? 0) <= MARKINGS_HIDE_M;
     }
     if (aviationMat) aviationMat.opacity = tourDark ? aviationBlink(tourTMin * 60) : 0;
+    aerialDetail?.update({ target: controls.target, framedWidthM: tourFramedWidth, now: performance.now() });
     renderCtl.renderFrame({ bloom: tourBloom, framedWidthM: tourFramedWidth }, dt);
     frames++;
     if (frames === 30) {
@@ -1248,7 +1273,7 @@ function buildUI(area, plan, sceneOn = false, fillCount = 0) {
   const { resRows, heightRows } = legendRows(area);
   store.set({
     areaOptions: AREAS.map((a) => ({ value: a.id, label: a.label })),
-    area: { id: areaId, label: area.label || areaId },
+    area: { id: areaId, label: area.label || areaId, country: area.country, bbox: area.bbox },
     legend: {
       title: "범례",
       resRows,
@@ -1446,11 +1471,7 @@ async function bootSim() {
   // with a matching committed record is labelled "기록된 Muse 판단",
   // otherwise "규칙 판단" — both describe today, never a live call.
   function badgeFor(v) {
-    const badge = decisionBadge(v);
-    if (!STATIC_SITE) return badge;
-    const e = judgeExtras.get(v.id);
-    const recorded = Boolean(e && e.chosen_key === v.chosen_key);
-    return { text: recorded ? "기록된 Muse 판단" : "규칙 판단", cls: badge.cls };
+    return playbackDecisionBadge(v, STATIC_SITE);
   }
   const area = await fetchArea(run.meta.area);
   simAreaId = run.meta.area;
@@ -1462,7 +1483,7 @@ async function bootSim() {
     dimMeshes, litMeshes, householdsById, maxHeightM, streetMeshes,
     crowd, crowdMeshes, treeMeshes, fillTrees, waterMesh, sceneWaterMesh,
     sceneMarkingsMesh, wallMeshes, podiumMesh, roofMesh, heightAt,
-    nightMats, applyPaintedNight, aviationMat } = buildWorld(area, scene14,
+    nightMats, applyPaintedNight, aviationMat, aerialDetail } = buildWorld(area, scene14,
       { treeDateISO: simDateISO(run.meta.start_date, 0) });
   const fillSimLit = makeLitFiller(litMeshes, householdsById);
   // Calm highlighting (stage 7, Part B): no flashing anywhere, and no
@@ -1967,6 +1988,9 @@ async function bootSim() {
   }
   if (renderer.domElement) {
     renderer.domElement.addEventListener("pointermove", onHover20b);
+    renderer.domElement.addEventListener("pointerleave", () => {
+      hover20bEl.style.display = "none";
+    });
   }
 
   // 29L1: the trip route rides a hair above the road (≤ 0.6 m) so it
@@ -2253,10 +2277,18 @@ async function bootSim() {
   let simFramedWidth = null;
   let lastLightKey = "";
   let lastLitKey = "";
+  // 45c3: cache the absolute Date until day/minute changes (area fixed per page).
+  let lastSceneKey = "";
+  let lastSceneInstant = null;
 
   function updateLighting() {
     const m = Math.floor(minute);
-    const instant = simInstant(run.meta.start_date, day, m);
+    const sceneKey = `${run.meta.start_date}|${day}|${m}`;
+    if (sceneKey !== lastSceneKey || !lastSceneInstant) {
+      lastSceneInstant = sceneInstant(run.meta.start_date, day, m, area);
+      lastSceneKey = sceneKey;
+    }
+    const instant = lastSceneInstant;
     const camDist = camera.position.distanceTo(controls.target);
     const framedWidth = frameWidthFor(camDist, CAM.fovDeg, camera.aspect);
     simFramedWidth = framedWidth;
@@ -2298,19 +2330,27 @@ async function bootSim() {
   // 29L1: the followed person is never hidden — each frame raycasts
   // camera→head against the blocks; while one covers them the camera
   // eases up toward a top-down limit, then eases back when clear.
-  let followLift = 0;
-  const FOLLOW_LIFT_MAX = 60;
+  // 45a: absolute occlusion lift (metres, 0–60), smoothed over real
+  // seconds with a short clear-view hold so edges do not chatter.
+  let followLiftState = initialFollowLiftState();
+  const FOLLOW_LIFT_MAX = FOLLOW_LIFT_MAX_M;
+  let lastJourneyActive = false;
+  function resetFollowLift() {
+    followLiftState = initialFollowLiftState();
+  }
   const followRay = new THREE.Raycaster();
   const followHead = new THREE.Vector3();
   const followToHead = new THREE.Vector3();
-  function followBlocked(head) {
+  const followFrom = new THREE.Vector3();
+  function followBlockedFrom(from, head) {
     const occluders = [...Object.values(wallMeshes || {}),
       podiumMesh, roofMesh].filter(Boolean);
     if (occluders.length === 0) return false;
-    followToHead.copy(head).sub(camera.position);
+    followFrom.copy(from);
+    followToHead.copy(head).sub(followFrom);
     const dist = followToHead.length();
     if (dist < 1e-6) return false;
-    followRay.set(camera.position, followToHead.normalize());
+    followRay.set(followFrom, followToHead.normalize());
     followRay.far = dist - 1;
     return followRay.intersectObjects(occluders, false).length > 0;
   }
@@ -2425,7 +2465,12 @@ async function bootSim() {
       return;
     }
     // The journey camera owns follow mode while a station ride plays.
-    if (paintJourney(dt)) {
+    const journeyActive = paintJourney(dt);
+    if (journeyActive !== lastJourneyActive) {
+      lastJourneyActive = journeyActive;
+      resetFollowLift();
+    }
+    if (journeyActive) {
       destPin.style.display = "none";
       rideStub.visible = false;
       if (forceCaption) {
@@ -2450,9 +2495,15 @@ async function bootSim() {
     // as setFollowPose above — OrbitControls stays out of it.
     controls.enableZoom = false;
     controls.enableRotate = false;
-    // Snap when far (a fast clock would lag behind); otherwise glide,
-    // so the followed member stays in frame at any speed.
-    if (snapFollow || controls.target.distanceTo(glook) > 60) {
+    // 45a: explicit seeks/member changes/resume place immediately;
+    // continuous playback only glides, never snaps for trailing behind.
+    // Occlusion is probed from the nominal goal (pre-lift); the lift
+    // offsets the goal before interpolation, never the smoothed camera.
+    followHead.set(x, heightAt(x, -y) + 2.5, -y);
+    followLiftState = updateFollowLift(followLiftState,
+      { blocked: followBlockedFrom(gpos, followHead), dt, maxLift: FOLLOW_LIFT_MAX });
+    gpos.y += followLiftState.lift;
+    if (snapFollow) {
       camera.position.copy(gpos);
       controls.target.copy(glook);
       snapFollow = false;
@@ -2461,12 +2512,6 @@ async function bootSim() {
       camera.position.lerp(gpos, k);
       controls.target.lerp(glook, k);
     }
-    // 29L1: raise the pitch/height while a building blocks the view of
-    // the followed member, ease back once the sight line is clear.
-    followHead.set(x, heightAt(x, -y) + 2.5, -y);
-    followLift = followPitchFor({ blocked: followBlocked(followHead),
-      pitch: followLift, maxPitch: FOLLOW_LIFT_MAX, basePitch: 0 });
-    camera.position.y += followLift;
     controls.enabled = true;
     if (forceCaption) {
       paintNow();
@@ -2493,7 +2538,7 @@ async function bootSim() {
       badgeText: badge.text,
       badgeCls: badge.cls,
       text: `${hhmm(v.minute)} ${DECISION_KIND_KO[v.kind] || v.kind} · ${optionsLine(v)} → ✓ ${chosenLabel(v)}` +
-        (v.reason_ko ? ` · “${v.reason_ko}”` : ""),
+        (judgeReasonText(v, currentLang()) ? ` · “${judgeReasonText(v, currentLang())}”` : ""),
       canAsk: import.meta.env.DEV,
     } });
   }
@@ -2556,7 +2601,7 @@ async function bootSim() {
           badgeText: badge.text,
           badgeCls: badge.cls,
           text: `${hhmm(v.minute)} ${DECISION_KIND_KO[v.kind] || v.kind} · ${optionsLine(v)} → ✓ ${chosenLabel(live)}` +
-            (live.reason_ko ? ` · “${live.reason_ko}”` : "") +
+            (judgeReasonText(live, currentLang()) ? ` · “${judgeReasonText(live, currentLang())}”` : "") +
             ` (${live.provider === "baseten" ? "Muse Spark Open" : "Muse Spark 1.3"})`,
           canAsk: true,
         },
@@ -2581,7 +2626,7 @@ async function bootSim() {
         choice: chosenLabel(v),
         badgeText: badge.text,
         badgeCls: badge.cls,
-        reason: v.reason_ko || "",
+        reason: judgeReasonText(v, currentLang()),
       };
     });
     store.set({ judgeLog: rows });
@@ -2795,19 +2840,17 @@ async function bootSim() {
     // 36f: the destination area gets the same scene ground as a home
     // area — the fringe plane, scene.json terrain when present, and
     // the merged ground layer (+ lane paint + water).
-    const liteBox = bboxToXY(areaData.bbox, liteOrigin);
-    const liteCx = (liteBox.minX + liteBox.maxX) / 2;
-    const liteCy = (liteBox.minY + liteBox.maxY) / 2;
-    const liteSpan = Math.max(liteBox.maxX - liteBox.minX, liteBox.maxY - liteBox.minY);
     const liteHeightAt = scene14b ? makeHeightAt(scene14b.terrain) : flatHeightAt();
-    const liteDemMin = scene14b ? scene14b.meta.dem.min_m : 0;
+    const liteExt = areaExtent({ bbox: areaData.bbox, origin: liteOrigin,
+      terrain: scene14b ? scene14b.terrain : null,
+      demMin: scene14b ? scene14b.meta.dem.min_m : null, buildings: areaData.buildings });
     const fringe = new THREE.Mesh(
-      new THREE.PlaneGeometry(liteSpan * 1.5, liteSpan * 1.5),
+      new THREE.PlaneGeometry(liteExt.width, liteExt.depth),
       new THREE.MeshStandardMaterial({
         color: STYLE === "painted" ? LOOK.terrainBase : BASE_GROUND,
         roughness: 1, metalness: 0 }));
     fringe.rotation.x = -Math.PI / 2;
-    fringe.position.set(liteCx, scene14b ? liteDemMin - 1 : -0.05, -liteCy);
+    fringe.position.set(liteExt.cx, liteExt.baseY, -liteExt.cy);
     fringe.receiveShadow = true;
     g.add(fringe);
     let liteTerrain = null;
@@ -2832,16 +2875,59 @@ async function bootSim() {
     const gm = new THREE.Mesh(toGeometry(gd), groundMaterial({ aniso: maxAniso2 }));
     gm.receiveShadow = true;
     g.add(gm);
+    let liteMarkMesh = null;
     if (gd.markings.triangles > 0) {
-      const liteMark = new THREE.Mesh(toGeometry(gd.markings), markingMaterial());
-      liteMark.receiveShadow = true;
-      g.add(liteMark);
+      liteMarkMesh = new THREE.Mesh(toGeometry(gd.markings), markingMaterial());
+      liteMarkMesh.receiveShadow = true;
+      g.add(liteMarkMesh);
     }
     if (gd.water.triangles > 0) {
       g.add(new THREE.Mesh(toGeometry(gd.water), waterMaterial()));
     }
+    // 45c1: the destination gets the same scene road ribbons, waterway
+    // ribbons and road paint as home (batched per road class, same
+    // polygon offsets); painted scene mode keeps ribbons only.
+    const liteRoadMeshes = [];
+    let liteSceneWater = null;
+    let liteSceneMarkings = null;
+    if (scene14b) {
+      const { meshes } = buildRoadMeshes(scene14b.roads, liteHeightAt, LOOK);
+      const liteOffsets = { road: 2, rail: 2, foot: 3, cycle: 3 };
+      for (const [cls, data] of Object.entries(meshes)) {
+        if (data.triangles === 0) continue;
+        const mesh = new THREE.Mesh(toIndexedGeometry(data),
+          new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95,
+            metalness: 0, polygonOffset: true,
+            polygonOffsetFactor: -liteOffsets[cls], polygonOffsetUnits: -liteOffsets[cls] }));
+        mesh.receiveShadow = true;
+        mesh.userData.roadCls = cls;
+        g.add(mesh);
+        liteRoadMeshes.push(mesh);
+      }
+      const lw = buildWaterRibbons(scene14b.water, liteHeightAt, LOOK);
+      if (lw.triangles > 0) {
+        liteSceneWater = new THREE.Mesh(toIndexedGeometry(lw), waterMaterial());
+        if (STYLE === "painted") liteSceneWater.material.color.setHex(PAINTED_WATER);
+        g.add(liteSceneWater);
+      }
+    }
+    if (scene14b && STYLE === "painted") {
+      gm.visible = false;
+      if (liteMarkMesh) liteMarkMesh.visible = false;
+      const lmk = buildRoadMarkings(scene14b.roads, liteHeightAt);
+      if (lmk.mesh.triangles > 0) {
+        const lmat = markingMaterial();
+        lmat.polygonOffset = true;
+        lmat.polygonOffsetFactor = -4;
+        lmat.polygonOffsetUnits = -4;
+        liteSceneMarkings = new THREE.Mesh(toIndexedGeometry(lmk.mesh), lmat);
+        liteSceneMarkings.receiveShadow = true;
+        g.add(liteSceneMarkings);
+      }
+    }
     const built = buildBuildings(areaData.buildings, areaData.complexes, liteOrigin,
       scene14b ? { baseAt: (rings) => seatOnTerrain(liteHeightAt, rings) } : {});
+    const liteWallMeshes = [];
     for (const [cls, data] of Object.entries(built.detail.walls)) {
       if (data.triangles === 0) continue;
       const mesh = new THREE.Mesh(toGeometry(data), facadeMaterial(cls, { aniso: maxAniso2 }));
@@ -2849,7 +2935,9 @@ async function bootSim() {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       g.add(mesh);
+      liteWallMeshes.push({ mesh, cls });
     }
+    let litePodium = null;
     if (built.detail.podium.triangles > 0) {
       const mesh = new THREE.Mesh(toGeometry(built.detail.podium),
         facadeMaterial("podium", { aniso: maxAniso2 }));
@@ -2857,13 +2945,87 @@ async function bootSim() {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       g.add(mesh);
+      litePodium = mesh;
     }
     const liteRoof = new THREE.Mesh(toGeometry(built.detail.roofs), roofMaterial({ aniso: maxAniso2 }));
     liteRoof.material.color.setRGB(...facadeTintFor("roof", STYLE));
     g.add(liteRoof);
+    // 45c1: destination trees ride the same species-batched InstancedMeshes
+    // as home (no street fill, no residents) — data ships in scene.json.
+    if (scene14b && Array.isArray(scene14b.trees) && scene14b.trees.length > 0) {
+      const liteDummy = new THREE.Object3D();
+      const liteTint = new THREE.Color();
+      const liteDateISO = simDateISO(run.meta.start_date, day);
+      const litePainted = STYLE === "painted";
+      const liteBySpecies = [[], [], []];
+      for (const t of scene14b.trees) {
+        if (t && t[3] >= 0 && t[3] < 3) liteBySpecies[t[3]].push(t);
+      }
+      liteBySpecies.forEach((list, species) => {
+        if (list.length === 0) return;
+        const mesh = new THREE.InstancedMesh(treeGeometry(species),
+          treeMaterial(), list.length);
+        list.forEach((t, i) => {
+          const [x, z, tscale] = t;
+          liteDummy.position.set(x, liteHeightAt(x, z), z);
+          liteDummy.scale.setScalar(tscale);
+          liteDummy.rotation.set(0, treeRotation(x, z), 0);
+          liteDummy.updateMatrix();
+          mesh.setMatrixAt(i, liteDummy.matrix);
+          const seed = `${x.toFixed(1)},${z.toFixed(1)}`;
+          if (litePainted) {
+            mesh.setColorAt(i, liteTint.setHex(
+              treeColour(seed, species === 0 ? null : liteDateISO)));
+          } else {
+            mesh.setColorAt(i, liteTint.setScalar(treeTint(x, z)));
+          }
+        });
+        mesh.count = list.length;
+        mesh.castShadow = true;
+        mesh.customDepthMaterial = treeShadowMaterial();
+        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+        g.add(mesh);
+      });
+    }
+    // 45c1: destination base/terrain/ground/roads/walls/podium/roof join
+    // the night table with the same entries as home, then catch the
+    // stored night factor so a midnight load never flashes black noon.
+    let liteNightEntries = [];
+    if (STYLE === "painted") {
+      liteNightEntries.push({ mat: fringe.material, day: LOOK.terrainBase, direct: true });
+      if (liteTerrain) {
+        liteNightEntries.push({ mat: liteTerrain.material, day: LOOK.terrainBase, direct: false });
+      }
+      liteNightEntries.push({ mat: gm.material, day: LOOK.terrainBase, direct: false });
+      for (const m of liteRoadMeshes) {
+        const cls = m.userData.roadCls;
+        if (cls === "road") {
+          liteNightEntries.push({ mat: m.material, day: LOOK.sceneRoad, direct: false,
+            night: PAINTED_NIGHT_ROAD_WARM, glow: PAINTED_NIGHT_ROAD_LIT });
+          continue;
+        }
+        if (cls === "rail") continue;
+        const rday = cls === "foot" ? LOOK.sceneFoot
+          : cls === "cycle" ? LOOK.sceneCycle : LOOK.terrainBase;
+        liteNightEntries.push({ mat: m.material, day: rday, direct: false });
+      }
+      for (const { mesh, cls } of liteWallMeshes) {
+        liteNightEntries.push({ mat: mesh.material, day: PAINTED_WALL_HEX, direct: false,
+          night: PAINTED_NIGHT_WALL, base: facadeTintFor(cls, STYLE) });
+      }
+      if (litePodium) {
+        liteNightEntries.push({ mat: litePodium.material, day: PAINTED_WALL_HEX, direct: false,
+          night: PAINTED_NIGHT_WALL, base: facadeTintFor("podium", STYLE) });
+      }
+      liteNightEntries.push({ mat: liteRoof.material, day: PAINTED_ROOF_HEX, direct: false,
+        night: PAINTED_NIGHT_ROOF, base: facadeTintFor("roof", STYLE) });
+      nightMats.push(...liteNightEntries);
+      applyPaintedNight(undefined, true);
+    }
     const [ox, oy] = lonLatToXY(liteOrigin.lon, liteOrigin.lat, origin);
     g.position.set(ox, 0, -oy);
     scene.add(g);
+    const detailMeshes = [fringe, liteTerrain, gm, liteRoof];
     // 36f: the same drapeAerial call as the home area — its own mosaic
     // and bounds, once per area id — so roofs and ground read as photo
     // instead of white over black. UVs are world-frame under the group
@@ -2871,16 +3033,19 @@ async function bootSim() {
     if ((LIVE_API || isUsArea(areaData)) && PARAMS.get("ground") !== "paint") {
       drapeAreaOnce({ areaId: liteId || areaData.area,
         args: { THREE, renderer, scene, area: areaData, origin,
-          terrainMesh: liteTerrain, groundMesh: gm, roadMeshes: [],
+          terrainMesh: liteTerrain, groundMesh: gm, roadMeshes: liteRoadMeshes,
           roofMesh: liteRoof, fringeMesh: fringe, look: LOOK, style: STYLE },
         onOk: (id, r) => {
           console.log(`[aerial] ok ${r.tiles} tiles z${r.zoom} (${id})`);
           store.set({ aerialSecondByArea:
             { ...(store.getState().aerialSecondByArea || {}), [id]: true } });
+          aerialDetail?.register(detailMeshes);
+          if (aerialDetail) aerialDetail.enable();
+          applyPaintedNight(undefined, true);
         } })
         .catch(() => {});
     }
-    return { group: g, origin: liteOrigin };
+    return { group: g, origin: liteOrigin, nightEntries: liteNightEntries, detailMeshes };
   }
 
   async function ensureSecondArea(areaId) {
@@ -2888,8 +3053,26 @@ async function bootSim() {
     if (secondAreas.size >= 2) {
       const oldest = secondAreas.keys().next().value;
       const slot = secondAreas.get(oldest);
-      if (slot) scene.remove(slot.group);
+      // 45c1: eviction also drops the area's night entries so the night
+      // table stays bounded to the live groups' material sets.
+      if (slot) {
+        aerialDetail?.unregister(slot.detailMeshes);
+        scene.remove(slot.group);
+        for (const e of slot.nightEntries || []) {
+          const i = nightMats.indexOf(e);
+          if (i >= 0) nightMats.splice(i, 1);
+        }
+      }
       secondAreas.delete(oldest);
+      forgetAreaDrape(oldest);
+      {
+        const cur = store.getState().aerialSecondByArea;
+        if (cur && cur[oldest] !== undefined) {
+          const next = { ...cur };
+          delete next[oldest];
+          store.set({ aerialSecondByArea: next });
+        }
+      }
     }
     const label = (AREAS.find((a) => a.id === areaId) || {}).label || areaId;
     store.set({ journeyLoading: `${label} 지도 불러오는 중…` });
@@ -3012,7 +3195,7 @@ async function bootSim() {
     const stopPos = (sid) => coords.get(sid) || null;
     // The phase needs the destination load state, which needs the
     // direction: probe unloaded, then decide with the real gate.
-    const probe = journeyCameraState({ segments, minute: m, view: journeyView,
+    const probe = journeyCameraState({ segments, minute, view: journeyView,
       hasDetailDest: false });
     if (probe.phase === "street") return idle;
     const backHome = probe.dir === "back";
@@ -3022,7 +3205,7 @@ async function bootSim() {
     const board = stopPos(firstLeg.stopIds[0]);
     const dest = stopPos(lastLeg.stopIds[lastLeg.stopIds.length - 1]);
     const hasDetail = destDetailLoaded(dest, backHome);
-    const state = journeyCameraState({ segments, minute: m, view: journeyView,
+    const state = journeyCameraState({ segments, minute, view: journeyView,
       hasDetailDest: hasDetail });
     if (state.phase === "street") return idle;
     const span = state.dir === "back" ? segments.back
@@ -3287,7 +3470,7 @@ async function bootSim() {
     home: homeLabel,
     homes,
     scenarioName,
-    area: { id: run.meta.area, label: run.meta.area },
+    area: { id: run.meta.area, label: run.meta.area, country: area.country, bbox: area.bbox },
     legend: {
       title: `범례 — ${homeLabel} · ${run.meta.complex}`,
       resRows: resRows.filter((r) => Object.values(RES_LABELS).includes(r.label)),
@@ -3547,6 +3730,8 @@ async function bootSim() {
     const hit = tripHit || awayHit;
     day = hit.day;
     minute = tripHit ? tripHit.depart_min : awayHit.start_min;
+    snapFollow = follow > 0;
+    resetFollowLift();
     if (String(hit.agent).startsWith("h")) {
       const idx = household.findIndex((a) => a.key === hit.agent);
       if (idx >= 0) {
@@ -3574,6 +3759,8 @@ async function bootSim() {
     },
     setDay: (next) => {
       day = Math.min(days - 1, Math.max(0, next));
+      snapFollow = follow > 0;
+      resetFollowLift();
       paintClock();
       paintFollow(0.016, true);
       ensureItinerary();
@@ -3581,12 +3768,15 @@ async function bootSim() {
     },
     setMinute: (next) => {
       minute = Math.min(1439, Math.max(0, next));
+      snapFollow = follow > 0;
+      resetFollowLift();
       paintClock();
       paintFollow(0.016, true);
     },
     setFollow: (next) => {
       follow = Math.min(household.length, Math.max(0, next));
       snapFollow = follow > 0;
+      resetFollowLift();
       followMode = "follow";
       store.set({ follow });
       applyFollowDim();
@@ -3602,6 +3792,7 @@ async function bootSim() {
       followYaw = 0;
       followMode = "follow";
       snapFollow = true;
+      resetFollowLift();
       if (!follow && household.length > 0) {
         follow = 1;
         store.set({ follow });
@@ -3619,6 +3810,7 @@ async function bootSim() {
       if (["auto", "low", "high"].includes(next)) {
         journeyView = next;
         store.set({ journeyView: next });
+        resetFollowLift();
         paintFollow(0.016, true);
       }
     },
@@ -3699,6 +3891,8 @@ async function bootSim() {
         store.set({ follow });
         applyFollowDim();
       }
+      snapFollow = follow > 0;
+      resetFollowLift();
       paintClock();
       paintFollow(0.016, true);
     },
@@ -3734,6 +3928,7 @@ async function bootSim() {
   const clock = new THREE.Clock();
   let frames = 0;
   let lastMinuteShown = -1;
+  let captionRefresh = false;
   renderer.setAnimationLoop(() => {
     const dt = Math.min(clock.getDelta(), 0.5);
     const t = clock.elapsedTime;
@@ -3755,7 +3950,7 @@ async function bootSim() {
       if (m !== lastMinuteShown) {
         lastMinuteShown = m;
         paintClock();
-        paintFollow(dt, true);
+        captionRefresh = true;
       }
     }
     placeAgents(day, minute);
@@ -3772,7 +3967,8 @@ async function bootSim() {
       trains: trainTable ? trainTable.trains : 0,
       ms: simVeh.ms + simPed.ms });
     updateLighting();
-    paintFollow(dt, false);
+    paintFollow(dt, captionRefresh);
+    captionRefresh = false;
     paintHighlightFrame();
     paintLabels20b();
     const jfTrain = journeyFrame();
@@ -3783,7 +3979,7 @@ async function bootSim() {
     // renderCtl.renderFrame.
     if (jfTrain.ride && (jfTrain.phase === "rising" || jfTrain.phase === "cruise"
         || jfTrain.phase === "descending" || jfTrain.phase === "boarding")) {
-      journeyLayer.setTrain(jfTrain.ride, minute - Math.floor(minute) + jfTrain.elapsed,
+      journeyLayer.setTrain(jfTrain.ride, jfTrain.elapsed,
         camera, (household[follow - 1] || {}).label);
     }
     // 17c/19e/19g: distance-scaled journey dots (≤ 14 px); the train
@@ -3803,6 +3999,7 @@ async function bootSim() {
       sceneMarkingsMesh.visible = (simFramedWidth ?? 0) <= MARKINGS_HIDE_M;
     }
     if (aviationMat) aviationMat.opacity = simDark ? aviationBlink(simTMin * 60) : 0;
+    aerialDetail?.update({ target: controls.target, framedWidthM: simFramedWidth, now: performance.now() });
     renderCtl.renderFrame({ bloom: simBloom, framedWidthM: simFramedWidth }, dt);
     frames++;
     if (frames === 30) {

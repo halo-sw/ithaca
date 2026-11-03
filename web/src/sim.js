@@ -10,7 +10,7 @@ import { dateOf, weekdayOf } from "./engine/scenario.js";
 import { hhmm } from "./timeline.js";
 
 export const KOR_WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"];
-export const SPEEDS = [1, 10, 60]; // sim-min per 0.1 s at 1×
+export const SPEEDS = [0.1, 1, 10, 60]; // sim-min per 0.1 s at 1×
 export const SIM_TICK_S = 0.1; // seconds per sim-minute at 1×
 
 // 11월 2일(월) 07:42 · 1일차/30
@@ -138,9 +138,17 @@ export function sampleAgent(agentKey, indexed, day, minute, nodeLonLat, homeLonL
   }
   for (const a of aways) {
     if (a.day !== day || minute < a.start_min || minute >= a.end_min) continue;
-    if (a.kind === "work" || a.kind === "ride") {
-      // Out of area (at the workplace, or on the train the journey view
-      // carries): hidden on the home map.
+    if (a.kind === "ride") {
+      // On the train the journey view carries: hidden on the home map.
+      return { lon: homeLonLat[0], lat: homeLonLat[1], visible: false, state: "away", trip: null, away: a };
+    }
+    if (a.kind === "work") {
+      // At the recorded workplace coords (camera stays there, avatar
+      // hidden inside). Without known coords keep the old home fallback.
+      const wp = (a.detail && a.detail.workplace) || null;
+      if (wp && Number.isFinite(wp.lon) && Number.isFinite(wp.lat)) {
+        return { lon: wp.lon, lat: wp.lat, visible: false, state: "away", trip: null, away: a };
+      }
       return { lon: homeLonLat[0], lat: homeLonLat[1], visible: false, state: "away", trip: null, away: a };
     }
     // At the destination of the latest arrived home-graph trip
@@ -203,6 +211,28 @@ export function decisionBadge(d) {
   }
   if (d.chosen_by === "model") return { text: "Muse Spark 1.3", cls: "spark" };
   return { text: "규칙", cls: "rule" };
+}
+
+// Playback badge for a saved run: judge the already-resolved v
+// provenance itself, never a fresh model call. Off the static site
+// this matches decisionBadge; on STATIC_SITE a saved model row reads
+// as recorded Muse (provider cls kept), rule_fallback is explicit,
+// everything else reads as rule.
+export function playbackDecisionBadge(d, staticSite) {
+  if (!staticSite) return decisionBadge(d);
+  const v = d || {};
+  if (v.chosen_by === "model") return { text: "기록된 Muse 판단", cls: decisionBadge(v).cls };
+  if (v.chosen_by === "rule_fallback") return { text: "Rule fallback", cls: "rule" };
+  return { text: "규칙 판단", cls: "rule" };
+}
+
+// Caption / log reason: English UI prefers reason_en, otherwise
+// reason_ko; fall back to the other only when missing.
+export function judgeReasonText(v, lang) {
+  const ko = (v && v.reason_ko) || "";
+  const en = (v && v.reason_en) || "";
+  if (lang === "en") return en || ko || "";
+  return ko || en || "";
 }
 
 // Display label of the chosen option(s): the option label, or the

@@ -162,13 +162,13 @@ export function nowCardFor({ run, indexed, agentKey, day, minute }) {
     const progress = Math.min(1, Math.max(0, (minute - trip.depart_min) / dur));
     if (!trip.cause) {
       return { ...base, state: "trip", now, nowEn, why: OLD_RUN_WHY, whyKind: "none",
-        progress, oldRun: true, tripId: trip.id };
+        progress, oldRun: true, tripId: trip.id, remainingMinutes: remain };
     }
     return { ...base, state: "trip", now, nowEn, why: trip.cause.text, whyKind: trip.cause.type,
       criterionIds: [...(trip.cause.criterion_ids || [])],
       decisionId: trip.cause.decision_id || null,
       decision: decisionSummary(run, trip.cause.decision_id),
-      progress, tripId: trip.id, awayId: null };
+      progress, tripId: trip.id, awayId: null, remainingMinutes: remain };
   }
   if (kind === "away") {
     if (away.kind === "ride") return rideCardFor(base, run, away, minute, labelEn);
@@ -178,20 +178,24 @@ export function nowCardFor({ run, indexed, agentKey, day, minute }) {
       ? `${away.label} 중 · ${hhmm(away.end_min)}까지`
       : `${away.label} (${remain}분 머묾)`;
     const member = labelEn || "Me";
+    const isWait = away.kind === "wait" || away.label === "열차 대기";
     const nowEn = away.kind === "work"
       ? `${member} · At work · until ${hhmm(away.end_min)}`
-      : `${member} · Out · ${placeNameEn(away.label)} · ${remain} min left`;
+      : isWait
+        ? `${member} · Waiting for the train · ${remain} min left`
+        : `${member} · Out · ${placeNameEn(away.label)} · ${remain} min left`;
     const progress = Math.min(1, Math.max(0, (minute - away.start_min) / dur));
     if (!away.cause) {
       return { ...base, state: away.kind === "work" ? "away" : "place", now, nowEn,
-        why: OLD_RUN_WHY, whyKind: "none", progress, oldRun: true, awayId: awayKey(away) };
+        why: OLD_RUN_WHY, whyKind: "none", progress, oldRun: true, awayId: awayKey(away),
+        remainingMinutes: remain };
     }
     return { ...base, state: away.kind === "work" ? "away" : "place", now, nowEn,
       why: away.cause.text, whyKind: away.cause.type,
       criterionIds: [...(away.cause.criterion_ids || [])],
       decisionId: away.cause.decision_id || null,
       decision: decisionSummary(run, away.cause.decision_id),
-      progress, tripId: null, awayId: awayKey(away) };
+      progress, tripId: null, awayId: awayKey(away), remainingMinutes: remain };
   }
   return { ...base, state: "home", now: `집 · ${homeNote(minute)}`,
     nowEn: homeStatusEn(labelEn || "Me", homeNote(minute)),
@@ -243,14 +247,16 @@ function rideCardFor(base, run, away, minute, labelEn) {
   const nowEn = `${member} · On the subway · ${payload.minutesLeft} min left`;
   if (!away.cause) {
     return { ...base, state: "ride", now, nowEn, why: OLD_RUN_WHY, whyKind: "none",
-      progress, oldRun: true, tripId: null, awayId: awayKey(away), ride: payload };
+      progress, oldRun: true, tripId: null, awayId: awayKey(away), ride: payload,
+      remainingMinutes: payload.minutesLeft };
   }
   return { ...base, state: "ride", now, nowEn,
     why: away.cause.text, whyKind: away.cause.type,
     criterionIds: [...(away.cause.criterion_ids || [])],
     decisionId: away.cause.decision_id || null,
     decision: decisionSummary(run, away.cause.decision_id),
-    progress, tripId: null, awayId: awayKey(away), ride: payload };
+    progress, tripId: null, awayId: awayKey(away), ride: payload,
+    remainingMinutes: payload.minutesLeft };
 }
 
 // Fatigue readout at (day, minute): the series value plus the current

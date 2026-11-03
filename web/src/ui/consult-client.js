@@ -13,6 +13,12 @@
 import { assetUrl, LIVE_API, apiUrl } from "../paths.js";
 import { SESSION_HEADER, getChatSessionId } from "../chat/session-id.js";
 import { judgeHeaders } from "../chat/judge-code.js";
+import {
+  parseRateLimitWaitSec,
+  canRetryRateLimit,
+  waitWithHeartbeat,
+  abortError,
+} from "./decision-retry.js";
 
 // 41e: one server-key chat session per IP — every /api/consult
 // request carries the tab's session id (BYOK requests too; the
@@ -103,6 +109,202 @@ export async function postConsult({ provider, messages, scenario, context = null
     }
     const err = new Error((payload && payload.error) || `상담 서버 오류 (HTTP ${r.status})`);
     err.httpStatus = r.status;
+    throw err;
+  }
+  payload.latencyMs = Math.round(latencyMs);
+  return payload;
+}
+
+// 44b: one guarded household branch decision. The worker asks once
+// per branch and the main thread answers through here; the server
+// judges exactly this context and returns the saved entry (model or
+// explicit rule_fallback). Failures — rate limits, auth, network,
+// timeouts — reject: they are never converted into a silent rule
+// success. The whole JSON body is read inside the timeout lifetime.
+export async function postDecision({ provider, context, byoKey = "" }, { signal, onWait, fetchFn, sleepFn } = {}) {
+  if (!LIVE_API) {
+    const err = new Error("상담 서버에 연결되어 있지 않아요");
+    err.code = "offline";
+    throw err;
+  }
+  if (signal && signal.aborted) throw abortError();
+  const runFetch = fetchFn || fetch;
+  const headers = { "Content-Type": "application/json", ...sessionHeaders() };
+  if (byoKey) headers["x-model-key"] = byoKey;
+  const body = JSON.stringify({ task: "decision", provider, context });
+  const started = (typeof performance !== "undefined" ? performance.now() : 0);
+  let retriesUsed = 0;
+  let totalWaitedSec = 0;
+  for (;;) {
+    const wait = timeoutSignal(consultTimeoutMs(provider));
+    const combined = new AbortController();
+    const onOuterAbort = () => {
+      try {
+        combined.abort(signal && signal.reason !== undefined ? signal.reason : undefined);
+      } catch {
+        try {
+          combined.abort();
+        } catch {
+          /* already aborted */
+        }
+      }
+    };
+    if (signal) {
+      if (signal.aborted) {
+        wait.done();
+        throw abortError();
+      }
+      try {
+        signal.addEventListener("abort", onOuterAbort, { once: true });
+      } catch {
+        /* non-standard signal */
+      }
+    }
+    const onTimeoutAbort = () => {
+      try {
+        combined.abort();
+      } catch {
+        /* already aborted */
+      }
+    };
+    try {
+      wait.signal.addEventListener("abort", onTimeoutAbort, { once: true });
+    } catch {
+      /* non-standard signal */
+    }
+    let r;
+    let payload = null;
+    try {
+      r = await runFetch(apiUrl("/api/consult"), {
+        method: "POST",
+        headers,
+        body,
+        signal: combined.signal,
+      });
+      payload = await r.json();
+    } catch (err) {
+      if (signal && signal.aborted) throw abortError();
+      if (err && err.name === "AbortError") {
+        const timeout = new Error("Muse의 선택이 늦어져서 중단했어요");
+        timeout.code = "timeout";
+        timeout.httpStatus = 408;
+        throw timeout;
+      }
+      throw err;
+    } finally {
+      try {
+        if (signal) signal.removeEventListener("abort", onOuterAbort);
+      } catch {
+        /* no listener support */
+      }
+      try {
+        wait.signal.removeEventListener("abort", onTimeoutAbort);
+      } catch {
+        /* no listener support */
+      }
+      wait.done();
+    }
+    const latencyMs = (typeof performance !== "undefined" ? performance.now() : 0) - started;
+    if (!r.ok || !payload || payload.ok !== true) {
+      if (r.status === 429) {
+        let retryAfterHeader = null;
+        try {
+          retryAfterHeader = r.headers ? r.headers.get("Retry-After") : null;
+        } catch {
+          retryAfterHeader = null;
+        }
+        const waitSec = parseRateLimitWaitSec({ status: r.status, payload, retryAfterHeader });
+        if (
+          waitSec !== null
+          && canRetryRateLimit({ retriesUsed, totalWaitedSec, waitSec })
+          && !(signal && signal.aborted)
+        ) {
+          try {
+            await waitWithHeartbeat(waitSec, { signal, onWait, sleepFn });
+          } catch (err) {
+            if (err && (err.code === "aborted" || err.name === "AbortError")) throw abortError();
+            throw err;
+          }
+          retriesUsed += 1;
+          totalWaitedSec += waitSec;
+          continue;
+        }
+        const err = new Error("잠시 쉬었다가 다시 물어봐 주세요 (요청이 많아요)");
+        err.httpStatus = 429;
+        throw markServerKeyUsed(err, payload);
+      }
+    if (r.status === 401 || r.status === 403) {
+      const err = new Error((payload && payload.error) || `상담 서버 인증 오류 (HTTP ${r.status})`);
+      err.httpStatus = r.status;
+      throw err;
+    }
+    const err = new Error((payload && payload.error) || `상담 서버 오류 (HTTP ${r.status})`);
+    err.httpStatus = r.status;
+    throw err;
+    }
+    payload.latencyMs = Math.round(latencyMs);
+    return payload;
+  }
+}
+
+// 47e: household life-plan generation. Mirrors postDecision (same
+// session/BYOK headers, same providers, no silent switch) but posts
+// task:'life_plan'. Only bounded user history is sent — never the
+// stale assistant transcript — and the server still validates. Keys
+// travel in the header only, never in the body or logs. Offline,
+// error, 429 and timeout reject with a useful code; a simulated or
+// canned plan is never returned.
+export async function postLifePlan({ provider, scenario, profile = {}, messages = [], lang = "en", byoKey = "" }) {
+  if (!LIVE_API) {
+    const err = new Error("상담 서버에 연결되어 있지 않아요");
+    err.code = "offline";
+    throw err;
+  }
+  const userOnly = (Array.isArray(messages) ? messages : [])
+    .filter((m) => m && m.role === "user" && typeof m.content === "string" && m.content.length > 0)
+    .slice(-12)
+    .map((m) => ({ role: "user", content: m.content }));
+  const headers = { "Content-Type": "application/json", ...sessionHeaders() };
+  if (byoKey) headers["x-model-key"] = byoKey;
+  const started = (typeof performance !== "undefined" ? performance.now() : 0);
+  const wait = timeoutSignal(consultTimeoutMs(provider));
+  let r;
+  let payload = null;
+  try {
+    r = await fetch(apiUrl("/api/consult"), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ task: "life_plan", provider, scenario, profile, messages: userOnly, lang }),
+      signal: wait.signal,
+    });
+    payload = await r.json();
+  } catch (err) {
+    if (err && err.name === "AbortError") {
+      const timeout = new Error("생활 플랜을 만드는 데 시간이 오래 걸려 중단했어요");
+      timeout.code = "timeout";
+      timeout.httpStatus = 408;
+      throw timeout;
+    }
+    if (err && !err.code) err.code = "plan_unavailable";
+    throw err;
+  } finally {
+    wait.done();
+  }
+  const latencyMs = (typeof performance !== "undefined" ? performance.now() : 0) - started;
+  if (!r.ok || !payload || payload.ok !== true || !payload.plan) {
+    if (r.status === 429) {
+      const err = new Error("잠시 쉬었다가 다시 물어봐 주세요 (요청이 많아요)");
+      err.httpStatus = 429;
+      throw markServerKeyUsed(err, payload);
+    }
+    if (r.status === 401 || r.status === 403) {
+      const err = new Error((payload && payload.error) || `상담 서버 인증 오류 (HTTP ${r.status})`);
+      err.httpStatus = r.status;
+      throw err;
+    }
+    const err = new Error((payload && payload.error) || "Life plan could not be prepared. Please retry.");
+    err.httpStatus = r.status;
+    err.code = "plan_unavailable";
     throw err;
   }
   payload.latencyMs = Math.round(latencyMs);

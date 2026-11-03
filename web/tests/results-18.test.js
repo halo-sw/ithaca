@@ -88,6 +88,21 @@ describe("18-3 어떻게 계산했나요 facts", () => {
     assert.ok(lines.some((l) => l.includes("A 2개")), lines.join(" | "));
   });
 
+  it("reads capital A/B and ignores rule_fallback", () => {
+    const lines = howCalculatedLines(cmp([],
+      { judgment: { A: { model: 70, rule_fallback: 2 }, B: { model: 63, rule_fallback: 2 } } }));
+    const all = lines.join(" | ");
+    assert.ok(all.includes("A 70개") && all.includes("B 63개"), all);
+    assert.ok(!all.includes("0일"), all);
+  });
+
+  it("prefers uppercase when both shapes exist", () => {
+    const lines = howCalculatedLines(cmp([],
+      { judgment: { A: { model: 5 }, a: { model: 1 }, B: { model: 4 }, b: { model: 1 } } }));
+    const all = lines.join(" | ");
+    assert.ok(all.includes("A 5개") && all.includes("B 4개"), all);
+  });
+
   it("keeps no internal wording and carries the anchor fact", () => {
     const lines = howCalculatedLines(cmp([],
       { anchors: [{ label: "B", method: "coordinate" }] }));

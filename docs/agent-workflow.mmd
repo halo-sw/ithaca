@@ -4,12 +4,15 @@ flowchart LR
   A <--> T[("<b>Tools</b><br/>profile · homes<br/>real deals · transit")]
   A --> G["<b>Guard</b><br/>numbers only<br/>from tools"]
   G -. "retry once" .-> A
-  G --> L["<b>30 days × 2 homes</b><br/>Muse picks each move<br/>engine counts min · won"]
+  G --> H["<b>Household plan</b><br/>Muse proposes routines<br/>questions and assumptions"]
+  H --> F["<b>User review</b><br/>confirm current inputs<br/>before execution"]
+  F --> L["<b>30 days × 2 homes</b><br/>Muse selects bounded options<br/>code computes min · won"]
   L --> P["<b>Report</b><br/>Muse writes<br/>submit_report"]
   P --> C["<b>Check</b><br/>code: numbers<br/>judge: sentences"]
   C -. "fail ≤ 3×" .-> P
   C --> O(["<b>You decide</b><br/>A | B · diary · 3D"])
+  C --> N["<b>Unverified</b><br/>missing or failed judge<br/>inspect facts or retry"]
   classDef muse fill:#eef3ff,stroke:#3d63dd,color:#111;
   classDef code fill:#f4f4f2,stroke:#777,color:#111;
-  class A,L,P muse
+  class A,H,L,P muse
   class R,T,G,C code

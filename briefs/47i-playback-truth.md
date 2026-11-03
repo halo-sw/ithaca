@@ -1,0 +1,13 @@
+# 47i — playback current leg, destination and English consistency
+
+Independent ofplan modules. Musecode/tests only. Small display-onlyfix; neverchangerecordedpaths/durations/choices. No git/fullsuite/build/exploration. Read/edit `web/src/nowcard.js:140–205,208–255`, `web/src/ui/app.jsx:390–425` heroBig only, `web/src/sim.js:115–160`, `web/src/ui/scene-chrome.js:83–110,145–178`. Read `engine/routines.js:697–755` forawaydetailshape (DONOTeditengine). Newtest `web/tests/playback-truth-47i.test.js`; existingremain-19j.test.jsandsim.test.js1–95 forfixtures/JSXloader. No main.js edits necessary.
+
+ObservedQA: Menlo screenshottext saysbike7minremaining, herobignumber0min because stalejourneyholdbanner minutesLeft0 overridesrealtrip. Workplacearrivalcamerareturnshome since sampleAgent alwaysreturnshomecoordsforworkaways. '열차 대기' romanizes totrainDaegi.
+
+1 nowCardFor adds structured remainingMinutes foractualtrip/away (ceil/clamp sameexistinglogic), rideusesactualridepayload minutes. heroBig uses n.remainingMinutes whennstate trip/away/place/ride asappropriate, so stalejourneydoesn'toverridecurrentleg. Legacyoldcardswithoutfield: journey/rideonlywhenactuallyriding (`n.state==='ride'` orappropriateexistingstate rideCardFor); otherwiseparsen.nowexistingKoreanfallback. No fake0whenmissing; emptystring/unknown. Atactualarrival choosecorrectnextactivitynotpasttrip. Maintainfractional-minuteceiltests.
+
+2 sampleAgent workaway: whenaway.detail.workplace hasfinite lon/lat, returnthoseactualrecordedcoords, visible:false,stateaway. This letscamera remainatworkwhileavatarinsidebuildinghidden. No fabricatedresident/interior. Legacyworkwithoutknownworkplacekeepsoldhiddenfallback. Ride staysjourney-owned, no home-graphsamplingremoteIDs. Same-areaactualarrivedworktripwithknownnode andnoexplicitcoords canuseknownlatestincomingendpoint ONLYifprovablyworkdestination andnotstation-before-ride; safestfallbackisexistinghomeunknown. No change to move speed orroute/record.
+
+3 nowCardFor waitaway English 'Waiting for the train · N min left' (memberlabelpreserved). todayStepEn / placeNameEn whole-stringgeneric '열차 대기' ->'Waiting for the train', don'tromanizeactivityverbs asplace names. No genericreplacepropernouns. Ordinarybike/walkworktripEnglishunchanged.
+
+Tests actualnowcard +heroBig bike7withjourneyhold0=>7; workuntiltimewithstalejourney0=>actualremain; legitimateactivetrainremainunchanged; unknownnozero, ceil. sampleworkwithvalidcoordsinbothdirectstaticseek/arrivalboundary retainsdest, hidden; invalidcoords/ride/legacyfallbackunchanged; tripmovementunchanged. EnglishwaitnounnoHangul/Daegi; properstationnamesstilltranslatednormally. Runnew+remain19j+sim.test+sim-nowcard onlytail25, atmost2fix attempts.

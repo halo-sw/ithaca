@@ -40,7 +40,7 @@ describe("profile english 24b", () => {
     assert.equal(r.ok, true);
     assert.deepEqual(r.errors, []);
     assert.deepEqual(r.profile.members.value,
-      [{ role: "adult" }, { role: "adult" }, { role: "child" }]);
+      [{ role: "adult" }, { role: "adult" }, { role: "child", school: true }]);
     assert.deepEqual(r.profile.workplaces.value[0].resolved, { station: "판교" });
     assert.equal(r.profile.depositMax.value, 450000000);
     assert.deepEqual(r.profile.home_kinds.value, ["아파트"]);

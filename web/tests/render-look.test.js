@@ -92,10 +92,10 @@ describe("look parsing (?look=key:value,…)", () => {
       gradeSaturation: 1.0, // 17c: neutral grade (was 1.2: browned flats)
       nightLitCap: 0.65, // 17b: most residential floors lit at 21:00
       corridorDarken: 1, // 14f: no photo darkening on corridor tiles
-      regionalGround: 0xcfc4ad,
+      regionalGround: 0xc2c6bb,
       regionalWater: 0x3f6f8f,
       regionalRoad: 0x5b5d60,
-      terrainBase: 0xcfc4ad,
+      terrainBase: 0xc2c6bb,
       terrainGrass: 0x8a9a5b,
       terrainForest: 0x5d7040,
       terrainScrub: 0x9a8f5a,

@@ -125,6 +125,44 @@ export function isNegated(text, index, length) {
 
 export function loadGroundTruth(json, persona) {
   const gt = typeof json === "string" ? JSON.parse(json) : json;
+  // 47k: combined households keep combined coverage. Only known,
+  // non-empty, max 6 unique persona keys; anything else throws.
+  if (typeof persona === "string" && persona.startsWith("combined:")) {
+    const parts = persona.slice("combined:".length).split("+");
+    if (parts.length > 6) {
+      throw new Error(`combined persona has too many keys: ${persona}`);
+    }
+    const seen = new Set();
+    for (const k of parts) {
+      if (!k || seen.has(k) || !gt.personas || !gt.personas[k]) {
+        const have = gt.personas ? Object.keys(gt.personas) : [];
+        throw new Error(`unknown persona key in combined: ${k} (have: ${have.join(", ")})`);
+      }
+      seen.add(k);
+    }
+    const items = [...(gt.common_items || []).map((it) => ({ ...it, _common: true }))];
+    const byId = new Map(items.map((it) => [it.id, it]));
+    for (const k of parts) {
+      for (const it of gt.personas[k].items) {
+        if (byId.has(it.id)) {
+          const prev = byId.get(it.id);
+          const strip = (o) => {
+            const c = { ...o };
+            delete c._common;
+            return c;
+          };
+          if (JSON.stringify(strip(prev)) !== JSON.stringify(strip({ ...it, _common: false }))) {
+            throw new Error(`conflicting item definition: ${it.id}`);
+          }
+          continue;
+        }
+        const copy = { ...it, _common: false };
+        byId.set(it.id, copy);
+        items.push(copy);
+      }
+    }
+    return { persona, items, acceptance: gt.acceptance };
+  }
   if (!gt.personas || !gt.personas[persona]) {
     const have = gt.personas ? Object.keys(gt.personas) : [];
     throw new Error(`unknown persona: ${persona} (have: ${have.join(", ")})`);

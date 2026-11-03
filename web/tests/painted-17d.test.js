@@ -4,6 +4,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { deltaE76, hexToU8, resolvePaintedPixel } from "../src/render/chain.js";
+import { PAINTED_LOOK } from "../src/render/look.js";
 
 // Songpa-jamsil box centre (same calibration as painted-17c).
 const LAT = 37.5132169;
@@ -17,14 +18,14 @@ const lumaU8 = ([r, g, b]) => 0.299 * r + 0.587 * g + 0.114 * b;
 describe("17d time-aware day exposure", () => {
   for (const [hhmm, minute] of [["08:50", 530], ["11:00", 660],
     ["14:00", 840], ["17:00", 1020]]) {
-    it(`renders sunlit ground within ΔE 10 of beige at ${hhmm}`, () => {
-      const g = resolvePaintedPixel(0xcfc4ad, at(hhmm, minute));
-      const dE = deltaE76(g.rgb, hexToU8(0xcfc4ad));
+    it(`renders sunlit ground within ΔE 10 of neutral ground at ${hhmm}`, () => {
+      const g = resolvePaintedPixel(PAINTED_LOOK.terrainBase, at(hhmm, minute));
+      const dE = deltaE76(g.rgb, hexToU8(PAINTED_LOOK.terrainBase));
       assert.ok(dE <= 10, `ground ${g.rgb} ΔE ${dE.toFixed(2)} at ${hhmm}`);
     });
 
     it(`renders roofs lighter than ground and below 245 at ${hhmm}`, () => {
-      const g = resolvePaintedPixel(0xcfc4ad, at(hhmm, minute));
+      const g = resolvePaintedPixel(PAINTED_LOOK.terrainBase, at(hhmm, minute));
       const r = resolvePaintedPixel(0xddd8ce, at(hhmm, minute));
       assert.ok(lumaU8(r.rgb) > lumaU8(g.rgb),
         `roof ${r.rgb} vs ground ${g.rgb} at ${hhmm}`);
@@ -33,7 +34,7 @@ describe("17d time-aware day exposure", () => {
     });
 
     it(`renders roads neutral and ≥ 25 levels under ground at ${hhmm}`, () => {
-      const g = resolvePaintedPixel(0xcfc4ad, at(hhmm, minute));
+      const g = resolvePaintedPixel(PAINTED_LOOK.terrainBase, at(hhmm, minute));
       const d = resolvePaintedPixel(0x5b5d60, at(hhmm, minute));
       assert.ok(Math.abs(d.rgb[0] - d.rgb[2]) <= 10,
         `road ${d.rgb} not neutral at ${hhmm}`);
@@ -43,8 +44,8 @@ describe("17d time-aware day exposure", () => {
   }
 
   it("keeps the 08:50 17c result (ground, roof gap, road)", () => {
-    const g = resolvePaintedPixel(0xcfc4ad, at("08:50", 530));
-    assert.deepEqual(g.rgb, [204, 191, 166]);
+    const g = resolvePaintedPixel(PAINTED_LOOK.terrainBase, at("08:50", 530));
+    assert.deepEqual(g.rgb, [191, 193, 179]);
     const r = resolvePaintedPixel(0xddd8ce, at("08:50", 530));
     assert.ok(lumaU8(r.rgb) - lumaU8(g.rgb) >= 15, "roof gap holds");
     const d = resolvePaintedPixel(0x5b5d60, at("08:50", 530));

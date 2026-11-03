@@ -10,6 +10,7 @@
 import { intBelow, shuffled, streamFor } from "./prng.js";
 import { criterionDefault, defaultFlat, resolveCriteria } from "./criteria.js";
 import { WEEKDAYS, weekdayOf } from "./scenario.js";
+import { isHomeOfficeDay } from "./work-schedule.js";
 
 // Defaults alias the criteria file (C-walk-speed, C-neighbour); per-run
 // code uses the resolved flat values threaded through buildAgents and
@@ -115,6 +116,9 @@ export function buildAgents(area, scenario, home, homeNode, router, flat = null)
       home_node: homeNode,
       work: m.work,
       school: m.school,
+      work_unresolved: m.work_unresolved === true,
+      plan_context: typeof m.plan_context === "string" ? m.plan_context.slice(0, 1200) : "",
+      preferences: typeof m.preferences === "string" ? m.preferences : "",
       workdays: m.workdays,
       schooldays: m.schooldays,
       errands_per_week: m.errands_per_week,
@@ -123,6 +127,7 @@ export function buildAgents(area, scenario, home, homeNode, router, flat = null)
       cafe_visits_per_week: m.cafe_visits_per_week,
       vet_visits_per_month: m.vet_visits_per_month,
       home_office: m.home_office,
+      ...(m.home_office_days !== undefined ? { home_office_days: [...m.home_office_days] } : {}),
       dog_walk_morning: m.dog_walk_morning,
       speed: speedOf(m.role, F),
     });
@@ -230,7 +235,7 @@ export function planSchedule(agent, scenario, flat = null) {
         const wday = WEEKDAYS[weekdayOf(scenario.start_date, d)];
         if (wday === "Sat" || wday === "Sun") continue;
         const commuting = (agent.workdays || []).includes(wday)
-          && agent.work && agent.work.type !== "none" && !agent.home_office;
+          && agent.work && agent.work.type !== "none" && !isHomeOfficeDay(agent, wday);
         if (!commuting) eligible.push(d);
       }
       for (const d of eligible.slice(0, kk)) cafeDays.add(d);
