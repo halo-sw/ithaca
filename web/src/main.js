@@ -55,7 +55,8 @@ import { personMonthLog } from "./diary/person-log.js";
 // the rig/material builders (night emissive via aLit, not glow quads).
 import { PAINTED_ROOF_HEX, PAINTED_WALL_HEX, aviationBlink, eveningHomeFraction, facadeTintFor, globalHomeFraction, litFractionWithFallback, needsAviationLight, tourOfficeFraction } from "./render/facades.js";
 import { hashString, hashUnit } from "./palette.js";
-import { PAINTED_NIGHT_GROUND, PAINTED_NIGHT_ROAD_LIT, PAINTED_NIGHT_ROAD_WARM, PAINTED_NIGHT_ROOF, PAINTED_NIGHT_WALL, PAINTED_WATER, capLitFraction, lerpHex, nightEmissiveHex, nightTint, paintedFogRange, regionalFogRange, resolveLook, streetFogRange } from "./render/look.js";
+import { PAINTED_NIGHT_GROUND, PAINTED_NIGHT_ROAD_LIT, PAINTED_NIGHT_ROAD_WARM, PAINTED_NIGHT_ROOF, PAINTED_NIGHT_WALL, PAINTED_WATER, capLitFraction, lerpHex, nightTint, paintedFogRange, regionalFogRange, resolveLook, streetFogRange } from "./render/look.js";
+import { patchSurfaceNight, setSurfaceNightFactor } from "./render/surface-night.js";
 import { routeMaterialsFor } from "./render/scene29L1.js";
 import { FOLLOW_LIFT_MAX_M, initialFollowLiftState, updateFollowLift } from "./render/follow-camera.js";
 import { applyStopFade, makeFadeable } from "./render/fade.js";
@@ -711,16 +712,17 @@ function buildWorld(area, scene14, opts = {}) {
     const t = Math.min(1, Math.max(0, Number(nightF) || 0));
     if (!force && Math.abs(t - lastNightT) < 0.005) return;
     lastNightT = t;
-    for (const { mat, day, direct, night, base, glow } of nightMats) {
+    // 48a: textured night ambient (surface-night.js) replaces the old flat
+    // emissive fill: albedo-driven, window-patch safe, same table day/night.
+    setSurfaceNightFactor(t);
+    for (const { mat, day, direct, night, base } of nightMats) {
+      patchSurfaceNight(mat);
       const target = night === undefined ? PAINTED_NIGHT_GROUND : night;
       if (direct) mat.color.setHex(lerpHex(day, target, t));
       else {
         const k = nightTint(day, target, t);
         if (base) mat.color.setRGB(base[0] * k[0], base[1] * k[1], base[2] * k[2]);
         else mat.color.setRGB(...k);
-      }
-      if (mat.emissive) {
-        mat.emissive.setHex(lerpHex(0x000000, nightEmissiveHex({ night, glow }), t));
       }
     }
   }

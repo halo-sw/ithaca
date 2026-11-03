@@ -14,13 +14,30 @@ const QA_RECORD = process.env.ITHACA_QA_RECORD ||
 const MARKER = "return {\n    origin, cx, cy, span, renderer, renderCtl, rig, scene, camera, controls,";
 const INJECT = "window.__aerialAudit = {renderer,renderCtl,scene,camera,controls,aerialDetail,store};\n" + MARKER;
 
+const CAM_BY_GROUP = {};
+
+function camGroup(name) {
+  if (name === "pangyo-wide" || name === "pangyo-paint" || name === "pangyo-all-imagery-failed") return "pangyo-day";
+  if (name === "pangyo-night" || name === "pangyo-paint-night") return "pangyo-night";
+  if (name === "menlo-home" || name === "menlo-paint" || name === "menlo-all-imagery-failed") return "menlo-day";
+  if (name === "menlo-night" || name === "menlo-paint-night") return "menlo-night";
+  return null;
+}
+
 const CASES = {
   "pangyo-wide": { url: "/?area=pangyo&time=12:00&lang=en&q=low", kind: "tour" },
   "pangyo-close": { url: "/?area=pangyo&time=12:00&lang=en&q=low", kind: "tour-close" },
+  "pangyo-night": { url: "/?area=pangyo&time=21:00&lang=en&q=low", kind: "tour" },
+  "pangyo-paint": { url: "/?area=pangyo&time=12:00&lang=en&q=low&ground=paint", kind: "tour", noImagery: true, paint: true },
+  "pangyo-paint-night": { url: "/?area=pangyo&time=21:00&lang=en&q=low&ground=paint", kind: "tour", noImagery: true, paint: true },
   "menlo-wide": { url: "/?area=us-menlo&time=12:00&lang=en&q=low", kind: "tour" },
   "menlo-home": { url: "sim&custom=qa-menlo-surfaces&day=1&follow=1&home=A&t=08:20", kind: "sim-fixture" },
   "menlo-dest": { url: "sim&custom=qa-menlo-surfaces&day=1&follow=1&home=B&t=08:40", kind: "sim-fixture" },
   "menlo-failure": { url: "sim&custom=qa-menlo-surfaces&day=1&follow=1&home=A&t=08:20", kind: "sim-fixture", failNaip: true },
+  "menlo-paint": { url: "sim&custom=qa-menlo-surfaces&day=1&follow=1&home=A&t=08:20&ground=paint", kind: "sim-fixture", noImagery: true, paint: true },
+  "menlo-paint-night": { url: "sim&custom=qa-menlo-surfaces&day=1&follow=1&home=A&t=00:00&ground=paint", kind: "sim-fixture", noImagery: true, paint: true },
+  "menlo-all-imagery-failed": { url: "sim&custom=qa-menlo-surfaces&day=1&follow=1&home=A&t=08:20", kind: "sim-fixture", noImagery: true, failAll: true },
+  "pangyo-all-imagery-failed": { url: "/?area=pangyo&time=12:00&lang=en&q=low", kind: "tour", noImagery: true, failAll: true },
   "menlo-medium": { url: "sim&custom=qa-menlo-surfaces&day=1&follow=1&home=A&t=08:20", kind: "sim-fixture", q: "medium", dpr: 2 },
   "pangyo-medium": { url: "/?area=pangyo&time=12:00&lang=en&q=medium", kind: "tour", dpr: 2 },
   "menlo-moving": { url: "sim&custom=qa-menlo-surfaces&day=1&follow=1&home=A&t=08:20", kind: "sim-fixture", motion: true },
@@ -86,7 +103,12 @@ async function runCase(browser, def, outDir) {
       const text = m.text();
       if (t === "error" || t === "warning" || text.includes("[render]") || text.includes("[aerial]") || text.includes("[aerial-detail]")) {
         logs.push({ type: t, text: text.slice(0, 500) });
-        if (t === "error") errors.push({ kind: "console", text: text.slice(0, 500) });
+        if (t === "error") {
+          let loc = "";
+          try { loc = m.location()?.url || ""; } catch { loc = ""; }
+          const pubLoc = String(loc).replace(/[?&](key|apiKey|apikey|token)=[^&]*/gi, "").slice(0, 300);
+          errors.push({ kind: "console", text: text.slice(0, 500), url: pubLoc });
+        }
       }
     });
     page.on("pageerror", (e) => errors.push({ kind: "pageerror", text: String((e && e.message) || e).slice(0, 500) }));
@@ -110,20 +132,44 @@ async function runCase(browser, def, outDir) {
       logs.push({ type: "info", text: `instrument main.js matched before=${before} after=${after}` });
       await route.fulfill({ response: resp, body });
     });
-    // Forward aerial API 48953 -> 48741 without reading keys.
-    await page.route("**/api/aerial/**", async (route) => {
-      const url = route.request().url().replace(BASE_URL, TILE_PROXY).replace(/:48953/, ":48741");
+    // Forward public tile-proxy paths with an ordinary server-side request
+    // (no browser Origin/Referer, cookies, or auth headers). The relay allows
+    // ordinary server-side tile requests with absent origin/referrer; never
+    // fake an allowed origin or change production allowlists.
+    const forwardTile = async (route, label) => {
+      if (def.failAll) {
+        await route.fulfill({ status: 503, body: `injected all-imagery failure (${label})` });
+        return;
+      }
+      const reqUrl = new URL(route.request().url());
+      const url = `${TILE_PROXY}${reqUrl.pathname}${reqUrl.search}`;
       try {
-        const resp = await route.fetch({ url });
-        await route.fulfill({ response: resp });
+        const fres = await route.fetch({ url, headers: {}, timeout: 15000 });
+        const buf = await fres.body();
+        const h = await fres.headers();
+        const ct = h["content-type"] || "application/octet-stream";
+        await route.fulfill({ status: fres.status(), headers: { "content-type": ct }, body: buf });
       } catch (e) {
         errors.push({ kind: "aerial-proxy", text: String((e && e.message) || e).slice(0, 300) });
         try { await route.abort(); } catch { /* noop */ }
       }
-    });
+    };
+    await page.route("**/api/aerial/**", async (route) => { await forwardTile(route, "api/aerial"); });
+    await page.route("**/api/tiles/**", async (route) => { await forwardTile(route, "api/tiles"); });
     if (def.failNaip) {
       await page.route("**/USGSNAIPPlus/ImageServer/exportImage*", async (route) => {
         await route.fulfill({ status: 503, body: "injected NAIP failure" });
+      });
+    }
+    if (def.failAll) {
+      await page.route("**/World_Imagery/**", async (route) => {
+        await route.fulfill({ status: 503, body: "injected all-imagery failure (World_Imagery)" });
+      });
+      await page.route("**/USGSNAIPPlus/ImageServer/exportImage*", async (route) => {
+        await route.fulfill({ status: 503, body: "injected all-imagery failure (NAIPPlus)" });
+      });
+      await page.route("**/basemap.nationalmap.gov/**/USGSImageryOnly/**", async (route) => {
+        await route.fulfill({ status: 503, body: "injected all-imagery failure (USGSImageryOnly)" });
       });
     }
 
@@ -178,19 +224,67 @@ async function runCase(browser, def, outDir) {
       });
     }
 
-    // Wait base aerial true (90s), then detail settle. Base preview success
-    // may precede the final base, so allow at least 25s for all cases.
-    let baseOk = false;
-    try {
-      await page.waitForFunction(() => {
-        const a = window.__aerialAudit;
-        return !!(a && a.store && typeof a.store.getState === "function" && a.store.getState().aerial === true);
-      }, null, { timeout: 90000 });
-      baseOk = true;
-    } catch {
-      errors.push({ kind: "timeout", text: "base aerial not loaded in 90s" });
+    // Same-frame comparison: keep the first loaded case's camera per group,
+    // restore it for paired paint cases (QA camera set only, no product change).
+    let camProof = null;
+    const group = camGroup(def.name);
+    if (group) {
+      if (def.paint || def.failAll) {
+        const saved = CAM_BY_GROUP[group];
+        if (saved) {
+          await page.evaluate((s) => {
+            const a = window.__aerialAudit;
+            if (!a) return;
+            try {
+              if (a.camera?.position && Array.isArray(s.pos)) a.camera.position.set(s.pos[0], s.pos[1], s.pos[2]);
+              if (a.controls?.target && Array.isArray(s.target)) a.controls.target.set(s.target[0], s.target[1], s.target[2]);
+              a.controls?.update?.();
+            } catch { /* noop */ }
+          }, saved);
+        }
+      } else {
+        const cur = await page.evaluate(() => {
+          const a = window.__aerialAudit || {};
+          return {
+            pos: a.camera?.position ? [a.camera.position.x, a.camera.position.y, a.camera.position.z] : null,
+            target: a.controls?.target ? [a.controls.target.x, a.controls.target.y, a.controls.target.z] : null,
+          };
+        }).catch(() => null);
+        if (cur && cur.pos && cur.target) CAM_BY_GROUP[group] = cur;
+      }
+      const actual = await page.evaluate(() => {
+        const a = window.__aerialAudit || {};
+        return {
+          pos: a.camera?.position ? [a.camera.position.x, a.camera.position.y, a.camera.position.z] : null,
+          target: a.controls?.target ? [a.controls.target.x, a.controls.target.y, a.controls.target.z] : null,
+        };
+      }).catch(() => null);
+      camProof = { group, action: (def.paint || def.failAll) ? "restored" : "captured", pos: actual?.pos ?? null, target: actual?.target ?? null };
+      logs.push({ type: "info", text: `cam ${group} ${camProof.action} pos=${JSON.stringify(camProof.pos)} target=${JSON.stringify(camProof.target)}` });
     }
-    const cap = def.failNaip ? 25000 : 80000;
+
+    // noImagery cases never expect aerial true: renderer ready, then <=3s settle.
+    // All other cases wait for base aerial true (90s), then detail settle.
+    let baseOk = false;
+    if (def.noImagery) {
+      try {
+        await page.waitForFunction(() => !!(window.__aerialAudit && window.__aerialAudit.renderer), null, { timeout: 30000 });
+      } catch {
+        errors.push({ kind: "timeout", text: "renderer not ready in 30s" });
+      }
+      await page.waitForTimeout(3000).catch(() => {});
+    } else {
+      try {
+        await page.waitForFunction(() => {
+          const a = window.__aerialAudit;
+          return !!(a && a.store && typeof a.store.getState === "function" && a.store.getState().aerial === true);
+        }, null, { timeout: 90000 });
+        baseOk = true;
+      } catch {
+        errors.push({ kind: "timeout", text: "base aerial not loaded in 90s" });
+      }
+    }
+    const cap = (def.failNaip || def.failAll) ? 25000 : def.noImagery ? 3000 : 80000;
     const t0 = Date.now();
     let settled = false;
     let finalPending = null;
@@ -261,7 +355,7 @@ async function runCase(browser, def, outDir) {
     })).catch(() => []);
 
     let data = null;
-    if (baseOk) {
+    if (baseOk || def.noImagery) {
       data = await page.evaluate(() => {
         const a = window.__aerialAudit || {};
         const stats = (() => { try { return typeof a.aerialDetail?.stats === "function" ? a.aerialDetail.stats() : null; } catch { return null; } })();
@@ -314,17 +408,49 @@ async function runCase(browser, def, outDir) {
         if (v) videoPath = await v.path().catch(() => null);
       } catch { /* noop */ }
     }
-    const out = { case: def.name, url: finalUrl, baseOk, settled, finalPending, finalStats: lastStats, errors, logs: logs.slice(0, 60), requests, data, raf, motion, videoPath };
+    if (def.noImagery && data && typeof data.credit === "string" && /항공사진|imagery|vworld|usgs|naip/i.test(data.credit)) {
+      errors.push({ kind: "attribution", text: `photo credit claimed with no imagery: ${data.credit.slice(0, 200)}` });
+    }
+    const expected = def.noImagery ? (data?.aerial === true ? "imagery-present" : "noImagery") : (baseOk ? "loaded" : "missing");
+    const isNaipEndpoint = (u) => /USGSNAIPPlus\/ImageServer\/exportImage/.test(u);
+    const isInjectedImagery = (u) => /api\/aerial\//.test(u) || /api\/tiles\//.test(u) || /World_Imagery\//.test(u) || isNaipEndpoint(u) || /basemap\.nationalmap\.gov\/.*USGSImageryOnly\//.test(u);
+    if (group) {
+      const finalCam = await page.evaluate(() => {
+        const a = window.__aerialAudit || {};
+        return {
+          pos: a.camera?.position ? [a.camera.position.x, a.camera.position.y, a.camera.position.z] : null,
+          target: a.controls?.target ? [a.controls.target.x, a.controls.target.y, a.controls.target.z] : null,
+        };
+      }).catch(() => null);
+      if (finalCam && finalCam.pos && finalCam.target) {
+        camProof = { group, action: `${camProof?.action ?? "captured"}+final`, pos: finalCam.pos, target: finalCam.target };
+        logs.push({ type: "info", text: `cam ${group} final pos=${JSON.stringify(finalCam.pos)} target=${JSON.stringify(finalCam.target)}` });
+      }
+    }
+    const out = { case: def.name, url: finalUrl, baseOk, expected, camProof, settled, finalPending, finalStats: lastStats, errors, logs: logs.slice(0, 60), requests, data, raf, motion, videoPath };
     await fs.writeFile(path.join(outDir, `${def.name}.png`), await page.screenshot({ type: "png" }));
     await fs.writeFile(path.join(outDir, `${def.name}.json`), JSON.stringify(out, null, 2));
     if (def.motion) console.log(JSON.stringify({ case: def.name, video: videoPath }));
-    const bad = requests.filter((r) => !(def.failNaip && r.status === 503)).length;
-    const unexpectedErrors = errors.filter((e) => !(def.failNaip && /503/.test(e.text || "")));
-    return { case: def.name, errors: errors.length, badRequests: bad,
+    const bad = requests.filter((r) => {
+      if (r.status !== 503) return true;
+      if (def.failNaip && isNaipEndpoint(r.url)) return false;
+      if (def.failAll && isInjectedImagery(r.url)) return false;
+      return true;
+    }).length;
+    const unexpectedErrors = errors.filter((e) => {
+      const t = `${e.text || ""} ${e.url || ""}`;
+      if (/503/.test(t)) {
+        if (def.failNaip && isNaipEndpoint(t)) return false;
+        if (def.failAll && isInjectedImagery(t)) return false;
+      }
+      return true;
+    });
+    const isFail = def.failNaip || def.failAll;
+    return { case: def.name, errors: errors.length, badRequests: bad, expected, camProof,
       detail: data?.stats ?? null, base: data?.meshes?.map((m) => m.map) ?? null,
       quality: data?.quality ?? null, pending: finalPending, settled,
       motion: motion ? { before: motion.before ?? null, after: motion.after ?? null } : null, video: videoPath,
-      unexpected: (unexpectedErrors.length > 0 || bad > 0 || (!baseOk && !def.failNaip) || (!def.failNaip && Number(data?.stats?.errors) > 0)) };
+      unexpected: (unexpectedErrors.length > 0 || bad > 0 || (!baseOk && !def.noImagery && !def.failNaip) || (!isFail && !def.noImagery && Number(data?.stats?.errors) > 0)) };
   } catch (err) {
     let diag = null;
     try {

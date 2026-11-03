@@ -7,7 +7,7 @@
 
 export const PAPER = 0xfbf7ee;
 // Stage 11: ground/road base darkened a step (day reads milky otherwise).
-export const GROUND_PLATE = 0xd8cdb2;
+export const GROUND_PLATE = 0xd1d0c5;
 export const ROAD = 0x959a9e;
 export const ROAD_MAJOR = 0x878d90;
 export const FOOTWAY = 0xe9e3d5;
