@@ -5,7 +5,7 @@
 // check_listing), which owns the RTMS lookups.
 //
 // The app never fetches or scrapes portal sites (their terms forbid it).
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@astryxdesign/core/Button";
 import { Heading } from "@astryxdesign/core/Heading";
 import { HStack } from "@astryxdesign/core/HStack";
@@ -16,6 +16,7 @@ import { store } from "./store.js";
 import { SourceBadge } from "./source-badge.jsx";
 import { parseListingText, plainListingFields } from "../money/listing.js";
 import { fmtWon } from "../money/format.js";
+import { SAM_PHOTO_ENABLED, downscaleToJpeg, postWindows, windowsLine } from "./windows-photo.js";
 
 export const EXAMPLE_LISTING_TEXT = [
   "송파구 방이동 올림픽카운티 101동 5층",
@@ -50,6 +51,30 @@ export function PasteCheck({ onAsk } = {}) {
   const [parsed, setParsed] = useState(null);
   const [filled, setFilled] = useState({});
   const check = store.getState().listingCheck || null;
+  const [photo, setPhoto] = useState(null);
+  const fileRef = useRef(null);
+
+  const onPhoto = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (photo && photo.url) {
+      try { URL.revokeObjectURL(photo.url); } catch { /* ignore */ }
+    }
+    setPhoto({ status: "reading" });
+    try {
+      const blob = await downscaleToJpeg(file);
+      const result = await postWindows(blob);
+      if (result && result.ok) {
+        setPhoto({ status: "done", url: URL.createObjectURL(blob), result });
+      } else {
+        setPhoto({ status: "error" });
+      }
+    } catch {
+      setPhoto({ status: "error" });
+    } finally {
+      try { e.target.value = ""; } catch { /* ignore */ }
+    }
+  };
 
   const read = () => {
     const r = parseListingText(text);
@@ -117,6 +142,36 @@ export function PasteCheck({ onAsk } = {}) {
         <Button size="sm" variant="ghost" label="지우기"
           onClick={() => { setText(""); setParsed(null); setFilled({}); }} />
       </HStack>
+      {SAM_PHOTO_ENABLED && (
+        <VStack gap={1}>
+          <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPhoto} />
+          <HStack gap={2} vAlign="center" wrap="wrap">
+            <Button size="sm" variant="secondary" label="방 사진 추가 (선택)" onClick={() => fileRef.current && fileRef.current.click()} />
+          </HStack>
+          <Text type="supporting">사진은 창을 찾으려고 Meta SAM 3.1에만 보내요. Ithaca는 저장하지 않아요.</Text>
+          {photo && photo.status === "reading" && (
+            <Text type="supporting">사진에서 창을 찾는 중…</Text>
+          )}
+          {photo && photo.status === "error" && (
+            <Text>사진을 읽지 못했어요</Text>
+          )}
+          {photo && photo.status === "done" && (
+            <VStack gap={1}>
+              <div style={{ position: "relative", maxWidth: 360 }}>
+                <img src={photo.url} alt="추가한 방 사진" style={{ width: "100%", display: "block" }} />
+                <svg viewBox={`0 0 ${photo.result.frame.w} ${photo.result.frame.h}`} preserveAspectRatio="none" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} aria-hidden="true">
+                  {(photo.result.windows || []).map((win, i) => (
+                    <rect key={i} x={win.bbox[0]} y={win.bbox[1]} width={win.bbox[2] - win.bbox[0]} height={win.bbox[3] - win.bbox[1]} fill="none" style={{ stroke: "var(--ui-accent)" }} strokeWidth={Math.max(2, photo.result.frame.w / 200)} />
+                  ))}
+                </svg>
+              </div>
+              <Text>{windowsLine(photo.result)} <span className="ui-tag">사진 근거</span></Text>
+              <Text type="supporting">사진 한 장 기준이에요. 방향·층·앞 건물에 따라 실제 채광은 달라요. 현장에서 확인하세요.</Text>
+              <Text type="supporting">Meta SAM 3.1이 찾은 창 테두리 상자 기준이라 실제 유리 면적과 달라요.</Text>
+            </VStack>
+          )}
+        </VStack>
+      )}
       {parsed && !parsed.ok && <Text>{parsed.error}</Text>}
       {parsed && parsed.ok && (
         <VStack gap={1}>

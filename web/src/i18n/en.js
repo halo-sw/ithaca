@@ -545,11 +545,23 @@ const seedPhrases = {
   "서울 예시로 해 보기": "Try a Seoul example",
   "Caltrain 축 · 멘로파크": "Caltrain corridor · Menlo Park",
   "출퇴근 계산 안 됨": "commute not computed",
+  // 60b: room photo in the listing check card (SAM 3.1 window boxes).
+  "방 사진 추가 (선택)": "Add a room photo (optional)",
+  "사진은 창을 찾으려고 Meta SAM 3.1에만 보내요. Ithaca는 저장하지 않아요.": "The photo goes only to Meta SAM 3.1 to find windows. Ithaca doesn't store it.",
+  "사진에서 창을 찾는 중…": "Finding windows in the photo…",
+  "사진을 읽지 못했어요": "Couldn't read the photo",
+  "이 사진에서 창을 찾지 못했어요.": "No windows found in this photo.",
+  "사진 근거": "From the photo",
+  "추가한 방 사진": "Room photo you added",
+  "사진 한 장 기준이에요. 방향·층·앞 건물에 따라 실제 채광은 달라요. 현장에서 확인하세요.": "This is from one photo. Real daylight depends on the direction, the floor and the buildings in front. Check it on site.",
+  "Meta SAM 3.1이 찾은 창 테두리 상자 기준이라 실제 유리 면적과 달라요.": "It uses the boxes Meta SAM 3.1 drew around each window, so it differs from the real glass area.",
 };
 
 // 29c1b: "920m"/"1.3km" reads with a space in English ("920 m"/"1.3 km").
 const spaceDist = (s) => String(s).replace(/(\d)(k?m)$/, "$1 $2");
 const seedPatterns = [
+  // 60b: room photo window line.
+  { ko: "이 사진에서 창 {0:\\d+}개 · 사진의 {1:\\d+}%", en: (c) => `${c[0]} ${c[0] === "1" ? "window" : "windows"} in this photo · ${c[1]}% of the photo` },
   // 35a: purchase cost basis lines ("집값 9억 원 × 3%").
   // 35b2: basis and source on one line ("{basis} · {source}").
   { ko: "{0} · 지방세법 제11조 제1항 제8호 (시행 2026-01-01, 법률 제21308호)", en: "{0} · Local Tax Act, Art. 11(1)8 (in force 2026-01-01, Act No. 21308)" },
