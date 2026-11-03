@@ -30,3 +30,12 @@ The report's **How Muse chose** section reads saved options and reasons from the
 An advertised temporary `rate_limited` response pauses the same run and resumes the same request. Other access limits or failures are not bypassed. There are at most two waits, each at most 600 seconds, and stopping the run cancels the wait.
 
 Validation: 3,716 JavaScript tests passed, 3 skipped; production build passed; Astryx doctor had 0 failures. A live plan response through the staged production connection returned five working days for both adults, no remote days for the first, and Tuesday/Thursday remote days for the second, with no outstanding questions. This validates plan generation; final demo month evidence is recorded separately.
+
+
+### Intake and revision follow-up (49g–49h)
+
+A public recording preflight exposed three English intake errors: a shared salary unit omitted the first salary, negated remote work could clear commutes, and a hyphenated commute limit was ignored. Muse Code repaired these parsers with Korean/English regressions. The exact demo prompts now parse two adult salaries and retain their working destinations. These preflight records are excluded from final result evidence.
+
+The review card's Adjust action now routes the next valid response directly to a new plan review with the exact user quote and current choices. It never runs the generic property-search tools or the simulation automatically. Regression coverage executes the actual send function, including blocked sends and one-time consumption.
+
+Validation after the follow-up: 3,728 JavaScript tests passed, 3 skipped; production build passed; Astryx doctor 20 pass, 3 existing warnings, 0 failures.

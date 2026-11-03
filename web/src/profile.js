@@ -398,10 +398,40 @@ function findOfficeDays(text) {
     if (n !== null && n >= 1 && n <= 4) return { value: n, evidence: m[0] };
   }
   if (sawDated) return null;
-  const remoteKo = /(완전 재택|재택근무|풀재택|재택)/.exec(src);
-  if (remoteKo) return { value: 0, evidence: remoteKo[0] };
-  const remoteEn = /(work from home|fully remote|\bWFH\b|\bremote\b)/i.exec(src);
-  if (remoteEn) return { value: 0, evidence: remoteEn[0] };
+  // 49g: a negated remote cue ("zero remote", "no WFH", "재택 안 해요",
+  // "재택 없음") never implies full remote. Each remote hit is judged in
+  // its own local window; a member-specific negated clause (e.g. parents
+  // with zero remote days) must not become a household 0.
+  const negatedAt = (idx, len) => {
+    const before = src.slice(Math.max(0, idx - 20), idx);
+    const after = src.slice(idx + len, idx + len + 20);
+    if (/\b(zero|no|not|never|none|without|0)\s*$/i.test(before)) return true;
+    if (/^\s*(0|zero|none)\b/i.test(after)) return true;
+    if (/ zero| no| none|\b0\b/i.test(after.slice(0, 14))) {
+      if (/\b(zero|none|0)\b/i.test(after.slice(0, 14))) return true;
+    }
+    if (/(안|못|없이|없음|없어|아님|아니)\s*$/.test(before)) return true;
+    if (/^\s*(?:[을를은는이가]\s*)?(안|못|없이|없음|없어|아님|아니)/.test(after)) return true;
+    return false;
+  };
+  const koHits = [];
+  {
+    const re = /(완전 재택|재택근무|풀재택|재택)/g;
+    let h;
+    while ((h = re.exec(src)) !== null) koHits.push(h);
+  }
+  for (const h of koHits) {
+    if (!negatedAt(h.index, h[0].length)) return { value: 0, evidence: h[0] };
+  }
+  const enHits = [];
+  {
+    const re = /(work from home|fully remote|\bWFH\b|\bremote\b)/gi;
+    let h;
+    while ((h = re.exec(src)) !== null) enHits.push(h);
+  }
+  for (const h of enHits) {
+    if (!negatedAt(h.index, h[0].length)) return { value: 0, evidence: h[0] };
+  }
   return null;
 }
 
@@ -851,6 +881,79 @@ function cashTiedAfter(src, end) {
   if (/\d/.test(ahead)) return false;
   return true;
 }
+// 49g: shared trailing magnitude under a salary anchor reads each bare
+// number with that magnitude ("salaries are 50 and 45 million won" ->
+// [50000000, 45000000]). Only near a salary/income anchor; literal bare
+// substrings stay the evidence, in text order. Never fires for dollars,
+// savings cues, or a budget cue between the anchor and the list.
+function expandSharedSalaryMagnitudes(src, monies) {
+  const s = String(src || "");
+  let anchor = null;
+  for (const re of SALARY_ANCHORS) {
+    const m = re.exec(s);
+    if (m && (!anchor || m.index < anchor.index)) anchor = m;
+  }
+  if (!anchor) return monies;
+  const at = anchor.index;
+  const end = at + anchor[0].length;
+  const spans = [];
+  let cursor = 0;
+  for (const money of monies) {
+    const pos = s.indexOf(money.evidence, cursor);
+    if (pos < 0) continue;
+    spans.push({ money, pos, end: pos + money.evidence.length });
+    cursor = pos + money.evidence.length;
+  }
+  const covered = (a, b) => spans.some((o) => a < o.end && b > o.pos);
+  const multOf = (mag) => {
+    const t = String(mag || "").toLowerCase();
+    if (t === "k") return 1000;
+    if (t === "m" || t === "million" || t === "millions") return 1000000;
+    if (t === "b" || t === "billion" || t === "billions") return 1000000000;
+    return 0;
+  };
+  const added = [];
+  const re = /\b\d+(?:\.\d+)?(?:\s*(?:,|·|・|\/|&|and|or)\s*\d+(?:\.\d+)?)+\s*(?:M\b|B\b|K\b|millions?\b|billions?\b)(?:\s*won\b)?/gi;
+  let m;
+  while ((m = re.exec(s)) !== null) {
+    const listStart = m.index;
+    const listEnd = m.index + m[0].length;
+    const d = listStart >= end ? listStart - end : at - listEnd;
+    if (d < 0 || d > 24) continue;
+    const context = s.slice(Math.max(0, listStart - 8), listEnd + 8);
+    if (/[$]|dollar|USD|달러/i.test(context)) continue;
+    const between = listStart >= end
+      ? s.slice(end, listStart)
+      : s.slice(listEnd, at);
+    if (/(savings|saved|cash|in the bank|budget|deposit|price|rent|house|보증금|매매|전세|월세|저축|현금|모은|자기자본)/i.test(between)) continue;
+    const magM = /(M\b|B\b|K\b|millions?\b|billions?\b)(?:\s*won\b)?\s*$/i.exec(m[0]);
+    if (!magM) continue;
+    const mult = multOf(magM[1]);
+    if (!mult) continue;
+    const nums = [];
+    const numRe = /\d+(?:\.\d+)?/g;
+    let nm;
+    while ((nm = numRe.exec(m[0])) !== null) nums.push({ num: nm[0], off: nm.index });
+    for (let i = 0; i + 1 < nums.length; i++) {
+      const pos = listStart + nums[i].off;
+      const epos = pos + nums[i].num.length;
+      if (covered(pos, epos)) continue;
+      if (added.some((o) => pos < o.end && epos > o.pos)) continue;
+      if (cashTiedBefore(s, pos) || cashTiedAfter(s, epos)) continue;
+      const n = Number(nums[i].num);
+      if (!Number.isFinite(n) || n <= 0) continue;
+      const won = Math.round(n * mult);
+      added.push({ money: { won, evidence: nums[i].num, currency: "KRW" }, pos, end: epos });
+      spans.push({ money: null, pos, end: epos });
+    }
+  }
+  if (added.length === 0) return monies;
+  return spans
+    .filter((o) => o.money)
+    .concat(added)
+    .sort((a, b) => a.pos - b.pos)
+    .map((o) => o.money);
+}
 function salaryListAfterAnchor(text, monies) {
   const src = String(text || "");
   let anchor = null;
@@ -939,7 +1042,8 @@ export function extract_profile(text, current = null, opts = {}) {
   // order; a second anchor for the partner sets the second pay.
   // 41l: a chain element tied to a savings cue is cash only — it
   // never reads as salary (both languages).
-  const salaryChainRaw = salaryListAfterAnchor(src, krwMonies);
+  const expandedKrw = expandSharedSalaryMagnitudes(src, krwMonies);
+  const salaryChainRaw = salaryListAfterAnchor(src, expandedKrw);
   const salaryChain = salaryChainRaw && salaryChainRaw.length > 0
     ? salaryChainRaw.filter((o) => !cashTiedBefore(src, o.pos) && !cashTiedAfter(src, o.end))
     : null;
@@ -1005,8 +1109,10 @@ export function extract_profile(text, current = null, opts = {}) {
   const commuteHit = (() => {
     const m = /(\d+)\s*분\s*(?:이내|안에|까지|컷)/.exec(src);
     if (m) return { value: Number(m[1]), evidence: m[0] };
-    const e = /(?:within|under|at most|max(?:imum)?|no more than)\s*(\d+)\s*(?:min|mins|minutes)/i.exec(src)
-      || /(\d+)\s*(?:min|mins|minutes)\s*(?:or less|max|at most|commute)/i.exec(src);
+    // 49g: hyphen form ("45-minute") needs an explicit commute/limit
+    // cue nearby; a bare minute count never reads as a commute cap.
+    const e = /(?:within|under|at most|max(?:imum)?|no more than)\s*(\d+)\s*-?\s*(?:minutes?|mins?)\b/i.exec(src)
+      || /(\d+)\s*-?\s*(?:minutes?|mins?)\b.{0,24}\b(?:or less|max|at most|commute|limit)\b/i.exec(src);
     if (!e) return null;
     return { value: Number(e[1]), evidence: e[0] };
   })();
