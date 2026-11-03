@@ -102,6 +102,7 @@ import {
   runGate, profileHomeKinds, regionsForCurrency, regionsForDoc,
   usSearchActive, decisionProvenance, missingRouteHomes,
 } from "../chat/engine.js";
+import { makeHouseholdDecisionExamples } from "../chat/decision-trace.js";
 import { LifePlanCard, LifePlanRunSummary } from "./life-plan.jsx";
 import { buildReviewInput, requestPlanReview, findFreshReview,
   reviewSnapshot, sameSnapshot, createPlanGuard, isConfirmFresh,
@@ -1294,6 +1295,58 @@ function decisionPreviewText(d) {
   return reason ? `${chosen} — ${reason} · ${src}` : `${chosen} · ${src}`;
 }
 
+// 49b: detail lines for one saved decision example. Old transcript
+// payloads carry only reason/link (no options etc) — every line below
+// renders only when its saved value exists, so old rows keep working.
+function decisionExampleReason(d) {
+  const en = LANG === "en";
+  return en ? (d.reason_en || d.reason_ko || "") : (d.reason_ko || d.reason_en || "");
+}
+
+function decisionExampleOptionsLine(d) {
+  const en = LANG === "en";
+  const opts = Array.isArray(d.options) ? d.options : [];
+  if (opts.length === 0) return "";
+  const fmt = (o) => {
+    const label = (o && typeof o.label === "string" && o.label) || (o && o.key) || "";
+    const mins = o && typeof o.minutes === "number" && Number.isFinite(o.minutes) ? o.minutes : null;
+    return mins === null ? label : `${label} (${mins} ${en ? "min" : "분"})`;
+  };
+  return `${en ? "Options" : "선택지"}: ${opts.map(fmt).join(en ? " · " : " · ")}`;
+}
+
+function decisionExampleChosenLine(d) {
+  const en = LANG === "en";
+  const chosen = decisionChoiceLabel(d);
+  if (!chosen) return "";
+  const mins = typeof d.chosen_minutes === "number" && Number.isFinite(d.chosen_minutes)
+    ? d.chosen_minutes : null;
+  const dist = typeof d.chosen_distance_m === "number" && Number.isFinite(d.chosen_distance_m)
+    ? d.chosen_distance_m : null;
+  let extra = "";
+  if (mins !== null && dist !== null) extra = ` (${mins} ${en ? "min" : "분"} · ${dist} m)`;
+  else if (mins !== null) extra = ` (${mins} ${en ? "min" : "분"})`;
+  else if (dist !== null) extra = ` (${dist} m)`;
+  return `${en ? "Chosen" : "선택"}: ${chosen}${extra}`;
+}
+
+function decisionExampleDefaultLine(d) {
+  const en = LANG === "en";
+  const label = d.default_label || d.default_key || "";
+  if (!label || typeof d.default_key !== "string") return "";
+  return en
+    ? `Default (engine baseline, not observed): ${label}`
+    : `기본값(엔진 기준, 실제 관측 아님): ${label}`;
+}
+
+function decisionExampleSourceLine(d) {
+  const en = LANG === "en";
+  const isModel = d.chosen_by === "model";
+  return en
+    ? (isModel ? "Source: Muse" : "Source: rule fallback")
+    : (isModel ? "출처: Muse" : "출처: 기본 규칙");
+}
+
 export function SimulationCard({ data, example, onRetry, onScene, onReportRetry, onDiaryRetry, canRetryDiary }) {
   if (!data) return null;
   if (data.status === "running") {
@@ -1313,6 +1366,13 @@ export function SimulationCard({ data, example, onRetry, onScene, onReportRetry,
           {p.muse && (
             <Text type="supporting" hasTabularNumbers>
               {museProgressLine(p.muse)}
+            </Text>
+          )}
+          {p.decisionWait && Number.isFinite(Number(p.decisionWait.remainingSec)) && (
+            <Text type="supporting" hasTabularNumbers>
+              {(typeof navigator !== "undefined" && (navigator.language || "")).toLowerCase().startsWith("ko")
+                ? `Muse 요청 한도 · ${Math.ceil(Number(p.decisionWait.remainingSec))}초 후 이 달을 계속해요`
+                : `Muse request limit · resuming this month in ${Math.ceil(Number(p.decisionWait.remainingSec))} s`}
             </Text>
           )}
         </VStack>
@@ -1377,19 +1437,42 @@ export function SimulationCard({ data, example, onRetry, onScene, onReportRetry,
         {Array.isArray(data.houseDecisions) && data.houseDecisions.length > 0 && (
           <details className="ui-section">
             <summary className="ui-section-head">
-              {LANG === "en" ? "Household decisions" : "식구들의 선택"}
+              {LANG === "en" ? "How Muse chose" : "Muse가 고른 선택"}
             </summary>
             <VStack gap={1}>
+              <Text type="supporting">{LANG === "en"
+                ? "Examples cover household members and choice types, prioritizing changes from the engine baseline."
+                : "이번 실행의 예시: 가능한 구성원별로 하나씩, 다른 선택 유형을 포함합니다. 엔진 기준선과 다른 변경을 우선합니다."}</Text>
               {data.houseDecisions.map((h) => (
                 <VStack gap={1} key={h.label}>
                   {h.items.map((d, i) => (
-                    <SceneRowLink key={i} disc={h.label}
-                      when={decisionWhen(d)}
-                      text={decisionPreviewText(d)}
-                      url={personMomentUrl({ custom: data.customId, home: h.label,
-                        day: d.day + 1, minute: d.minute, follow: d.follow || 1, embed: true })}
-                      title={`${decisionWhen(d)} · ${h.label}`}
-                      onScene={onScene} noI18n={LANG === "en"} />
+                    <VStack gap={1} key={d.id || i}>
+                      <SceneRowLink disc={h.label}
+                        when={decisionWhen(d)}
+                        text={decisionPreviewText(d)}
+                        url={personMomentUrl({ custom: data.customId, home: h.label,
+                          day: d.day + 1, minute: d.minute, follow: d.follow || 1, embed: true })}
+                        title={`${decisionWhen(d)} · ${h.label}`}
+                        onScene={onScene} noI18n={LANG === "en"} />
+                      {d.memberLabel ? (
+                        <Text type="supporting">{LANG === "en" ? memberLabelEn(String(d.memberLabel)) : d.memberLabel}{d.memberPreferences
+                          ? (LANG === "en" ? ` · Profile preference: ${d.memberPreferences}` : ` · 프로필 선호: ${d.memberPreferences}`)
+                          : ""}</Text>
+                      ) : null}
+                      {decisionExampleOptionsLine(d) ? (
+                        <Text type="supporting">{decisionExampleOptionsLine(d)}</Text>
+                      ) : null}
+                      {decisionExampleChosenLine(d) ? (
+                        <Text type="supporting">{decisionExampleChosenLine(d)}</Text>
+                      ) : null}
+                      {decisionExampleDefaultLine(d) ? (
+                        <Text type="supporting">{decisionExampleDefaultLine(d)}</Text>
+                      ) : null}
+                      {decisionExampleReason(d) ? (
+                        <Text type="supporting">{decisionExampleReason(d)}</Text>
+                      ) : null}
+                      <Text type="supporting">{decisionExampleSourceLine(d)}</Text>
+                    </VStack>
                   ))}
                 </VStack>
               ))}
@@ -4268,14 +4351,23 @@ export function ChatScreen() {
       const runner = createWorkerRunner(() => new Worker(new URL("../sim-worker.js", import.meta.url), { type: "module" }),
         museDecisions
           ? { decisionMode: "muse",
-              decide: (context) => postDecision({ provider, context, byoKey: byoKeyForRun(provider) })
+              decide: (context, opts) => postDecision({ provider, context, byoKey: byoKeyForRun(provider) }, opts)
                 .then((out) => out.entry) }
           : {});
       const { runs, compare, ms } = await runStep(
         (s, l, onP) => runner(s, l, (pg) => {
           if (pg && pg.decision) museProgress = pg.decision;
+          if (!pg || typeof pg.done !== "number") {
+            if (pg && pg.decisionWait) {
+              setProgress((prev) => ({ ...(prev || { done: 0, total: picked.length + 1, label: "" }),
+                ...(museProgress ? { muse: museProgress } : {}),
+                decisionWait: pg.decisionWait }));
+            }
+            return;
+          }
           setProgress({ done: pg.done + 1, total: picked.length + 1, label: pg.label,
-            ...(museProgress ? { muse: museProgress } : {}) });
+            ...(museProgress ? { muse: museProgress } : {}),
+            ...(pg && pg.decisionWait ? { decisionWait: pg.decisionWait } : {}) });
         }),
         scenValue, labels);
       // 47l: the per-home summary is computed exactly once here, from
@@ -4387,40 +4479,17 @@ export function ChatScreen() {
           || (wp0.resolved.place && wp0.resolved.place.name) || null)
         : (wp0 && wp0.text) || null;
       // 44b: provenance counts read off the finished runs (never a
-      // rule run called a Muse run), plus the first real household
-      // decisions per home with their saved reasons — plain data, so
-      // the transcript reload carries them.
+      // rule run called a Muse run), plus saved household decision
+      // examples per home (49b helper) — plain data, so the transcript
+      // reload carries them.
       const decisionMode = museDecisions ? "muse" : "rule";
       const provenance = decisionProvenance(runs, labels);
+      const houseMembers = scenValue && scenValue.household
+        && Array.isArray(scenValue.household.members)
+        ? scenValue.household.members : null;
       const houseDecisions = labels.map((l) => {
         const run = runs[l];
-        const keys = ((run && run.agents) || [])
-          .filter((a) => a.household).map((a) => a.key);
-        const items = ((run && run.decisions) || [])
-          .filter((d) => String((d && d.agent) || "").startsWith("h"))
-          .slice(0, 3)
-          .map((d) => {
-            // 44b2: persist the chosen option's label (shop name, …)
-            // from the saved shell options — never a raw key.
-            const opts = Array.isArray(d.options) ? d.options : [];
-            const nameOf = (key) => {
-              const o = opts.find((x) => x && x.key === key);
-              return (o && typeof o.label === "string" && o.label) || null;
-            };
-            const chosen_label = Array.isArray(d.plan)
-              ? (d.plan.length === 0
-                ? (nameOf("home") || "")
-                : d.plan.map((k) => nameOf(k) || k).join("+"))
-              : (nameOf(d.chosen_key) || "");
-            return {
-              agent: d.agent, day: d.day, minute: d.minute, kind: d.kind,
-              chosen_key: d.chosen_key, chosen_label,
-              ...(d.plan !== undefined ? { plan: d.plan } : {}),
-              chosen_by: d.chosen_by,
-              reason_ko: d.reason_ko || "", reason_en: d.reason_en || "",
-              follow: keys.indexOf(d.agent) >= 0 ? keys.indexOf(d.agent) + 1 : 1,
-            };
-          });
+        const items = makeHouseholdDecisionExamples(run || {}, houseMembers);
         return { label: l, items };
       });
       // 47l: a confirmed run carries its plan and the summary computed

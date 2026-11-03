@@ -22,6 +22,7 @@
 // happening and why (stage 7, Part A).
 
 import { destForHome, nameForHome, rideMinutesForHome, waitMinutesForHome, weekdayOf, WEEKDAYS, dateOf } from "./scenario.js";
+import { isHomeOfficeDay } from "./work-schedule.js";
 import { MAX_ANCHOR_M, nearestRoundTrip, poisByName, stationsByName } from "./places.js";
 import { ruleDefault, WEEKEND_HOME } from "./decisions.js";
 import { criterionDefault, defaultFlat, resolveCriteria } from "./criteria.js";
@@ -775,7 +776,7 @@ export function planAgent(agent, day, ctx) {
       let depart = F.dog_walk_start_min;
       const workNow = agent.work;
       if ((agent.workdays || []).includes(weekday) && workNow
-        && workNow.type !== "none" && !agent.home_office) {
+        && workNow.type !== "none" && !isHomeOfficeDay(agent, weekday)) {
         depart = Math.min(depart, F.morning_anchor_min + schedule.departJitter[day] - span);
       }
       depart = Math.max(0, depart);
@@ -791,8 +792,8 @@ export function planAgent(agent, day, ctx) {
   }
 
   const work = agent.work || { type: "none" };
-  const commutingToday = (agent.workdays || []).includes(weekday) && work.type !== "none" && !agent.home_office;
-  const unresolvedCommute = agent.household && agent.work_unresolved === true && (agent.workdays || []).includes(weekday);
+  const commutingToday = (agent.workdays || []).includes(weekday) && work.type !== "none" && !isHomeOfficeDay(agent, weekday);
+  const unresolvedCommute = agent.household && agent.work_unresolved === true && (agent.workdays || []).includes(weekday) && !isHomeOfficeDay(agent, weekday);
   if (unresolvedCommute) {
     unavailable("commute", "workplace", "근무지 입력 없음");
   } else if (commutingToday) {
@@ -970,7 +971,7 @@ export function planAgent(agent, day, ctx) {
   // coworking round trip + dwell, then home. Only on days the member
   // does not commute; a home_office workday counts as a home day.
   if (!householdWeekend && schedule.cafeDays.has(day) && !commutingToday
-    && (agent.home_office || (work && work.type !== "none"))) {
+    && (isHomeOfficeDay(agent, weekday) || (work && work.type !== "none"))) {
     const depart = Math.max(F.cafe_start_min, slotAfter());
     const cands = nearestRoundTrip(router, agent.home_node, places.cafes, 1);
     if (cands.length === 0) {

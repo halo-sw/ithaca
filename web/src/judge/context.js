@@ -107,6 +107,17 @@ function optionLine(o) {
   return `- ${o.key}: ${o.label} — ${o.minutes} min, ${Math.round(o.distance_m)} m`;
 }
 
+function workContextLine(member, weekday) {
+  const wds = Array.isArray(member.workdays) ? member.workdays : [];
+  if (!wds.includes(weekday)) return `Today (${weekday}) is a non-working day for this member.`;
+  if (Array.isArray(member.home_office_days)) {
+    if (member.home_office_days.includes(weekday)) return `Today (${weekday}) is a remote workday for this member; do not claim an office destination for unresolved work.`;
+    return `Today (${weekday}) is a working day for this member.`;
+  }
+  if (member.home_office === true) return `Today (${weekday}) is a remote workday for this member; do not claim an office destination for unresolved work.`;
+  return `Today (${weekday}) is a working day for this member.`;
+}
+
 // All inputs are plain data (no engine imports): the CLI builds them
 // from the run, the dev middleware from the browser request.
 export function buildPrompt({
@@ -118,6 +129,7 @@ export function buildPrompt({
     member.preferences ? `Preferences: ${member.preferences}` : "Preferences: (none given)",
     // 47d2: confirmed observation intent from the life plan — never an outcome.
     ...(member.plan_context ? [`Plan context (confirmed intent, not outcome): ${member.plan_context}`] : []),
+    ...((member && (Array.isArray(member.workdays) || Array.isArray(member.home_office_days) || member.home_office === true || member.work_unresolved === true || member.commute === "none" || (member.work && member.work.type === "none"))) ? [workContextLine(member, weekday)] : []),
     `Day: ${date} (${weekday}), time ${hhmm(minute)}.`,
     "",
     "Today's trips so far:",

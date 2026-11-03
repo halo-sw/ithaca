@@ -1,0 +1,3 @@
+#49e — update exactly4 stalecopyassertions
+Fullsuite3719tests:3712pass4fail3skip. Allbehaviorpass. These4assertions stillrequireoldlede/oldall8claim. Updateexpectedcopy to49cactualapprovedstrings. ONLY3testfiles; no productedit, no newtest, no exploration. <=8steps.
+Files: web/tests/entry-hero-42g.test.js lines55–90 twoledeassertions; web/tests/first-screen-26w.test.js50–65onelede; web/tests/landing-polish-28e.test.js64–76stepslistlaststring. Newledeexact read web/src/ui/entry-hero.jsx85 orrgds-lp-lede. Newstepdesc read web/src/ui/landing-page.jsx STEPS72–82. Preserveassertstrengthtextpresent; do notremovechecks. Runonlythese3tests withtimeout10000tail12. Stop.

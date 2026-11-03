@@ -56,7 +56,7 @@ const TABLE_ROWS = [
 ];
 
 const NUMBERS = [
-  { big: "30일", small: "살아 봐야 아는 것: 출근 30번, 장보기, 밤 귀갓길" },
+  { big: "30일", small: "살아 봐야 아는 것: 출근일·주말·반복되는 심부름" },
   { big: "11곳", small: "다루는 지역 11곳, 실거래 25.10–26.10" },
 ];
 
@@ -75,7 +75,7 @@ const STEPS = [
   { t: "말로 물어봐요", d: "출근지·예산·같이 사는 사람을 한 문장으로" },
   { t: "Muse가 확인해요", d: "실거래·출근길을 직접 찾아보고 ▸ 줄로 남겨요" },
   { t: "요청하면 보여 줘요", d: "지도·동네·비교는 말할 때만 열려요" },
-  { t: "30일 살아 보고 전해요", d: "일기 문장은 모두 기록과 대조해요" },
+  { t: "30일 살아 보고 전해요", d: "숫자 주장은 다시 계산하고, 근거는 따로 확인해요" },
 ];
 
 const FAQ = [
@@ -90,7 +90,7 @@ const FAQ = [
   { q: "밤길은 안전한가요?",
     a: "점수는 매기지 않아요. 공식 통계(출처·기간·단위·지역 단위)와 밤 귀갓길 기록을 보여줘요." },
   { q: "일기는 진짜예요?",
-    a: "가상 주민(모의) 일기예요. ✓ 문장 8개 모두 기록과 대조처럼 근거 검사를 통과한 문장만 보여줘요." },
+    a: "가상 주민(모의) 일기예요. 숫자 주장은 다시 계산하고, 근거는 따로 확인해요." },
 ];
 
 const DATA_NAMES = ["국토교통부 실거래가", "OpenStreetMap", "서울교통공사 혼잡도", "GIS건물통합정보"];
@@ -195,7 +195,7 @@ export function LandingPage() {
             <div className="ds-lp-winbar" aria-hidden="true"><i /><i /><i /></div>
             <Shot name="product" product />
             <span className="ds-lp-callout ds-lp-callout--left">▸ 실거래 확인 · 출근 계산</span>
-            <span className="ds-lp-callout ds-lp-callout--right">✓ 문장 8개 모두 기록과 대조</span>
+            <span className="ds-lp-callout ds-lp-callout--right">✓ 숫자 다시 계산 · 근거 따로 확인</span>
           </div>
           <div className="ds-lp-cols3">
             {COLUMNS.map((c) => (

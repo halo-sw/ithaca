@@ -1,3 +1,5 @@
+import { isHomeOfficeDay } from "../engine/work-schedule.js";
+
 // Household routine plan core (pure, browser-safe).
 //
 // A life plan adjusts ONLY whitelisted per-member routine fields of an
@@ -22,6 +24,7 @@ export const CHANGE_FIELDS = [
   "cafe_visits_per_week",
   "vet_visits_per_month",
   "home_office",
+  "home_office_days",
   "dog_walk_morning",
   "commute",
   "school",
@@ -215,6 +218,7 @@ export function buildLifePlanInput({ scenario, profile = {}, messages = [], lang
       work: m.work === undefined ? null : clone(m.work),
       work_unresolved: m.work_unresolved === true,
       workdays: Array.isArray(m.workdays) ? [...m.workdays] : null,
+      home_office_days: Array.isArray(m.home_office_days) ? [...m.home_office_days] : null,
       schooldays: Array.isArray(m.schooldays) ? [...m.schooldays] : null,
       school: m.school === undefined ? null : clone(m.school),
       assumptions,
@@ -346,6 +350,16 @@ function checkFieldValue(field, value, memberId, input) {
     case "workdays":
     case "schooldays":
       return checkWeekdayList(value, field, memberId);
+    case "home_office_days": {
+      if (!Array.isArray(value)) fail(`${memberId}.home_office_days must be an array of weekday codes`);
+      const seen = new Set();
+      for (const w of value) {
+        if (!WEEKDAYS.includes(w)) fail(`${memberId}.home_office_days has unknown weekday ${JSON.stringify(w)}`);
+        if (seen.has(w)) fail(`${memberId}.home_office_days repeats weekday ${JSON.stringify(w)}`);
+        seen.add(w);
+      }
+      return [...value];
+    }
     case "errands_per_week": {
       if (!isObj(value)) fail(`${memberId}.errands_per_week must be an object`);
       const keys = Object.keys(value).sort();
@@ -462,6 +476,44 @@ export function validateLifePlan(raw, input) {
       if (c.basis !== "stated" && c.basis !== "proposal") fail(`${entry.id}.${c.field} basis must be "stated" or "proposal"`);
       return { field: c.field, value: clone(value), basis: c.basis, evidence };
     });
+    {
+      const seenFields = new Set();
+      for (const c of changes) {
+        if (seenFields.has(c.field)) fail(`${entry.id} repeats field ${JSON.stringify(c.field)}`);
+        seenFields.add(c.field);
+      }
+    }
+    // Hybrid subset rule: home_office_days must be a subset of the
+    // effective workdays (changes win, else the input member). Existing
+    // remote sets are re-checked when the plan changes workdays — never
+    // silently repaired.
+    {
+      const src = (input.members || []).find((m) => m && m.id === entry.id) || {};
+      const workChange = changes.find((c) => c.field === "workdays");
+      const remoteChange = changes.find((c) => c.field === "home_office_days");
+      const effWork = workChange ? workChange.value
+        : Array.isArray(src.workdays) ? src.workdays : null;
+      let effRemote = null;
+      let hasRemote = false;
+      if (remoteChange) { effRemote = remoteChange.value; hasRemote = true; }
+      else if (Array.isArray(src.home_office_days)) { effRemote = src.home_office_days; hasRemote = true; }
+      else if (src.assumptions && Array.isArray(src.assumptions.home_office_days)) { effRemote = src.assumptions.home_office_days; hasRemote = true; }
+      if (hasRemote) {
+        if (!Array.isArray(effRemote)) fail(`${entry.id}.home_office_days must be an array`);
+        const seenR = new Set();
+        for (const w of effRemote) {
+          if (!WEEKDAYS.includes(w)) fail(`${entry.id}.home_office_days has unknown weekday ${JSON.stringify(w)}`);
+          if (seenR.has(w)) fail(`${entry.id}.home_office_days repeats weekday ${JSON.stringify(w)}`);
+          seenR.add(w);
+        }
+        if (effRemote.length > 0) {
+          if (!Array.isArray(effWork)) fail(`${entry.id}.home_office_days needs workdays to subset (got none)`);
+          for (const w of effRemote) {
+            if (!effWork.includes(w)) fail(`${entry.id}.home_office_days ${JSON.stringify(w)} is not in workdays`);
+          }
+        }
+      }
+    }
     return { id: entry.id, changes };
   });
   if (!Array.isArray(raw.observations)) fail("observations must be an array");
@@ -653,13 +705,29 @@ function countCodes(counts, codes) {
 
 function noTravelWork(member) {
   if (!isObj(member)) return false;
-  // No trip legs exist for members with no work, home office, or work that
-  // never resolved — counts are not completed routes.
+  // No trip legs exist for members with no work or work that never
+  // resolved — counts are not completed routes. An explicit
+  // home_office_days array wins over the legacy home_office flag
+  // (including []), so it never triggers a blanket no-travel return.
   if (member.work_unresolved === true) return true;
+  if (Array.isArray(member.home_office_days)) {
+    if (member.commute === "none") return true;
+    if (isObj(member.work) && member.work.type === "none") return true;
+    return false;
+  }
   if (member.home_office === true) return true;
   if (member.commute === "none") return true;
   if (isObj(member.work) && member.work.type === "none") return true;
   return false;
+}
+
+function countRemoteDays(member, counts) {
+  const wds = Array.isArray(member && member.workdays) ? member.workdays : [];
+  let n = 0;
+  for (const w of wds) {
+    if (isHomeOfficeDay(member, w)) n += counts[w] || 0;
+  }
+  return n;
 }
 
 const METHOD_TEXT = {
@@ -698,14 +766,21 @@ export function lifePlanExplanation(plan, scenario, lang = "en") {
   const days = Number.isInteger(scenario.days) ? scenario.days : (Number.isInteger(plan.days) ? plan.days : 30);
   const start = typeof scenario.start_date === "string" ? scenario.start_date : null;
   const counts = start ? countWeekdays(start, days) : countWeekdays("2026-11-02", days);
-  const members = scenarioMembers(scenario).map((m) => ({
-    id: m.id,
-    label: typeof m.label === "string" ? m.label : m.id,
-    work_days: noTravelWork(m) ? 0 : countCodes(counts, Array.isArray(m.workdays) ? m.workdays : []),
-    // Only members with an enabled school schedule count school days —
-    // never every adult carrying the parser's default schooldays.
-    school_days: m.school ? countCodes(counts, Array.isArray(m.schooldays) ? m.schooldays : []) : 0,
-  }));
+  const members = scenarioMembers(scenario).map((m) => {
+    const remote_days = countRemoteDays(m, counts);
+    const scheduled = noTravelWork(m) ? 0 : countCodes(counts, Array.isArray(m.workdays) ? m.workdays : []);
+    return {
+      id: m.id,
+      label: typeof m.label === "string" ? m.label : m.id,
+      // Onsite workdays only: scheduled workdays minus planned remote days.
+      // Planned calendar counts, never observed trips.
+      work_days: Math.max(0, scheduled - remote_days),
+      remote_days,
+      // Only members with an enabled school schedule count school days —
+      // never every adult carrying the parser's default schooldays.
+      school_days: m.school ? countCodes(counts, Array.isArray(m.schooldays) ? m.schooldays : []) : 0,
+    };
+  });
   const winText = L === "ko" ? `${days}일` : `${days} days`;
   const headline = L === "ko"
     ? `이 ${winText} 창이 보여주는 것과 보여주지 않는 것`

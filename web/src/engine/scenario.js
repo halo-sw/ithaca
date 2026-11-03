@@ -35,6 +35,18 @@ function checkWeekdays(list, where) {
   return [...list];
 }
 
+function checkHomeOfficeDays(list, where, workdays) {
+  if (!Array.isArray(list)) fail(`${where}.home_office_days wants an array`);
+  for (const w of list) {
+    if (!WEEKDAYS.includes(w)) fail(`${where}.home_office_days has unknown weekday ${JSON.stringify(w)}`);
+  }
+  if (new Set(list).size !== list.length) fail(`${where}.home_office_days has duplicate weekday`);
+  for (const w of list) {
+    if (!workdays.includes(w)) fail(`${where}.home_office_days has day outside workdays ${JSON.stringify(w)}`);
+  }
+  return [...list];
+}
+
 // Days from civil date (Howard Hinnant's algorithm, pure integer math)
 // -> weekday with 2026-11-02 (Monday) as the anchor. No Date anywhere.
 function daysFromCivil(y, m, d) {
@@ -352,6 +364,7 @@ function parseMember(raw, index) {
     home_office: raw.home_office === undefined ? false : raw.home_office,
     dog_walk_morning: raw.dog_walk_morning === undefined ? false : raw.dog_walk_morning,
   };
+  if (raw.home_office_days !== undefined) out.home_office_days = checkHomeOfficeDays(raw.home_office_days, where, out.workdays);
   if (raw.work_unresolved === true) out.work_unresolved = true;
   if (typeof raw.plan_context === "string" && raw.plan_context.length > 0) {
     out.plan_context = raw.plan_context;
