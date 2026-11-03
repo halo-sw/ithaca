@@ -160,27 +160,27 @@ python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt
 flowchart TB
   subgraph S1["1 · 상담"]
     direction LR
-    U(["고객: 한 문장<br/>한국어 · 영어 · 음성"]) --> A["상담 에이전트<br/>Muse Spark 1.3 또는 Spark Open"]
-    A <--> T[("도구<br/>조건 읽기 · 집 찾기 · 실거래 · 교통")]
-    A --> G["가드<br/>숫자는 도구 결과에서만"]
+    U(["고객의 한 문장<br/>한국어 · 영어<br/>또는 음성"]) --> A["상담 에이전트<br/>Muse Spark 1.3<br/>또는 Spark Open"]
+    A <--> T[("도구<br/>조건 읽기 · 교통<br/>집 찾기 · 실거래")]
+    A --> G["가드<br/>숫자는 도구<br/>결과에서만"]
     G -. "한 번 다시" .-> A
   end
   subgraph S2["2 · 플랜"]
     direction LR
-    H["Muse가 구성원마다<br/>루틴을 제안"] --> F(["고객이<br/>가정을 검토"])
+    H["Muse가<br/>구성원마다<br/>루틴을 제안"] --> F(["고객이<br/>가정을 검토"])
     F -. "루틴 조정하기" .-> H
   end
   subgraph S3["3 · 두 집에서 30일 살기"]
     direction LR
-    D["Muse가 선택할 때마다<br/>허용된 선택지 하나와 이유"] --> E["코드가 계산<br/>경로 · 분 · 원"]
+    D["Muse가 매번<br/>허용된 선택지<br/>하나와 이유"] --> E["코드가 계산<br/>경로 · 분 · 원"]
     E -. "다음 선택" .-> D
   end
   subgraph S4["4 · 검사, 그리고 고객의 결정"]
     direction LR
-    P["Muse가 저장된 기록으로<br/>리포트 작성"] --> C["검사<br/>코드: 숫자와 ID<br/>Muse 판정: 문장"]
+    P["Muse가<br/>저장된 기록으로<br/>리포트 작성"] --> C["검사<br/>코드: 숫자와 ID<br/>Muse 판정: 문장"]
     C -. "실패하면 최대 3번 다시" .-> P
-    C --> O(["고객이 비교하고 결정"])
-    C --> N["검증 미완료 항목은<br/>그대로 보여 줌"]
+    C --> O(["고객이<br/>비교하고 결정"])
+    C --> N["검증 미완료<br/>항목은<br/>그대로 보여 줌"]
   end
   S1 --> S2 --> S3 --> S4
   classDef muse fill:#cfe0ff,stroke:#0b5bd3,stroke-width:2px,color:#111

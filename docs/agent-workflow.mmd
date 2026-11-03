@@ -1,26 +1,26 @@
 flowchart TB
   subgraph S1["1 · Talk"]
     direction LR
-    U(["You: one sentence<br/>KO · EN · voice"]) --> A["Consult agent<br/>Muse Spark 1.3 or Spark Open"]
-    A <--> T[("Tools<br/>profile · homes · real deals · transit")]
-    A --> G["Guard<br/>numbers only from tools"]
+    U(["You<br/>one sentence<br/>KO · EN · voice"]) --> A["Consult agent<br/>Muse Spark 1.3<br/>or Spark Open"]
+    A <--> T[("Tools<br/>profile · homes<br/>real deals<br/>transit")]
+    A --> G["Guard<br/>numbers only<br/>from tools"]
     G -. "retry once" .-> A
   end
   subgraph S2["2 · Plan"]
     direction LR
-    H["Muse proposes<br/>each member's routine"] --> F(["You review<br/>the assumptions"])
+    H["Muse proposes<br/>each member's<br/>routine"] --> F(["You review<br/>the assumptions"])
     F -. "Adjust my routine" .-> H
   end
   subgraph S3["3 · Live 30 days in both homes"]
     direction LR
-    D["Muse picks one allowed option<br/>at each choice point, with a reason"] --> E["Code computes<br/>routes · minutes · won"]
+    D["At each choice,<br/>Muse picks one<br/>allowed option<br/>with a reason"] --> E["Code computes<br/>routes<br/>minutes · won"]
     E -. "next choice point" .-> D
   end
   subgraph S4["4 · Check, then you decide"]
     direction LR
-    P["Muse writes the report<br/>from the saved record"] --> C["Check<br/>code: numbers and IDs<br/>Muse judge: sentences"]
+    P["Muse writes<br/>the report from<br/>the saved record"] --> C["Check<br/>code: numbers<br/>and IDs<br/>Muse judge:<br/>sentences"]
     C -. "fails: back, up to 3×" .-> P
-    C --> O(["You compare and decide"])
+    C --> O(["You compare<br/>and decide"])
     C --> N["Unverified items<br/>stay visible"]
   end
   S1 --> S2 --> S3 --> S4
