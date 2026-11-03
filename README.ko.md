@@ -49,15 +49,19 @@
 
 ## 제출 개요
 
-| 항목 | 내용 |
-|---|---|
-| **해커톤** | Meta Hackathon 2026 · 트랙: **Indie Developer** · 문제 주제: **Build for Your World** |
-| **대회 기간에 만듦** | [2026년 10월 28일](https://github.com/halo-sw/ithaca/commit/7fec53140d26cc100392126fa76029909c0ff1a3)부터 **Halo가 혼자** 처음부터 만들었어요. 제품 코드, 테스트, 파이프라인은 모두 [`briefs/`](briefs/)의 단계별 지시서를 받아 **Muse Code**가 작성했어요. |
-| **바로 써 보기** | 함께 쓰는 하루 한도 안에서 실시간 Muse가 도는 [공개 앱](https://halo-sw.github.io/ithaca/?lang=ko) · 키 없이 재생되는 [기록된 한 달](https://halo-sw.github.io/ithaca/?replay=seoul-couple&lang=ko) · [Meta 본사 사례(영어)](https://halo-sw.github.io/ithaca/?chat=I+work+at+Meta+HQ+in+Menlo+Park.+Two+of+us%2C+rent+up+to+%244%2C500+a+month.&lang=en) |
-| **데모 영상** | [2분 53초, 영어 내레이션과 자막](https://github.com/halo-sw/ithaca/releases/download/demo-v9/ithaca-hackathon-final-en.mp4) (9번째 수정본) |
-| **Meta 모델** | `Muse Spark 1.3`(`api.meta.ai`): 상담, 플랜, 하루하루의 선택, 리포트와 근거 검사<br>`Muse Spark Open`(Baseten): Spark 1.3 대신 고를 수 있는 모델<br>`Muse Voice Transcribe 1.0`(`api.meta.ai`): 말을 고칠 수 있는 글로 받아 적기<br>`Muse Image 1.0`(`api.meta.ai`): 기록 한 장면을 표시가 붙은 그림으로<br>`SAM 3.1`(`api.meta.ai`): 방 사진에서 창 찾기<br>`Muse Code`: 제품 코드 작성 · [모델이 도는 곳 ↓](#모델이-도는-곳) |
-| **평가** | 리포트 검사: 기록된 실행 **3개 모두** 첫 시도에 통과, 커버리지 100% · Spark Open은 판단 지점 139곳 중 **120곳**(86%)에서 Spark 1.3과 같은 선택 · Meta 본사까지 실제 통근은 매물식 계산보다 평균 **28.7분** 더 걸려요 · [자세히 ↓](#벤치마크와-평가) |
-| **직접 실행** | `docker compose up --build` 뒤 `localhost:8080` 열기 · [빠르게 시작하기 ↓](#0-빠르게-시작하기) |
+<!-- Korean tables are HTML so label cells can carry nowrap; GitHub otherwise breaks Korean words mid-word in narrow columns. -->
+<table>
+<thead><tr><th>항목</th><th>내용</th></tr></thead>
+<tbody>
+<tr><td nowrap><b>해커톤</b></td><td>Meta Hackathon 2026 · 트랙: <b>Indie Developer</b> · 문제 주제: <b>Build for Your World</b></td></tr>
+<tr><td nowrap><b>대회 기간에 만듦</b></td><td><a href="https://github.com/halo-sw/ithaca/commit/7fec53140d26cc100392126fa76029909c0ff1a3">2026년 10월 28일</a>부터 <b>Halo가 혼자</b> 처음부터 만들었어요. 제품 코드, 테스트, 파이프라인은 모두 <a href="briefs/"><code>briefs/</code></a>의 단계별 지시서를 받아 <b>Muse Code</b>가 작성했어요.</td></tr>
+<tr><td nowrap><b>바로 써 보기</b></td><td>함께 쓰는 하루 한도 안에서 실시간 Muse가 도는 <a href="https://halo-sw.github.io/ithaca/?lang=ko">공개 앱</a> · 키 없이 재생되는 <a href="https://halo-sw.github.io/ithaca/?replay=seoul-couple&amp;lang=ko">기록된 한 달</a> · <a href="https://halo-sw.github.io/ithaca/?chat=I+work+at+Meta+HQ+in+Menlo+Park.+Two+of+us%2C+rent+up+to+%244%2C500+a+month.&amp;lang=en">Meta 본사 사례(영어)</a></td></tr>
+<tr><td nowrap><b>데모 영상</b></td><td><a href="https://github.com/halo-sw/ithaca/releases/download/demo-v9/ithaca-hackathon-final-en.mp4">2분 53초, 영어 내레이션과 자막</a> (9번째 수정본)</td></tr>
+<tr><td nowrap><b>Meta 모델</b></td><td><code>Muse Spark 1.3</code>(<code>api.meta.ai</code>): 상담, 플랜, 하루하루의 선택, 리포트와 근거 검사<br><code>Muse Spark Open</code>(Baseten): Spark 1.3 대신 고를 수 있는 모델<br><code>Muse Voice Transcribe 1.0</code>(<code>api.meta.ai</code>): 말을 고칠 수 있는 글로 받아 적기<br><code>Muse Image 1.0</code>(<code>api.meta.ai</code>): 기록 한 장면을 표시가 붙은 그림으로<br><code>SAM 3.1</code>(<code>api.meta.ai</code>): 방 사진에서 창 찾기<br><code>Muse Code</code>: 제품 코드 작성 · <a href="#모델이-도는-곳">모델이 도는 곳 ↓</a></td></tr>
+<tr><td nowrap><b>평가</b></td><td>리포트 검사: 기록된 실행 <b>3개 모두</b> 첫 시도에 통과, 커버리지 100%<br>모델 일치도: Spark Open은 판단 지점 139곳 중 <b>120곳</b>(86%)에서 Spark 1.3과 같은 선택<br>통근: Meta 본사까지 실제 통근은 매물식 계산보다 평균 <b>28.7분</b> 더 걸려요<br><a href="#벤치마크와-평가">벤치마크와 평가 ↓</a></td></tr>
+<tr><td nowrap><b>직접 실행</b></td><td><code>docker compose up --build</code> 뒤 <code>localhost:8080</code> 열기 · <a href="#0-빠르게-시작하기">빠르게 시작하기 ↓</a></td></tr>
+</tbody>
+</table>
 
 ## 0. 빠르게 시작하기
 
@@ -118,11 +122,14 @@ python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt
 
 ## 2. 서비스 요약
 
-| 입력하는 것 | Ithaca가 돌려주는 것 |
-|---|---|
-| 가족 구성원, 직장, 예산, 선호 | 지도 위 후보 집과 과거 실거래 참고 가격 |
-| 고른 집 두 곳과 검토한 루틴 | 같은 가족이 같은 30일을 두 집에서 지낸 시뮬레이션 |
-| 궁금한 점과 우선순위 | 생활 전체 비교: 시간(출퇴근, 집에서 보내는 저녁), 돈(매매·전세·월세의 월 비용, 세금과 대출 가정 포함), 걸어서 10분 안의 생활 편의, 이유가 저장된 선택, 근거와 연결된 리포트 |
+<table>
+<thead><tr><th>입력하는 것</th><th>Ithaca가 돌려주는 것</th></tr></thead>
+<tbody>
+<tr><td nowrap>가족 구성원, 직장, 예산, 선호</td><td>지도 위 후보 집과 과거 실거래 참고 가격</td></tr>
+<tr><td nowrap>고른 집 두 곳과 검토한 루틴</td><td>같은 가족이 같은 30일을 두 집에서 지낸 시뮬레이션</td></tr>
+<tr><td nowrap>궁금한 점과 우선순위</td><td>생활 전체 비교: 시간(출퇴근, 집에서 보내는 저녁), 돈(매매·전세·월세의 월 비용, 세금과 대출 가정 포함), 걸어서 10분 안의 생활 편의, 이유가 저장된 선택, 근거와 연결된 리포트</td></tr>
+</tbody>
+</table>
 
 30일 기록 옆에는 한국 집마다 전세 경고 신호와 공식 출처 확인 목록, 표시가 붙은 모의 손실 시나리오, 조건별로 대조한 지원 제도, 출처와 기간을 밝힌 공식 치안·학교 통계가 함께 나와요. 집의 비중은 사용자가 직접 정한 우선순위(**내 기준 점수**)로만 매겨요. Ithaca는 어느 집이 낫다고 정하지 않고, 전세가 안전하다고 판정하지도 않아요.
 
@@ -186,13 +193,16 @@ flowchart TB
 
 코드: [중계 서버](relay/handler.js) · [상담 에이전트](web/src/consult/agent.js) · [도구](web/src/consult/tools.js) · [가드](web/src/consult/guards.js) · [가족 플랜](web/src/consult/life-plan.js) · [실시간 가족 루프](web/src/judge/household.js) · [브라우저 워커](web/src/sim-worker.js) · [리포트](web/src/consult/report.js) · [검사](web/src/verify/compare.js). 도식 원본: [docs/agent-workflow.ko.mmd](docs/agent-workflow.ko.mmd)
 
-| 역할 | 하는 일 | 확인할 수 있는 방법 |
-|---|---|---|
-| 상담 | Muse가 도구를 써서 가족 정보를 정리하고, 기록된 주택 데이터를 찾아요 | 직접 말한 입력과 빠진 정보를 구분해서 보여 줘요 |
-| 플랜 | Muse가 구성원마다 출근하는 날, 재택하는 날, 볼일, 지원하는 루틴을 제안해요 | 사용자가 가정을 검토해요. **루틴 조정하기**를 누르면 확정 전에 고칠 내용이 Muse에게 다시 가요 |
-| 하루하루의 선택 | 선택할 때가 되면 Muse는 그 사람의 선호, 루틴, 최근 선택, 지도에 있는 선택지를 받아요 | 허용된 선택지 하나와 이유를 돌려줘요. 기록에는 선택지와, 모델이 골랐는지 기본 규칙으로 정했는지가 남아요 |
-| 시뮬레이션 | 브라우저 워커가 정해진 일정을 적용하고 경로, 걸린 시간, 비용을 계산해요 | 값은 엔진과 그 입력에서 나와요. 배경 주민은 규칙을 따라요 |
-| 리포트와 검사 | Muse가 저장된 기록으로 리포트를 쓰고, 코드가 지원하는 숫자와 근거 ID를 검사해요. 별도의 Muse 호출이 검사 대상 문장을 인용된 이벤트와 대조해요 | 틀린 문장은 고치도록 돌려보내요. 의미 검사가 빠지거나 실패하면 **검증 미완료**로 남고, 지원하지 않는 항목은 통과로 세지 않아요 |
+<table>
+<thead><tr><th>역할</th><th>하는 일</th><th>확인할 수 있는 방법</th></tr></thead>
+<tbody>
+<tr><td nowrap>상담</td><td>Muse가 도구를 써서 가족 정보를 정리하고, 기록된 주택 데이터를 찾아요</td><td>직접 말한 입력과 빠진 정보를 구분해서 보여 줘요</td></tr>
+<tr><td nowrap>플랜</td><td>Muse가 구성원마다 출근하는 날, 재택하는 날, 볼일, 지원하는 루틴을 제안해요</td><td>사용자가 가정을 검토해요. <b>루틴 조정하기</b>를 누르면 확정 전에 고칠 내용이 Muse에게 다시 가요</td></tr>
+<tr><td nowrap>하루하루의 선택</td><td>선택할 때가 되면 Muse는 그 사람의 선호, 루틴, 최근 선택, 지도에 있는 선택지를 받아요</td><td>허용된 선택지 하나와 이유를 돌려줘요. 기록에는 선택지와, 모델이 골랐는지 기본 규칙으로 정했는지가 남아요</td></tr>
+<tr><td nowrap>시뮬레이션</td><td>브라우저 워커가 정해진 일정을 적용하고 경로, 걸린 시간, 비용을 계산해요</td><td>값은 엔진과 그 입력에서 나와요. 배경 주민은 규칙을 따라요</td></tr>
+<tr><td nowrap>리포트와 검사</td><td>Muse가 저장된 기록으로 리포트를 쓰고, 코드가 지원하는 숫자와 근거 ID를 검사해요. 별도의 Muse 호출이 검사 대상 문장을 인용된 이벤트와 대조해요</td><td>틀린 문장은 고치도록 돌려보내요. 의미 검사가 빠지거나 실패하면 <b>검증 미완료</b>로 남고, 지원하지 않는 항목은 통과로 세지 않아요</td></tr>
+</tbody>
+</table>
 
 **기록된 선택 하나:** 공개된 판교 실행에서, 재택하는 날 배우자의 선택지는 공원 산책과 집에 있기 두 가지였어요. Muse는 공원을 고르고 “저녁 산책 루틴을 즐기기 좋은 시간”이라는 이유를 남겼어요(영어 기록은 “Matches evening park walk routine on remote workday”). 걷는 시간 5.1분은 엔진이 계산했어요. 시뮬레이션에서 관찰한 선택일 뿐, 실제 사람이 그렇게 한다는 근거는 아니에요. [선택, 선택지, 실행 기록(영어)](docs/recording-v9.md#the-choice-shown-in-the-video)
 
@@ -245,13 +255,16 @@ Muse Image가 그린 그림에는 “**Muse Image 일러스트 · 실제 장소 
 
 모든 결과는 이 저장소의 파일로 다시 만들 수 있어요. 어느 것도 현실에서의 정확도를 잰 것은 아니에요. 그건 7번의 현장 연구에서 할 일이에요.
 
-| 평가 | 조건 | 결과 | 근거 |
-|---|---|---|---|
-| **리포트 검사** | 기록된 실행 3개(판교 커플, 서울 예비부부, Meta 본사), 실시간 Muse Spark 1.3 | **3개 모두 첫 시도에 통과**, 필수·가중 커버리지 100%. 29k 단계 전 첫 서울 실행은 4번 만에 통과 | [검증](docs/verification.ko.md) · [기록](web/public/recorded/) |
-| **모델 일치도** | Spark 1.3과 Spark Open, 같은 가족, 각 154개 판단 | 함께 만난 판단 지점 139곳 중 **120곳에서 같은 선택**(86%). 둘 다 가드 대체 0건. 호출당 3.7초와 2.7초 | [비교](docs/model-comparison.ko.md) |
-| **매물식 통근 계산과 비교** | 기록된 실행 3개의 집 17곳, 시드 10개, 규칙 기반 | Meta 본사: 실제 통근이 **26.0–31.6분 더 걸려요**(평균 28.7분). 대부분 역에서 회사까지 마지막 구간과 열차 대기예요. 판교: 0.2–2.6분 더 걸려요 | [기준 비교](docs/baseline-commute.ko.md) |
-| **공개한 한 달** | 실행 `cmw0nibca873f`, 집 두 곳 | **Muse 선택 133개**, 표시된 기본 규칙 대체 2개, 리포트 통과 | [녹화 v9(영어)](docs/recording-v9.md) |
-| **테스트** | PR마다 CI | **JS 3,765개** 통과(42개 건너뜀) · **Python 289개** 통과(18개 건너뜀) · Docker compose 실행 확인 | [CI](https://github.com/halo-sw/ithaca/actions/workflows/ci.yml) |
+<table>
+<thead><tr><th>평가</th><th>조건</th><th>결과</th><th>근거</th></tr></thead>
+<tbody>
+<tr><td nowrap><b>리포트 검사</b></td><td>기록된 실행 3개(판교 커플, 서울 예비부부, Meta 본사), 실시간 Muse Spark 1.3</td><td><b>3개 모두 첫 시도에 통과</b>, 필수·가중 커버리지 100%. 29k 단계 전 첫 서울 실행은 4번 만에 통과</td><td nowrap><a href="docs/verification.ko.md">검증</a> · <a href="web/public/recorded/">기록</a></td></tr>
+<tr><td nowrap><b>모델 일치도</b></td><td>Spark 1.3과 Spark Open, 같은 가족, 각 154개 판단</td><td>함께 만난 판단 지점 139곳 중 <b>120곳에서 같은 선택</b>(86%). 둘 다 가드 대체 0건. 호출당 3.7초와 2.7초</td><td nowrap><a href="docs/model-comparison.ko.md">비교</a></td></tr>
+<tr><td nowrap><b>매물식 통근<br>계산과 비교</b></td><td>기록된 실행 3개의 집 17곳, 시드 10개, 규칙 기반</td><td>Meta 본사: 실제 통근이 <b>26.0–31.6분 더 걸려요</b>(평균 28.7분). 대부분 역에서 회사까지 마지막 구간과 열차 대기예요. 판교: 0.2–2.6분 더 걸려요</td><td nowrap><a href="docs/baseline-commute.ko.md">기준 비교</a></td></tr>
+<tr><td nowrap><b>공개한 한 달</b></td><td>실행 <code>cmw0nibca873f</code>, 집 두 곳</td><td><b>Muse 선택 133개</b>, 표시된 기본 규칙 대체 2개, 리포트 통과</td><td nowrap><a href="docs/recording-v9.md">녹화 v9(영어)</a></td></tr>
+<tr><td nowrap><b>테스트</b></td><td>PR마다 CI</td><td><b>JS 3,765개</b> 통과(42개 건너뜀) · <b>Python 289개</b> 통과(18개 건너뜀) · Docker compose 실행 확인</td><td nowrap><a href="https://github.com/halo-sw/ithaca/actions/workflows/ci.yml">CI</a></td></tr>
+</tbody>
+</table>
 
 두 모델의 일치도는 정확도 점수가 아니에요. 리포트 검사 통과는 리포트가 자기 실행 기록과 맞는다는 뜻이에요. 매물식 계산은 관행을 따라 우리가 만든 기준이지, 실제 매물 문구가 아니에요.
 
@@ -265,12 +278,15 @@ Ithaca는 집 선택이 매일의 생활에 남기는 결과를 눈으로 보고
 
 기대하는 효과는 **집을 비교할 때 머리로 따져야 할 일이 줄고, 루틴이 안 맞는 점을 더 일찍 발견하고, 시간과 돈에 대해 더 분명하게 이야기하는 것**이에요. 아직 검증할 목표이지, 사용자에게서 측정한 결과가 아니에요.
 
-| 다음 단계 | 검증할 것 |
-|---|---|
-| 거주자 10–20명과 현장 연구 | 모델이 계산한 이동과 비용을 실제 루틴과 비교해요. 오차와 함께, 이 비교가 사람들이 던지는 질문을 바꾸는지 기록해요 |
-| 경로와 데이터 범위 넓히기 | 빠진 목적지, 직장 위치 정밀도, 교통 가정을 개선해요. 풀리지 않은 입력은 계속 보이게 둬요 |
-| 더 많은 가족 조건 | 지원한다고 말하기 전에 통학 경로 데이터와 서로 맞춰야 할 조건을 검증해요. 학교 입학, 소음, 채광은 한계를 분명히 남겨요 |
-| 사진 기반 도움 | 실제 치수나 환경에 대한 판단을 더하기 전에, 실제 방 사진으로 창 찾기를 평가해요 |
+<table>
+<thead><tr><th>다음 단계</th><th>검증할 것</th></tr></thead>
+<tbody>
+<tr><td nowrap>거주자 10–20명과 현장 연구</td><td>모델이 계산한 이동과 비용을 실제 루틴과 비교해요. 오차와 함께, 이 비교가 사람들이 던지는 질문을 바꾸는지 기록해요</td></tr>
+<tr><td nowrap>경로와 데이터 범위 넓히기</td><td>빠진 목적지, 직장 위치 정밀도, 교통 가정을 개선해요. 풀리지 않은 입력은 계속 보이게 둬요</td></tr>
+<tr><td nowrap>더 많은 가족 조건</td><td>지원한다고 말하기 전에 통학 경로 데이터와 서로 맞춰야 할 조건을 검증해요. 학교 입학, 소음, 채광은 한계를 분명히 남겨요</td></tr>
+<tr><td nowrap>사진 기반 도움</td><td>실제 치수나 환경에 대한 판단을 더하기 전에, 실제 방 사진으로 창 찾기를 평가해요</td></tr>
+</tbody>
+</table>
 
 우리 가족 정보로 시작해서 가정을 살펴보고, 그 결과로 계약 전에 더 좋은 질문을 해 보세요.
 
