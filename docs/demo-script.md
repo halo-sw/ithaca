@@ -2,125 +2,94 @@
 
 [Back to README](../README.md)
 
-**Recording draft · target 2:55 · English.** The published README video is still v9. This script does not establish that a new continuous session has been recorded or submitted. Fill every bracketed result from the new session before recording the corresponding narration.
+**Current local final edit: November 4, 2026 · 2:54.4 · English · Halo’s own recorded face and voice.** This video has not been uploaded to GitHub or YouTube. The README still links the older published v9 video and its separate run.
 
-## Story
+## Opening replacement — awaiting Halo’s recording
 
-A short viewing can lead to a long housing commitment. Ithaca lets a household review routines, simulate repeated choices, inspect computed consequences and prepare better questions for a real viewing. The intended benefit is fewer surprises; it has not been measured in a field study.
+Keep the existing 0:00–0:08.75 introduction and hackathon provenance. Replace only the 0:08.75–0:32.813 problem explanation with the following 52-word passage; aim for 24–26 seconds at a natural pace. This is a proposed replacement, not audio already present in the final edit.
 
-## One continuous session
+> I'm looking for our first home in South Korea. Deposit-fraud news made renting feel risky, while rising prices made buying feel urgent. Even without fraud, a home can consume our savings and still not fit our daily lives. So I built Ithaca to simulate thirty days in two homes before we decide.
 
-Start on the actual app, with a small circular presenter. Display **Meta Hackathon 2026** and **Built from scratch since Oct 28, 2026** in the opening overlay. No separate title or architecture slides interrupt the product. The timestamps below divide the narration, not the recording into disconnected demos.
+Keep the same chronological product recording beneath the presenter. Do not add a fraud-statistics slide or substitute a different household. Deposit fraud motivates the founder’s concern; the purchase demo shows household fit, costs and commutes. It does not demonstrate fraud prevention or a safe lease.
 
-Keep one source recording from the initial input through the final inspection. Speed up waiting without deleting intervals or substituting another run. Preserve visible retries, unsupported items and fallbacks. Keep the face and narration at normal speed on separate tracks. During waiting show:
+The repository’s [problem definition](../README.md#3-problem-definition) supplies the founder context. The separate [`jeonse_check` tool](../web/src/consult/tools-money.js) and [deposit-check UI](../web/src/ui/jeonse.jsx) show transaction-derived deposit-to-price ratios, available building information, missing data and an official-source checklist. These are warning signals, not a safety verdict, and that separate feature is not shown in this purchase recording. [MOLIT’s victim-support announcement](https://m.korea.kr/news/policyNewsView.do?newsId=148943905) establishes the deposit-fraud context; no current victim count is asserted in this narration.
 
-```text
-This may take a few minutes.
-Recording sped up · [actual speed]×
-```
+## Current edit: one household, one recorded month
 
-The browser calls Ithaca’s relay. Show a sanitized decision response or the saved decision record when explaining a model call. Do not describe the browser as directly calling Meta, and never expose credentials. A saved response is labeled as recorded evidence, not a newly executing call.
+The principal run is **`cmw0ygvgsa8c3`**, an illustrative Pangyo couple, using Muse Spark 1.3. The input, reviewed plan, month, results, report checks and 3D inspection come from this same saved run. Waiting is accelerated while Halo’s voice stays at normal speed. Both genuine plan-service errors remain in the accelerated footage; the successful revised plan receives more screen time. There is no persistent recording-speed banner.
 
-## Narration and actions
+The supplied opening card reads **Built with Muse Code** and **Using Muse Spark**, alongside the event identity, Ithaca logo and “Built solo from scratch since October 28.” The current ending retains the live-app and repository addresses. These are the user-requested brief title and ending treatments.
 
-### 00:00–00:35 · Problem, founder and purpose
+The diary illustration at 2:35.4 is a continuation: the same saved diary was reopened in a new capture and a new live Muse Image 1.0 call succeeded. It did not rerun the month. A brief on-screen note distinguishes the continuation. Neither Spark Open nor SAM is claimed to have run in this video.
 
-**On screen:** Start on the actual app landing page. Small circular presenter throughout. Show “META HACKATHON 2026 · Solo build · Built from scratch since Oct 28, 2026” as a brief opening overlay. Begin entering the household during the second half of the problem statement.
+## Narration in the current local edit
 
-> In Korea, first-time buyers can spend a day viewing homes—and still feel rushed to sign. I’m Halo. I built Ithaca from scratch, solo, starting October twenty-eighth, for Meta Hackathon twenty twenty-six. Listings show prices and floor plans. But they don’t show how both partners’ commutes, remote days, and errands fit together. A poor fit costs time and money every day. Ithaca lets a household simulate thirty days in each home before deciding.
+The times below describe the checked 2:54.4 file before the pending opening replacement. After receiving the new opening recording, adjust only its slot and any resulting offsets; keep the final file under three minutes.
 
-### 00:35–00:48 · One household and two candidates
+### 00:00.0–00:08.8 · Founder and build provenance
 
-**On screen:** Use the example prompt, find candidates and select two homes. Keep the same recording running.
+> I'm Halo, a solo developer in South Korea. I built Ithaca from scratch, starting October 28, for Meta Hackathon 2026.
 
-> Here’s an example couple working in Pangyo. I enter their budget and routines, then choose two homes from Korean transaction records. These are historical prices, not available listings.
+### 00:08.8–00:32.8 · Current recorded problem statement
 
-### 00:48–01:05 · Show the agent revising a plan
+> In South Korea, first-time buyers can spend a day viewing homes—and still feel rushed to sign. Listings show prices and floor plans. But they don't show how both partners' commutes, remote days and errands fit together. A poor fit costs time and money every day. Ithaca lets a household simulate 30 days in each home before deciding.
 
-**On screen:** Show the original office-week plan, click Adjust my routine, enter the actual correction, wait for Muse, and inspect the revised home-office days. Do not run the month until confirming the revised plan.
+### 00:32.8–00:52.6 · One household and two candidates
 
-> Muse proposes a plan for each person. Now I change one condition: my partner works from home Tuesdays and Thursdays. Muse revises the plan. I review the change and confirm.
+> Let's follow an example couple working in Pangyo, South Korea. I enter their budget, schedules and preferences. Muse searches Korean public transaction records. I choose two homes to compare. These prices are historical references. They don't mean the homes are currently available.
 
-### 01:05–01:26 · Why 30 days and how choices work
+### 00:52.6–01:12.0 · Review and revise the plan
 
-**On screen:** Show real run progress. Keep “This may take a few minutes.” and the actual recording speed visible during waiting. Do not conceal errors or fallback labels.
+> Muse proposes a plan for each person, including errands and walks. One commutes every weekday; the other works from home twice a week. I check the working days, remote days and assumptions, then confirm the same 30-day window for both homes. This may take a few minutes, so I'm speeding up the wait.
 
-> This may take a few minutes, so I’m speeding up the wait. Thirty days repeats workdays, remote days, weekends and errands. Muse uses preferences and recent choices to select among available options. Code computes routes, time and cost.
+### 01:12.0–01:29.0 · Thirty days and a real Muse decision
 
-### 01:26–01:36 · An actual model call
+> Thirty days covers about four weekly cycles, showing how routines add up. Muse uses each person's preferences, recent choices and available options to make daily decisions. Code calculates routes, time and costs.
 
-**On screen:** Show the actual decision request/response or saved decision from THIS session, with model/provider, options, chosen_key, reason and chosen_by. A saved response is labeled as recorded. Never show keys or authorization headers.
+### 01:29.0–01:47.4 · Actual costs, commutes and assumptions
 
-> Here’s a recorded Muse call from this session: its model, allowed options, chosen action and reason. Each decision keeps its source.
+> Home A takes 4.8 minutes to work, versus 23.9 for Home B. It costs about ₩514,000 less per month, under these assumptions. I can trace the sources and assumptions behind each calculation.
 
-### 01:36–01:52 · The resulting trade-off
+### 01:47.4–02:02.8 · First-pass report check
 
-**On screen:** Read exact source values from this run; show both original monthly totals in the UI. Use about for any rounded spoken value. Do not import the previous v9 numbers.
+> Code compares numerical claims with engine values. A separate Muse call checks cited events. The timeline shows what passed or needs attention. That checks consistency with this simulated run.
 
-> Home A takes about [A_MIN] minutes to work; Home B, [B_MIN]. Their estimated monthly housing and commute costs differ by [MONTHLY_GAP] won. These figures use the assumptions we reviewed.
+### 02:02.8–02:12.2 · First week versus full month
 
-### 01:52–02:06 · A choice becomes a journey
+> We can compare the first week with the full month. The planner also supports family and mixed routines, while keeping unsupported needs visible.
 
-**On screen:** Open a real model-sourced decision from this run and its matching journey. Keep the natural app navigation in the continuous recording.
+### 02:12.2–02:35.4 · Decision record and matching 3D journey
 
-> Muse chose [ACTUAL_CHOICE] because [ACTUAL_REASON]. I can inspect the alternatives and follow that journey in 3D. The preference, choice and consequence stay connected.
+> We can inspect the alternatives and follow the resulting journey in 3D. That connects a preference to its consequences. Muse Spark powers the planning and choices. Muse Code built the product. Now we know what to check at the viewing. Try your household with Ithaca.
 
-### 02:06–02:24 · How the report is checked
+### 02:35.4–02:47.9 · Diary and Muse Image continuation
 
-**On screen:** Open source/calculation detail and the report timeline from this same run. Preserve actual first-pass, retry or unverified status; never manufacture FAIL → PASS.
+> Muse Spark writes the diary from this run. Muse Image illustrates one recorded moment, not a photo of the actual home, but an actual diary of the simulation results.
 
-> Open the calculation to see sources and assumptions. Code compares numerical claims with engine values. A separate Muse call checks cited events. This timeline shows the actual result, including anything that remains unverified.
+### 02:47.9–02:54.4 · Ending
 
-### 02:24–02:37 · What the month adds; broader households
+> Before you sign, live the next 30 days.
 
-**On screen:** Open First 7 days and Full period. Mention family capability without inserting another household’s results or creating a second run.
+## Exact evidence used by this edit
 
-> We can compare the first week with the full month. Families and mixed routines use the same planning process; missing school routes and other unsupported needs stay visible.
+| Metric | Home A | Home B |
+|---|---:|---:|
+| Average one-way commute | 4.8 min | 23.9 min |
+| Estimated monthly housing + recorded commute | ₩509,790 | ₩1,023,917 |
+| Historical transaction area band | 25–35 m² | 55–65 m² |
+| Muse choices / rule fallbacks | 70 / 0 | 64 / 1 |
 
-### 02:37–02:46 · Runtime and development roles
+Home A’s estimated monthly total is **₩514,127 lower** under the reviewed assumptions. Halo says **about ₩514,000**; exact values remain visible. No unstated USD exchange rate is used. Both workplaces are assumed near Pangyo Station; the loan rate is 4%, term 30 years, and maintenance ₩150,000/month. These are simulation inputs, not a validated prediction or a recommendation to buy Home A.
 
-**On screen:** Return to the same recorded 3D journey. If using a label, show “Muse Code · development” only here. No model-list slide or implied browser-side Meta API secret.
+The report passed on the first attempt. That is consistency with this run, not field accuracy. There are **134 model-sourced choices and 1 labelled rule fallback**. The older v9 run `cmw0nibca873f` has 133 and 2; it is not substituted for this recording. [Presenter-run evidence](evidence/recording-presenter.json) · [Older v9 evidence](recording-v9.md).
 
-> The relay calls Muse; the browser runs the simulation. Muse Code built the product during development. The household makes the final decision.
+The actual call shown offers the partner a park walk (5.1 min) or staying home (0 min) on a remote workday. Muse chooses the park with the recorded reason **“Fits evening walk routine on remote workday.”** Code computes time and distance. The saved call identifies `muse-spark-1.3`, its allowed options, choice, reason and source. The browser sends requests through Ithaca’s relay; it does not hold a hosted Meta service key.
 
-### 02:46–02:55 · Conclusion and intended benefit
+The diary illustration comes from the recorded commute activity (07:51, Korea). It is labelled **Illustration by Muse Image · not a photo of the real place**. It is not a measured or photographic depiction of the candidate home.
 
-**On screen:** Keep the product journey visible under the presenter and final links: halo-sw.github.io/ithaca and github.com/halo-sw/ithaca. No full-screen roadmap card.
+## Delivery and publication
 
-> The goal is fewer surprises and clearer trade-offs before moving in. Try Ithaca with your household. Before you sign, live the next thirty days.
-
-## Set up the real plan revision
-
-Use an explicitly illustrative household. The first plan has both adults commuting Monday to Friday. Then actually change the partner to Tuesday/Thursday remote work through **Adjust my routine**, and check the revised plan before confirming. This is a real change of user preference, not a deliberately induced model error.
-
-Initial input:
-
-> We are an example couple buying our first home, up to 700 million won, with 200 million won saved. Our annual salaries are 50 and 45 million won. We both work near Pangyo Station; use the station as our explicit workplace assumption. We both commute Monday to Friday. I prefer quick grocery stops. My partner enjoys evening park walks. Each of us makes one supermarket trip and one convenience-store trip, plus two park walks per week. Accept the default departure times and work duration as simulation assumptions. Minimum size 25 square meters, commute under 60 minutes. Find homes to compare.
-
-After choosing two homes and generating the initial plan, use Adjust my routine and enter:
-
-> Change only my partner’s schedule: work from home on Tuesday and Thursday, and commute on Monday, Wednesday and Friday. Keep everything else the same.
-
-Inspect the actual model revision. If questions remain, resolve them in this session. Do not confirm an incorrect plan to fit the script. Revision latency is part of the continuous recording and can be sped up.
-
-## Fields to fill from the new run
-
-| Field | Source |
-|---|---|
-| A_MIN / B_MIN | Actual final average one-way commutes for the two selected homes |
-| MONTHLY_GAP | Absolute difference between monthly housing + recorded commute totals, under the same assumptions |
-| ACTUAL_CHOICE / ACTUAL_REASON | A saved model-sourced decision and the reason in that same record |
-
-Keep exact totals visible even when spoken figures are rounded. A previous published run or a synthetic test cannot fill these fields. If there is no valid model-sourced example, show the actual state and revise the narration.
-
-For the call scene, inspect the decision request’s allowed options and response’s model/provider, chosen_key, reason and chosen_by. Redact credentials before any export. Do not fabricate a terminal log or a response that contains fields the real call did not return.
-
-SAM photo analysis, Muse Image illustrations, Voice input and Spark Open are documented product capabilities. Only claim they executed in this video if this session actually uses them. The main three-minute story prioritizes the reviewed plan, a real revision, a real Muse decision and the computed comparison.
-
-## Before replacing the published video
-
-- Match all results, decisions and verification outcomes to one new recorded run.
-- Check the completed edit stays at or below 2:58, with audible narration and synchronized captions.
-- Reuse the presenter’s new opening if it matches the final script; rerecord the changed body and unresolved result passages as needed.
-- Upload the actual final file, verify signed-out playback, and then replace the README and submission links together.
-- Until that file exists and is checked, keep the working published v9 link and its own evidence intact.
+- Receive Halo’s replacement opening and preserve his natural voice; no synthesized or cloned narration.
+- Check the new spoken timing, captions, exact recorded results and a total duration below three minutes.
+- Supply the final local MP4 for Halo to upload to YouTube. **Do not upload the video to GitHub.**
+- Keep the existing published v9 link until the actual new YouTube URL is supplied. Then verify playback and update the video link without mixing the two run records.
