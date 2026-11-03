@@ -195,3 +195,12 @@ test("relay rate-limits the 6th diary image POST in 10 minutes", async () => {
   await relay(diaryReq(), limited);
   assert.equal(limited.statusCode, 429);
 });
+
+test("60c4: the commute scene names no mode of transport", () => {
+  for (const region of ["kr", "us"]) {
+    const p = scenePrompt({ kind: "commute", minute: 480, region });
+    for (const word of ["subway", "train", "platform", "station", "bus"]) {
+      assert.equal(p.includes(word), false, `${region} commute mentions ${word}`);
+    }
+  }
+});

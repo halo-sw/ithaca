@@ -23,8 +23,8 @@ export const IMAGE_PROMPT_PREFIX =
 
 export const SCENE_KINDS = ["commute", "errand", "park", "ride", "plan"];
 export const SCENES = {
-  commute: { kr: "a figure seen from behind walking to a subway entrance on a Korean apartment-district street",
-             us: "a figure seen from behind walking to a commuter-train platform in a quiet Bay Area suburb" },
+  commute: { kr: "a figure seen from behind on the way to work along a Korean apartment-district street",
+             us: "a figure seen from behind on the way to work along a quiet Bay Area suburban street" },
   errand:  { kr: "a figure seen from behind carrying a grocery bag out of a small neighbourhood mart in a Korean city",
              us: "a figure seen from behind carrying a grocery bag out of a neighbourhood market in a Bay Area suburb" },
   park:    { kr: "a figure seen from behind walking on a path in a small park between Korean apartment blocks",
