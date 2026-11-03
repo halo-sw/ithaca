@@ -16,6 +16,7 @@ import { loadArea, originOf } from "./load.js";
 import { fetchDataJson } from "./data-fetch.js";
 import { assetUrl, STATIC_SITE, LIVE_API } from "./paths.js";
 import { NAIP_CREDIT, aerialCreditFor, drapeAerial, drapeCorridorAerial, drapeIsomapSharp, isUsArea } from "./aerial/drape.js";
+import { createAerialDetail } from "./aerial/detail.js";
 import { hideIsomapChrome, hideIsomapThing, isomapCameraOffset, isomapOrthoFrustum, parseIsomapParams } from "./isomap.js";
 import { drapeAreaOnce, forgetAreaDrape } from "./area-ground.js";
 import { compare as compareRuns } from "./engine/simulate.js";
@@ -450,6 +451,12 @@ function buildWorld(area, scene14, opts = {}) {
   // ?ground=paint, the painted ground stays as it is. Never logs URLs.
   // 26e: US areas fetch USGS tiles directly, so they drape on a static
   // build too.
+  // 46c2: high-detail aerial overlay; detail=0 is a diagnostic off-switch (no UI).
+  const aerialDetail = (PARAMS.get("ground") !== "paint" && PARAMS.get("detail") !== "0" &&
+    PARAMS.get("mode") !== "isomap" && PARAMS.get("isomap") !== "1" && (LIVE_API || isUsArea(area)))
+    ? createAerialDetail({ THREE, renderer, origin, usArea: isUsArea(area), look: LOOK,
+      onReady: (m) => console.log(`[aerial-detail] source=${m.source} size=${m.size}`) })
+    : null;
   if ((LIVE_API || isUsArea(area)) && PARAMS.get("ground") !== "paint") {
     // 36f: the home drape goes through the shared once-per-area
     // helper — the second (workplace) area uses the same function.
@@ -460,6 +467,8 @@ function buildWorld(area, scene14, opts = {}) {
       onOk: (id, r) => {
         console.log(`[aerial] ok ${r.tiles} tiles z${r.zoom}`);
         store.set({ aerial: true });
+        if (aerialDetail) aerialDetail.register([terrainMesh, groundMesh, roofMesh, base]);
+        if (aerialDetail) aerialDetail.enable();
         applyPaintedNight(undefined, true);
       } })
       .then((r) => {
@@ -729,7 +738,7 @@ function buildWorld(area, scene14, opts = {}) {
     trees, treeMeshes, fillTrees, streetMeshes, crowd, crowdMeshes,
     dummy, heightAt,
     ground0, terrainMesh, sceneRoadMeshes, sceneWaterMesh, sceneMarkingsMesh,
-    nightMats, applyPaintedNight, aviationMat,
+    nightMats, applyPaintedNight, aviationMat, aerialDetail,
   };
 }
 
@@ -828,7 +837,7 @@ async function bootTour(uiMode = "tour") {
     maxHeightM,
     streetMeshes, crowdMeshes, trees, treeMeshes, fillTrees, waterMesh,
     sceneWaterMesh, sceneMarkingsMesh, dummy, heightAt,
-    applyPaintedNight, aviationMat } = buildWorld(area, scene14,
+    applyPaintedNight, aviationMat, aerialDetail } = buildWorld(area, scene14,
       { treeDateISO: TOUR_DATE_ISO });
   // World position with terrain height (tour route + stops ride +2 m).
   const w2hg = (lon, lat, lift = 2) => {
@@ -1030,6 +1039,7 @@ async function bootTour(uiMode = "tour") {
       sceneMarkingsMesh.visible = (tourFramedWidth ?? 0) <= MARKINGS_HIDE_M;
     }
     if (aviationMat) aviationMat.opacity = tourDark ? aviationBlink(tourTMin * 60) : 0;
+    aerialDetail?.update({ target: controls.target, framedWidthM: tourFramedWidth, now: performance.now() });
     renderCtl.renderFrame({ bloom: tourBloom, framedWidthM: tourFramedWidth }, dt);
     frames++;
     if (frames === 30) {
@@ -1475,7 +1485,7 @@ async function bootSim() {
     dimMeshes, litMeshes, householdsById, maxHeightM, streetMeshes,
     crowd, crowdMeshes, treeMeshes, fillTrees, waterMesh, sceneWaterMesh,
     sceneMarkingsMesh, wallMeshes, podiumMesh, roofMesh, heightAt,
-    nightMats, applyPaintedNight, aviationMat } = buildWorld(area, scene14,
+    nightMats, applyPaintedNight, aviationMat, aerialDetail } = buildWorld(area, scene14,
       { treeDateISO: simDateISO(run.meta.start_date, 0) });
   const fillSimLit = makeLitFiller(litMeshes, householdsById);
   // Calm highlighting (stage 7, Part B): no flashing anywhere, and no
@@ -3014,6 +3024,7 @@ async function bootSim() {
     const [ox, oy] = lonLatToXY(liteOrigin.lon, liteOrigin.lat, origin);
     g.position.set(ox, 0, -oy);
     scene.add(g);
+    const detailMeshes = [fringe, liteTerrain, gm, liteRoof];
     // 36f: the same drapeAerial call as the home area — its own mosaic
     // and bounds, once per area id — so roofs and ground read as photo
     // instead of white over black. UVs are world-frame under the group
@@ -3027,11 +3038,13 @@ async function bootSim() {
           console.log(`[aerial] ok ${r.tiles} tiles z${r.zoom} (${id})`);
           store.set({ aerialSecondByArea:
             { ...(store.getState().aerialSecondByArea || {}), [id]: true } });
+          aerialDetail?.register(detailMeshes);
+          if (aerialDetail) aerialDetail.enable();
           applyPaintedNight(undefined, true);
         } })
         .catch(() => {});
     }
-    return { group: g, origin: liteOrigin, nightEntries: liteNightEntries };
+    return { group: g, origin: liteOrigin, nightEntries: liteNightEntries, detailMeshes };
   }
 
   async function ensureSecondArea(areaId) {
@@ -3042,6 +3055,7 @@ async function bootSim() {
       // 45c1: eviction also drops the area's night entries so the night
       // table stays bounded to the live groups' material sets.
       if (slot) {
+        aerialDetail?.unregister(slot.detailMeshes);
         scene.remove(slot.group);
         for (const e of slot.nightEntries || []) {
           const i = nightMats.indexOf(e);
@@ -3984,6 +3998,7 @@ async function bootSim() {
       sceneMarkingsMesh.visible = (simFramedWidth ?? 0) <= MARKINGS_HIDE_M;
     }
     if (aviationMat) aviationMat.opacity = simDark ? aviationBlink(simTMin * 60) : 0;
+    aerialDetail?.update({ target: controls.target, framedWidthM: simFramedWidth, now: performance.now() });
     renderCtl.renderFrame({ bloom: simBloom, framedWidthM: simFramedWidth }, dt);
     frames++;
     if (frames === 30) {

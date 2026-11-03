@@ -48,8 +48,33 @@ export function drapeAreaOnce({ areaId, drapeFn = drapeAerial, args, onOk }) {
   const refs = targetRefs(args);
   const existing = drapeByArea.get(areaId);
   if (existing && sameRefs(existing.refs, refs)) return existing.promise;
-  const p = Promise.resolve()
-    .then(() => drapeFn(args))
+  // 46e: forward the progressive coarse preview through the same
+  // staleness-guarded onOk. Bare spy args pass through untouched —
+  // custom drapeFns may compare args by identity — so a wrapper is
+  // only built when a preview listener exists, and the caller's own
+  // onPreview (if any) is preserved and called only while current.
+  let callArgs = args;
+  let p = null;
+  const needsPreview = typeof onOk === "function"
+    || (args && typeof args === "object" && typeof args.onPreview === "function");
+  if (needsPreview && args && typeof args === "object") {
+    const userPreview = args.onPreview;
+    callArgs = { ...args,
+      onPreview: (r) => {
+        const cur = drapeByArea.get(areaId);
+        if (!cur || cur.promise !== p) return;
+        if (typeof userPreview === "function") {
+          try { userPreview(r); } catch { /* listener errors stay local */ }
+        }
+        if (r && r.ok && onOk) {
+          try {
+            onOk(areaId, r);
+          } catch { /* a store update must not break the scene */ }
+        }
+      } };
+  }
+  p = Promise.resolve()
+    .then(() => drapeFn(callArgs))
     .then((r) => {
       const curOk = drapeByArea.get(areaId);
       if (r && r.ok && onOk && curOk && curOk.promise === p) {
