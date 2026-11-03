@@ -1,6 +1,7 @@
 # Stage 30a: `docker compose up` runs the same app as the public site.
 # web-build mirrors .github/workflows/pages.yml (vite build with
-# PAGES_BASE=/, VITE_STATIC=1, runtime-data.tgz, committed scenarios);
+# PAGES_BASE=/, VITE_STATIC=1, VITE_SAM_PHOTO=1, VITE_MUSE_IMAGE=1,
+# runtime-data.tgz, committed scenarios);
 # `web` serves dist on 8080; `relay` runs relay/server.mjs on 8787.
 # The relay handler reaches only node builtins, web/src files and
 # scenarios/criteria/kr-default.json, so the relay stage needs no
@@ -16,7 +17,7 @@ WORKDIR /app
 COPY web/ ./web/
 COPY scenarios/ ./scenarios/
 WORKDIR /app/web
-ENV PAGES_BASE=/ VITE_STATIC=1
+ENV PAGES_BASE=/ VITE_STATIC=1 VITE_SAM_PHOTO=1 VITE_MUSE_IMAGE=1
 RUN VITE_API_BASE=${VITE_API_BASE} npx vite build
 RUN node -e "fetch('https://github.com/halo-sw/ithaca/releases/download/data-v1/runtime-data.tgz').then(async (r) => { if (!r.ok) throw new Error('runtime-data.tgz download failed: ' + r.status); const { writeFile } = await import('node:fs/promises'); await writeFile('/tmp/runtime-data.tgz', Buffer.from(await r.arrayBuffer())); })" \
   && tar -xzf /tmp/runtime-data.tgz -C dist && rm /tmp/runtime-data.tgz

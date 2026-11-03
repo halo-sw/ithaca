@@ -214,3 +214,14 @@ describe("30d docker compose smoke in CI", () => {
     }
   });
 });
+
+describe("61b docker flags", () => {
+  it("the Docker build turns on the same feature flags as the Pages build", () => {
+    const docker = read("Dockerfile");
+    const pages = read(".github/workflows/pages.yml");
+    for (const flag of ["VITE_SAM_PHOTO=1", "VITE_MUSE_IMAGE=1"]) {
+      assert.ok(pages.includes(flag), `pages.yml sets ${flag}`);
+      assert.match(docker, new RegExp(`^ENV .*${flag}`, "m"), `Dockerfile ENV sets ${flag}`);
+    }
+  });
+});
