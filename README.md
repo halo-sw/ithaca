@@ -18,7 +18,7 @@
 
 <p align="center"><a href="https://github.com/halo-sw/ithaca/releases/download/demo-v9/ithaca-hackathon-final-en.mp4"><img src="briefs/img/demo-video-thumb.jpg" width="720" alt="Ithaca: Before you sign, live the next 30 days"></a><br><sub>▶ <a href="https://github.com/halo-sw/ithaca/releases/download/demo-v9/ithaca-hackathon-final-en.mp4"><b>Final demo</b></a> (2:53, English narration and captions) · One reviewed Pangyo couple run · Separate four-person family · <a href="https://github.com/halo-sw/ithaca/releases/tag/demo-v9">release and evidence</a></sub></p>
 
-<p align="center"><b>Built with Meta AI:</b> Meta Model API (<code>api.meta.ai</code>) · Muse Spark 1.3 · Muse Spark Open · Muse Code · Muse Voice</p>
+<p align="center"><b>Built with Meta AI:</b> Meta Model API (<code>api.meta.ai</code>) · Muse Spark 1.3 · Muse Spark Open · Muse Code · Muse Voice · Muse Image · SAM 3.1</p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Muse_Spark-1.3-0072f1?style=flat-square&logo=data%3Aimage%2Fpng%3Bbase64%2CiVBORw0KGgoAAAANSUhEUgAAACgAAAAbCAYAAAAOEM1uAAAEf0lEQVR42rWXW2iXdRjHv7%2F%2Ff3MOyVJbLMPoAMrWqjmIpBhddWO7KYsiiqDDtLsgC0woo912uqi0sAzpBNqsboKKohhIlBiVItNdRB6Zmk5qzv%2F7frro%2BcXTs%2Fe%2FUdgPXp7f%2B77P%2BfR7flLFAuoGLwbeAA4Do8Dt9r3WjMb2qQrnvKzMGLgK%2BIl%2FrtPAZVHJsF%2Bk%2F2s55S4B9ptS5wK803BaAs2twG7gOPA5cOV59aQxqwOtwNdBKYAGUAL3ZAWBmtH1AH8YXmnwnRj6%2F7Ja3L6eUmoAr0nql3Qu%2FJekJOm38I6kTZLmGk322DWSlFIqKqKU6VL8r1mKYtB5rgweybDPcOcYfCB4uzD4Q7MU%2Brehzcr1ApMWyoYJ%2BdaqN68zQGcWBswHfjXlC5cKADtz6oRcvRZ4H%2FgKeNTjNFUQaAN%2BdJ4oTJkBS%2Fq89ufcM9qhkJ9ewc%2BcIRn%2FeuBk6Ax3zZSrNcuBpyT1SGpYftQkrZd0UNJCyy1J%2BiWl1PiLH5dLekxSaTTZCxg8kWVISkC7pPckXSRpStJZo13p8nm6gkCPpCecoLqkPSmll61YJCkn8pglPpI2SJpndDVJ%2BxwPSRp3xZed0GVOmGNyao535apJek5Su7O8lDRo%2B96AP2ZtpVfS%2Fca8bp7%2BJAg8anAKWCpprcP368xsCq40qxpG%2FFJKacT%2BL3V4kjRq3nvWWlBOibckTTgDJemI8%2Fbz1oaq1kRVtf%2Bdk8ABl7C7gXbz0jzgUGgdVwPdrhgKYAroBN6172cN5nN7oKKQfFtaW3UyeW17gQ%2BBLcBi931ZYHrKTplhe580uNXwdwXBN5qhe4KRRwPeoD%2BZbN8N9DdrO9mS24zBlMERYIXreYUZ0GXMD4b2sRB4yHm1NCM2B0%2FfbfLaDD7iZG6u5Xjb40t9WcipA1btyR1pO1JKeyVdKmmBoz1m7WkoH2n2bKhoJ6dcMV0naaOkVpP74EwefD14cJeFtXTe67Mw3hDC%2BD3waqD%2FzvjuDCG%2B2Xgk4BtHUwKjM41cX4aTgfC%2B3dEMhH8ngN9NSP52iykx5owpgeXGY3UoPoB100auPAgERriBIedfn8NfUzGeeYU%2FMrwFwLFQyYuBRWZU4QaVMWB%2BM%2B8tqZjvvMDhkNhDQcHSGTNphZSAKxxfgAnrDFsd%2Fyzjjpkmm5sqlMN5b7kJzCPXliYDLsALjn9PiMrPwH0OP9PvqBwgXIHcO4PAD9wUlD3%2BacDJhhyxsGbD%2BwPeYcPxuXfcwl4Dai1Njp8l0bnWHqYkPe3aUT6%2FO8JEUtpRuD6ldNJSoZB0QeDb6fhgR%2B3qlNIhoJ5SKppNuB3hvWF9b2NKaZ%2Fty5QSQKukCx1uYcqNSHrTvJcHiDZnlFesYTQvppS2AS35KjDbCF5YU261ieUZC2sZhLQYbh4eGpLW2KCAU2rc3UdwMlolfSzp8WBQ0yLpD8UxDqyouANn%2FLcD%2FsPhf27E7W5y92sYmJtvibNePw2uArYDm4DuqknDCe4AXgG2AauqKtAVVBfwhfXDvcCTTuY05f4Eau6o08a%2ByYgAAAAASUVORK5CYII%3D" alt="Muse Spark 1.3">
@@ -151,9 +151,10 @@ Each model has one job, and numbers never come from a model. The Meta API base U
 | <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark Open** | Live in the chat via the header switch; same choice as 1.3 at 120 of 139 decisions | [`providers.js`](web/src/judge/providers.js) · [3 real calls](docs/evidence/muse-spark-open-2026-10-31.json) · [Comparison](docs/model-comparison.md) |
 | <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Code** | Wrote all product code and tests from the stage briefs | [`briefs/`](briefs/) |
 | <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Voice Transcribe 1.0** | Speak instead of typing (Korean, English) | [`voice.js`](web/src/consult/voice.js) |
-| SAM 3.1 | Window area from listing photos | *coming soon* |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Image 1.0** | Draws one moment from the 30-day diary, picked from a fixed scene list and always labelled as an illustration, not a photo of the place | [`diary-image.js`](web/src/consult/diary-image.js) · [2 real calls](docs/evidence/muse-image-2026-11-03.json) |
+| **SAM 3.1** | Finds the windows in a room photo you add. Code turns the boxes into a count and a share of the photo; Ithaca does not store the photo | [`windows.js`](web/src/consult/windows.js) · [1 real call](docs/evidence/sam-3.1-2026-11-03.json) |
 
-Endpoints: Meta `https://api.meta.ai/v1` (`muse-spark-1.3`, `muse-voice-transcribe-1.0`) · Baseten `https://inference.baseten.co/v1` (`meta-models/muse-spark-open-1026`).
+Endpoints: Meta `https://api.meta.ai/v1` (`muse-spark-1.3`, `muse-voice-transcribe-1.0`, `muse-image-1.0`, `sam-3.1`) · Baseten `https://inference.baseten.co/v1` (`meta-models/muse-spark-open-1026`).
 
 The server key is read from `META_API_KEY` (`MODEL_API_KEY` still works as a fallback); the base URLs are named constants, `META_API_BASE` and `BASETEN_API_BASE`, in [`providers.js`](web/src/judge/providers.js) and re-exported by [`relay/handler.js`](relay/handler.js).
 
@@ -278,7 +279,7 @@ Raw and built data are never committed; the scripts above regenerate them. Real-
 - 성남시 crime statistics are city-level, while Seoul's are district-level. The app shows the level next to every figure.
 - Public-housing notices have no deadline field in the API, so the app lists "recent notices" and links to the original.
 
-**Future work:** a field study with real residents, room/window measurements from listing photos, validated school assignment data, and additional events such as elevator waits and noise. These are not demonstrated capabilities. Spark Open selection and compositional household planning are already in the product; the principal recorded month uses Spark 1.3.
+**Future work:** a field study with real residents, room sizes from listing photos and floor plans, validated school assignment data, and additional events such as elevator waits and noise. These are not demonstrated capabilities. Spark Open selection and compositional household planning are already in the product; the principal recorded month uses Spark 1.3.
 
 ## More
 

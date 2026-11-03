@@ -10,7 +10,8 @@
 | **Muse Spark Open** (Baseten의 `meta-models/muse-spark-open-1026`) | 오픈 웨이트 모델로 같은 가족 판단을 해요. 스위치 하나로 바꿔요(`--provider meta\|baseten`). 아래에 Spark 1.3과 비교했어요 | 완료(비교) |
 | **판정자 역할의 Muse Spark 1.3** | 리포트 문장과 그 문장이 인용한 시뮬레이션 기록을 나란히 읽고, 뒷받침하는지와 이유를 답해요. 리포트를 쓰는 호출과는 따로 불러요 | 완료 |
 | **Muse Voice Transcribe 1.0** | 말로 시작하기: 마이크를 누르고 가족과 직장을 말하면 받아 적은 글이 입력창에 들어가요. 저절로 보내지는 않아요 | 완료 |
-| SAM 3.1 | 매물 사진과 도면에서 방 크기와 창 면적을 재요 | *준비 중* |
+| **Muse Image 1.0** | 30일 일기의 한 장면을 정해진 장면 목록에서 골라 그려요. 일러스트라는 표시가 늘 붙어요([실제 호출 2건](evidence/muse-image-2026-11-03.json)) | 완료 |
+| **SAM 3.1** | 내가 올린 방 사진에서 창을 찾아요. 모델은 상자만 주고, 개수와 사진 속 비율은 코드가 계산해요([실제 호출 1건](evidence/sam-3.1-2026-11-03.json)). 도면의 방 크기는 *준비 중* | 완료 |
 
 **같은 가족으로 비교한 Spark 1.3과 Spark Open**(2026-10-29, `reasoning_effort` low, 파일은 [`scenarios/decisions/compare-1029/`](../scenarios/decisions/compare-1029/)):
 
