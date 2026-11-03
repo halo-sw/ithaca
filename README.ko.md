@@ -1,25 +1,29 @@
 <p align="center"><img src="briefs/img/ithaca-banner.png" width="100%" alt="Ithaca — The Pre-living Agent for Your Next Home"></p>
 
-<p align="center"><i>“We walk the odyssey. You just come home.”</i></p>
+**문제.** 집은 사진 몇 장과 한 번의 집 구경으로 정하고, 그 집이 우리 생활에 맞는지는 이사한 뒤에야 알게 돼요. 미국 주택 소유자의 45%는 지금 집을 산 것에 후회가 하나 이상 있다고 답했어요([Bankrate, 2025년 5월](https://www.bankrate.com/press-releases/nearly-half-of-homeowners-have-at-least-one-regret-about-the-purchase-of-their-current-home/)). 한국에서는 2023년 6월 전세사기피해자법 시행 이후 피해자로 인정된 사례가 41,559건이고, 인정된 임차인의 75.9%가 40세 미만이에요([헤럴드경제, 2026-10-11](https://www.heraldk.com/article/2026101114382405541)).
 
-<p align="center"><b>계약하기 전에, 그 집에서 먼저 살아 보세요.</b><br>한국에서는 집을 한 번 보고 한나절 안에 정해야 할 때가 많아요.<br>Ithaca는 우리 가족을 닮은 AI 가족이 후보 집마다 먼저 30일을 살아 보게 하고, 어느 집이 우리 생활에 맞는지 보여 줘요.</p>
+**누구를 위한 건가요.** 첫 집을 구하는 사회초년생, 결혼을 앞둔 커플, 두 집 사이에서 고민하는 어린 자녀를 둔 가족, 살아 본 적 없는 도시로 옮기는 새 입사자예요.
+
+**Ithaca가 하는 일.** 우리 가족을 닮은 AI 가족이 후보 집마다 30일을 먼저 살아 봐요. 하루하루의 선택은 Muse Spark가 지도에 있는 선택지 중에서 하고, 경로·시간·비용은 코드가 계산해요. 리포트의 모든 문장은 보여 주기 전에 검사해요.
+
+| 잰 것 | 기준(매물식 계산) | Ithaca | 근거 |
+|---|---|---|---|
+| 편도 출퇴근, Meta 본사 후보 5곳(기차 구간이 없는 1곳은 뺐어요) | 5.1–18.1분: 역까지 직선거리를 분속 80m로 걸은 시간 + 시간표상 탑승 시간 | 문에서 문까지 33.4–44.1분, 평균 +28.7분. 차이는 대부분 멘로파크역에서 본사까지 마지막 구간(자전거로 약 22분)과 열차 대기(3.8–7.5분)예요 | [출퇴근 비교](docs/baseline-commute.ko.md) |
+| 편도 출퇴근, 판교 후보 12곳 | 2.9–50.0분 | 4.8–52.2분, 평균 +1.0분. 시나리오가 직장을 판교역에 두었고, 한국은 승강장 대기를 아직 계산하지 않아요 | [출퇴근 비교](docs/baseline-commute.ko.md) |
+| 리포트 속 숫자 | — | 숫자마다 엔진 값과 대조해요. 틀린 리포트는 Muse에게 최대 3번 돌려보내고, 그래도 안 되면 확인할 질문이 사용자에게 가요 | [검증](docs/verification.ko.md) |
+
+**▶ [최종 데모(2분 53초, 영어)](https://github.com/halo-sw/ithaca/releases/download/demo-v9/ithaca-hackathon-final-en.mp4)** · **[바로 써 보기](https://halo-sw.github.io/ithaca/?lang=ko)** · [기록된 한 달, 키 없이 보기](https://halo-sw.github.io/ithaca/?replay=seoul-couple&lang=ko) · [English README](README.md) · 해커톤 기간에 만들었어요. 첫 커밋은 2026-10-28이에요.
+
+> 상태(2026-11-03): 해커톤 출품작이에요. 해커톤 기간은 2026-10-27 → 11-05이고, 그 전에 만든 코드는 없어요. *준비 중*이라고 적힌 항목은 아직 만들지 않았어요. 다음 단계는 거주자 10–20명이 실제로 겪은 것과 시뮬레이션한 한 달을 비교하는 현장 연구예요.
 
 <p align="center"><a href="https://github.com/halo-sw/ithaca/releases/download/demo-v9/ithaca-hackathon-final-en.mp4"><img src="briefs/img/demo-video-thumb.jpg" width="720" alt="Ithaca: Before you sign, live the next 30 days"></a><br><sub>▶ <a href="https://github.com/halo-sw/ithaca/releases/download/demo-v9/ithaca-hackathon-final-en.mp4"><b>최종 데모</b></a> (2분 53초, 영어 음성·자막) · 검토한 판교 커플 한 실행 · 별도 4인 가족 · <a href="https://github.com/halo-sw/ithaca/releases/tag/demo-v9">영상·근거</a></sub></p>
 
 <p align="center"><b>Meta AI로 만들었어요:</b> Meta Model API (<code>api.meta.ai</code>) · Muse Spark 1.3 · Muse Spark Open · Muse Code · Muse Voice</p>
 
 <p align="center">
-  <a href="https://halo-sw.github.io/ithaca/?lang=ko"><img src="https://img.shields.io/badge/바로_써_보기-LIVE-1a56db?style=for-the-badge" alt="바로 써 보기"></a>
-  &nbsp;
-  <a href="https://halo-sw.github.io/ithaca/?replay=seoul-couple&lang=ko"><img src="https://img.shields.io/badge/기록된_한_달-키_없이_보기-1a56db?style=for-the-badge" alt="기록된 한 달 보기, 키 필요 없음"></a>
-  &nbsp;
-  <a href="README.md"><img src="https://img.shields.io/badge/English-README-e8f0fe?style=for-the-badge&labelColor=1a56db" alt="English README"></a>
-</p>
-
-<p align="center">
   <img src="https://img.shields.io/badge/Muse_Spark-1.3-0072f1?style=flat-square&logo=data%3Aimage%2Fpng%3Bbase64%2CiVBORw0KGgoAAAANSUhEUgAAACgAAAAbCAYAAAAOEM1uAAAEf0lEQVR42rWXW2iXdRjHv7%2F%2Ff3MOyVJbLMPoAMrWqjmIpBhddWO7KYsiiqDDtLsgC0woo912uqi0sAzpBNqsboKKohhIlBiVItNdRB6Zmk5qzv%2F7frro%2BcXTs%2Fe%2FUdgPXp7f%2B77P%2BfR7flLFAuoGLwbeAA4Do8Dt9r3WjMb2qQrnvKzMGLgK%2BIl%2FrtPAZVHJsF%2Bk%2F2s55S4B9ptS5wK803BaAs2twG7gOPA5cOV59aQxqwOtwNdBKYAGUAL3ZAWBmtH1AH8YXmnwnRj6%2F7Ja3L6eUmoAr0nql3Qu%2FJekJOm38I6kTZLmGk322DWSlFIqKqKU6VL8r1mKYtB5rgweybDPcOcYfCB4uzD4Q7MU%2Brehzcr1ApMWyoYJ%2BdaqN68zQGcWBswHfjXlC5cKADtz6oRcvRZ4H%2FgKeNTjNFUQaAN%2BdJ4oTJkBS%2Fq89ufcM9qhkJ9ewc%2BcIRn%2FeuBk6Ax3zZSrNcuBpyT1SGpYftQkrZd0UNJCyy1J%2BiWl1PiLH5dLekxSaTTZCxg8kWVISkC7pPckXSRpStJZo13p8nm6gkCPpCecoLqkPSmll61YJCkn8pglPpI2SJpndDVJ%2BxwPSRp3xZed0GVOmGNyao535apJek5Su7O8lDRo%2B96AP2ZtpVfS%2Fca8bp7%2BJAg8anAKWCpprcP368xsCq40qxpG%2FFJKacT%2BL3V4kjRq3nvWWlBOibckTTgDJemI8%2Fbz1oaq1kRVtf%2Bdk8ABl7C7gXbz0jzgUGgdVwPdrhgKYAroBN6172cN5nN7oKKQfFtaW3UyeW17gQ%2BBLcBi931ZYHrKTplhe580uNXwdwXBN5qhe4KRRwPeoD%2BZbN8N9DdrO9mS24zBlMERYIXreYUZ0GXMD4b2sRB4yHm1NCM2B0%2FfbfLaDD7iZG6u5Xjb40t9WcipA1btyR1pO1JKeyVdKmmBoz1m7WkoH2n2bKhoJ6dcMV0naaOkVpP74EwefD14cJeFtXTe67Mw3hDC%2BD3waqD%2FzvjuDCG%2B2Xgk4BtHUwKjM41cX4aTgfC%2B3dEMhH8ngN9NSP52iykx5owpgeXGY3UoPoB100auPAgERriBIedfn8NfUzGeeYU%2FMrwFwLFQyYuBRWZU4QaVMWB%2BM%2B8tqZjvvMDhkNhDQcHSGTNphZSAKxxfgAnrDFsd%2Fyzjjpkmm5sqlMN5b7kJzCPXliYDLsALjn9PiMrPwH0OP9PvqBwgXIHcO4PAD9wUlD3%2BacDJhhyxsGbD%2BwPeYcPxuXfcwl4Dai1Njp8l0bnWHqYkPe3aUT6%2FO8JEUtpRuD6ldNJSoZB0QeDb6fhgR%2B3qlNIhoJ5SKppNuB3hvWF9b2NKaZ%2Fty5QSQKukCx1uYcqNSHrTvJcHiDZnlFesYTQvppS2AS35KjDbCF5YU261ieUZC2sZhLQYbh4eGpLW2KCAU2rc3UdwMlolfSzp8WBQ0yLpD8UxDqyouANn%2FLcD%2FsPhf27E7W5y92sYmJtvibNePw2uArYDm4DuqknDCe4AXgG2AauqKtAVVBfwhfXDvcCTTuY05f4Eau6o08a%2ByYgAAAAASUVORK5CYII%3D" alt="Muse Spark 1.3">
   <img src="https://img.shields.io/badge/code_written_by-Muse_Code-0072f1?style=flat-square&logo=data%3Aimage%2Fpng%3Bbase64%2CiVBORw0KGgoAAAANSUhEUgAAACgAAAAbCAYAAAAOEM1uAAAEf0lEQVR42rWXW2iXdRjHv7%2F%2Ff3MOyVJbLMPoAMrWqjmIpBhddWO7KYsiiqDDtLsgC0woo912uqi0sAzpBNqsboKKohhIlBiVItNdRB6Zmk5qzv%2F7frro%2BcXTs%2Fe%2FUdgPXp7f%2B77P%2BfR7flLFAuoGLwbeAA4Do8Dt9r3WjMb2qQrnvKzMGLgK%2BIl%2FrtPAZVHJsF%2Bk%2F2s55S4B9ptS5wK803BaAs2twG7gOPA5cOV59aQxqwOtwNdBKYAGUAL3ZAWBmtH1AH8YXmnwnRj6%2F7Ja3L6eUmoAr0nql3Qu%2FJekJOm38I6kTZLmGk322DWSlFIqKqKU6VL8r1mKYtB5rgweybDPcOcYfCB4uzD4Q7MU%2Brehzcr1ApMWyoYJ%2BdaqN68zQGcWBswHfjXlC5cKADtz6oRcvRZ4H%2FgKeNTjNFUQaAN%2BdJ4oTJkBS%2Fq89ufcM9qhkJ9ewc%2BcIRn%2FeuBk6Ax3zZSrNcuBpyT1SGpYftQkrZd0UNJCyy1J%2BiWl1PiLH5dLekxSaTTZCxg8kWVISkC7pPckXSRpStJZo13p8nm6gkCPpCecoLqkPSmll61YJCkn8pglPpI2SJpndDVJ%2BxwPSRp3xZed0GVOmGNyao535apJek5Su7O8lDRo%2B96AP2ZtpVfS%2Fca8bp7%2BJAg8anAKWCpprcP368xsCq40qxpG%2FFJKacT%2BL3V4kjRq3nvWWlBOibckTTgDJemI8%2Fbz1oaq1kRVtf%2Bdk8ABl7C7gXbz0jzgUGgdVwPdrhgKYAroBN6172cN5nN7oKKQfFtaW3UyeW17gQ%2BBLcBi931ZYHrKTplhe580uNXwdwXBN5qhe4KRRwPeoD%2BZbN8N9DdrO9mS24zBlMERYIXreYUZ0GXMD4b2sRB4yHm1NCM2B0%2FfbfLaDD7iZG6u5Xjb40t9WcipA1btyR1pO1JKeyVdKmmBoz1m7WkoH2n2bKhoJ6dcMV0naaOkVpP74EwefD14cJeFtXTe67Mw3hDC%2BD3waqD%2FzvjuDCG%2B2Xgk4BtHUwKjM41cX4aTgfC%2B3dEMhH8ngN9NSP52iykx5owpgeXGY3UoPoB100auPAgERriBIedfn8NfUzGeeYU%2FMrwFwLFQyYuBRWZU4QaVMWB%2BM%2B8tqZjvvMDhkNhDQcHSGTNphZSAKxxfgAnrDFsd%2Fyzjjpkmm5sqlMN5b7kJzCPXliYDLsALjn9PiMrPwH0OP9PvqBwgXIHcO4PAD9wUlD3%2BacDJhhyxsGbD%2BwPeYcPxuXfcwl4Dai1Njp8l0bnWHqYkPe3aUT6%2FO8JEUtpRuD6ldNJSoZB0QeDb6fhgR%2B3qlNIhoJ5SKppNuB3hvWF9b2NKaZ%2Fty5QSQKukCx1uYcqNSHrTvJcHiDZnlFesYTQvppS2AS35KjDbCF5YU261ieUZC2sZhLQYbh4eGpLW2KCAU2rc3UdwMlolfSzp8WBQ0yLpD8UxDqyouANn%2FLcD%2FsPhf27E7W5y92sYmJtvibNePw2uArYDm4DuqknDCe4AXgG2AauqKtAVVBfwhfXDvcCTTuY05f4Eau6o08a%2ByYgAAAAASUVORK5CYII%3D" alt="제품 코드는 모두 Muse Code가 작성">
-  <img src="https://img.shields.io/badge/tests-3655_JS_CI_passed_·_42_skipped-1a56db?style=flat-square" alt="CI의 JavaScript 테스트 2,614개, Python 테스트 266개">
+  <img src="https://img.shields.io/badge/tests-3655_JS_CI_passed_·_42_skipped-1a56db?style=flat-square" alt="PR 40 CI: JavaScript 테스트 3,655개 통과, 픽스처가 필요한 42개 건너뜀">
   <a href="https://github.com/halo-sw/ithaca/actions/workflows/ci.yml"><img src="https://github.com/halo-sw/ithaca/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-1a56db?style=flat-square" alt="MIT 라이선스"></a>
 </p>
@@ -49,7 +53,7 @@
 
 **문제.** 몇 년을 살 집을 살아 보지 않고 정해요. 집은 대부분의 사람에게 인생에서 가장 큰 구매인데, 사진 몇 장과 한 번의 집 구경으로 정해요. 한국만의 문제도 아니에요.
 
-- **한국: 같은 문제에 서두름과 전세사기가 더해져요.** 2025년 6월 서울 아파트값은 한 주에 0.43% 올라 주간 기준 6년 9개월 만에 가장 크게 올랐어요(한국부동산원, [뉴시스](https://www.newsis.com/view/NISX20250627_0003230658)). 2026년 9월 기준 **전세사기 피해자로 공식 인정된 건수는 누적 41,559건이고, 이 중 40세 미만이 75.9%**(30대 50.7%, 20대 25.2%)예요. 97.7%는 보증금 3억 원 이하예요(국토교통부 자료, [헤럴드경제](https://www.heraldk.com/article/2026101114382405541)).
+- **한국: 같은 문제에 서두름과 전세사기가 더해져요.** 2025년 6월 서울 아파트값은 한 주에 0.43% 올라 주간 기준 6년 9개월 만에 가장 크게 올랐어요(한국부동산원, [뉴시스](https://www.newsis.com/view/NISX20250627_0003230658)). 2023년 6월 전세사기피해자법 시행 이후 **피해자로 공식 인정된 사례는 누적 41,559건이고, 인정된 임차인의 75.9%가 40세 미만**(30대 50.7%, 20대 25.2%)이에요. 97.7%는 보증금 3억 원 이하예요(국토교통부 자료, [헤럴드경제, 2026-10-11](https://www.heraldk.com/article/2026101114382405541)).
 - **미국: 살아 보고 나서야 알아요.** 미국 주택 소유자의 45%가 지금 집을 산 것에 후회가 하나 이상 있어요. 이유는 예상보다 큰 유지비와 숨은 비용 42%, 너무 작은 집 21%, 높은 대출 상환금 16%, 나쁜 위치 14% 순이에요([Bankrate, 2025년 5월](https://www.bankrate.com/press-releases/nearly-half-of-homeowners-have-at-least-one-regret-about-the-purchase-of-their-current-home/)). 최근 1년 안에 집을 산 사람 중 Z세대는 후회가 없는 비율이 27%뿐이고, 젊은 세대일수록 통근 거리와 동네를 더 후회해요([Realtor.com, 2025년 11월](https://www.stocktitan.net/news/NWS/realtor-com-as-market-cools-buyer-regret-does-grzvemhi8uiu.html)). 세입자는 집 구경조차 건너뛰기도 해요. 41%가 집을 직접 보지 않고 계약할 의향이 있어요([Apartments.com, 2025년 2분기](https://www.apartments.com/grow/learning-center/renter-search-survey-q2-2025)). 반대로 미국 시장은 느려졌고(2025년 10월 매물이 시장에 머무는 기간 중앙값 63일, 같은 Realtor.com 조사) 후회도 그만큼 줄었어요. 그래서 미국의 문제는 서두름이 아니라 살아 보지 않고 정한다는 점이에요.
 
 30일 생활 시뮬레이션이 전세사기를 막지는 못해요. 피해는 주로 다세대(28.3%), 오피스텔(21.0%), 다가구(18.8%) 임차인에게서 일어나요. Ithaca는 계약 전에 위험을 미리 보게 도와요. 전세 경고 신호를 출퇴근, 돈, 30일 기록과 나란히 보여 줘요.
@@ -87,8 +91,6 @@
 <p align="center"><sub>판교 출근 예비부부가 집을 사는 경우, 한국어 문장 그대로 Muse Spark 1.3이 실행한 화면: 왼쪽은 살 때 한 번에 내는 돈과 매달 내는 돈, "살아 봐야 아는 것", 오른쪽은 담은 두 집. 운영 빌드, 2026-11-02.</sub></p>
 
 **만든 이유.** 저는 Halo이고, 신혼집을 구하고 있었어요. 전세사기 소식에 두 사람의 생활 패턴까지 달라서 집 구하기가 정말 어려웠고, 이직 같은 변화가 생길 때마다 살아 보고 나서야 마주치는 것들이 많았어요. 수면의 질, 출퇴근길 혼잡도, 동네마다의 특성은 미리 알 수 없으니, 계약하기 전에 먼저 시뮬레이션을 돌려 보고 싶었어요.
-
-> 상태(2026-10-31): 개발 중이에요. 해커톤 기간은 2026-10-27 → 11-05이고, 첫 커밋은 2026-10-28이에요. 해커톤 이전에 만든 코드는 없어요. *준비 중*이라고 적힌 항목은 아직 만들지 않았어요.
 
 ## 써 보기
 
@@ -269,6 +271,7 @@ cd web && META_API_KEY=... npm run dev
 - [구조](docs/architecture.ko.md): 폴더 구조, 시스템 지도, 채팅 한 번의 흐름, 한 문장에서 검증된 비교까지
 - [기능 자세히](docs/features.ko.md): 제품의 영역별 기능과 그 뒤의 데이터
 - [검증 자세히](docs/verification.ko.md): 체크리스트, 두 가지 검사, 통과 기준, 다시 쓰기 순환
+- [매물식 vs 문에서 문까지 출퇴근](docs/baseline-commute.ko.md): 녹화된 세 실행의 후보 집 전부, 차이와 그 이유
 - [Spark 1.3과 Spark Open](docs/model-comparison.ko.md): 모델 표와 나란히 돌린 결과
 - [작업 기록](docs/build-log.ko.md): 마감까지의 계획, 결과 예시, Muse가 만든 모든 단계
 - [`briefs/`](briefs/): Muse Code 단계마다 지시서 하나와 결과 하나. 규칙은 [`AGENTS.md`](AGENTS.md)
