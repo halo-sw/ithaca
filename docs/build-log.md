@@ -15,7 +15,7 @@ Deadline: 2026-11-05 11:00 KST.
 | 11-04 | 3-minute video and final README |
 | 11-05 | Submit by 09:00 KST |
 
-**Coming soon** (not in this submission): measuring rooms and windows from listing photos and floor plans (SAM 3.1), household agents on Spark Open, a field study with real residents, life events such as elevator waits and noise between floors, and scenarios for remote workers, three-generation families and dog owners.
+**Coming soon** (not in this submission): measuring room sizes from listing photos and floor plans (finding windows in a room photo you add is in, with SAM 3.1), household agents on Spark Open, a field study with real residents, life events such as elevator waits and noise between floors, and scenarios for remote workers, three-generation families and dog owners.
 
 <details>
 <summary><b>Example output</b> (demo couple; inputs are placeholders)</summary>

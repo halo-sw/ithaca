@@ -18,7 +18,7 @@
 
 <p align="center"><a href="https://github.com/halo-sw/ithaca/releases/download/demo-v9/ithaca-hackathon-final-en.mp4"><img src="briefs/img/demo-video-thumb.jpg" width="720" alt="Ithaca: Before you sign, live the next 30 days"></a><br><sub>▶ <a href="https://github.com/halo-sw/ithaca/releases/download/demo-v9/ithaca-hackathon-final-en.mp4"><b>최종 데모</b></a> (2분 53초, 영어 음성·자막) · 검토한 판교 커플 한 실행 · 별도 4인 가족 · <a href="https://github.com/halo-sw/ithaca/releases/tag/demo-v9">영상·근거</a></sub></p>
 
-<p align="center"><b>Meta AI로 만들었어요:</b> Meta Model API (<code>api.meta.ai</code>) · Muse Spark 1.3 · Muse Spark Open · Muse Code · Muse Voice</p>
+<p align="center"><b>Meta AI로 만들었어요:</b> Meta Model API (<code>api.meta.ai</code>) · Muse Spark 1.3 · Muse Spark Open · Muse Code · Muse Voice · Muse Image · SAM 3.1</p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Muse_Spark-1.3-0072f1?style=flat-square&logo=data%3Aimage%2Fpng%3Bbase64%2CiVBORw0KGgoAAAANSUhEUgAAACgAAAAbCAYAAAAOEM1uAAAEf0lEQVR42rWXW2iXdRjHv7%2F%2Ff3MOyVJbLMPoAMrWqjmIpBhddWO7KYsiiqDDtLsgC0woo912uqi0sAzpBNqsboKKohhIlBiVItNdRB6Zmk5qzv%2F7frro%2BcXTs%2Fe%2FUdgPXp7f%2B77P%2BfR7flLFAuoGLwbeAA4Do8Dt9r3WjMb2qQrnvKzMGLgK%2BIl%2FrtPAZVHJsF%2Bk%2F2s55S4B9ptS5wK803BaAs2twG7gOPA5cOV59aQxqwOtwNdBKYAGUAL3ZAWBmtH1AH8YXmnwnRj6%2F7Ja3L6eUmoAr0nql3Qu%2FJekJOm38I6kTZLmGk322DWSlFIqKqKU6VL8r1mKYtB5rgweybDPcOcYfCB4uzD4Q7MU%2Brehzcr1ApMWyoYJ%2BdaqN68zQGcWBswHfjXlC5cKADtz6oRcvRZ4H%2FgKeNTjNFUQaAN%2BdJ4oTJkBS%2Fq89ufcM9qhkJ9ewc%2BcIRn%2FeuBk6Ax3zZSrNcuBpyT1SGpYftQkrZd0UNJCyy1J%2BiWl1PiLH5dLekxSaTTZCxg8kWVISkC7pPckXSRpStJZo13p8nm6gkCPpCecoLqkPSmll61YJCkn8pglPpI2SJpndDVJ%2BxwPSRp3xZed0GVOmGNyao535apJek5Su7O8lDRo%2B96AP2ZtpVfS%2Fca8bp7%2BJAg8anAKWCpprcP368xsCq40qxpG%2FFJKacT%2BL3V4kjRq3nvWWlBOibckTTgDJemI8%2Fbz1oaq1kRVtf%2Bdk8ABl7C7gXbz0jzgUGgdVwPdrhgKYAroBN6172cN5nN7oKKQfFtaW3UyeW17gQ%2BBLcBi931ZYHrKTplhe580uNXwdwXBN5qhe4KRRwPeoD%2BZbN8N9DdrO9mS24zBlMERYIXreYUZ0GXMD4b2sRB4yHm1NCM2B0%2FfbfLaDD7iZG6u5Xjb40t9WcipA1btyR1pO1JKeyVdKmmBoz1m7WkoH2n2bKhoJ6dcMV0naaOkVpP74EwefD14cJeFtXTe67Mw3hDC%2BD3waqD%2FzvjuDCG%2B2Xgk4BtHUwKjM41cX4aTgfC%2B3dEMhH8ngN9NSP52iykx5owpgeXGY3UoPoB100auPAgERriBIedfn8NfUzGeeYU%2FMrwFwLFQyYuBRWZU4QaVMWB%2BM%2B8tqZjvvMDhkNhDQcHSGTNphZSAKxxfgAnrDFsd%2Fyzjjpkmm5sqlMN5b7kJzCPXliYDLsALjn9PiMrPwH0OP9PvqBwgXIHcO4PAD9wUlD3%2BacDJhhyxsGbD%2BwPeYcPxuXfcwl4Dai1Njp8l0bnWHqYkPe3aUT6%2FO8JEUtpRuD6ldNJSoZB0QeDb6fhgR%2B3qlNIhoJ5SKppNuB3hvWF9b2NKaZ%2Fty5QSQKukCx1uYcqNSHrTvJcHiDZnlFesYTQvppS2AS35KjDbCF5YU261ieUZC2sZhLQYbh4eGpLW2KCAU2rc3UdwMlolfSzp8WBQ0yLpD8UxDqyouANn%2FLcD%2FsPhf27E7W5y92sYmJtvibNePw2uArYDm4DuqknDCe4AXgG2AauqKtAVVBfwhfXDvcCTTuY05f4Eau6o08a%2ByYgAAAAASUVORK5CYII%3D" alt="Muse Spark 1.3">
@@ -139,9 +139,10 @@
 | <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark Open** | 상단 모델 전환으로 대화에서 바로 실행, 1.3과 139곳 중 120곳 같은 선택 | [`providers.js`](web/src/judge/providers.js) · [실제 호출 3건](docs/evidence/muse-spark-open-2026-10-31.json) · [비교](docs/model-comparison.ko.md) |
 | <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Code** | 단계별 지시서로 제품 코드와 테스트를 모두 작성 | [`briefs/`](briefs/) |
 | <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Voice Transcribe 1.0** | 글 대신 말로 입력(한국어·영어) | [`voice.js`](web/src/consult/voice.js) |
-| SAM 3.1 | 매물 사진에서 창문 면적 | *준비 중* |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Image 1.0** | 30일 일기의 한 장면을 정해진 장면 목록에서 골라 그려요. 실제 장소 사진이 아니라는 표시가 늘 붙어요 | [`diary-image.js`](web/src/consult/diary-image.js) · [실제 호출 2건](docs/evidence/muse-image-2026-11-03.json) |
+| **SAM 3.1** | 내가 올린 방 사진에서 창을 찾아요. 받은 상자로 개수와 사진 속 비율은 코드가 계산해요. Ithaca는 사진을 저장하지 않아요 | [`windows.js`](web/src/consult/windows.js) · [실제 호출 1건](docs/evidence/sam-3.1-2026-11-03.json) |
 
-엔드포인트: Meta `https://api.meta.ai/v1` (`muse-spark-1.3`, `muse-voice-transcribe-1.0`) · Baseten `https://inference.baseten.co/v1` (`meta-models/muse-spark-open-1026`).
+엔드포인트: Meta `https://api.meta.ai/v1` (`muse-spark-1.3`, `muse-voice-transcribe-1.0`, `muse-image-1.0`, `sam-3.1`) · Baseten `https://inference.baseten.co/v1` (`meta-models/muse-spark-open-1026`).
 
 서버 키는 `META_API_KEY`에서 읽어요(`MODEL_API_KEY`도 대신 쓸 수 있어요). 기본 주소는 [`providers.js`](web/src/judge/providers.js)의 상수 `META_API_BASE`, `BASETEN_API_BASE`이고, [`relay/handler.js`](relay/handler.js)도 같은 상수를 내보내요.
 
@@ -264,7 +265,7 @@ cd web && META_API_KEY=... npm run dev
 - 성남시 범죄 통계는 시 단위이고 서울은 구 단위예요. 숫자마다 단위를 함께 보여 줘요.
 - 공공주택 공고 API에는 마감일 항목이 없어서 "최근 공고"로 보여 주고 원문 링크를 달아요.
 
-**후속 작업:** 실제 거주자 비교, 매물 사진의 방·창 측정, 검증된 학교 배정 자료, 엘리베이터 대기·층간소음 같은 사건이에요. 현재 시연한 기능으로 주장하지 않아요. Spark Open 선택과 복합 가구 생활 계획은 제품에 있으며, 주 데모의 한 달은 Spark 1.3으로 실행했어요.
+**후속 작업:** 실제 거주자 비교, 매물 사진·도면의 방 크기 측정, 검증된 학교 배정 자료, 엘리베이터 대기·층간소음 같은 사건이에요. 현재 시연한 기능으로 주장하지 않아요. Spark Open 선택과 복합 가구 생활 계획은 제품에 있으며, 주 데모의 한 달은 Spark 1.3으로 실행했어요.
 
 ## 더 보기
 
