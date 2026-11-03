@@ -1,293 +1,160 @@
 <p align="center"><img src="briefs/img/ithaca-banner.png" width="100%" alt="Ithaca — The Pre-living Agent for Your Next Home"></p>
 
-**문제.** 집은 사진 몇 장과 한 번의 집 구경으로 정하고, 그 집이 우리 생활에 맞는지는 이사한 뒤에야 알게 돼요. 미국 주택 소유자의 45%는 지금 집을 산 것에 후회가 하나 이상 있다고 답했어요([Bankrate, 2025년 5월](https://www.bankrate.com/press-releases/nearly-half-of-homeowners-have-at-least-one-regret-about-the-purchase-of-their-current-home/)). 한국에서는 2023년 6월 전세사기피해자법 시행 이후 피해자로 인정된 사례가 41,559건이고, 인정된 임차인의 75.9%가 40세 미만이에요([헤럴드경제, 2026-10-11](https://www.heraldk.com/article/2026101114382405541)).
+# Ithaca
 
-**누구를 위한 건가요.** 첫 집을 구하는 사회초년생, 결혼을 앞둔 커플, 두 집 사이에서 고민하는 어린 자녀를 둔 가족, 살아 본 적 없는 도시로 옮기는 새 입사자예요.
+**계약하기 전에, 그 집에서의 30일을 먼저 살아 보세요.**
 
-**Ithaca가 하는 일.** 우리 가족을 닮은 AI 가족이 후보 집마다 30일을 먼저 살아 봐요. 하루하루의 선택은 Muse Spark가 지도에 있는 선택지 중에서 하고, 경로·시간·비용은 코드가 계산해요. 리포트의 모든 문장은 보여 주기 전에 검사해요.
-
-| 잰 것 | 기준(매물식 계산) | Ithaca | 근거 |
-|---|---|---|---|
-| 편도 출퇴근, Meta 본사 후보 5곳(기차 구간이 없는 1곳은 뺐어요) | 5.1–18.1분: 역까지 직선거리를 분속 80m로 걸은 시간 + 시간표상 탑승 시간 | 문에서 문까지 33.4–44.1분, 평균 +28.7분. 차이는 대부분 멘로파크역에서 본사까지 마지막 구간(자전거로 약 22분)과 열차 대기(3.8–7.5분)예요 | [출퇴근 비교](docs/baseline-commute.ko.md) |
-| 편도 출퇴근, 판교 후보 12곳 | 2.9–50.0분 | 4.8–52.2분, 평균 +1.0분. 시나리오가 직장을 판교역에 두었고, 한국은 승강장 대기를 아직 계산하지 않아요 | [출퇴근 비교](docs/baseline-commute.ko.md) |
-| 리포트 속 숫자 | — | 숫자마다 엔진 값과 대조해요. 틀린 리포트는 Muse에게 최대 3번 돌려보내고, 그래도 안 되면 확인할 질문이 사용자에게 가요 | [검증](docs/verification.ko.md) |
-
-**▶ [최종 데모(2분 53초, 영어)](https://github.com/halo-sw/ithaca/releases/download/demo-v9/ithaca-hackathon-final-en.mp4)** · **[바로 써 보기](https://halo-sw.github.io/ithaca/?lang=ko)** · [기록된 한 달, 키 없이 보기](https://halo-sw.github.io/ithaca/?replay=seoul-couple&lang=ko) · [English README](README.md) · 해커톤 기간에 만들었어요. 첫 커밋은 2026-10-28이에요.
-
-> 상태(2026-11-03): 해커톤 출품작이에요. 해커톤 기간은 2026-10-27 → 11-05이고, 그 전에 만든 코드는 없어요. *준비 중*이라고 적힌 항목은 아직 만들지 않았어요. 다음 단계는 거주자 10–20명이 실제로 겪은 것과 시뮬레이션한 한 달을 비교하는 현장 연구예요.
-
-<p align="center"><a href="https://github.com/halo-sw/ithaca/releases/download/demo-v9/ithaca-hackathon-final-en.mp4"><img src="briefs/img/demo-video-thumb.jpg" width="720" alt="Ithaca: Before you sign, live the next 30 days"></a><br><sub>▶ <a href="https://github.com/halo-sw/ithaca/releases/download/demo-v9/ithaca-hackathon-final-en.mp4"><b>최종 데모</b></a> (2분 53초, 영어 음성·자막) · 검토한 판교 커플 한 실행 · 별도 4인 가족 · <a href="https://github.com/halo-sw/ithaca/releases/tag/demo-v9">영상·근거</a></sub></p>
+[2026년 10월 28일](https://github.com/halo-sw/ithaca/commit/7fec53140d26cc100392126fa76029909c0ff1a3)부터 **Halo가 혼자** 처음부터 만들었어요. **Meta Hackathon 2026** 출품작이고, 트랙은 **Indie Developer**, 문제 주제는 **Build for Your World**예요.
 
 <p align="center"><b>Meta AI로 만들었어요:</b> Meta Model API (<code>api.meta.ai</code>) · Muse Spark 1.3 · Muse Spark Open · Muse Code · Muse Voice · Muse Image · SAM 3.1</p>
 
 <p align="center">
+  <a href="https://halo-sw.github.io/ithaca/?lang=ko"><img src="https://img.shields.io/badge/바로_써_보기-LIVE-1a56db?style=for-the-badge" alt="바로 써 보기"></a>
+  &nbsp;
+  <a href="https://github.com/halo-sw/ithaca/releases/download/demo-v9/ithaca-hackathon-final-en.mp4"><img src="https://img.shields.io/badge/데모_영상-2:53_·_영어-1a56db?style=for-the-badge" alt="공개 데모 영상 보기, 2분 53초, 영어"></a>
+  &nbsp;
+  <a href="https://halo-sw.github.io/ithaca/?replay=seoul-couple&lang=ko"><img src="https://img.shields.io/badge/기록된_한_달-키_없이_보기-1a56db?style=for-the-badge" alt="기록된 한 달 보기, 키 필요 없음"></a>
+  &nbsp;
+  <a href="README.md"><img src="https://img.shields.io/badge/English-README-e8f0fe?style=for-the-badge&labelColor=1a56db" alt="English README"></a>
+  <br><sub>공개 데모는 9번째 수정본이에요. 영어 합성 내레이션과 자막이 있어요.</sub>
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/Muse_Spark-1.3-0072f1?style=flat-square&logo=data%3Aimage%2Fpng%3Bbase64%2CiVBORw0KGgoAAAANSUhEUgAAACgAAAAbCAYAAAAOEM1uAAAEf0lEQVR42rWXW2iXdRjHv7%2F%2Ff3MOyVJbLMPoAMrWqjmIpBhddWO7KYsiiqDDtLsgC0woo912uqi0sAzpBNqsboKKohhIlBiVItNdRB6Zmk5qzv%2F7frro%2BcXTs%2Fe%2FUdgPXp7f%2B77P%2BfR7flLFAuoGLwbeAA4Do8Dt9r3WjMb2qQrnvKzMGLgK%2BIl%2FrtPAZVHJsF%2Bk%2F2s55S4B9ptS5wK803BaAs2twG7gOPA5cOV59aQxqwOtwNdBKYAGUAL3ZAWBmtH1AH8YXmnwnRj6%2F7Ja3L6eUmoAr0nql3Qu%2FJekJOm38I6kTZLmGk322DWSlFIqKqKU6VL8r1mKYtB5rgweybDPcOcYfCB4uzD4Q7MU%2Brehzcr1ApMWyoYJ%2BdaqN68zQGcWBswHfjXlC5cKADtz6oRcvRZ4H%2FgKeNTjNFUQaAN%2BdJ4oTJkBS%2Fq89ufcM9qhkJ9ewc%2BcIRn%2FeuBk6Ax3zZSrNcuBpyT1SGpYftQkrZd0UNJCyy1J%2BiWl1PiLH5dLekxSaTTZCxg8kWVISkC7pPckXSRpStJZo13p8nm6gkCPpCecoLqkPSmll61YJCkn8pglPpI2SJpndDVJ%2BxwPSRp3xZed0GVOmGNyao535apJek5Su7O8lDRo%2B96AP2ZtpVfS%2Fca8bp7%2BJAg8anAKWCpprcP368xsCq40qxpG%2FFJKacT%2BL3V4kjRq3nvWWlBOibckTTgDJemI8%2Fbz1oaq1kRVtf%2Bdk8ABl7C7gXbz0jzgUGgdVwPdrhgKYAroBN6172cN5nN7oKKQfFtaW3UyeW17gQ%2BBLcBi931ZYHrKTplhe580uNXwdwXBN5qhe4KRRwPeoD%2BZbN8N9DdrO9mS24zBlMERYIXreYUZ0GXMD4b2sRB4yHm1NCM2B0%2FfbfLaDD7iZG6u5Xjb40t9WcipA1btyR1pO1JKeyVdKmmBoz1m7WkoH2n2bKhoJ6dcMV0naaOkVpP74EwefD14cJeFtXTe67Mw3hDC%2BD3waqD%2FzvjuDCG%2B2Xgk4BtHUwKjM41cX4aTgfC%2B3dEMhH8ngN9NSP52iykx5owpgeXGY3UoPoB100auPAgERriBIedfn8NfUzGeeYU%2FMrwFwLFQyYuBRWZU4QaVMWB%2BM%2B8tqZjvvMDhkNhDQcHSGTNphZSAKxxfgAnrDFsd%2Fyzjjpkmm5sqlMN5b7kJzCPXliYDLsALjn9PiMrPwH0OP9PvqBwgXIHcO4PAD9wUlD3%2BacDJhhyxsGbD%2BwPeYcPxuXfcwl4Dai1Njp8l0bnWHqYkPe3aUT6%2FO8JEUtpRuD6ldNJSoZB0QeDb6fhgR%2B3qlNIhoJ5SKppNuB3hvWF9b2NKaZ%2Fty5QSQKukCx1uYcqNSHrTvJcHiDZnlFesYTQvppS2AS35KjDbCF5YU261ieUZC2sZhLQYbh4eGpLW2KCAU2rc3UdwMlolfSzp8WBQ0yLpD8UxDqyouANn%2FLcD%2FsPhf27E7W5y92sYmJtvibNePw2uArYDm4DuqknDCe4AXgG2AauqKtAVVBfwhfXDvcCTTuY05f4Eau6o08a%2ByYgAAAAASUVORK5CYII%3D" alt="Muse Spark 1.3">
   <img src="https://img.shields.io/badge/code_written_by-Muse_Code-0072f1?style=flat-square&logo=data%3Aimage%2Fpng%3Bbase64%2CiVBORw0KGgoAAAANSUhEUgAAACgAAAAbCAYAAAAOEM1uAAAEf0lEQVR42rWXW2iXdRjHv7%2F%2Ff3MOyVJbLMPoAMrWqjmIpBhddWO7KYsiiqDDtLsgC0woo912uqi0sAzpBNqsboKKohhIlBiVItNdRB6Zmk5qzv%2F7frro%2BcXTs%2Fe%2FUdgPXp7f%2B77P%2BfR7flLFAuoGLwbeAA4Do8Dt9r3WjMb2qQrnvKzMGLgK%2BIl%2FrtPAZVHJsF%2Bk%2F2s55S4B9ptS5wK803BaAs2twG7gOPA5cOV59aQxqwOtwNdBKYAGUAL3ZAWBmtH1AH8YXmnwnRj6%2F7Ja3L6eUmoAr0nql3Qu%2FJekJOm38I6kTZLmGk322DWSlFIqKqKU6VL8r1mKYtB5rgweybDPcOcYfCB4uzD4Q7MU%2Brehzcr1ApMWyoYJ%2BdaqN68zQGcWBswHfjXlC5cKADtz6oRcvRZ4H%2FgKeNTjNFUQaAN%2BdJ4oTJkBS%2Fq89ufcM9qhkJ9ewc%2BcIRn%2FeuBk6Ax3zZSrNcuBpyT1SGpYftQkrZd0UNJCyy1J%2BiWl1PiLH5dLekxSaTTZCxg8kWVISkC7pPckXSRpStJZo13p8nm6gkCPpCecoLqkPSmll61YJCkn8pglPpI2SJpndDVJ%2BxwPSRp3xZed0GVOmGNyao535apJek5Su7O8lDRo%2B96AP2ZtpVfS%2Fca8bp7%2BJAg8anAKWCpprcP368xsCq40qxpG%2FFJKacT%2BL3V4kjRq3nvWWlBOibckTTgDJemI8%2Fbz1oaq1kRVtf%2Bdk8ABl7C7gXbz0jzgUGgdVwPdrhgKYAroBN6172cN5nN7oKKQfFtaW3UyeW17gQ%2BBLcBi931ZYHrKTplhe580uNXwdwXBN5qhe4KRRwPeoD%2BZbN8N9DdrO9mS24zBlMERYIXreYUZ0GXMD4b2sRB4yHm1NCM2B0%2FfbfLaDD7iZG6u5Xjb40t9WcipA1btyR1pO1JKeyVdKmmBoz1m7WkoH2n2bKhoJ6dcMV0naaOkVpP74EwefD14cJeFtXTe67Mw3hDC%2BD3waqD%2FzvjuDCG%2B2Xgk4BtHUwKjM41cX4aTgfC%2B3dEMhH8ngN9NSP52iykx5owpgeXGY3UoPoB100auPAgERriBIedfn8NfUzGeeYU%2FMrwFwLFQyYuBRWZU4QaVMWB%2BM%2B8tqZjvvMDhkNhDQcHSGTNphZSAKxxfgAnrDFsd%2Fyzjjpkmm5sqlMN5b7kJzCPXliYDLsALjn9PiMrPwH0OP9PvqBwgXIHcO4PAD9wUlD3%2BacDJhhyxsGbD%2BwPeYcPxuXfcwl4Dai1Njp8l0bnWHqYkPe3aUT6%2FO8JEUtpRuD6ldNJSoZB0QeDb6fhgR%2B3qlNIhoJ5SKppNuB3hvWF9b2NKaZ%2Fty5QSQKukCx1uYcqNSHrTvJcHiDZnlFesYTQvppS2AS35KjDbCF5YU261ieUZC2sZhLQYbh4eGpLW2KCAU2rc3UdwMlolfSzp8WBQ0yLpD8UxDqyouANn%2FLcD%2FsPhf27E7W5y92sYmJtvibNePw2uArYDm4DuqknDCe4AXgG2AauqKtAVVBfwhfXDvcCTTuY05f4Eau6o08a%2ByYgAAAAASUVORK5CYII%3D" alt="제품 코드는 모두 Muse Code가 작성">
-  <img src="https://img.shields.io/badge/tests-3655_JS_CI_passed_·_42_skipped-1a56db?style=flat-square" alt="PR 40 CI: JavaScript 테스트 3,655개 통과, 픽스처가 필요한 42개 건너뜀">
+  <img src="https://img.shields.io/badge/tests-3764_JS_CI_passed_·_42_skipped-1a56db?style=flat-square" alt="main CI(2026-11-03): JavaScript 테스트 3,764개 통과, 실패 0개, 42개 건너뜀">
   <a href="https://github.com/halo-sw/ithaca/actions/workflows/ci.yml"><img src="https://github.com/halo-sw/ithaca/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-1a56db?style=flat-square" alt="MIT 라이선스"></a>
 </p>
 
 <p align="center">
-  <a href="#무엇인가요">무엇인가요</a> ·
-  <a href="#써-보기">써 보기</a> ·
-  <a href="#meta로-만들었어요">Meta로 만들었어요</a> ·
-  <a href="#숫자를-믿을-수-있는-이유">숫자를 믿을 수 있는 이유</a> ·
-  <a href="#갤러리">갤러리</a> ·
-  <a href="#내-컴퓨터에서-실행">내 컴퓨터에서 실행</a> ·
-  <a href="#한계">한계</a> ·
-  <a href="#더-보기">더 보기</a>
+  <a href="#1-프로젝트-소개">소개</a> ·
+  <a href="#2-서비스-요약">요약</a> ·
+  <a href="#3-문제-정의">문제</a> ·
+  <a href="#4-muse-에이전트가-일하는-방식">Muse&nbsp;에이전트가&nbsp;일하는&nbsp;방식</a> ·
+  <a href="#모델이-도는-곳">모델이&nbsp;도는&nbsp;곳</a> ·
+  <a href="#5-주요-서비스-흐름">서비스&nbsp;흐름</a> ·
+  <a href="#6-결론">결론</a> ·
+  <a href="#7-기대-효과와-다음-단계">다음&nbsp;단계</a>
 </p>
 
-## 최신 실행과 최종 영상
+## 1. 프로젝트 소개
 
-**[최종 2분 53초 영어 데모](https://github.com/halo-sw/ithaca/releases/download/demo-v9/ithaca-hackathon-final-en.mp4)** · [같은 한 달 기록 재생](https://halo-sw.github.io/ithaca/?replay=pangyo-reviewed-month&lang=en) · [영상·근거 릴리스](https://github.com/halo-sw/ithaca/releases/tag/demo-v9)
+Ithaca는 집을 정하기 전에, 그 집이 우리 가족의 일상에 어떻게 맞을지 알아볼 수 있게 도와줘요. 함께 사는 사람, 일정, 예산, 선호를 알려 주고, Muse가 제안한 플랜을 검토한 뒤, 후보 집 두 곳에서 시뮬레이션한 30일을 비교해요.
 
-판교 예시 커플의 한 실행 `cmw0nibca873f`를 입력부터 결과까지 따라가요. 평균 편도 통근은 **4.8분 대 23.9분**, 가정한 대출·관리비와 기록된 교통비를 합친 월 비용은 **₩509,790 대 ₩1,023,917**예요. 가격 참조의 실거래 면적 구간은 **25–35 대 55–65m²**이며, 실제 매물의 정확한 전용면적이나 호가가 아니에요.
+결과는 사람마다의 루틴을 경로, 시간, 비용, 기록된 선택과 이어서 보여 줘요. 근거를 열어 보고 이동 과정을 3D로 따라가 본 다음, 실제 집 구경에서 무엇을 확인할지 정할 수 있어요.
 
-기록에는 **Muse 선택 133개와 명시된 기본 규칙 대체 2개**가 있어요. 저장된 보고서 상태는 **pass**예요. 실패 장면을 연출하거나 다른 가구 결과를 섞지 않았어요. 4인 가족 확장은 별도 실행 `cmw0opz1800db`이며 초등·중등 지도 경로를 가정해요. A 집의 중학교 경로는 데이터에 없어 22일을 이용 불가로 남겼으며, B 집에는 두 학교급 경로가 있어요. 학교 배정·통학구역은 추론하지 않아요.
+## 2. 서비스 요약
 
-[입력·수치 정의·실제 결과·한계](docs/recording-v9.md) · [근거 목록](docs/evidence/recording-v9.json) · [검토 가능한 생활 계획과 30일의 이유](docs/household-planning.md). 공개 웹과 API를 배포한 뒤 녹화했어요. 아래 갤러리는 따로 표시된 과거 예시예요.
-
-## 무엇인가요
-
-**문제.** 몇 년을 살 집을 살아 보지 않고 정해요. 집은 대부분의 사람에게 인생에서 가장 큰 구매인데, 사진 몇 장과 한 번의 집 구경으로 정해요. 한국만의 문제도 아니에요.
-
-- **한국: 같은 문제에 서두름과 전세사기가 더해져요.** 2025년 6월 서울 아파트값은 한 주에 0.43% 올라 주간 기준 6년 9개월 만에 가장 크게 올랐어요(한국부동산원, [뉴시스](https://www.newsis.com/view/NISX20250627_0003230658)). 2023년 6월 전세사기피해자법 시행 이후 **피해자로 공식 인정된 사례는 누적 41,559건이고, 인정된 임차인의 75.9%가 40세 미만**(30대 50.7%, 20대 25.2%)이에요. 97.7%는 보증금 3억 원 이하예요(국토교통부 자료, [헤럴드경제, 2026-10-11](https://www.heraldk.com/article/2026101114382405541)).
-- **미국: 살아 보고 나서야 알아요.** 미국 주택 소유자의 45%가 지금 집을 산 것에 후회가 하나 이상 있어요. 이유는 예상보다 큰 유지비와 숨은 비용 42%, 너무 작은 집 21%, 높은 대출 상환금 16%, 나쁜 위치 14% 순이에요([Bankrate, 2025년 5월](https://www.bankrate.com/press-releases/nearly-half-of-homeowners-have-at-least-one-regret-about-the-purchase-of-their-current-home/)). 최근 1년 안에 집을 산 사람 중 Z세대는 후회가 없는 비율이 27%뿐이고, 젊은 세대일수록 통근 거리와 동네를 더 후회해요([Realtor.com, 2025년 11월](https://www.stocktitan.net/news/NWS/realtor-com-as-market-cools-buyer-regret-does-grzvemhi8uiu.html)). 세입자는 집 구경조차 건너뛰기도 해요. 41%가 집을 직접 보지 않고 계약할 의향이 있어요([Apartments.com, 2025년 2분기](https://www.apartments.com/grow/learning-center/renter-search-survey-q2-2025)). 반대로 미국 시장은 느려졌고(2025년 10월 매물이 시장에 머무는 기간 중앙값 63일, 같은 Realtor.com 조사) 후회도 그만큼 줄었어요. 그래서 미국의 문제는 서두름이 아니라 살아 보지 않고 정한다는 점이에요.
-
-30일 생활 시뮬레이션이 전세사기를 막지는 못해요. 피해는 주로 다세대(28.3%), 오피스텔(21.0%), 다가구(18.8%) 임차인에게서 일어나요. Ithaca는 계약 전에 위험을 미리 보게 도와요. 전세 경고 신호를 출퇴근, 돈, 30일 기록과 나란히 보여 줘요.
-
-**누구를 위한 건가요.** 첫 집을 구하는 사회초년생, 결혼을 앞둔 커플, 두 집 사이에서 고민하는 어린 자녀를 둔 가족, 그리고 살아 본 적 없는 도시로 옮기는 새 입사자예요. Caltrain 축에서 집을 찾는 Meta 신입이 그 예예요.
-
-**Ithaca가 하는 일.** Muse가 구성원별 출근·재택·등교·심부름·선호를 검토 가능한 생활 계획으로 만들어요. 확인한 계획으로 **후보 두 집에서 30일을 비교**하면서, 지도에 있는 선택지 중 무엇을 고르는지 이유와 함께 저장해요. 경로·시간·비용은 코드가 계산해요. 결과에서 특정 선택을 열어 그 순간을 3D로 따라갈 수 있어요. 고정 일정과 배경 주민은 규칙으로 처리하고, 실제 모델 선택과 기본 규칙 대체는 구분해서 표시해요. 목적은 계약 전에 직접 확인할 차이를 찾는 것이에요. [생활 계획과 30일의 이유](docs/household-planning.md).
-
-**측정한 것.**
-
-| 주장 | 결과 | 근거 |
-| --- | --- | --- |
-| 리포트의 숫자는 모델이 아니라 엔진에서 나와요 | 리포트 문장의 숫자는 모두 엔진 값과 대조해요. 숫자가 틀리거나 근거 기록이 없는 문장은 반려되고, 고객이 보기 전에 다시 써요(최대 3번) | [검증](docs/verification.ko.md) |
-| 리포트는 고객이 보기 전에 검증해요 | 기록된 서울 신혼부부 실행 한 건에서 첫 시도에 체크리스트 커버리지 100%로 통과했어요. 현실 정확도나 다음 실행의 통과 보장이 아니에요 | [검증](docs/verification.ko.md) |
-| 오픈 웨이트 모델도 같은 선택을 해요 | 두 모델이 같이 만난 결정 139번 중 120번(86%) Muse Spark Open이 Muse Spark 1.3과 같은 선택을 했어요 | [모델 비교](docs/model-comparison.md) |
-
-**해커톤 기간에 만들었어요.** 첫 커밋은 2026-10-28이에요. 제품 코드는 [`briefs/`](briefs/)의 단계별 지시서로 Muse Code가 한 줄도 빠짐없이 썼어요.
-
-**지금 되는 곳.** 서울·경기 동남부 11개 지역(국토교통부 실거래가)과 멘로파크 Meta 본사 주변 Caltrain 노선이에요.
-
-**다섯 단계로 이렇게 작동해요.**
-
-| | 단계 | 일어나는 일 | 상태 |
-|---|---|---|---|
-| 1 | **내 말로 상황 말하기** | "맞벌이 예비부부, 판교 출근, 연봉 6천·5천, 모은 돈 2억, 7억 이하로 50㎡ 이상 집 사기". 상담 에이전트가 이 말을 가족 프로필로 정리해요. 고객이 말한 값에는 "내가 말한 값", 빈칸에는 "물어볼 값"이 붙어요. | 완료(글자·음성 입력) |
-| 2 | **실제 후보 집 받기** | 서울·경기 동남부 11개 지역의 실거래가에서 후보를 찾아요. 이동 시간은 운영사 시간표로 계산해요. 후보는 지하철 노선, 직장, 출퇴근 시간과 함께 지도에 보여요. | 완료 |
-| 3 | **가족이 30일 동안 살아 보기** | Muse가 구성원별 일정·선호를 해석한 플랜을 먼저 보여 줘요. 고객이 가정과 미확인 항목을 확인한 후 같은 시작일·시드로 두 집을 각각 30일 실행해요. 여러 시드의 벤치마크는 별도 실험이며 이 실행과 섞지 않아요. | 완료 |
-| 4 | **보여 주기 전에 리포트 검증하기** | 에이전트가 만든 체크리스트와 리포트를 정답 기준으로 채점해요. 숫자는 엔진 값과 맞아야 하고, 문장마다 시뮬레이션 사건을 근거로 달아야 해요. 통과하지 못하면 최대 3번 에이전트에게 돌려보내고, 그래도 안 되면 고객에게 물어봐요. 시도와 반려 이유는 도는 동안 채팅에 보여요. | 완료(채점기·숫자 검사·Muse 판정자·재시도 루프·검증 과정 화면) |
-| 5 | **근거를 보며 비교하기** | 시간, 피곤한 정도, 매매·전세·월세 비용, 전세 위험 신호, 지원 제도, 공식 치안·교육 통계를 고객이 정한 우선순위로만 비교해요. 집마다 0~100 **내 기준 점수**를 보여 줘요. 고객이 정한 비중으로 계산한 주관적인 점수이고, 계산식은 한 번 누르면 보여요. | 완료 |
-
-<p align="center">
-  <img src="briefs/img/1102-seoul-ko.jpg" width="820" alt="판교에서 둘 다 일하는 예비부부의 한국어 화면: 살 때 한 번에 내는 돈 합계 3억 8,887만 원(내 돈 2억 원), 매달 내는 돈 합계 119만 6,895 원(대출 90만 1,695 원, 관리비 15만 원, 교통비 14만 5,200 원), 살아 봐야 아는 것(해 진 뒤 걸어서 퇴근 A 13번·정자역에서 평균 3분 240m, B 42번·수서역에서 평균 2분 140m, 해 지는 시각 17:25), 오른쪽은 담은 두 집이 있는 지도.">
-</p>
-
-<p align="center"><sub>판교 출근 예비부부가 집을 사는 경우, 한국어 문장 그대로 Muse Spark 1.3이 실행한 화면: 왼쪽은 살 때 한 번에 내는 돈과 매달 내는 돈, "살아 봐야 아는 것", 오른쪽은 담은 두 집. 운영 빌드, 2026-11-02.</sub></p>
-
-**만든 이유.** 저는 Halo이고, 신혼집을 구하고 있었어요. 전세사기 소식에 두 사람의 생활 패턴까지 달라서 집 구하기가 정말 어려웠고, 이직 같은 변화가 생길 때마다 살아 보고 나서야 마주치는 것들이 많았어요. 수면의 질, 출퇴근길 혼잡도, 동네마다의 특성은 미리 알 수 없으니, 계약하기 전에 먼저 시뮬레이션을 돌려 보고 싶었어요.
-
-## 써 보기
-
-나에게 맞는 줄을 고르세요. 링크는 모두 공개 사이트로 열려요. 설치할 것도, 준비할 키도 없어요.
-
-| 이런 걸 하고 싶어요 | 여기서 시작 | 이렇게 돼요 |
-|---|---|---|
-| **먼저 전체를 구경하고 싶어요** | [기록된 한 달 보기](https://halo-sw.github.io/ithaca/?replay=pangyo-reviewed-month&lang=ko) · 영어: [Watch the recorded month](https://halo-sw.github.io/ithaca/?replay=pangyo-reviewed-month&lang=en) | 실제 Muse Spark 1.3 대화를 재생해요. 지도 위 후보, 2곳 담기, 집마다 30일, 대조를 마친 일기까지 나와요. 키나 실시간 모델 없이 재생돼요. |
-| **서울·경기에서 회사 가까운 집을 찾고 싶어요** | [첫 화면](https://halo-sw.github.io/ithaca/?lang=ko)에 한 문장으로 쓰거나 [예시](https://halo-sw.github.io/ithaca/?chat=%ED%8C%90%EA%B5%90%EB%A1%9C+%EC%B6%9C%EA%B7%BC%ED%95%98%EB%8A%94+%EC%8B%A0%EC%9E%85%2C+%EC%97%B0%EB%B4%89+4%EC%B2%9C%2C+%EB%AA%A8%EC%9D%80+%EB%8F%88+5%EC%B2%9C%2C+%EC%A0%84%EC%84%B8+2%EC%96%B5+%EC%9D%B4%ED%95%98&lang=ko)로 시작 | Muse 실시간이에요. 11곳의 실거래로 후보를 찾고, 고른 두 곳에서 30일을 살아 봐요. [단계별 안내 ↓](#처음-써-보기) |
-| **Meta 본사(멘로파크)로 출근해요** | [Meta 본사 출근으로 해 보기](https://halo-sw.github.io/ithaca/?chat=I+work+at+Meta+HQ+in+Menlo+Park.+Two+of+us%2C+rent+up+to+%244%2C500+a+month.&lang=en) | 영어로 Muse 실시간이 돌아요. 1 Hacker Way 근처 실제 아파트, Zillow ZIP 월세 추정, 자전거·걷기 시간이 나와요. |
-| **이미 본 매물이 있어요** | [매물 글 붙여 넣기](https://halo-sw.github.io/ithaca/?chat=&listing=1&lang=ko) → **읽어 보기** | 글에 적힌 값만 읽어요. 그 가격이 지난 1년 실거래 중 어디쯤인지 보여 주고, C집으로 비교에 넣을 수 있어요. |
-| **말로 하고 싶어요** | 입력창의 마이크 | Muse Voice가 말을 받아 입력창에 적어요. 보내기를 눌러야 보내져요. |
-| **동네를 3D로 둘러보고 싶어요** | [둘러보기 투어](https://halo-sw.github.io/ithaca/?mode=sim&scenario=demo-two-homes&tour=demo&lang=ko) | 가족이 하루를 보내는 3D 동네를 따라가요. |
-| **내 컴퓨터에서 돌려 보고 싶어요** | [내 컴퓨터에서 실행 → Docker](#내-컴퓨터에서-실행) | `localhost:8080`에서 같은 앱이 떠요. Meta API 키가 없으면 **규칙 모드**로 돌고, 숫자는 그때도 엔진이 계산해요. |
-| **코드를 고치거나 데이터를 다시 만들고 싶어요** | [내 컴퓨터에서 실행 → 소스에서](#내-컴퓨터에서-실행) | Python 파이프라인, 시뮬레이션 스크립트, Vite 개발 서버를 써요. |
-
-실시간 대화는 하루 Muse 한도를 함께 써요. 한도를 넘거나 중계 서버가 멈추면 머리글에 **규칙 모드**가 뜨고, 대화에서도 알려 줘요.
-
-### 처음 써 보기
-
-1. **한 문장으로 말해요.** 누가 살지, 어디로 출근하는지, 예산을 적어요. 예: *"판교로 출근하는 신입, 연봉 4천, 모은 돈 1억, 4억 이하 집을 사고 싶어"*. 기본은 집을 사는 경우(매매)예요. 전세·월세는 말하면 그걸로 찾아요. 빠진 값은 칩(*누구와?*, *매매가 상한?*)으로 떠요. 눌러서 채우거나 건너뛰면 돼요.
-2. **후보를 봐요.** 카드와 지도 핀에 실거래 중간값과 집에서 회사까지 걸리는 시간이 나와요. 핀과 카드에는 같은 시간이 나와요.
-3. **두 곳을 담아요.** 카드 두 개에서 **담기**를 누르거나 *"1번, 2번 담아 줘"*라고 말해요.
-4. **살아 보게 해요.** *"두 집에서 살아 봐 줘"*라고 말해요. 가족이 집마다 30일을 살고, 확인하는 과정이 대화에 차례로 나와요.
-5. **결과를 읽어요.** 내 기준 점수, 한 달 주거비, 출퇴근 시간이 나란히 나오고, 대조를 마친 일기와 *살아 봐야 아는 것*이 이어져요. 어느 집이 낫다고 정해 주지 않아요. 고르는 건 고객님이에요.
-6. **더 물어봐요.** 예: *"밤 10시 이후 귀가를 보여 줘"*. 내 기준(중요도)을 바꾸거나, 일기 문장이 가리키는 순간을 3D로 열어 볼 수도 있어요.
-
-지금 다루는 곳: 서울 성동 · 송파 · 강남 · 강동 · 위례, 판교 · 성남 · 정자 · 분당 · 미금 · 수지, 그리고 미국 멘로파크예요.
-
-## 에이전트 흐름
-
-대화 한 번이 왼쪽에서 오른쪽으로 이렇게 흘러요. 파란 칸은 Muse Spark, 회색 칸은 코드예요. 점선은 검사에서 걸려 다시 돌려보내는 길이에요.
-
-<p align="center"><img src="briefs/img/agent-workflow-ko.png" width="100%" alt="에이전트 흐름, 왼쪽에서 오른쪽: 고객(한 문장, 한국어·영어·음성) → 중계 서버(키는 서버에만, IP당 하루 무료 3회) → 상담 에이전트(Muse Spark 1.3 또는 Spark Open, 한 턴에 도구 6회까지)와 도구(조건 읽기, 집 찾기, 실거래, 교통) → 가드(숫자는 도구 결과에서만, 걸리면 한 번 다시) → 두 집 × 30일(Muse가 매 이동을 정하고 엔진이 분·원을 계산) → 리포트(Muse가 submit_report로 작성) → 검증(코드가 숫자, Muse 판정이 문장을 검사, 실패하면 최대 3번 돌려보냄) → 고객이 결정(A | B 결과, 일기, 3D)."></p>
-
-코드: [중계 서버](relay/handler.js) · [상담 에이전트](web/src/consult/agent.js) · [도구](web/src/consult/tools.js) · [가드](web/src/consult/guards.js) · [30일 살아 보기](web/src/judge/run.js) · [리포트](web/src/consult/report.js) · [검증](web/src/verify/compare.js). Spark Open이 바쁘면 Spark 1.3이 대신 답하고, 답에 그렇게 표시돼요. 차트 원본: [docs/agent-workflow.ko.mmd](docs/agent-workflow.ko.mmd) (Mermaid).
-
-## Meta로 만들었어요
-
-모델마다 맡은 일이 하나씩이고, 숫자는 모델이 만들지 않아요. Meta API 주소와 키는 [`web/src/judge/providers.js`](web/src/judge/providers.js) 한 곳에서 정해요. 호출은 OpenAI 방식 chat completions를 `fetch`로 하고, 키는 서버 환경 변수에서만 읽어요([`.env.example`](.env.example) 참고).
-
-| 모델 | 여기서 하는 일 | 코드 · 증거 |
-|---|---|---|
-| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark 1.3** | 구성원별 검토 가능한 생활 계획, 실제 일상 선택과 이유, 보고서 작성·의미 검사 | [계획 생성](web/src/consult/life-plan.js) · [실제 일상 선택](web/src/judge/household.js) · [보고서 검사](web/src/verify/compare.js) · [과거 CLI 평가](scenarios/decisions/compare-1029/) |
-| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **판정자 Spark 1.3** | 리포트 문장을 인용한 기록과 대조, 글 쓴 호출과 따로 | [`report.js`](web/src/consult/report.js) · [`compare.js`](web/src/verify/compare.js) · [검증](docs/verification.ko.md) |
-| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark Open** | 상단 모델 전환으로 대화에서 바로 실행, 1.3과 139곳 중 120곳 같은 선택 | [`providers.js`](web/src/judge/providers.js) · [실제 호출 3건](docs/evidence/muse-spark-open-2026-10-31.json) · [비교](docs/model-comparison.ko.md) |
-| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Code** | 단계별 지시서로 제품 코드와 테스트를 모두 작성 | [`briefs/`](briefs/) |
-| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Voice Transcribe 1.0** | 글 대신 말로 입력(한국어·영어) | [`voice.js`](web/src/consult/voice.js) |
-| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Image 1.0** | 30일 일기의 한 장면을 정해진 장면 목록에서 골라 그려요. 실제 장소 사진이 아니라는 표시가 늘 붙어요 | [`diary-image.js`](web/src/consult/diary-image.js) · [실제 호출 2건](docs/evidence/muse-image-2026-11-03.json) |
-| **SAM 3.1** | 내가 올린 방 사진에서 창을 찾아요. 받은 상자로 개수와 사진 속 비율은 코드가 계산해요. Ithaca는 사진을 저장하지 않아요 | [`windows.js`](web/src/consult/windows.js) · [실제 호출 1건](docs/evidence/sam-3.1-2026-11-03.json) |
-
-엔드포인트: Meta `https://api.meta.ai/v1` (`muse-spark-1.3`, `muse-voice-transcribe-1.0`, `muse-image-1.0`, `sam-3.1`) · Baseten `https://inference.baseten.co/v1` (`meta-models/muse-spark-open-1026`).
-
-서버 키는 `META_API_KEY`에서 읽어요(`MODEL_API_KEY`도 대신 쓸 수 있어요). 기본 주소는 [`providers.js`](web/src/judge/providers.js)의 상수 `META_API_BASE`, `BASETEN_API_BASE`이고, [`relay/handler.js`](relay/handler.js)도 같은 상수를 내보내요.
-
-Spark Open은 Baseten이 공개한 그대로 서빙해요. 서빙된 두 모델을 비교했을 뿐, 어느 쪽도 파인튜닝하지 않았어요.
-
-**Spark 1.3과 Spark Open.** 같은 가족으로 돌렸을 때 둘 다 판단 154개에 모두 답했고 가드 대체는 0건이었어요. 같은 판단 지점 139곳 중 120곳(86 %)에서 같은 선택을 했어요. 전체 표: [docs/model-comparison.ko.md](docs/model-comparison.ko.md).
-
-**Muse Code가 썼어요.** 제품 코드, 테스트, 파이프라인 스크립트는 한 줄도 빠짐없이 Muse Code(muse-spark-1.3 에이전트 모드)가 [`briefs/`](briefs/)의 단계별 지시서를 받아 작성했어요. 방향은 사람이 정했고, 화면은 모두 사람이 확인했어요. Claude(Anthropic)는 진행을 도왔어요. 지시서를 쓰고, 테스트를 돌리고, 커밋을 했기 때문에 커밋마다 `Co-Authored-By: Claude` 줄이 붙어 있어요. Muse가 쓰지 않은 파일은 두 종류예요. 영어 문구 표(Claude가 작성)와 검증 기준표(팀이 작성)예요. 자세한 내용은 [AGENTS.md](AGENTS.md)에 있어요.
-
-**코드는 어디 있나요.** 앱·엔진·상담 에이전트는 [`web/src/`](web/src/), 테스트는 [`web/tests/`](web/tests/)에 있어요. 키를 지키는 중계 서버는 [`relay/`](relay/), Python 데이터 파이프라인은 [`pipeline/`](pipeline/), 시나리오와 기록된 실행은 [`scenarios/`](scenarios/)에 있어요. 폴더 구조와 도식: [docs/architecture.ko.md](docs/architecture.ko.md).
-
-## 숫자를 믿을 수 있는 이유
-
-에이전트가 한 일은 고객에게 보여 주기 전에 코드가 검사해요.
-
-| 주장 | 숫자 | 자세히 |
-|---|---|---|
-| 숫자는 모델이 만들지 않아요 | 모든 분·원은 결정적 엔진이 계산하고, 도구 결과에 없는 숫자를 쓴 답은 반려돼요 | [검증](docs/verification.ko.md) |
-| 모델이 바뀌어도 판단이 같아요 | Spark 1.3과 Spark Open이 같은 판단 지점 **139곳 중 120곳(86 %)** 에서 같은 선택 | [모델 비교](docs/model-comparison.ko.md) |
-| 가드가 실제 실행에서 버텨요 | 모델마다 판단 **154개 모두** 답함, 가드 대체 **0건** | [모델 비교](docs/model-comparison.ko.md) |
-| 일기 문장을 검사해요 | 문장마다 실행 기록의 사실을 인용해야 하고, 기록에 없는 숫자는 돌려보내 다시 쓰게 해요. 2026-10-31 실제 영어 실행(판교, 집 2곳): 일기 8문장 모두 기록과 일치(1번 고쳐 씀) | [검증](docs/verification.ko.md) |
-| 테스트 | JavaScript·Python 검사와 프로덕션 빌드, PR과 main 푸시마다 CI | [CI](https://github.com/halo-sw/ithaca/actions/workflows/ci.yml) |
-
-- **들어오는 길은 하나.** 비교 리포트는 `submit_report` 도구로만 고객에게 가요. 채팅 에이전트는 이 도구를 볼 수 없고, 리포트가 통과하거나, 고객이 확인하거나, 미지원으로 표시되기 전에는 `open_panel("result")`가 거절돼요.
-- **통과 기준.** 두 집 모두 실패 0개, *필수* 항목을 모두 다루고, 가중 커버리지 80% 이상(*필수* 3점, *권장* 1점). 통과하지 못하면 실패한 문장마다 한 줄씩 이유를 붙여 최대 3번 Muse에게 돌려보내요. 그래도 안 되면 채팅에 남은 질문과 **확인했어요**, **다시 검증하기** 버튼을 보여 줘요.
-- **모르는 건 모른다고 해요.** 엔진이 아직 근거를 댈 수 없는 항목(소음, 채광, 수납, 하자, 아침 동선)은 미지원으로 보여 주고 통과로 치지 않아요. 구성원의 실제 조건에 해당하는 검사를 조합해요. 학교 목적지 미확인, 돌봄 동행 등 미지원 조건은 그대로 보여 줘요. 의미 판정 호출 실패·누락·형식 오류는 미검증이며 PASS로 바꾸지 않아요. 계산된 사실은 별도로 확인할 수 있어요.
-
-상태: 완료, 화면에도 보여요(채점기·숫자 검사는 16a–16b 단계, `submit_report`·Muse 판정자·두 집 루프·검증 과정 화면은 29j1–29k3 단계). 2026-11-01 실제 실행(서울 신혼부부, 실제 Muse Spark 1.3): 첫 실행은 네 번 만에 통과했고, 반려 이유 덕분에 우리 쪽 버그 3개를 찾았어요(엔진이 모르는 구성원 id, 숫자 없는 문장을 다룸으로 침, 이동 수단이 빠진 걷기 기록을 판정자에게 보냄). 후속 기록 한 건은 첫 시도에 체크리스트 커버리지 100%로 통과했고, 문장마다 엔진이 확인한 숫자나 인용 기록이 붙었어요. 이는 관측된 한 실행이며 현실 정확도나 향후 통과 보장이 아니에요.
-
-검사마다 어떻게 돌아가는지, 도식과 함께: [docs/verification.ko.md](docs/verification.ko.md).
-
-## 갤러리
-
-<table>
-  <tr>
-    <td width="50%"><img src="briefs/img/1031-landing.jpg" alt="랜딩 페이지: 제목 Which home are you weighing?, 입력창 하나, 바로 해 보기 패널(Watch a recorded month, I work at Meta HQ, Try Seoul)과 숫자 세 개 14초·85초·8/8."></td>
-    <td width="50%"><img src="briefs/img/1102-result.jpg" alt="영어 화면의 30일 결과: 백궁 동양파라곤과 수서현대벤처빌, 내 기준 점수 30점·70점, 월 주거비 2,192,000 won·1,197,000 won, 살 때 드는 돈 599,070,000 won·388,870,000 won, 편도 출근 7분·24분, B가 평균 17분 더 걸림. 오른쪽은 회사·판교와 가격 핀 6개."></td>
-  </tr>
-  <tr>
-    <td><sub><b>한 문장으로, 아니면 기록된 한 달로 시작해요.</b> 입력창 하나와 바로 해 보는 세 가지 길(키 없이 재생되는 기록된 한 달, Meta 본사 실시간, 서울 실시간), 그리고 실행에서 나온 숫자(후보 6곳 찾는 데 14초, 두 집 30일 사는 데 85초, 일기 8문장 모두 대조).</sub></td>
-    <td><sub><b>답부터 보여 줘요.</b> 두 집에서 30일씩 산 뒤: 고객이 정한 비중으로 계산한 내 기준 점수(비중을 정하기 전엔 모두 보통), 월 주거비, 편도 출근 시간을 나란히 보여 주고, 그다음 살아 보니 장면과 대조한 일기가 이어져요. 어느 집이 낫다고 말하지 않아요.</sub></td>
-  </tr>
-  <tr>
-    <td><img src="briefs/img/1101-3d.jpg" alt="3D 동네에서 8호선 석촌→복정 구간을 타고 송파대로 아래를 지나는 나를 따라가는 화면: 항공사진 위 노선과 역, 25분 남음, 걷기 7분 측정 + 지하철 20분 가정값 + 환승·기다림 12분 가정값, 9호선·수인·분당선·경강선 혼잡 70%는 가정값, 8호선 혼잡 100%는 서울교통공사 실측."></td>
-    <td><img src="briefs/img/1031-phone.jpg" alt="폰 화면 두 장: Chat 탭(대조한 일기, Only living there tells you, 출처)과 Map & homes 탭(Meta 본사 주변 가격 핀 6개, A 11분·B 12분, See the result)."></td>
-  </tr>
-  <tr>
-    <td><sub><b>한 사람을 따라가요.</b> 건축물대장 자료와 항공사진으로 만든 3D 동네에서 송파나루→석촌→복정→이매→판교로 출근하는 나를 따라가요. 걷기·지하철·환승마다 측정인지 가정값인지 따로 붙고, 혼잡도는 어느 노선이 실측인지 말해요. 집 건물, 경로, 높이가 실제 자료와 얼마나 맞는지는 <a href="docs/3d-fidelity.ko.md">3D 충실도 점검</a>에 있어요.</sub></td>
-    <td><sub><b>폰에서도.</b> 대화와 지도·집 두 탭: 기록과 대조한 일기, "살아 봐야 아는 것"과 출처, 카드와 같은 출근 시간을 보여 주는 지도 핀.</sub></td>
-  </tr>
-  <tr>
-    <td colspan="2"><img src="briefs/img/1102-menlo.jpg" alt="멘로파크 Meta 본사, 헤더에서 Muse Spark Open을 고른 영어 화면: 777 Hamilton 월 $4,261(ZIP 추정)·편도 14분, 124 University Avenue 월 $4,219·33분, B가 평균 19분 더 걸림, 리포트 검증 1차 통과(100%), 문장마다 숫자 확인. 오른쪽은 1일차 08:10 3D 동네."></td>
-  </tr>
-  <tr>
-    <td colspan="2"><sub><b>두 나라, 같은 엔진.</b> 멘로파크 Meta 본사를 오픈 웨이트 모델 Muse Spark Open으로: 30일 결과, 1차에 통과한 리포트 검증, 3D 동네. 운영 빌드, 2026-11-02.</sub></td>
-  </tr>
-</table>
-
-모든 이미지는 2026-10-31~11-01에 실행 중인 앱을 실제 GPU(Apple M4 Max, Metal)로 캡처했고, [`briefs/img/`](briefs/img/)에 있어요.
-
-## 내 컴퓨터에서 실행
-
-**가장 빠른 방법: Docker.** 키가 없어도 돼요.
-
-```bash
-cp .env.example .env    # 선택: 실제 Muse를 쓰려면 META_API_KEY를 채워요 (MODEL_API_KEY도 돼요)
-docker compose up       # 웹 http://localhost:8080, 중계 서버 :8787
-```
-
-- 공개 사이트와 같은 정적 사이트를 만들고, [`data-v1` 릴리스](https://github.com/halo-sw/ithaca/releases/tag/data-v1)의 미리 만든 데이터를 넣어요.
-- 키가 없으면 머리글에 **규칙 모드**가 뜨고, 대화에서도 한 번 알려 줘요. 숫자는 그대로 엔진이 계산해요.
-- 루트에서 `npm test`를 실행하면 JS 테스트가 돌아요.
-
-<details>
-<summary><b>소스에서 직접</b> (Node 20 이상, Python 3.12, 원본 데이터 약 6 GB)</summary>
-
-```bash
-# 1. Python 파이프라인
-python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt
-# data/raw/에 south-korea-latest.osm.pbf(Geofabrik)를,
-# data/raw/buildings/<region>/에 GIS건물통합정보 shapefile을 넣어요 (ATTRIBUTION.md 참고)
-.venv/bin/python -m pipeline build --all
-.venv/bin/python -m pipeline.validate --all
-
-# 2. 시뮬레이션 실행
-cd web && npm install && cd ..
-node web/scripts/simulate.mjs --scenario scenarios/demo-two-homes.json --home both --out data/build/sim/
-node web/scripts/money.mjs   --scenario scenarios/demo-two-homes.json --out data/build/sim/
-
-# 3. 앱 (상담 에이전트와 실시간 판단에는 서버 환경에 Meta API 키가 필요해요)
-cd web && META_API_KEY=... npm run dev
-```
-
-자주 쓰는 주소(`/?mode=sim&scenario=demo-two-homes` 뒤에 붙여요):
-
-| 주소 | 보여 주는 것 |
+| 입력하는 것 | Ithaca가 돌려주는 것 |
 |---|---|
-| `&tour=demo` | 3분 안내 투어 |
-| `&home=A&day=1&t=07:52&follow=1` | 출근길 따라가기 (8호선 구간) |
-| `&tab=money` | 생활비 |
-| `&tab=listings&fill=example` | 매물 확인(예시라고 표시한 예시 포함) |
-| `&tab=money&share=1` | 결과 카드 |
-| `&tab=criteria` | 기준 |
+| 가족 구성원, 직장, 예산, 선호 | 지도 위 후보 집과 과거 실거래 참고 가격 |
+| 고른 집 두 곳과 검토한 루틴 | 같은 가족이 같은 30일을 두 집에서 지낸 시뮬레이션 |
+| 궁금한 점과 우선순위 | 나란히 놓은 비용과 출퇴근, 이유가 저장된 선택, 근거와 연결된 리포트 |
 
-`/`는 대화로 시작하는 첫 화면이고, `/?area=seongsu&shot=3&time=18:30`은 동네 둘러보기예요.
+지금 시나리오는 잠실과 판교를 포함한 서울·경기 일부, 그리고 별도의 멘로파크 / Meta 본사 사례를 다뤄요. 플랜에는 일하는 어른, 재택하는 날, 아이, 나이 든 가족, 반려동물을 함께 넣을 수 있어요. 빠졌거나 아직 지원하지 않는 조건은 숨기지 않고 보여 줘요.
 
-원본 데이터와 빌드 데이터는 커밋하지 않아요. 위 스크립트로 다시 만들 수 있어요. 실거래 CSV, 공공주택 스냅샷, 지하철 혼잡도 파일은 운영자가 직접 받아 로컬에만 둬요. 각 데이터의 이용 조건 때문이에요.
+과거 실거래가는 참고 자료이지, 지금 나와 있는 매물이 아니에요. 미국 월세 입력에는 ZIP 코드 단위 추정값이 들어가요. 출처, 가정, 다루는 범위의 한계도 비교의 일부예요.
 
-</details>
+## 3. 문제 정의
 
-## 한계
+**짧은 집 구경이 긴 약속으로 이어져요.** 처음 집을 사거나 빌리는 사람은 여러 사람의 생활이 함께 굴러가야 하는 곳을 골라야 해요. 사진, 도면, 가격은 집 자체를 보여 주지만, 그 집에서의 매일이 어떨지는 가족이 스스로 따져 봐야 해요.
 
-**일부러 하지 않는 것.** 집값 전망은 하지 않아요(집값 변화는 고객이 고른 시나리오로만, 가정값이라고 표시해요). 사라/사지 말라, 계약하라/하지 말라고 조언하지 않아요. 대출이나 지원 제도를 받을 수 있다고 판정하지 않아요. 특정 집이나 집주인이 "안전/위험"하다고 판정하지 않아요. 치안이나 학교를 하나의 점수로 묶지 않고, 주민 구성을 분석하지 않고, 기본 "최고의 집" 순위를 매기지 않고(점수는 고객이 정한 비중으로 계산한 주관적인 내 기준 점수 하나뿐이에요), 직선거리로 출퇴근 시간을 말하지 않아요. 가정한 값은 가정값이라고 밝혀요. 법률·금융 자문이 아니에요.
+**한국에서는 이 결정이 쫓기듯 이뤄지기 쉬워요.** 하루 종일 동네를 옮겨 다녀도 결국 빨리 정하라는 압박으로 끝날 수 있어요. 커플이라면 두 사람의 출퇴근, 출근하는 날과 재택하는 날, 장보기, 집에서 보내는 시간을 함께 따져야 해요. 가족이라면 통학 경로와 다른 루틴이 더해져요. 잘 맞지 않는 집은 이사한 뒤에도 시간과 돈을 계속 쓰게 만들어요.
 
-**알려진 문제.**
-- 출근·재택·자녀·고령 구성원·반려동물 조건을 조합한 구성원별 생활 계획을 지원해요. 실제 Muse 응답으로 예시 7종의 계획을 확인했으며, 한 달 전체 실행 7건이나 현장 검증을 뜻하지는 않아요. 소음·택배·수납·엘리베이터 대기는 미지원이고, 학교급에 맞춘 지도 경로는 배정 학교·통학구역을 확정하지 않아요.
-- 신분당선은 공개 혼잡도 데이터가 없어서 70%라는 가정값을 밝히고 써요.
-- Apple GPU(ANGLE Metal)에서 `?q=high`가 검게 나와요. 앱이 이를 감지해서 medium으로 바꿔요.
-- 일부 급여 공제율과 보유 비용(취득세, 중개수수료, 재산세…)은 `needs_confirmation`으로 표시돼 있어요. 공식 페이지로 채우기 전까지는 "아직 계산에 넣지 않은 것"에 보여 줘요.
-- 성남시 범죄 통계는 시 단위이고 서울은 구 단위예요. 숫자마다 단위를 함께 보여 줘요.
-- 공공주택 공고 API에는 마감일 항목이 없어서 "최근 공고"로 보여 주고 원문 링크를 달아요.
+**빠진 정보는 가족마다 달라요.** 길찾기 한 번으로는 서로 다른 일정과 반복되는 활동이 한 달 동안 어떻게 쌓이는지 알 수 없어요. Ithaca는 이런 조건을 눈으로 보고 검토할 수 있는 비교로 바꾸고, 집 구경에 가져갈 질문으로 정리해요.
 
-**후속 작업:** 실제 거주자 비교, 매물 사진·도면의 방 크기 측정, 검증된 학교 배정 자료, 엘리베이터 대기·층간소음 같은 사건이에요. 현재 시연한 기능으로 주장하지 않아요. Spark Open 선택과 복합 가구 생활 계획은 제품에 있으며, 주 데모의 한 달은 Spark 1.3으로 실행했어요.
+한국의 공공 실거래 기록, 건물 데이터, 교통 데이터는 쓸모 있는 입력이에요. 하지만 이것만으로 시뮬레이션한 생활이 정확하다고 말할 수는 없어요. 보증금 위험 점검은 별도 기능이에요. 30일 시뮬레이션이 임대차 계약을 보증하거나 전세사기를 막아 주지는 못해요.
 
-## 더 보기
+## 4. Muse 에이전트가 일하는 방식
 
-- [구조](docs/architecture.ko.md): 폴더 구조, 시스템 지도, 채팅 한 번의 흐름, 한 문장에서 검증된 비교까지
-- [기능 자세히](docs/features.ko.md): 제품의 영역별 기능과 그 뒤의 데이터
-- [검증 자세히](docs/verification.ko.md): 체크리스트, 두 가지 검사, 통과 기준, 다시 쓰기 순환
-- [매물식 vs 문에서 문까지 출퇴근](docs/baseline-commute.ko.md): 녹화된 세 실행의 후보 집 전부, 차이와 그 이유
-- [Spark 1.3과 Spark Open](docs/model-comparison.ko.md): 모델 표와 나란히 돌린 결과
-- [작업 기록](docs/build-log.ko.md): 마감까지의 계획, 결과 예시, Muse가 만든 모든 단계
-- [`briefs/`](briefs/): Muse Code 단계마다 지시서 하나와 결과 하나. 규칙은 [`AGENTS.md`](AGENTS.md)
+**Muse는 루틴을 제안하고, 정해진 선택지 안에서 골라요. 그 결과는 코드가 계산해요. 리포트는 저장된 실행 기록과 대조해 검사해요.**
+
+| 역할 | 하는 일 | 확인할 수 있는 방법 |
+|---|---|---|
+| 상담 | Muse가 도구를 써서 가족 정보를 정리하고, 기록된 주택 데이터를 찾아요 | 직접 말한 입력과 빠진 정보를 구분해서 보여 줘요 |
+| 플랜 | Muse가 구성원마다 출근하는 날, 재택하는 날, 볼일, 지원하는 루틴을 제안해요 | 사용자가 가정을 검토해요. **루틴 조정하기**를 누르면 확정 전에 고칠 내용이 Muse에게 다시 가요 |
+| 하루하루의 선택 | 선택할 때가 되면 Muse는 그 사람의 선호, 루틴, 최근 선택, 지도에 있는 선택지를 받아요 | 허용된 선택지 하나와 이유를 돌려줘요. 기록에는 선택지와, 모델이 골랐는지 기본 규칙으로 정했는지가 남아요 |
+| 시뮬레이션 | 브라우저 워커가 정해진 일정을 적용하고 경로, 걸린 시간, 비용을 계산해요 | 값은 엔진과 그 입력에서 나와요. 배경 주민은 규칙을 따라요 |
+| 리포트와 검사 | Muse가 저장된 기록으로 리포트를 쓰고, 코드가 지원하는 숫자와 근거 ID를 검사해요. 별도의 Muse 호출이 검사 대상 문장을 인용된 이벤트와 대조해요 | 틀린 문장은 고치도록 돌려보내요. 의미 검사가 빠지거나 실패하면 **검증 미완료**로 남고, 지원하지 않는 항목은 통과로 세지 않아요 |
+
+**기록된 선택 하나:** 공개된 판교 실행에서, 재택하는 날 배우자의 선택지는 공원 산책과 집에 있기 두 가지였어요. Muse는 공원을 고르고 “저녁 산책 루틴을 즐기기 좋은 시간”이라는 이유를 남겼어요(영어 기록은 “Matches evening park walk routine on remote workday”). 걷는 시간 5.1분은 엔진이 계산했어요. 시뮬레이션에서 관찰한 선택일 뿐, 실제 사람이 그렇게 한다는 근거는 아니에요. [선택, 선택지, 실행 기록(영어)](docs/recording-v9.md#the-choice-shown-in-the-video)
+
+### 모델이 도는 곳
+
+**브라우저**에서는 화면, 3D 재생, 시뮬레이션 워커가 돌아가요. 실행 중 모델 호출은 Vercel(또는 로컬 Docker)의 **중계 서버**가 해요. 서비스 키는 중계 서버의 환경 변수에만 있어요. 사용자가 자기 키를 넣으면, 그 키는 그 사용자의 요청에만 실려 가요.
+
+| 모델 / 도구 | 하는 일 | 도는 곳 | Ithaca가 쓰는 API | 근거 |
+|---|---|---|---|---|
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark 1.3** | 상담, 플랜, 정해진 선택지 안의 선택, 리포트, 별도 근거 검사 | 중계 서버 → Meta Model API | `api.meta.ai/v1/chat/completions` | [모델 호출 코드](web/src/judge/providers.js), [기록된 한 달(영어)](docs/recording-v9.md) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark Open** | 지원하는 텍스트 에이전트 작업에서 고를 수 있는 대안 | 중계 서버 → Baseten 추론 | `inference.baseten.co/v1/chat/completions` | [실제 호출](docs/evidence/muse-spark-open-2026-10-31.json), [비교](docs/model-comparison.ko.md) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Voice Transcribe 1.0** | 말한 내용을 고칠 수 있는 글로 받아 적기 | 브라우저가 녹음, 중계 서버 → Meta | `api.meta.ai/v1/asr/transcribe` | [음성 핸들러](web/src/consult/voice.js) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Image 1.0** | 기록된 활동 하나를 종류, 시간, 지역만으로 그리기 | 중계 서버 → Meta | `api.meta.ai/v1/images/generations` | [핸들러](web/src/consult/diary-image.js), [실제 호출](docs/evidence/muse-image-2026-11-03.json) |
+| **SAM 3.1** | 넣은 방 사진에서 창 상자 찾기 | 브라우저가 사진 준비, 중계 서버 → Meta | `api.meta.ai/v1/responses` | [핸들러](web/src/consult/windows.js), [실제 호출](docs/evidence/sam-3.1-2026-11-03.json) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Code** | 개발 지시문대로 제품 코드, 테스트, 파이프라인 구현 | 개발자 환경, 개발할 때만 | 실행 중에 부르는 엔드포인트 없음 | [지시문](briefs/), [저장소 규칙](AGENTS.md) |
+
+Muse Image가 그린 그림에는 **“Muse Image 일러스트 · 실제 장소 사진이 아니에요”**라는 표시가 붙어요. 집을 찍은 사진이 아니에요. SAM은 창 상자와 그 상자가 사진에서 차지하는 비율만 알려 줘요. 실제 창 크기나 채광 성능은 말하지 않아요. 공개한 호출 기록에는 그림으로 그린 시험용 방을 썼어요. 이 두 기능은 30일 비교의 근거와 별개예요.
+
+앱은 **“Muse가 제안한 플랜”**, **“Muse가 고르는 중”**, 기록된 선택의 출처로 에이전트가 한 일을 보여 줘요. 대표로 공개한 한 달은 **Spark 1.3**으로 돌렸어요. 화면에서 Spark Open을 고를 수 있다고 해서, 그 실행을 Spark Open이 만든 것은 아니에요. 사람과 오케스트레이션이 맡은 일은 방향 잡기, 지시문, 검사, 발표 준비였고, 구현은 Muse Code가 했어요. [전체 구조](docs/architecture.ko.md) · [검증 규칙](docs/verification.ko.md) · [모델 근거(영어)](docs/evidence/README.md)
+
+## 5. 주요 서비스 흐름
+
+1. **가족을 알려 주세요.** 함께 사는 사람, 예산, 가는 곳, 선호를 글로 쓰거나 말로 해요.
+2. **집 두 곳을 골라요.** 후보 집, 실거래 참고 가격, 지도가 다루는 범위를 살펴봐요.
+3. **플랜을 검토하고 고쳐요.** 구성원마다 제안된 루틴을 읽어요. **루틴 조정하기**로 조건을 바꾸고, Muse가 고친 플랜을 검토한 뒤 확정해요.
+4. **한 달을 돌려요.** Muse가 허용된 선택지 중에서 고르고, 그 결과는 코드가 계산해요. 실시간 실행은 몇 분 걸릴 수 있어요. 화면에 진행 상황이 보이고, 기본 규칙으로 대신한 경우도 함께 보여요.
+5. **비교를 살펴봐요.** 비용, 출퇴근, 출처 표시, 실제 리포트 검사 과정을 열어 봐요. 저장된 선택의 이동 과정을 3D로 따라가요.
+6. **실제 집 구경을 준비해요.** 차이점과 남은 질문으로 무엇을 확인할지 정해요. 어떤 집으로 할지는 사용자가 정해요.
+
+**왜 30일인가요?** 약 4주 동안 출근하는 날, 재택하는 날, 주말, 볼일이 두 집에서 같은 검토 조건으로 되풀이돼요. 화면에서는 **처음 7일**과 **전체 기간**을 비교해요. 날이 늘어도 새로 알게 되는 것이 적은 경우도 그대로 보여 줘요. 30일은 비교를 위해 정한 기간이지, 검증된 최소 기간이나 예측이 아니에요. 월 주거비는 별도의 금융 가정으로 계산해요.
+
+### 공개된 실행이 보여 주는 것
+
+예시로 만든 판교 커플 한 쌍, 저장된 실행 하나: **`cmw0nibca873f`**. 아래 표는 v9 영상과 [같은 한 달 재생(영어)](https://halo-sw.github.io/ithaca/?replay=pangyo-reviewed-month&lang=en)에 나오는 값이에요.
+
+| 항목 | A 집 | B 집 |
+|---|---:|---:|
+| 편도 출퇴근 평균 | 4.8분 | 23.9분 |
+| 월 주거비 + 기록된 교통비 | ₩509,790 | ₩1,023,917 |
+| 과거 실거래 면적 구간 | 25–35 m² | 55–65 m² |
+| Muse가 한 선택 / 기본 규칙으로 대신한 선택 | 70 / 0 | 63 / 2 |
+
+저장된 리포트 상태는 **통과**예요. 리포트가 기록과 맞는지 본 내부 검사이지, 현실에서 정확하다는 뜻은 아니에요. 실거래 면적 구간은 정확한 집 크기가 아니에요. 역 기준 직장 위치, 대출 조건, 관리비는 분명히 밝힌 가정이에요. [입력, 계산, 한계(영어)](docs/recording-v9.md) · [기계가 읽을 수 있는 근거](docs/evidence/recording-v9.json)
+
+**따로 돌린 4인 가족 실행**에는 학교급별 통학 경로가 기록돼 있어요. 중학교 경로가 없는 집은 없는 그대로 남겨요. 학교 배정이나 입학은 추측하지 않아요. [가족 실행 근거(영어)](docs/recording-v9.md#separate-four-person-family)
 
 <details>
-<summary><b>데이터 출처</b></summary>
+<summary>다른 평가와 써 보는 방법</summary>
 
-<br>
-
-OpenStreetMap(ODbL, Geofabrik 경유) · GIS건물통합정보와 건축물대장(국토교통부 / VWorld / 건축HUB) · 국토교통부 실거래가 공개시스템 · 서울교통공사 지하철혼잡도정보(공공누리 3유형)와 역간 소요시간 · 경찰청 범죄 발생 지역별 통계(2025) · 주택도시기금 상품 페이지(nhuf.molit.go.kr, 2026-10-29 확인) · 공식 전세 체크리스트 사이트(인터넷등기소, 정부24, HUG 안심전세포털, 국세청). 자세한 이용 조건은 [`ATTRIBUTION.md`](ATTRIBUTION.md)에 있어요.
+- [출퇴근 기준 비교](docs/baseline-commute.ko.md): 규칙 기반으로 시드 10개를 돌려, '역까지 거리 + 탑승 시간'으로 만든 기준과 비교했어요. 실시간 Muse 한 달이나 현실 측정과는 별개예요. 이 분석에서는 한국 승강장 대기를 계산하지 않아요.
+- [Spark 1.3과 Spark Open 비교](docs/model-comparison.ko.md): 같은 선택 지점에서 두 모델을 따로 비교했어요. 두 모델이 같은 선택을 한 비율은 정확도 점수가 아니에요.
+- [Meta 본사 사례 써 보기(영어)](https://halo-sw.github.io/ithaca/?chat=I+work+at+Meta+HQ+in+Menlo+Park.+Two+of+us%2C+rent+up+to+%244%2C500+a+month.&lang=en).
+- [로컬에서 실행하기(영어)](docs/development.md): Docker, 소스 설정, 데이터 다시 만들기. 모델 제공자를 설정하지 않으면 로컬 실행은 표시가 붙은 규칙 모드로 돌아요. 공개 사이트의 실시간 사용은 함께 쓰는 모델 한도를 따르고, 저장된 재생에는 실시간 모델 호출이 필요 없어요.
+- [CI](https://github.com/halo-sw/ithaca/actions/workflows/ci.yml) · [기능](docs/features.ko.md) · [데이터 출처 표시](ATTRIBUTION.md)
 
 </details>
 
-## 라이선스
+## 6. 결론
 
-코드는 [MIT](LICENSE)예요. 데이터, 사진, 폰트는 각자의 라이선스를 따르고, [`ATTRIBUTION.md`](ATTRIBUTION.md)에 정리돼 있어요.
+Ithaca는 집 선택이 매일의 생활에 남기는 결과를 눈으로 보고 따져 볼 수 있게 해요. 검토한 가족 플랜, 저장된 선택, 계산된 장단점, 근거와 연결된 리포트로요. 이 프로토타입은 실제 모델 호출과 공공 데이터 입력으로 그 흐름을 보여 줘요.
 
-이전 이름은 `homeless-society-sim`이에요.
+얻을 수 있는 건 더 잘 준비한 집 구경과 더 분명한 비교예요. 최종 결정은 가족이 해요.
+
+## 7. 기대 효과와 다음 단계
+
+기대하는 효과는 **집을 비교할 때 머리로 따져야 할 일이 줄고, 루틴이 안 맞는 점을 더 일찍 발견하고, 시간과 돈에 대해 더 분명하게 이야기하는 것**이에요. 아직 검증할 목표이지, 사용자에게서 측정한 결과가 아니에요.
+
+| 다음 단계 | 검증할 것 |
+|---|---|
+| 거주자 10–20명과 현장 연구 | 모델이 계산한 이동과 비용을 실제 루틴과 비교해요. 오차와 함께, 이 비교가 사람들이 던지는 질문을 바꾸는지 기록해요 |
+| 경로와 데이터 범위 넓히기 | 빠진 목적지, 직장 위치 정밀도, 교통 가정을 개선해요. 풀리지 않은 입력은 계속 보이게 둬요 |
+| 더 많은 가족 조건 | 지원한다고 말하기 전에 통학 경로 데이터와 서로 맞춰야 할 조건을 검증해요. 학교 입학, 소음, 채광은 한계를 분명히 남겨요 |
+| 사진 기반 도움 | 실제 치수나 환경에 대한 판단을 더하기 전에, 실제 방 사진으로 창 찾기를 평가해요 |
+
+우리 가족 정보로 시작해서 가정을 살펴보고, 그 결과로 계약 전에 더 좋은 질문을 해 보세요.
+
+---
+
+[구조](docs/architecture.ko.md) · [플랜과 30일 기간(영어)](docs/household-planning.md) · [만든 과정](docs/build-log.ko.md) · [로컬 설정(영어)](docs/development.md) · [녹화 대본(영어)](docs/demo-script.md)
+
+코드: [MIT](LICENSE). 데이터, 이미지, 글꼴은 각자의 라이선스를 따라요. 자세한 내용은 [ATTRIBUTION.md](ATTRIBUTION.md)에 있어요.
