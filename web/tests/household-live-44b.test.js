@@ -133,6 +133,15 @@ describe("household live 44b", () => {
       { id: "a2", label: "재택", role: "adult", work: { type: "none" } },
       { id: "a3", label: "현장", role: "adult", work: { type: "place" } },
     ];
-    assert.deepEqual(missingRouteHomes(ignored, ["A", "B"]), []);
+    assert.deepEqual(missingRouteHomes(ignored, ["A", "B"]),
+      [{ member: "s1", home: "A" }, { member: "s1", home: "B" }]);
+  });
+
+  it("retired senior with work none is still not flagged", () => {
+    const retired = tinyScenario();
+    retired.household.members = [
+      { id: "s1", label: "시니어", role: "senior", work: { type: "none" } },
+    ];
+    assert.deepEqual(missingRouteHomes(retired, ["A", "B"]), []);
   });
 });

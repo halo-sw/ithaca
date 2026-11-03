@@ -163,13 +163,16 @@ describe("29j1 judgeEvidence", () => {
     assert.deepEqual(calls, ["s1"]);
     assert.deepEqual(failures, []);
   });
-  it("null judge passes; a throwing judge sets judge_error", async () => {
-    assert.deepEqual(
-      (await judgeEvidence({ sentences: [cited] }, run, loaded, null)),
-      { failures: [] });
+  it("null judge cannot pass; a throwing judge sets judge_error", async () => {
+    const missing = await judgeEvidence({ sentences: [cited] }, run, loaded, null);
+    assert.equal(missing.failures.length, 1);
+    assert.equal(missing.failures[0].kind, "judge_unverified");
+    assert.equal(missing.failures[0].sentence_id, "s1");
     const res = await judgeEvidence({ sentences: [cited] }, run, loaded,
       async () => { throw new Error("down"); });
-    assert.deepEqual(res, { failures: [], judge_error: true });
+    assert.equal(res.failures.length, 1);
+    assert.equal(res.failures[0].kind, "judge_unverified");
+    assert.equal(res.judge_error, true);
   });
 });
 
@@ -228,22 +231,24 @@ describe("29j1 verifyComparison and runComparisonLoop", () => {
     sentences: [...homeSentences("A", "a", true), ...homeSentences("B", "b", true)] };
 
   it("fails the draft on home B and passes the fix", async () => {
+    const judge = async () => ({ supported: true });
     const bad = await verifyComparison(draft,
-      { runs, labels, homes, persona: "newlywed_couple", groundTruth: GT });
+      { runs, labels, homes, persona: "newlywed_couple", groundTruth: GT, judge });
     assert.equal(bad.pass, false);
     assert.ok(bad.by_home.B.failures.length > 0 || bad.by_home.B.must_coverage < 1);
     assert.ok(bad.feedback_ko.every((line) => /^[AB]: /.test(line)));
     const good = await verifyComparison(fixed,
-      { runs, labels, homes, persona: "newlywed_couple", groundTruth: GT });
+      { runs, labels, homes, persona: "newlywed_couple", groundTruth: GT, judge });
     assert.equal(good.pass, true);
     assert.ok(good.failures.length === 0);
   });
   it("flags sentences for an unknown home", async () => {
+    const judge = async () => ({ supported: true });
     const report = { persona: "newlywed_couple",
       sentences: [...fixed.sentences,
         sHome("C", "x1", "C01", "통근은 평균 22분이에요", [min(22)])] };
     const res = await verifyComparison(report,
-      { runs, labels, homes, persona: "newlywed_couple", groundTruth: GT });
+      { runs, labels, homes, persona: "newlywed_couple", groundTruth: GT, judge });
     assert.equal(res.pass, false);
     assert.ok(res.failures.some((f) => f.reason_ko === "알 수 없는 집이에요"));
   });
@@ -264,6 +269,7 @@ describe("29j1 verifyComparison and runComparisonLoop", () => {
     const { result, attempts, handoff } = await runComparisonLoop({
       draft, revise: async () => fixed, runs, labels, homes,
       persona: "newlywed_couple", groundTruth: GT,
+      judge: async () => ({ supported: true }),
       onAttempt: (info) => seen.push(info),
     });
     assert.equal(attempts.length, 2);
@@ -279,6 +285,7 @@ describe("29j1 verifyComparison and runComparisonLoop", () => {
     const { attempts, handoff } = await runComparisonLoop({
       draft, revise: async (report) => report, runs, labels, homes,
       persona: "newlywed_couple", groundTruth: GT,
+      judge: async () => ({ supported: true }),
     });
     assert.equal(attempts.length, 4);
     assert.equal(handoff.ask_user, true);

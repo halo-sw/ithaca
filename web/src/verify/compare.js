@@ -10,9 +10,89 @@ import { memberLabelEn } from "../profile.js";
 import { householdKeys } from "../engine/moments.js";
 import { activityEn } from "../i18n/en-activity.js";
 
+// Known persona keys (ground_truth.json personas).
+export const KNOWN_PERSONAS = ["young_family", "remote_worker",
+  "newlywed_couple", "multigen_family", "pet_owner", "single_firstjob"];
+
+function fieldValue(v) {
+  return v && typeof v === "object" && !Array.isArray(v) && "value" in v
+    ? v.value : v;
+}
+
+// Compositional persona families from the actual scenario plus the
+// confirmed life plan's observation codes and current profile facts
+// (47k). Returns sorted unique known keys; the caller turns >1 key
+// into a `combined:<key>+<key>...` string. Never drops a family:
+// the union keeps every persona's items (engine:none included).
+export function personaKeysFor(profile, scenario) {
+  const p = profile || {};
+  const s = scenario || {};
+  const praw = fieldValue(p.members);
+  const pmembers = Array.isArray(praw) ? praw : [];
+  // Production scenario shape is { household: { members: [...] } };
+  // a legacy flat { members: [...] } is only a fallback.
+  const nested = s.household && Array.isArray(s.household.members) ? s.household.members : null;
+  const smembers = nested || (Array.isArray(s.members) ? s.members : []);
+  const members = pmembers.length > 0 ? pmembers : smembers;
+  const confirmed = !!(s && s.life_plan && s.life_plan.confirmed === true);
+  // Confirmed plan: the scenario's member list is the identity source
+  // (one member once). Production profile entries carry no id, so the
+  // old union counted the same adult twice (single → newlywed).
+  // Merge matching profile fields by id, else same index, never adding.
+  const facts = (confirmed && smembers.length > 0)
+    ? smembers.map((m, i) => {
+      if (!m || typeof m !== "object") return m;
+      let match = null;
+      if (m.id !== undefined) {
+        match = pmembers.find((q) => q && typeof q === "object" && q.id === m.id) || null;
+      }
+      if (!match && pmembers[i] && typeof pmembers[i] === "object") match = pmembers[i];
+      if (!match) return m;
+      return { ...match, ...m };
+    })
+    : [...pmembers, ...smembers.filter((m) => m && typeof m === "object"
+      && !pmembers.some((q) => q && typeof q === "object"
+        && q.id !== undefined && q.id === m.id))];
+  const codes = new Set(Array.isArray(s.life_plan?.observation_codes)
+    ? s.life_plan.observation_codes : []);
+  const has = (pred) => facts.some((m) => m && pred(m));
+  const isSenior = (m) => m.role === "senior"
+    || ["60s", "70s", "80+"].includes(m.ageBand);
+  const keys = new Set();
+  // Base: one of single_firstjob / newlywed_couple, so N01 keeps
+  // per-member commutes for multi-adult homes.
+  const adults = facts.filter((m) => m
+    && (m.role === "adult" || isSenior(m))).length;
+  keys.add(adults >= 2 ? "newlywed_couple" : "single_firstjob");
+  if (has((m) => m.role === "child" || m.school === true
+      || (m.school && typeof m.school === "object" && m.school.mode === "nearby"))
+    || codes.has("school")) {
+    keys.add("young_family");
+  }
+  const odRaw = fieldValue(p.officeDays);
+  const officeLow = Number.isInteger(odRaw) && odRaw >= 0 && odRaw <= 4;
+  const memberWorkLow = has((m) => m.home_office === true
+    || (Array.isArray(m.workdays) && m.workdays.length < 5));
+  if (has((m) => m.home_office === true)
+    || ((officeLow || memberWorkLow)
+      && (codes.has("remote_days") || codes.has("commute")))) {
+    keys.add("remote_worker");
+  }
+  if (has(isSenior) || codes.has("clinic")) keys.add("multigen_family");
+  if (fieldValue(p.pets) || has((m) => m.pets)
+    || codes.has("pet_care")) keys.add("pet_owner");
+  return [...keys].filter((k) => KNOWN_PERSONAS.includes(k)).sort();
+}
+
 // Profile → persona key. members may be a plain array or a field
 // object ({ value: [...] }); pets may be truthy plain or field .value.
-export function personaFor(profile, { noCommute = false } = {}) {
+export function personaFor(profile, { noCommute = false, scenario = null } = {}) {
+  const s = scenario || null;
+  if (s && s.life_plan && s.life_plan.confirmed === true) {
+    const keys = personaKeysFor(profile, s);
+    if (keys.length === 1) return keys[0];
+    return `combined:${keys.join("+")}`;
+  }
   const p = profile || {};
   const raw = p.members && typeof p.members === "object" && !Array.isArray(p.members)
     && "value" in p.members ? p.members.value : p.members;
@@ -260,6 +340,11 @@ export async function verifyComparison(report, { runs, labels, homes, persona, g
       must_coverage: 0, weighted_coverage: 0, by_home: {}, failures: [],
       feedback_ko: [] };
   }
+  if (!labels || labels.length === 0) {
+    return { pass: false, status: "failed", reason_ko: "비교할 집이 없어요",
+      must_coverage: 0, weighted_coverage: 0, by_home: {}, failures: [],
+      feedback_ko: ["비교할 집이 없어요"] };
+  }
   const loaded = loadGroundTruth(groundTruth, persona);
   const sentences = (report && report.sentences) || [];
   const by_home = {};
@@ -285,6 +370,9 @@ export async function verifyComparison(report, { runs, labels, homes, persona, g
     const res = verifyReport(reportL, runs[label], persona,
       { groundTruth, inapplicable: inap, inapplicableReasons,
         extraFailures: judged.failures });
+    res.status = res.failures.some((f) => f.kind === "judge_unverified")
+      ? "unverified"
+      : (res.pass ? "passed" : "failed");
     by_home[label] = res;
     for (const f of res.failures) failures.push({ ...f, home: label });
     for (const line of res.feedback_ko) feedback_ko.push(`${label}: ${line}`);
@@ -298,8 +386,12 @@ export async function verifyComparison(report, { runs, labels, homes, persona, g
       reason_ko: "알 수 없는 집이에요", home: s.home });
     feedback_ko.push(`${s.home}: 문장 ${s.id} (${s.item_id}): 알 수 없는 집이에요`);
   }
-  const pass = labels.every((l) => by_home[l].pass) && unknown.length === 0;
-  return { pass, must_coverage: mustMin, weighted_coverage: weightedMin,
+  const pass = labels.every((l) => by_home[l].pass) && unknown.length === 0
+    && !failures.some((f) => f.kind === "judge_unverified");
+  const status = failures.some((f) => f.kind === "judge_unverified")
+    ? "unverified"
+    : (pass ? "passed" : "failed");
+  return { pass, status, must_coverage: mustMin, weighted_coverage: weightedMin,
     by_home, failures, feedback_ko };
 }
 
@@ -314,9 +406,20 @@ export async function runComparisonLoop({ draft, revise, runs, labels, homes, pe
       { runs, labels, homes, persona, groundTruth, judge });
     const summary_ko = attemptSummary(result);
     attempts.push({ attempt, report, result, summary_ko });
-    onAttempt?.({ attempt, summary_ko, pass: result.pass,
+    onAttempt?.({ attempt, summary_ko, pass: result.pass, status: result.status,
       weighted_coverage: result.weighted_coverage,
       must_coverage: result.must_coverage });
+    if (result.status === "unverified") {
+      return {
+        result,
+        attempts,
+        handoff: {
+          ask_user: true,
+          question_ko: "의미 검사를 끝내지 못했어요 (검사 미완료). "
+            + "다시 확인해 주세요. 다시 시도하면 검사를 이어서 해요.",
+        },
+      };
+    }
     if (result.pass || result.status === "미지원") {
       return { result, attempts, handoff: null };
     }

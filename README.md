@@ -59,7 +59,7 @@ Living 30 days in a simulation does not stop deposit fraud, which falls mostly o
 | Claim | Result | Evidence |
 | --- | --- | --- |
 | Numbers in the report come from the engine, not the model | Every number in a report sentence is compared with the engine's value; a sentence with a wrong number or a missing record is rejected and rewritten (up to 3 tries) before you see it | [Verification](docs/verification.md) |
-| The report is checked before you see it | After stage 29k, the Seoul newlywed run passes the Muse judge on the first try at 100 % coverage | [Verification](docs/verification.md) |
+| The report is checked before you see it | One recorded Seoul newlywed run passed on its first try at 100 % checklist coverage; this is not a field-accuracy score or a guarantee for future runs | [Verification](docs/verification.md) |
 | Open weights agree with the hosted model | Muse Spark Open made the same choice as Muse Spark 1.3 at 120 of 139 shared decision points (86 %) | [Model comparison](docs/model-comparison.md) |
 
 **Built during the hackathon.** First commit 2026-10-28. Every line of product code was written by Muse Code from the stage briefs in [`briefs/`](briefs/).
@@ -108,7 +108,7 @@ The live chat shares a daily Muse limit. When it runs out, or the relay is down,
 1. **Say it in one sentence**: who lives there, where you work, and your budget. For example *"판교로 출근하는 신입, 연봉 4천, 모은 돈 1억, 4억 이하 집을 사고 싶어"* (a first-job worker in Pangyo, 40,000,000 won salary, 100,000,000 won saved, buying for 400,000,000 won or less). Buying is the default; say deposit lease (전세) or monthly rent to search those instead. Anything missing shows up as a chip (*Who with?*, *Purchase price limit?*). Tap one to fill it in, or skip it.
 2. **Read the candidates.** Each card and map pin shows the median of real deals and the door-to-work minutes. The pins show the same minutes as the cards.
 3. **Save two.** Tap **Pick** on two cards, or say *"1번, 2번 담아 줘"* (*"Save 1 and 2"*).
-4. **Let them live there.** Say *"두 집에서 살아 봐 줘"* (*"Live in both homes"*). The household lives 30 days in each home, and the chat shows each check while it runs.
+4. **Review the household plan, then run it.** Say *"두 집에서 살아 봐 줘"* (*"Live in both homes"*). Muse proposes member-specific routines, preserves stated preferences and asks about unresolved conditions. Review the visible assumptions and confirm before the 30-day comparison starts. [Planning and the 30-day window](docs/household-planning.md).
 5. **Read the result.** It shows your own 내 기준 점수, the monthly cost, the commute side by side, the checked diary, and *Only living there tells you*. No winner is named; the choice is yours.
 6. **Ask more.** For example *"밤 10시 이후 귀가를 보여 줘"*. You can also set your own weights, or open the 3D view at the moment a sentence talks about.
 
@@ -118,7 +118,19 @@ Covered today: Seoul 성동 · 송파 · 강남 · 강동 · 위례 and 판교 �
 
 How one conversation runs, left to right. Blue boxes are Muse Spark; grey boxes are code. Dotted arrows are the checks sending work back.
 
-<p align="center"><img src="briefs/img/agent-workflow.png" width="100%" alt="Agent workflow, left to right: You (one sentence, Korean, English or voice) → Relay (keys stay on the server, 1 free session per IP) → Consult agent (Muse Spark 1.3 or Spark Open, up to 6 tool rounds a turn), which calls Tools (profile, homes, real deals, transit) → Guard (numbers only from tools; a failed answer is retried once) → 30 days in each of 2 homes (Muse picks each move, the engine counts minutes and won) → Report (Muse writes it through submit_report) → Check (code checks every number, the Muse judge every sentence; a failed report goes back up to 3 times) → You decide (A | B result, diary, 3D)."></p>
+```mermaid
+flowchart LR
+  U[Household input] --> A[Muse consultation and real-data tools]
+  A --> P[Muse proposes member-specific routines]
+  P --> C[User reviews assumptions and confirms]
+  C --> L[Same 30-day window in both homes]
+  L --> D[Muse selects bounded daily options]
+  D --> E[Code computes routes, time and cost]
+  E --> R[Saved run and cited report]
+  R --> V[Numeric checks and semantic judge]
+  V --> O[Compare evidence and decide]
+  V --> Q[Failed or unverified: inspect and retry]
+```
 
 Code: [relay](relay/handler.js) · [consult agent](web/src/consult/agent.js) · [tools](web/src/consult/tools.js) · [guard](web/src/consult/guards.js) · [live household loop](web/src/judge/household.js) · [browser worker](web/src/sim-worker.js) · [report](web/src/consult/report.js) · [check](web/src/verify/compare.js). If Spark Open is busy, Spark 1.3 answers and the reply says so. Chart source: [docs/agent-workflow.mmd](docs/agent-workflow.mmd) (Mermaid).
 
@@ -157,13 +169,13 @@ The agent's work is checked by code before the customer sees it.
 | Muse's choices are stable across models | Spark 1.3 and Spark Open made the same choice at **120 of 139** shared decision points (**86 %**) | [Model comparison](docs/model-comparison.md) |
 | Guards hold on real runs | **154 of 154** decisions answered per model, **0** guard fallbacks | [Model comparison](docs/model-comparison.md) |
 | Diary sentences are checked | Each sentence must cite a fact of the run; lines with an unrecorded number are sent back and rewritten. Live English run on 2026-10-31 (Pangyo, 2 homes): all 8 diary sentences matched the record, after 1 rewrite | [Verification](docs/verification.md) |
-| Tested | **2,614** JavaScript and **266** Python tests, CI on every pull request and push to main | [CI](https://github.com/halo-sw/ithaca/actions/workflows/ci.yml) |
+| Tested | JavaScript and Python checks, plus a production build, run in CI on every pull request and push to main | [CI](https://github.com/halo-sw/ithaca/actions/workflows/ci.yml) |
 
 - **One way in.** The comparison reaches the customer only through the `submit_report` tool. The chat agent never sees that tool, and `open_panel("result")` is refused until the report has passed, been confirmed by the customer, or been marked 미지원.
 - **Pass rule.** Zero failures, every *must* item covered, and weighted coverage ≥ 80 % (*must* weighs 3, *should* 1), in both homes. A failed report goes back to Muse with one line per failed sentence, up to 3 times. Then the customer gets the open question in the chat with **확인했어요** and **다시 검증하기**.
-- **Honest gaps.** An item the engine cannot back yet (noise, daylight, storage, defects, the morning rush) is shown as 미지원 and never counted as a pass. Newlywed couples, families with a young child and single first-jobbers get the checked comparison. For remote workers, three-generation families and dog owners the result opens with a 미지원 label and no model call is made for the report.
+- **Honest gaps.** An item the engine cannot back yet (noise, daylight, storage, defects, the morning rush) is shown as 미지원 and never counted as a pass. Supported checks compose across the household’s actual conditions. Missing school destinations, unsupported pickup coordination and other gaps remain visible. A missing, failed or malformed semantic-judge response is **unverified**, never PASS; the user can still inspect computed facts.
 
-Status: built and on screen (stages 16a–16b for the scorer and claim checks, 29j1–29k3 for `submit_report`, the Muse judge, the two-home loop and the on-screen timeline). Live runs on 2026-11-01, Seoul newlywed couple, real Muse Spark 1.3: the first run took four tries, and its rejection reasons exposed three of our own bugs (member ids the engine did not know, a number-free sentence counted as covered, walking records sent to the judge without their mode). After stage 29k the same household passes on the first try at 100 %, every sentence carrying an engine-checked number or a cited record.
+Status: built and on screen (stages 16a–16b for the scorer and claim checks, 29j1–29k3 for `submit_report`, the Muse judge, the two-home loop and the on-screen timeline). Live runs on 2026-11-01, Seoul newlywed couple, real Muse Spark 1.3: the first run took four tries, and its rejection reasons exposed three of our own bugs (member ids the engine did not know, a number-free sentence counted as covered, walking records sent to the judge without their mode). A subsequent recorded run passed on its first try at 100 % checklist coverage, with each sentence carrying an engine-checked number or a cited record. This is an observed run, not a guaranteed outcome or real-world accuracy rate.
 
 How each check works, with the diagram: [docs/verification.md](docs/verification.md).
 

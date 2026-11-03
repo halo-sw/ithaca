@@ -363,7 +363,9 @@ export function missingRouteHomes(scenario, labels) {
   const out = [];
   const members = (scenario && scenario.household && scenario.household.members) || [];
   for (const m of members) {
-    if (!m || m.role === "senior" || m.role === "child") continue;
+    // 47d2: no blanket senior exclusion — a working senior needs a
+    // real route too. Children and resolved non-commuters never flag.
+    if (!m || m.role === "child") continue;
     const work = m.work;
     if (!work || work.type !== "station_ride") continue;
     for (const label of labels || []) {

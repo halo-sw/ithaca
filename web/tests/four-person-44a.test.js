@@ -81,7 +81,7 @@ describe("44a explicit four-person family", () => {
     assert.equal(kids.length, 2);
     assert.deepEqual(kids.map((m) => m.label), ["아이 1", "아이 2"]);
     for (const k of kids) {
-      assert.equal(k.school, true);
+      assert.deepEqual(k.school, { mode: "unresolved", level: "unknown" });
       assert.equal(k.work.type, "none");
       assert.deepEqual(k.schooldays, ["Mon", "Tue", "Wed", "Thu", "Fri"]);
     }
@@ -89,7 +89,7 @@ describe("44a explicit four-person family", () => {
     const pk = parsed.household.members.filter((m) => m.role === "child");
     assert.equal(pk.length, 2);
     assert.deepEqual(pk.map((m) => m.label), ["아이 1", "아이 2"]);
-    for (const k of pk) assert.equal(k.school, true);
+    for (const k of pk) assert.deepEqual(k.school, { mode: "unresolved", level: "unknown" });
   });
 
   it("explicit child label wins; single child keeps 아이", () => {

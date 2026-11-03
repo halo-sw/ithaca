@@ -401,10 +401,21 @@ function heroSentence(state, lang) {
 // own one-line wording (walk remain, stay remain, work end time).
 export function heroBig(state) {
   const n = state.now;
-  const left = state.journey && Number.isFinite(state.journey.minutesLeft)
-    ? state.journey.minutesLeft
-    : n.ride && Number.isFinite(n.ride.minutesLeft) ? n.ride.minutesLeft : null;
-  if (left !== null) return `${Math.ceil(left)}분 남음`;
+  // The current leg's own number wins: a stale journey hold banner
+  // (minutesLeft 0) must not override the real trip/away being shown.
+  if (Number.isFinite(n.remainingMinutes)) {
+    if (/곧 도착/.test(n.now || "")) return "곧 도착";
+    if (n.state === "place") return `${Math.ceil(n.remainingMinutes)}분 머묾`;
+    return `${Math.ceil(n.remainingMinutes)}분 남음`;
+  }
+  // Legacy cards without the field: journey/ride payloads count only
+  // while actually riding; otherwise read the engine's own wording.
+  if (n.state === "ride") {
+    const left = state.journey && Number.isFinite(state.journey.minutesLeft)
+      ? state.journey.minutesLeft
+      : n.ride && Number.isFinite(n.ride.minutesLeft) ? n.ride.minutesLeft : null;
+    if (left !== null) return `${Math.ceil(left)}분 남음`;
+  }
   const m = /(\d+(?:\.\d+)?)분 남음/.exec(n.now);
   if (m) return `${Math.ceil(Number(m[1]))}분 남음`;
   if (/곧 도착/.test(n.now)) return "곧 도착";

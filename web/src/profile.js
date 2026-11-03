@@ -1397,6 +1397,9 @@ export function scenarioFromProfile(profile, homes, opts = {}) {
   const network = opts.network || null;
   const schedule = opts.schedule || null;
 
+  // 47d2: officeDays read early so member mapping below can honour it.
+  const officeDaysEarly = v("officeDays");
+  const odEarly = Number.isInteger(officeDaysEarly) ? officeDaysEarly : null;
   const scenarioHomes = list.map((home, i) => {
     const label = HOME_LABELS[i];
     if (!home.scene) {
@@ -1423,21 +1426,33 @@ export function scenarioFromProfile(profile, homes, opts = {}) {
 
   // 26d: members with a resolved place commute without a station —
   // only station_ride members need the home station walk times.
-  // 42e: look the workplace up by member id (entries carry .member),
-  // falling back to the shared/first entry — positional indexing alone
-  // strands a member whenever the array order shifts.
+  // 47d2: exact member mapping only; a shared entry (member undefined)
+  // may apply to adults. No first-adult fallback — a member without
+  // their own work is unresolved, never assigned another's commute.
   const workplaceFor = (idx) => {
     if (!Array.isArray(workplaces) || workplaces.length === 0) return null;
-    return workplaces.find((w) => w && w.member === idx)
-      || workplaces.find((w) => w && (w.member === 0 || w.member === undefined))
-      || workplaces[0] || null;
+    const own = workplaces.find((w) => w && w.member === idx);
+    if (own) return own;
+    return workplaces.find((w) => w && w.member === undefined) || null;
   };
-  const needsStation = members.some((m, i) => {
+  // 47d2: member-specific home_office wins over the global officeDays;
+  // an explicit false keeps that member commuting when others go remote.
+  const memberRemote = (m) => {
+    if (m && m.home_office === true) return true;
+    if (m && m.home_office === false) return false;
+    return odEarly === 0;
+  };
+  const memberNeedsStation = (m, i) => {
     if ((m.role || "adult") === "child") return false;
+    if (memberRemote(m)) return false;
     const wp = workplaceFor(i);
-    const place = wp && wp.resolved && wp.resolved.place;
-    return !(place && Number.isFinite(place.lon) && Number.isFinite(place.lat));
-  });
+    if (!wp || !wp.resolved) return false;
+    if (wp.noCommute === true) return false;
+    const place = wp.resolved.place;
+    if (place && Number.isFinite(place.lon) && Number.isFinite(place.lat)) return false;
+    return !!(wp.resolved.station);
+  };
+  const needsStation = members.some((m, i) => memberNeedsStation(m, i));
   const stationName = {};
   for (const h of scenarioHomes) {
     const home = list[scenarioHomes.indexOf(h)];
@@ -1458,18 +1473,18 @@ export function scenarioFromProfile(profile, homes, opts = {}) {
     return d ? d.minutes : null;
   };
   const commuteKnown = v("commuteMax");
-  // 38e: hybrid/full-remote days and pets from the customer profile.
+  // 47d2: hybrid office days from the customer profile (pets carry no
+  // automatic routines). Member-explicit fields win over this global.
   const officeDays = v("officeDays");
   const od = Number.isInteger(officeDays) ? officeDays : null;
-  const pets = v("pets");
-  const hasDog = !!(pets && pets.kind === "dog");
-  const hasCatPet = !!(pets && (pets.kind === "cat" || pets.kind === "pet"));
-  const firstAdultIdx = members.findIndex((mm) => {
-    const r = (mm && mm.role) || "adult";
-    return r !== "senior" && r !== "child";
-  });
   const OFFICE_WORKDAYS = { 1: ["Wed"], 2: ["Tue", "Thu"],
     3: ["Mon", "Wed", "Fri"], 4: ["Mon", "Tue", "Thu", "Fri"] };
+  // 47d2: copy only explicitly provided member fields; scenario base
+  // values stay generic assumptions (errands 1/1, park 1, others 0).
+  const VALID_DAYS = new Set(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]);
+  const copyDays = (list) => (Array.isArray(list) && list.length > 0
+    && list.every((d) => VALID_DAYS.has(d)) ? [...list] : null);
+  const copyInt = (n, lo, hi) => (Number.isInteger(n) && n >= lo && n <= hi ? n : null);
   // 29N3: set when a member rides Caltrain — the run's destination
   // area is the Meta HQ box (us-menlo).
   let usDestArea = null;
@@ -1489,19 +1504,43 @@ export function scenarioFromProfile(profile, homes, opts = {}) {
       park_walks_per_week: 1,
       clinic_visits_per_month: 0,
     };
-    // 38e: seniors never commute — daily park walks, monthly clinic.
-    if ((m.role || "adult") === "senior") {
-      out.work = { type: "none" };
-      out.park_walks_per_week = 7;
-      out.clinic_visits_per_month = 2;
-      out.errands_per_week = { supermarket: 1, convenience: 2 };
-      return out;
+    // 47d2: copy explicitly provided member fields; nothing else
+    // becomes a stated fact (no senior/remote/pet stereotypes).
+    if (typeof m.preferences === "string" && m.preferences.length > 0) {
+      out.preferences = m.preferences.slice(0, 500);
     }
+    const explicitWorkdays = copyDays(m.workdays);
+    if (explicitWorkdays) out.workdays = explicitWorkdays;
+    const explicitSchooldays = copyDays(m.schooldays);
+    if (explicitSchooldays) out.schooldays = explicitSchooldays;
+    if (m.errands_per_week && typeof m.errands_per_week === "object") {
+      const s = copyInt(m.errands_per_week.supermarket, 0, 7);
+      const c = copyInt(m.errands_per_week.convenience, 0, 7);
+      if (s !== null && c !== null) out.errands_per_week = { supermarket: s, convenience: c };
+    }
+    const pw = copyInt(m.park_walks_per_week, 0, 7);
+    if (pw !== null) out.park_walks_per_week = pw;
+    const cv = copyInt(m.clinic_visits_per_month, 0, 31);
+    if (cv !== null) out.clinic_visits_per_month = cv;
+    const cf = copyInt(m.cafe_visits_per_week, 0, 5);
+    if (cf !== null) out.cafe_visits_per_week = cf;
+    const vv = copyInt(m.vet_visits_per_month, 0, 4);
+    if (vv !== null) out.vet_visits_per_month = vv;
+    if (typeof m.home_office === "boolean") out.home_office = m.home_office;
+    if (typeof m.dog_walk_morning === "boolean") out.dog_walk_morning = m.dog_walk_morning;
     if ((m.role || "adult") === "child") {
       out.work = { type: "none" };
-      out.schooldays = ["Mon", "Tue", "Wed", "Thu", "Fri"];
-      // 44a: nearest school is a route proxy, not an enrollment assignment.
-      if (m.school === true) out.school = true;
+      if (!explicitSchooldays) out.schooldays = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+      // 47d2: school age never establishes a destination — a stated
+      // school need starts unresolved, never as the nearest school.
+      if (m.school === true) {
+        out.school = { mode: "unresolved", level: m.school_level || "unknown" };
+      } else if (m.school && typeof m.school === "object"
+        && (m.school.mode === "unresolved" || m.school.mode === "nearby")) {
+        out.school = { mode: m.school.mode, level: m.school.level || "unknown" };
+      } else if (m.school === false) {
+        out.school = false;
+      }
       if (childTotal > 1) {
         childSeen += 1;
         const explicit = typeof m.label === "string" && m.label
@@ -1510,25 +1549,28 @@ export function scenarioFromProfile(profile, homes, opts = {}) {
       }
       return out;
     }
-    // 38e: hybrid office days + pets (seniors/children returned above).
-    if (od === 0) {
-      out.home_office = true;
+    // 47d2: remote/no-commute resolution. Member-explicit home_office
+    // wins over the global officeDays; no member is retired by
+    // inference — a senior/adult without their own work stays
+    // work_unresolved until the customer confirms no commute.
+    const remote = memberRemote(m);
+    const noCommute = !!(wp && wp.noCommute === true);
+    if (remote || noCommute) {
+      if (remote) out.home_office = true;
       out.work = { type: "none" };
-      out.cafe_visits_per_week = 2;
-    } else if (od !== null && OFFICE_WORKDAYS[od]) {
+      return out; // resolved no-commute: never a commute, no station needed
+    }
+    if (!explicitWorkdays && od !== null && OFFICE_WORKDAYS[od]) {
       out.workdays = [...OFFICE_WORKDAYS[od]];
-      out.cafe_visits_per_week = Math.min(2, 5 - od);
     }
-    if (i === firstAdultIdx) {
-      if (hasDog) {
-        out.dog_walk_morning = true;
-        out.park_walks_per_week = 7;
-        out.vet_visits_per_month = 1;
-      } else if (hasCatPet) {
-        out.vet_visits_per_month = 1;
-      }
+    const placeEarly = wp && wp.resolved && wp.resolved.place;
+    const hasOwnWork = !!(wp && wp.resolved
+      && (dest || (placeEarly && Number.isFinite(placeEarly.lon) && Number.isFinite(placeEarly.lat))));
+    if (!hasOwnWork) {
+      out.work = { type: "none" };
+      out.work_unresolved = true;
+      return out;
     }
-    if (od === 0) return out; // full remote: never a commute
     // 26d: a resolved place (e.g. Meta HQ) commutes by walk/bike from
     // lon/lat — no station walk needed. Korean station workplaces below
     // are unchanged.

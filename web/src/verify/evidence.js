@@ -178,32 +178,52 @@ export function citedEvents(run, ids) {
 // 29j1: the injected judge model call over engine-backed judge
 // sentences. For every sentence whose item is engine-backed
 // (engine !== "none") and verify === "judge" and that already cites
-// ≥1 indexed id, call await judge(sentence, citedEvents(...)). A
-// { supported: false, reason } answer becomes a kind:"judge" failure.
-// judge null → { failures: [] }. A throwing judge counts as no failure
-// for that sentence but adds { judge_error: true } to the result.
+// ≥1 indexed id, require a callable judge and a strictly boolean
+// verdict.supported. supported:true passes; supported:false becomes a
+// kind:"judge" failure. Missing judge, a throw, or a null/malformed
+// verdict (including string/number supported) becomes one
+// kind:"judge_unverified" failure (검사 미완료/미확인). Uncited
+// sentences stay with checkEvidence and are not sent to the judge.
 export async function judgeEvidence(report, run, loaded, judge) {
-  if (!judge) return { failures: [] };
   const failures = [];
   let judgeError = false;
   const byId = new Map((loaded.items || []).map((it) => [it.id, it]));
   const index = evidenceIndex(run);
+  const callable = typeof judge === "function";
   for (const s of (report && report.sentences) || []) {
     const item = byId.get(s.item_id);
     if (!item || item.engine === "none" || item.verify !== "judge") continue;
     const cited = (s.evidence || []).filter((id) => index.has(id));
     if (cited.length === 0) continue;
-    let verdict = null;
+    if (!callable) {
+      failures.push({ sentence_id: s.id, item_id: s.item_id,
+        kind: "judge_unverified",
+        reason_ko: "의미 검사를 끝내지 못했어요 (검사 미완료)",
+        reason_en: "semantic check unverified; meaning not confirmed" });
+      continue;
+    }
+    let verdict;
     try {
       verdict = await judge(s, citedEvents(run, cited));
     } catch {
       judgeError = true;
+      failures.push({ sentence_id: s.id, item_id: s.item_id,
+        kind: "judge_unverified",
+        reason_ko: "의미 검사를 끝내지 못했어요 (검사 미완료)",
+        reason_en: "semantic check unverified; meaning not confirmed" });
       continue;
     }
-    if (verdict && verdict.supported === false) {
-      failures.push({ sentence_id: s.id, item_id: s.item_id, kind: "judge",
-        reason_ko: "근거가 문장을 뒷받침하지 않아요"
-          + (verdict.reason ? ` (${verdict.reason})` : "") });
+    if (verdict && typeof verdict.supported === "boolean") {
+      if (verdict.supported === false) {
+        failures.push({ sentence_id: s.id, item_id: s.item_id, kind: "judge",
+          reason_ko: "근거가 문장을 뒷받침하지 않아요"
+            + (verdict.reason ? ` (${verdict.reason})` : "") });
+      }
+    } else {
+      failures.push({ sentence_id: s.id, item_id: s.item_id,
+        kind: "judge_unverified",
+        reason_ko: "의미 검사를 끝내지 못했어요 (검사 미완료)",
+        reason_en: "semantic check unverified; meaning not confirmed" });
     }
   }
   const out = { failures };
