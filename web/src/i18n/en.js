@@ -547,7 +547,7 @@ const seedPhrases = {
   "출퇴근 계산 안 됨": "commute not computed",
   // 60b: room photo in the listing check card (SAM 3.1 window boxes).
   "방 사진 추가 (선택)": "Add a room photo (optional)",
-  "사진은 창을 찾는 데만 쓰고 저장하지 않아요.": "The photo is only used to find windows. It isn't stored.",
+  "사진은 창을 찾으려고 Meta SAM 3.1에만 보내요. Ithaca는 저장하지 않아요.": "The photo goes only to Meta SAM 3.1 to find windows. Ithaca doesn't store it.",
   "사진에서 창을 찾는 중…": "Finding windows in the photo…",
   "사진을 읽지 못했어요": "Couldn't read the photo",
   "이 사진에서 창을 찾지 못했어요.": "No windows found in this photo.",
