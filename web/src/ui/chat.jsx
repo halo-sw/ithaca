@@ -128,6 +128,7 @@ import { shouldCallMuse, isNoKeyError, KEYLESS_LINE,
   getMuseLive, getMuseStatus, subscribeMuseLive, setMuseLive, refreshMuseLive } from "./muse-status.js";
 import { voiceSupported, voiceKeyReady } from "./voice.js";
 import { MicButton, VOICE_DONE_NOTE, VOICE_ERROR_NOTE } from "./voice-button.jsx";
+import { MUSE_IMAGE_ENABLED, DIARY_PICTURE_CAPTION, sceneKindOf, regionOf, postDiaryPicture, diaryPictureOff, setDiaryPictureOff } from "./diary-picture.js";
 import { LIVE_API, appUrl } from "../paths.js";
 
 import { recordedReplyFor } from "./demotour.js";
@@ -777,8 +778,12 @@ function sessionStorageOf() {
 
 // 31a: 살아 본 일기 — Muse's summary line, the first 3 lines as row
 // links, then one secondary button revealing the rest in place.
-export function DiarySection({ diary, customId, onScene, onRetry, canRetry = true }) {
+export function DiarySection({ diary, customId, onScene, onRetry, canRetry = true, region = "kr" }) {
   const [open, setOpen] = useState(false);
+  const [picOff, setPicOff] = useState(() => diaryPictureOff());
+  const [picCursor, setPicCursor] = useState(0);
+  const [pic, setPic] = useState(null);
+  const [drawing, setDrawing] = useState(false);
   if (!diary) return null;
   if (diary.status === "writing") {
     return (
@@ -803,6 +808,27 @@ export function DiarySection({ diary, customId, onScene, onRetry, canRetry = tru
   if (diary.status !== "done") return null;
   const lines = diary.lines || [];
   const shown = open ? lines : lines.slice(0, 3);
+  const paintable = lines.filter((line) => sceneKindOf(line) !== null);
+  const showPicture = MUSE_IMAGE_ENABLED && !picOff && paintable.length > 0;
+  async function drawNext() {
+    if (drawing || paintable.length === 0) return;
+    const target = paintable[picCursor % paintable.length];
+    setPicCursor((c) => c + 1);
+    setDrawing(true);
+    let out;
+    try {
+      out = await postDiaryPicture({ kind: sceneKindOf(target), minute: Math.min(1439, Math.floor(target.minute)), region });
+    } catch {
+      out = { ok: false, error: "network" };
+    }
+    setDrawing(false);
+    if (out && out.ok && typeof out.image === "string") {
+      setPic({ image: out.image, line: target });
+    } else {
+      setDiaryPictureOff();
+      setPicOff(true);
+    }
+  }
   return (
     <VStack gap={2}>
       <span className="ui-result-sect">살아 본 일기</span>
@@ -822,6 +848,27 @@ export function DiarySection({ diary, customId, onScene, onRetry, canRetry = tru
           onClick={() => setOpen(true)} />
       )}
       <Text type="supporting">{diaryCheckLine(diary.check)}</Text>
+      {showPicture && (
+        <HStack gap={2} vAlign="center" wrap="wrap">
+          <Button size="sm" variant="secondary"
+            label={pic ? "다음 장면 그림으로 보기" : "장면 하나 그림으로 보기"}
+            onClick={drawNext} isDisabled={drawing} />
+        </HStack>
+      )}
+      {showPicture && drawing && (
+        <Text type="supporting">Muse Image가 그리는 중…</Text>
+      )}
+      {showPicture && !drawing && pic && (
+        <figure style={{ margin: 0, maxWidth: 360 }}>
+          <img src={pic.image} alt="일기 장면 일러스트" style={{ width: "100%", display: "block", borderRadius: 8 }} />
+          <figcaption style={{ marginTop: 4 }}>
+            <VStack gap={1}>
+              <Text type="supporting">{`${pic.line.day + 1}일째 ${hhmm(pic.line.minute)} 장면`}</Text>
+              <Text type="supporting">{DIARY_PICTURE_CAPTION}</Text>
+            </VStack>
+          </figcaption>
+        </figure>
+      )}
     </VStack>
   );
 }
@@ -1506,7 +1553,7 @@ export function SimulationCard({ data, example, onRetry, onScene, onReportRetry,
         )}
         <ReportCheck report={data.report} names={names} onRetry={onReportRetry} />
         <DiarySection diary={data.diary} customId={data.customId} onScene={onScene}
-          onRetry={onDiaryRetry} canRetry={canRetryDiary} />
+          onRetry={onDiaryRetry} canRetry={canRetryDiary} region={regionOf(data.compare)} />
         {calcs.length > 0 && (
           <details className="ui-section"{...(anyTradeCalc ? { open: true } : null)}>
             <summary className="ui-section-head">{anyTradeCalc ? "내가 내는 돈" : "어떻게 계산했나요"}</summary>

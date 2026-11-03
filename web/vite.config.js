@@ -8,6 +8,8 @@ import { envKey, metaApiKey, providerConfig } from "./src/judge/providers.js";
 import { emptyUsage, judgeSingle } from "./src/judge/run.js";
 import { createConsultHandler } from "./src/consult/server.js";
 import { createTranscribeHandler } from "./src/consult/voice.js";
+import { createWindowsHandler } from "./src/consult/windows.js";
+import { createDiaryImageHandler } from "./src/consult/diary-image.js";
 import { serveTile } from "./src/aerial/proxy.js";
 
 // Serves the pipeline output (data/build/<area>/*.json) at /data/<area>/*
@@ -257,6 +259,10 @@ function consultApiPlugin() {
         createConsultHandler({ dataDir: DATA_DIR, scenDir: SCEN_DIR, rawDir: RAW_DIR }));
       server.middlewares.use("/api/voice/transcribe",
         createTranscribeHandler({ env: process.env }));
+      server.middlewares.use("/api/vision/windows",
+        createWindowsHandler({ env: process.env }));
+      server.middlewares.use("/api/image/diary",
+        createDiaryImageHandler({ env: process.env }));
       // 13: model status for the 모델 panel — booleans only, never keys.
       server.middlewares.use("/api/model/status", (req, res) => {
         if (req.method !== "GET") {
