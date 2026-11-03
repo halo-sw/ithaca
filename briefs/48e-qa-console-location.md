@@ -1,0 +1,3 @@
+# 48e — one QA diagnostic fix
+
+Muse only. `web/scripts/aerial-detail-audit.mjs` only, lines100–109 and430–448. No browser/full suite/build/git. Console resource errors from Chrome say only `Failed to load resource ...503`, with endpoint in `m.location().url`. 48d now correctly suppresses intentional503 by endpoint, but did not record the console location; all injected failures thus look unexpected. Record sanitized location URL separately in console error entry and use that URL in exact injected-endpoint classification. Preserve plain error text, fatal JS pageerror and all unrelated503. Do not blanket-ignore console503. Run node --check, stop. 10 steps max.

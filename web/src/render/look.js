@@ -80,10 +80,12 @@ export const PAINTED_LOOK = {
   // wall/roof split, and outlines now separate the blocks. Base-map
   // ground/water/roads below already carry the painted targets.
   corridorDarken: 1,
-  regionalGround: 0xcfc4ad,
+  // 48c: schematic fallback stone/sage neutral shared with terrainBase —
+  // the old sandy beige clashed with the aerial slate/green urban map.
+  regionalGround: 0xc2c6bb,
   regionalWater: 0x3f6f8f,
   regionalRoad: 0x5b5d60,
-  terrainBase: 0xcfc4ad,
+  terrainBase: 0xc2c6bb,
   terrainGrass: 0x8a9a5b,
   terrainForest: 0x5d7040,
   terrainScrub: 0x9a8f5a,

@@ -266,7 +266,9 @@ export function journeyCameraState({ segments, minute, view = "auto", hasDetailD
   const inRide = (span, dir) => {
     if (!span || m < span.start || m >= span.end) return null;
     const total = Math.max(1, span.end - span.start);
-    const elapsed = m - span.start;
+    // 45a: phase gates stay on the integer minute; progress/elapsed carry
+    // the fractional clock so the ride camera and train move continuously.
+    const elapsed = Math.min(total, Math.max(0, minute - span.start));
     const inner = journeyPhase({ riding: { progress: elapsed / total }, view, hasDetailDest });
     return { phase: inner === "street" ? "boarding" : inner,
       dir, progress: elapsed / total, elapsed };

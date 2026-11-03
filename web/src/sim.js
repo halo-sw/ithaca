@@ -10,7 +10,7 @@ import { dateOf, weekdayOf } from "./engine/scenario.js";
 import { hhmm } from "./timeline.js";
 
 export const KOR_WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"];
-export const SPEEDS = [1, 10, 60]; // sim-min per 0.1 s at 1×
+export const SPEEDS = [0.1, 1, 10, 60]; // sim-min per 0.1 s at 1×
 export const SIM_TICK_S = 0.1; // seconds per sim-minute at 1×
 
 // 11월 2일(월) 07:42 · 1일차/30
@@ -138,9 +138,17 @@ export function sampleAgent(agentKey, indexed, day, minute, nodeLonLat, homeLonL
   }
   for (const a of aways) {
     if (a.day !== day || minute < a.start_min || minute >= a.end_min) continue;
-    if (a.kind === "work" || a.kind === "ride") {
-      // Out of area (at the workplace, or on the train the journey view
-      // carries): hidden on the home map.
+    if (a.kind === "ride") {
+      // On the train the journey view carries: hidden on the home map.
+      return { lon: homeLonLat[0], lat: homeLonLat[1], visible: false, state: "away", trip: null, away: a };
+    }
+    if (a.kind === "work") {
+      // At the recorded workplace coords (camera stays there, avatar
+      // hidden inside). Without known coords keep the old home fallback.
+      const wp = (a.detail && a.detail.workplace) || null;
+      if (wp && Number.isFinite(wp.lon) && Number.isFinite(wp.lat)) {
+        return { lon: wp.lon, lat: wp.lat, visible: false, state: "away", trip: null, away: a };
+      }
       return { lon: homeLonLat[0], lat: homeLonLat[1], visible: false, state: "away", trip: null, away: a };
     }
     // At the destination of the latest arrived home-graph trip

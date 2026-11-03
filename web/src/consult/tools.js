@@ -1331,8 +1331,8 @@ function open_panel(session, args) {
   }
   if (a.panel === "result") {
     const st = session.context && session.context.report_status;
-    if (!["pass", "handoff", "unsupported"].includes(st)) {
-      return fail(`the result opens only after the comparison report is verified (report_status: ${st || "none"}) — tell the customer the report is still being checked`);
+    if (!["pass", "handoff", "unsupported", "unverified", "failed"].includes(st)) {
+      return fail(`the result opens once the comparison report step has finished (report_status: ${st || "none"}) — show the factual run, never claim the report is verified`);
     }
   }
   const ui = { action: "panel", panel: a.panel };
@@ -1374,26 +1374,33 @@ async function submit_report(session, args) {
     judge: ctx.judge, onAttempt: ctx.onAttempt,
   });
   const status = result.status === "미지원" ? "unsupported"
+    : result.status === "unverified" ? "unverified"
     : result.pass ? "pass" : handoff ? "handoff" : "fail";
   session.reportStatus = status;
   const by_home = {};
   for (const label of ctx.labels) {
     const r = (result.by_home && result.by_home[label]) || {};
     by_home[label] = { unsupported: r.unsupported ?? null,
-      inapplicable: r.inapplicable ?? null };
+      inapplicable: r.inapplicable ?? null,
+      status: r.status ?? null, pass: r.pass ?? null };
   }
+  const firstReasonEn = (r) => ((r && r.failures) || []).map((f) => f && f.reason_en)
+    .find(Boolean) ?? null;
   return { ok: true, status,
     report: attempts.length > 0 ? attempts[attempts.length - 1].report : null,
-    attempts: attempts.map(({ attempt, summary_ko, result: r }) => ({ attempt,
+    attempts: attempts.map(({ attempt, status: aStatus, reason_en: aReason, summary_ko, result: r }) => ({ attempt,
       summary_ko, pass: !!r.pass,
+      status: aStatus ?? (r && r.status) ?? null,
+      reason_en: aReason ?? (r && r.reason_en) ?? firstReasonEn(r),
       weighted_coverage: r.weighted_coverage ?? null,
       must_coverage: r.must_coverage ?? null })),
-    handoff,
+    handoff: status === "unverified" ? null : handoff,
     result: { pass: !!result.pass,
+      status: result.status ?? null,
       weighted_coverage: result.weighted_coverage ?? null,
       must_coverage: result.must_coverage ?? null,
       feedback_ko: result.feedback_ko ?? [],
-      failures: (result.failures || []).map(({ sentence_id, item_id, home, kind, reason_ko }) => ({ sentence_id, item_id, home, kind, reason_ko })),
+      failures: (result.failures || []).map(({ sentence_id, item_id, home, kind, reason_ko, reason_en }) => ({ sentence_id, item_id, home, kind, reason_ko, reason_en: reason_en ?? null })),
       by_home } };
 }
 

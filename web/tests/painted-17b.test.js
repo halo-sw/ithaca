@@ -157,7 +157,7 @@ describe("17b-4 readable regional view", () => {
 
   it("keeps the painted base map free of the brown multiplier", () => {
     const l = painted();
-    assert.equal(l.regionalGround, 0xcfc4ad);
+    assert.equal(l.regionalGround, 0xc2c6bb);
     assert.equal(l.regionalRoad, 0x5b5d60);
     assert.equal(l.regionalWater, 0x3f6f8f);
     assert.equal(l.corridorDarken, 1);

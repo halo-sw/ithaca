@@ -105,3 +105,8 @@ link to this file or the sources above.
 - Source: AWS Terrain Tiles (Mapzen/Tilezen Joerd), <https://registry.opendata.aws/terrain-tiles/>. In Korea the tiles derive from SRTM (~30 m effective), resampled here to a 2.5 m grid with bilinear interpolation plus weak seeded noise (see `pipeline/dem.py`).
 - Decode: `elevation_m = R*256 + G + B/256 − 32768`.
 - Use: 3D terrain heights only (built into per-box `scene.json`, ODbL OSM data stays separate). Shown on screen via the 출처·라이선스 drawer (`terrain-tiles` in `web/src/sources.js`). Not survey-grade: mountain outlines only.
+
+## USGS / USDA aerial imagery (3D overview and camera detail, stage 46)
+- Broad US map imagery: [USGS The National Map — USGSImageryOnly](https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer).
+- Camera-local detail and existing isometric shots: [USGS NAIP Plus](https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPPlus/ImageServer), provided by USGS, USDA and The National Map. The service combines NAIP and high-resolution orthoimagery; resolution and acquisition date vary by location. Requesting more output pixels does not establish a particular ground accuracy.
+- On-screen attribution is “Imagery: USGS / USDA · The National Map”. Detail exports preserve the requested bounds (`adjustAspectRatio=false`) and respect the service's 4000 × 4000 pixel export limit. Image data is fetched into browser memory, not committed to this repository. No generated or AI-upscaled map detail is substituted for source imagery.

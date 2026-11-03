@@ -91,14 +91,14 @@ describe("38e scenarioFromProfile", () => {
   });
   const homes = [home("home-000001", "st-정자", "정자")];
 
-  it("maps officeDays 2 to Tue/Thu plus cafe trips", () => {
+  it("maps officeDays 2 to Tue/Thu and invents no cafe trips", () => {
     const p = profile();
     p.officeDays = field(2, "customer", "");
     const sc = scenarioFromProfile(p, homes);
     assert.deepEqual(sc.household.members[0].workdays, ["Tue", "Thu"]);
-    assert.equal(sc.household.members[0].cafe_visits_per_week, 2);
+    assert.equal(sc.household.members[0].cafe_visits_per_week, undefined);
   });
-  it("gives seniors daily park walks and monthly clinic, never a commute", () => {
+  it("gives seniors no invented routine; unknown senior work stays unresolved", () => {
     const p = profile();
     p.members = field([{ role: "adult" }, { role: "adult" },
       { role: "senior", relation: "부모", label: "부모님" },
@@ -107,15 +107,16 @@ describe("38e scenarioFromProfile", () => {
     const senior = sc.household.members[2];
     assert.equal(senior.role, "senior");
     assert.equal(senior.work.type, "none");
-    assert.equal(senior.park_walks_per_week, 7);
-    assert.equal(senior.clinic_visits_per_month, 2);
+    assert.equal(senior.work_unresolved, true);
+    assert.equal(senior.park_walks_per_week, 1);
+    assert.equal(senior.clinic_visits_per_month, 0);
   });
-  it("gives the first adult the morning dog walk and a vet visit", () => {
+  it("gives the first adult no automatic dog or vet routine", () => {
     const p = profile();
     p.pets = field({ kind: "dog", count: 1 }, "customer", "");
     const sc = scenarioFromProfile(p, homes);
-    assert.equal(sc.household.members[0].dog_walk_morning, true);
-    assert.equal(sc.household.members[0].vet_visits_per_month, 1);
+    assert.equal(sc.household.members[0].dog_walk_morning, undefined);
+    assert.equal(sc.household.members[0].vet_visits_per_month, undefined);
   });
   it("treats officeDays 0 as home office, no workplace needed", () => {
     const p = profile();

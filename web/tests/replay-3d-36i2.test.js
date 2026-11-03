@@ -58,12 +58,13 @@ describe("36i2 replay boot source", () => {
   const end = src.indexOf("setReplayMeta(doc.meta", start);
   const boot = start >= 0 && end > start ? src.slice(start, end) : "";
 
-  it("recomputes the run under the plan id, never a fresh one", () => {
+  it("restores the exact run through the helper, never a fresh one", () => {
     assert.ok(start >= 0, "replay boot plans the run");
-    assert.ok(boot.includes("loadCustomRun(plan.customId)"), "checks the store first");
+    assert.ok(boot.includes("restoreReplayRun(plan"), "helper restores the run");
+    assert.ok(boot.includes("loadCustomRun"), "store load supplied to the helper");
+    assert.ok(boot.includes("saveCustomRun"), "store save supplied to the helper");
     assert.ok(boot.includes("createWorkerRunner"), "same worker runner as live");
     assert.ok(boot.includes("sim-worker.js"), "same sim worker");
-    assert.ok(boot.includes("saveCustomRun({ id: plan.customId"), "saves under the plan id");
     assert.ok(!boot.includes("newCustomId("), "never mints a fresh id");
   });
 

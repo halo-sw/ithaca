@@ -113,6 +113,7 @@ export function verifyReport(report, run, persona, opts = {}) {
 
 export function attemptSummary(result) {
   if (result.status === "미지원") return `검증 미지원: ${result.reason_ko}`;
+  if (result.status === "unverified") return "검증 미완료: 의미 검사를 끝내지 못했어요. 다시 확인해 주세요.";
   const pct = Math.round(result.weighted_coverage * 100);
   if (result.pass) return `검증 통과: 커버리지 ${pct}%`;
   const counts = new Map();

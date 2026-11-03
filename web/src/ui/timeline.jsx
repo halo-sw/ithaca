@@ -347,7 +347,7 @@ export function TimelineBar({ state, compact = true, defaultMenuOpen = false }) 
             <span className="ui-speed-inline">
               <SegControl label="재생 속도" value={String(state.speed)}
                 onChange={(v) => act("setSpeed", Number(v))}
-                items={[{ value: "1", label: "1×" }, { value: "10", label: "10×" }, { value: "60", label: "60×" }]} />
+                items={[{ value: "0.1", label: "0.1×" }, { value: "1", label: "1×" }, { value: "10", label: "10×" }, { value: "60", label: "60×" }]} />
             </span>
             <IconButton label="더 보기" size="sm" variant={menuOpen ? "secondary" : "ghost"}
               icon={<Icon icon="moreHorizontal" />}
@@ -373,7 +373,7 @@ export function TimelineBar({ state, compact = true, defaultMenuOpen = false }) 
               <div className="ui-speed-menu">
                 <SegControl label="재생 속도" value={String(state.speed)}
                   onChange={(v) => act("setSpeed", Number(v))}
-                  items={[{ value: "1", label: "1×" }, { value: "10", label: "10×" }, { value: "60", label: "60×" }]} />
+                  items={[{ value: "0.1", label: "0.1×" }, { value: "1", label: "1×" }, { value: "10", label: "10×" }, { value: "60", label: "60×" }]} />
               </div>
             </div>
           )}

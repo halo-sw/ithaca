@@ -116,6 +116,8 @@ export function buildPrompt({
   const lines = [
     `Member: ${agentLabel} (${member.role || "adult"}), simulated.`,
     member.preferences ? `Preferences: ${member.preferences}` : "Preferences: (none given)",
+    // 47d2: confirmed observation intent from the life plan — never an outcome.
+    ...(member.plan_context ? [`Plan context (confirmed intent, not outcome): ${member.plan_context}`] : []),
     `Day: ${date} (${weekday}), time ${hhmm(minute)}.`,
     "",
     "Today's trips so far:",

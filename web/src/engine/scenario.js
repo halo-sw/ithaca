@@ -297,18 +297,45 @@ function parseErrands(raw, where) {
   return out;
 }
 
+function parseSchool(raw, where) {
+  if (raw === undefined || raw === null || raw === false) return false;
+  if (raw === true) return true; // legacy: old recordings keep old behavior
+  if (typeof raw === "object" && !Array.isArray(raw)) {
+    const keys = Object.keys(raw).sort();
+    if (keys.length !== 2 || keys[0] !== "level" || keys[1] !== "mode") {
+      fail(`${where}.school allows only {mode, level}`);
+    }
+    if (raw.mode !== "unresolved" && raw.mode !== "nearby") {
+      fail(`${where}.school mode must be "unresolved" or "nearby"`);
+    }
+    if (!["elementary", "middle", "high", "unknown"].includes(raw.level)) {
+      fail(`${where}.school level must be elementary, middle, high, or unknown`);
+    }
+    if (raw.mode === "nearby" && raw.level === "unknown") {
+      fail(`${where}.school nearby needs a known level, never unknown`);
+    }
+    return { mode: raw.mode, level: raw.level };
+  }
+  fail(`${where}.school must be false, legacy true, or {mode, level}`);
+}
+
 function parseMember(raw, index) {
   const where = `household.members[${index}]`;
   if (!raw || typeof raw !== "object") fail(`${where} must be an object`);
   const role = raw.role || "adult";
   if (!["adult", "child", "senior"].includes(role)) fail(`${where} has unknown role ${JSON.stringify(role)}`);
-  const school = raw.school === true
-    || (raw.school && (raw.school.mode === "nearest" || raw.school === true));
   if (raw.preferences !== undefined
       && (typeof raw.preferences !== "string" || raw.preferences.length > 500)) {
     fail(`${where}.preferences wants a short free-text string (≤ 500 chars, no personal or health data)`);
   }
-  return {
+  if (raw.work_unresolved !== undefined && typeof raw.work_unresolved !== "boolean") {
+    fail(`${where}.work_unresolved wants a boolean`);
+  }
+  if (raw.plan_context !== undefined
+      && (typeof raw.plan_context !== "string" || raw.plan_context.length > 1200)) {
+    fail(`${where}.plan_context wants a string of at most 1200 chars`);
+  }
+  const out = {
     id: typeof raw.id === "string" ? raw.id : `m${index + 1}`,
     label: typeof raw.label === "string" ? raw.label : `구성원 ${index + 1}`,
     preferences: typeof raw.preferences === "string" ? raw.preferences : "",
@@ -316,7 +343,7 @@ function parseMember(raw, index) {
     workdays: raw.workdays === undefined ? ["Mon", "Tue", "Wed", "Thu", "Fri"] : checkWeekdays(raw.workdays, where),
     schooldays: raw.schooldays === undefined ? ["Mon", "Tue", "Wed", "Thu", "Fri"] : checkWeekdays(raw.schooldays, `${where}.schooldays`),
     work: parseWork(raw.work, where),
-    school: school === true,
+    school: parseSchool(raw.school, where),
     errands_per_week: parseErrands(raw.errands_per_week, where),
     park_walks_per_week: raw.park_walks_per_week === undefined ? 0 : raw.park_walks_per_week,
     clinic_visits_per_month: raw.clinic_visits_per_month === undefined ? 0 : raw.clinic_visits_per_month,
@@ -325,6 +352,47 @@ function parseMember(raw, index) {
     home_office: raw.home_office === undefined ? false : raw.home_office,
     dog_walk_morning: raw.dog_walk_morning === undefined ? false : raw.dog_walk_morning,
   };
+  if (raw.work_unresolved === true) out.work_unresolved = true;
+  if (typeof raw.plan_context === "string" && raw.plan_context.length > 0) {
+    out.plan_context = raw.plan_context;
+  }
+  return out;
+}
+
+const LIFE_PLAN_KEYS = ["source", "confirmed", "signature", "days",
+  "applied_members", "observation_codes", "unmodeled"];
+
+function parseLifePlanMeta(raw) {
+  if (raw === undefined || raw === null) return undefined;
+  if (typeof raw !== "object" || Array.isArray(raw)) fail("life_plan must be an object");
+  for (const k of Object.keys(raw)) {
+    if (!LIFE_PLAN_KEYS.includes(k)) fail(`life_plan has unsupported key ${JSON.stringify(k)}`);
+  }
+  if (raw.source !== undefined && typeof raw.source !== "string") fail("life_plan.source wants a string");
+  if (raw.confirmed !== undefined && typeof raw.confirmed !== "boolean") fail("life_plan.confirmed wants a boolean");
+  if (raw.signature !== undefined && typeof raw.signature !== "string") fail("life_plan.signature wants a string");
+  if (raw.days !== undefined && (!Number.isInteger(raw.days) || raw.days < 1)) {
+    fail("life_plan.days wants an int >= 1");
+  }
+  if (raw.applied_members !== undefined
+      && (!Array.isArray(raw.applied_members) || !raw.applied_members.every((m) => typeof m === "string"))) {
+    fail("life_plan.applied_members wants an array of member id strings");
+  }
+  if (raw.observation_codes !== undefined
+      && (!Array.isArray(raw.observation_codes) || !raw.observation_codes.every((m) => typeof m === "string"))) {
+    fail("life_plan.observation_codes wants an array of code strings");
+  }
+  if (raw.unmodeled !== undefined
+      && (!Array.isArray(raw.unmodeled)
+        || !raw.unmodeled.every((m) => typeof m === "string" && m.length <= 300)
+        || raw.unmodeled.length > 8)) {
+    fail("life_plan.unmodeled wants at most 8 strings of at most 300 chars");
+  }
+  const out = {};
+  for (const k of LIFE_PLAN_KEYS) {
+    if (raw[k] !== undefined) out[k] = raw[k];
+  }
+  return out;
 }
 
 export function parseScenario(raw) {
@@ -431,7 +499,12 @@ export function parseScenario(raw) {
     }
     destArea = raw.dest_area;
   }
-  return {
+  if (raw.plan_context !== undefined
+      && (typeof raw.plan_context !== "string" || raw.plan_context.length > 1200)) {
+    fail("plan_context wants a string of at most 1200 chars");
+  }
+  const lifePlan = parseLifePlanMeta(raw.life_plan);
+  const out = {
     name: typeof raw.name === "string" ? raw.name : "scenario",
     ...(destArea !== null ? { dest_area: destArea } : {}),
     priorities,
@@ -447,6 +520,11 @@ export function parseScenario(raw) {
     criteria_overrides: criteriaOverrides,
     _explicit: readExplicit(raw),
   };
+  if (typeof raw.plan_context === "string" && raw.plan_context.length > 0) {
+    out.plan_context = raw.plan_context;
+  }
+  if (lifePlan !== undefined) out.life_plan = lifePlan;
+  return out;
 }
 
 // Which native fields the customer set (for criterion source badges).

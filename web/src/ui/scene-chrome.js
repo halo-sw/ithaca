@@ -90,6 +90,7 @@ const GENERIC_PLACE_EN = {
   "대형마트": "a supermarket",
   "병원": "a clinic",
   "약국": "a pharmacy",
+  "열차 대기": "Waiting for the train",
 };
 
 export function placeNameEn(name) {
@@ -152,6 +153,7 @@ export function todayStepEn(step) {
   const raw = String(s.label ?? "");
   const label = raw.trim();
   if (label === "집") return "Home";
+  if (label === "열차 대기") return "Waiting for the train";
   if (s.kind === "place" && /근무\s*$/.test(label)) {
     if (s.dest) return workplaceLabel(s.dest, "en", s.destEn || romanizeName(s.dest));
     return "Work";
@@ -171,6 +173,7 @@ export function todayStepNoI18n(step) {
   const s = step || {};
   // 29L5: non-place rows keep Korean for the translator (the source
   // badge is its own node); only place rows built in code opt out.
+  if (String(s.label ?? "").trim() === "열차 대기") return true;
   if (s.kind !== "place") return false;
   return todayStepEn(s) !== String(s.label ?? "");
 }

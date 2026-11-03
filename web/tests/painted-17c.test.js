@@ -4,7 +4,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { deltaE76, gradePixel, hexToU8, resolvePaintedPixel } from "../src/render/chain.js";
-import { GRADE_LUMA, GRADE_WARM, PAINTED_NIGHT_GROUND, PAINTED_NIGHT_ROAD_GLOW,
+import { GRADE_LUMA, GRADE_WARM, PAINTED_LOOK, PAINTED_NIGHT_GROUND, PAINTED_NIGHT_ROAD_GLOW,
   PAINTED_NIGHT_ROAD_LIT, PAINTED_NIGHT_ROAD_WARM, PAINTED_NIGHT_WALL,
   nightEmissiveHex } from "../src/render/look.js";
 import { hexToLinearRgb } from "../src/palette.js";
@@ -23,21 +23,21 @@ const SIM_0850 = { date: new Date("2026-11-02T08:50:00+09:00"), minute: 530,
 const lumaU8 = ([r, g, b]) => 0.299 * r + 0.587 * g + 0.114 * b;
 
 describe("17c-1 sim view through the real chain", () => {
-  it("renders the 08:50 sim ground within ΔE 10 of beige", () => {
-    const g = resolvePaintedPixel(0xcfc4ad, SIM_0850);
-    const dE = deltaE76(g.rgb, hexToU8(0xcfc4ad));
+  it("renders the 08:50 sim ground within ΔE 10 of neutral ground", () => {
+    const g = resolvePaintedPixel(PAINTED_LOOK.terrainBase, SIM_0850);
+    const dE = deltaE76(g.rgb, hexToU8(PAINTED_LOOK.terrainBase));
     assert.ok(dE <= 10, `ground ${g.rgb} ΔE ${dE.toFixed(2)}`);
   });
 
   it("renders roofs lighter than the sim ground", () => {
-    const g = resolvePaintedPixel(0xcfc4ad, SIM_0850);
+    const g = resolvePaintedPixel(PAINTED_LOOK.terrainBase, SIM_0850);
     const r = resolvePaintedPixel(0xddd8ce, SIM_0850);
     const diff = lumaU8(r.rgb) - lumaU8(g.rgb);
     assert.ok(diff >= 15, `roof ${r.rgb} vs ground ${g.rgb}: +${diff.toFixed(1)}`);
   });
 
   it("renders sim roads neutral grey, ≥ 25 levels under the ground", () => {
-    const g = resolvePaintedPixel(0xcfc4ad, SIM_0850);
+    const g = resolvePaintedPixel(PAINTED_LOOK.terrainBase, SIM_0850);
     const d = resolvePaintedPixel(0x5b5d60, SIM_0850);
     assert.ok(Math.abs(d.rgb[0] - d.rgb[2]) <= 10, `road ${d.rgb} not neutral`);
     const diff = lumaU8(g.rgb) - lumaU8(d.rgb);
@@ -45,14 +45,14 @@ describe("17c-1 sim view through the real chain", () => {
   });
 
   it("applies no fog at the sim camera distance (fog exonerated)", () => {
-    const g = resolvePaintedPixel(0xcfc4ad, SIM_0850);
+    const g = resolvePaintedPixel(PAINTED_LOOK.terrainBase, SIM_0850);
     assert.equal(g.fogF, 0);
   });
 
-  it("keeps the albedo view beige with roofs ≥ 15 above ground", () => {
-    const g = resolvePaintedPixel(0xcfc4ad, { ...SIM_0850, unlit: true });
-    const dE = deltaE76(g.rgb, hexToU8(0xcfc4ad));
-    assert.ok(dE <= 10, `albedo ground ${g.rgb} ΔE ${dE.toFixed(2)}`);
+  it("keeps the albedo view neutral ground with roofs ≥ 15 above ground", () => {
+    const g = resolvePaintedPixel(PAINTED_LOOK.terrainBase, { ...SIM_0850, unlit: true });
+    const dE = deltaE76(g.rgb, hexToU8(PAINTED_LOOK.terrainBase));
+    assert.ok(dE <= 10, `albedo neutral ground ${g.rgb} ΔE ${dE.toFixed(2)}`);
     const r = resolvePaintedPixel(0xddd8ce, { ...SIM_0850, unlit: true });
     const diff = lumaU8(r.rgb) - lumaU8(g.rgb);
     assert.ok(diff >= 15, `albedo roof/ground +${diff.toFixed(1)}`);
@@ -60,8 +60,8 @@ describe("17c-1 sim view through the real chain", () => {
     assert.ok(Math.abs(d.rgb[0] - d.rgb[2]) <= 10, `albedo road ${d.rgb}`);
   });
 
-  it("does not clip sunlit beige at noon", () => {
-    const n = resolvePaintedPixel(0xcfc4ad,
+  it("does not clip sunlit neutral ground at noon", () => {
+    const n = resolvePaintedPixel(PAINTED_LOOK.terrainBase,
       { date: new Date("2026-11-02T12:00:00+09:00"), minute: 720,
         lat: LAT, lon: LON, camDistM: 2800, framedWidthM: 700, fog: "painted" });
     assert.ok(Math.max(...n.rgb) < 255, `noon ground ${n.rgb} clips`);

@@ -72,6 +72,7 @@ export const INITIAL_STATE = {
   chatSummary: "", // top-bar profile chip in chat mode ("판교 출근 · 1인 · …")
   aerial: false, // 20d/20e: true once the VWorld aerial drape lands (set() drops unknown keys)
   aerialCorridor: false, // 36c: true once the ride-corridor drape lands
+  aerialSecondByArea: {}, // 45c3: true per destination area id once its drape lands
   pendingScene: null, // 27c2: Muse's open_panel scene effect, consumed by the chat
   profileDetailsRequest: 0, // 29a4: top-bar summary edit button → chat opens the latest 고객님 상황 자세히
 };
