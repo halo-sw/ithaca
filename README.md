@@ -28,6 +28,7 @@ Built from scratch since [October 28, 2026](https://github.com/halo-sw/ithaca/co
 </p>
 
 <p align="center">
+  <a href="#0-quick-start">Quick&nbsp;start</a> ·
   <a href="#1-project-introduction">Introduction</a> ·
   <a href="#2-service-summary">Summary</a> ·
   <a href="#3-problem-definition">Problem</a> ·
@@ -38,11 +39,60 @@ Built from scratch since [October 28, 2026](https://github.com/halo-sw/ithaca/co
   <a href="#7-expected-impact-and-next-steps">Next&nbsp;steps</a>
 </p>
 
+## 0. Quick start
+
+For judges and developers. Every path runs the same app as the public site.
+
+| Path | You need | What you get |
+|---|---|---|
+| **No install** | A browser | The [live app](https://halo-sw.github.io/ithaca/?lang=en) with live Muse under a shared daily limit, or [a recorded month](https://halo-sw.github.io/ithaca/?replay=pangyo-reviewed-month&lang=en) that plays with no key |
+| **[Docker](#run-with-docker)** | Docker | The public build on `localhost:8080` and its model relay on `localhost:8787` |
+| **[From source](#run-from-source)** | Node 22 | The Vite dev server, with every feature the public site turns on |
+| **[Rebuild the data](docs/development.md)** | Python 3.12, about 6 GB of raw data | The pipeline that builds each area from OpenStreetMap and building records |
+
+**Keys are optional.** Without one, the header shows **Rule mode**: the engine still computes every number, and recorded months play in full. With your own `META_API_KEY`, the chat, plans, daily choices, report checks and voice run on Muse Spark 1.3 and Muse Voice. Muse Spark Open runs only with your own Baseten key.
+
+### Run with Docker
+
+```bash
+git clone https://github.com/halo-sw/ithaca.git && cd ithaca
+cp .env.example .env      # optional: add your META_API_KEY
+docker compose up --build
+```
+
+Open [http://localhost:8080](http://localhost:8080). The build downloads the runtime data the public site serves (about 130 MB, from the [`data-v1` release](https://github.com/halo-sw/ithaca/releases/tag/data-v1)). CI builds and starts these two containers without a key on every pull request. The relay reads area data from the public site unless you set `DATA_BASE_URL`. This build leaves the room-photo windows (SAM 3.1) and the diary picture (Muse Image) off; the dev server below turns them on.
+
+### Run from source
+
+```bash
+git clone https://github.com/halo-sw/ithaca.git && cd ithaca
+npm --prefix web ci
+mkdir -p "$HOME/ithaca-data"
+curl -L https://github.com/halo-sw/ithaca/releases/download/data-v1/runtime-data.tgz | tar -xz -C "$HOME/ithaca-data"
+set -a; . ./.env; set +a  # optional: load your keys (see .env.example)
+ITHACA_DATA_DIR="$HOME/ithaca-data/data" VITE_SAM_PHOTO=1 VITE_MUSE_IMAGE=1 npm run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173). The dev server answers the model routes itself, so no relay is needed, and the data stays outside the repo.
+
+**Tests**
+
+```bash
+npm test                  # JavaScript, after the npm ci above
+python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/pytest -q   # Python pipeline
+```
+
+Tests that need locally built area data skip themselves on a fresh clone, as they do in CI.
+
 ## 1. Project introduction
 
-Ithaca helps people understand how a home could fit their household's daily life before they commit to it. You describe the people, schedules, budget and preferences; review a plan proposed by Muse; and compare 30 simulated days in two candidate homes.
+**A home is the largest purchase most households make, yet it is often chosen in a hurry.** A few photos, a floor plan, a price and one short viewing decide years of daily life. In Korea, rising prices add the fear of missing out (FOMO), and the deposit-fraud (전세사기) wave has made a deposit lease, the usual alternative to buying, feel unsafe. How the home fits the household shows up only after moving in.
 
-The result connects each person's routines to routes, time, costs and recorded choices. You can inspect the evidence and follow a journey in 3D, then decide what to check at a real viewing.
+**Ithaca's agents live there first.** A household modelled on yours lives the same 30 days in each of two candidate homes: work and remote days, errands, parks, school routes, evenings at home, commutes and money. Muse Spark 1.3 plans each member's routine and makes their daily choices among real, mapped options. Code computes every route, minute and won, and the report is checked against the saved record before you see it.
+
+You then compare whole months of life side by side, not only the commute, and decide what to check at the viewing before you buy or sign. The decision stays yours.
+
+**Who it is for.** First-job workers, couples about to marry, young families choosing between two homes, and new hires moving to a city they have never lived in, like a Meta engineer looking along the Caltrain corridor.
 
 ## 2. Service summary
 
@@ -50,7 +100,9 @@ The result connects each person's routines to routes, time, costs and recorded c
 |---|---|
 | Household members, workplaces, budget and preferences | Candidate homes on a map, with historical transaction references |
 | Two selected homes and reviewed routines | The same household simulated over the same 30-day window in both homes |
-| Your questions and priorities | Side-by-side costs and commutes, saved decisions with reasons, and a report linked to its evidence |
+| Your questions and priorities | A whole-life comparison: time (commutes, evenings at home), money (monthly cost of buying, 전세 or 월세, with taxes and loan assumptions), daily needs within a 10-minute walk, saved decisions with reasons, and a report linked to its evidence |
+
+Next to the 30 days, each Korean home shows deposit-lease (전세) warning signals with an official-source checklist and labelled mock-loss scenarios, support programmes compared condition by condition, and official safety and school statistics with source and period. Homes are weighted only by your own priorities (**내 기준 점수**). Ithaca names no winner and never rules a deposit safe.
 
 Current scenarios cover parts of Seoul and Gyeonggi, including Jamsil and Pangyo, and a separate Menlo Park / Meta HQ case. Plans can combine working adults, remote days, children, older members and pets. Missing or unsupported needs stay visible.
 
@@ -58,13 +110,16 @@ Historical transaction prices are reference data, not available listings. US ren
 
 ## 3. Problem definition
 
-**A short viewing leads to a long commitment.** First-time buyers and renters need to choose a place where several people's lives must work. Photos, floor plans and prices reveal the property; they leave the household to work out its everyday consequences.
+**People commit to a home for years without ever having lived in it.** For most households a home is the largest purchase they make. It is chosen from photos, a floor plan, a price and a short viewing, and how it fits each person's day shows up after moving in. A couple weighs two commutes, office and remote days, errands and time at home; a family adds school routes. A poor fit keeps costing time and money every month.
 
-**In Korea, this decision can feel rushed.** A day of traveling between neighborhoods may still end with pressure to decide. A couple must weigh two commutes, office and remote days, shopping trips and time at home. A family adds school routes and other routines. A poor fit creates recurring costs in time and money after moving in.
+- **Korea: haste, FOMO and deposit fraud.** In June 2025 Seoul apartment prices rose 0.43 % in a single week, the largest weekly rise in 6 years and 9 months (Korea Real Estate Board, via [Newsis](https://www.newsis.com/view/NISX20250627_0003230658)). When prices climb, the pressure to buy before it is too late grows. Waiting in a deposit lease is no safe harbour either: since the victims' act took effect in June 2023, **41,559 cases have been officially recognised as deposit fraud (전세사기), and 75.9 % of the recognised tenants are under 40** (30s 50.7 %, 20s 25.2 %). 97.7 % had a deposit of 300,000,000 won or less (Ministry of Land figures, via [Herald, 2026-10-11](https://www.heraldk.com/article/2026101114382405541)). A day of traveling between neighborhoods may still end with pressure to decide.
+- **US: you find out after moving in.** 45 % of US homeowners have at least one regret about buying their current home ([Bankrate, May 2025](https://www.bankrate.com/press-releases/nearly-half-of-homeowners-have-at-least-one-regret-about-the-purchase-of-their-current-home/)). Among people who bought in the past year, younger buyers more often regret the commute and the neighbourhood ([Realtor.com, Nov 2025](https://www.stocktitan.net/news/NWS/realtor-com-as-market-cools-buyer-regret-does-grzvemhi8uiu.html)). The US market has slowed (a median of 63 days on market in October 2025, in the same study), so there the problem is less haste than deciding without having lived there.
 
-**The missing information is household-specific.** A single route search does not show how different schedules and recurring activities add up across a month. Ithaca turns those conditions into an explicit, reviewable comparison and a set of questions to take to the viewing.
+**What is missing is a way to live there first.** A route search shows one trip, and a listing shows the unit. Neither shows how a household's schedules, errands and costs add up over a month, or how two homes compare under the same conditions. Ithaca turns that into an explicit, reviewable comparison and a set of questions to take to the viewing.
 
-Korean public transaction records, building data and transit data provide useful inputs. They do not establish the accuracy of a simulated life. Deposit-risk checks are a separate feature; a 30-day simulation cannot certify a lease or prevent deposit fraud.
+**What it does not do.** A 30-day simulation cannot certify a lease or stop deposit fraud. Ithaca shows public warning signals, an official-source checklist and labelled mock-loss scenarios next to the commute, the money and the 30-day record. It never rules a deposit or a landlord safe, forecasts prices or tells you to buy. Public transaction, building and transit data are inputs; they do not prove that a simulated month matches real life.
+
+**Why I built this.** I'm Halo, and I have been looking for a home to start married life in. The deposit-fraud news made a 전세 feel risky, rising prices made waiting feel risky too, and two people with very different routines made every option hard to judge. How well we would sleep, how crowded the commute would be, what the neighbourhood is really like: you meet these only after moving in. With that much money at stake, I wanted to live there first.
 
 ## 4. How the Muse agents work
 
@@ -131,7 +186,7 @@ A **separate four-person family run** records school-level routes. A missing mid
 - [Commute baseline analysis](docs/baseline-commute.md): a rule-based, ten-seed comparison against a constructed station-distance-plus-ride baseline. It is separate from the live Muse month and from real-world measurements. Korean platform waits are not modeled in that analysis.
 - [Spark 1.3 vs Spark Open](docs/model-comparison.md): a separate model comparison on shared decision points; agreement is not an accuracy score.
 - [Try Meta HQ](https://halo-sw.github.io/ithaca/?chat=I+work+at+Meta+HQ+in+Menlo+Park.+Two+of+us%2C+rent+up+to+%244%2C500+a+month.&lang=en).
-- [Run locally](docs/development.md): Docker, source setup and data regeneration. Without a configured provider, local execution uses labeled rule mode. Public live use is subject to shared model limits; the saved replay needs no live model call.
+- [Run it yourself](#0-quick-start) · [full local setup](docs/development.md): Docker, source setup and data regeneration. Without a configured provider, local execution uses labeled rule mode. Public live use is subject to shared model limits; the saved replay needs no live model call.
 - [CI](https://github.com/halo-sw/ithaca/actions/workflows/ci.yml) · [Features](docs/features.md) · [Data attribution](ATTRIBUTION.md).
 
 </details>
