@@ -544,6 +544,12 @@ const seedPhrases = {
   "출퇴근 없이 집 보기": "Show homes without a commute",
   "서울 예시로 해 보기": "Try a Seoul example",
   "Caltrain 축 · 멘로파크": "Caltrain corridor · Menlo Park",
+  // 60c: diary picture (Muse Image), shown only with VITE_MUSE_IMAGE=1.
+  "장면 하나 그림으로 보기": "Illustrate one moment",
+  "다음 장면 그림으로 보기": "Illustrate the next moment",
+  "Muse Image가 그리는 중…": "Muse Image is drawing…",
+  "Muse Image 일러스트 · 실제 장소 사진이 아니에요": "Illustration by Muse Image · not a photo of the real place",
+  "일기 장면 일러스트": "Diary moment illustration",
   "출퇴근 계산 안 됨": "commute not computed",
   // 60b: room photo in the listing check card (SAM 3.1 window boxes).
   "방 사진 추가 (선택)": "Add a room photo (optional)",
@@ -562,6 +568,8 @@ const spaceDist = (s) => String(s).replace(/(\d)(k?m)$/, "$1 $2");
 const seedPatterns = [
   // 60b: room photo window line.
   { ko: "이 사진에서 창 {0:\\d+}개 · 사진의 {1:\\d+}%", en: (c) => `${c[0]} ${c[0] === "1" ? "window" : "windows"} in this photo · ${c[1]}% of the photo` },
+  // 60c: diary picture caption ("16일째 18:49 장면").
+  { ko: "{0:\\d+}일째 {1} 장면", en: "Day {0}, {1}" },
   // 35a: purchase cost basis lines ("집값 9억 원 × 3%").
   // 35b2: basis and source on one line ("{basis} · {source}").
   { ko: "{0} · 지방세법 제11조 제1항 제8호 (시행 2026-01-01, 법률 제21308호)", en: "{0} · Local Tax Act, Art. 11(1)8 (in force 2026-01-01, Act No. 21308)" },

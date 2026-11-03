@@ -13,6 +13,7 @@ import { createStreetHandler } from "./street.js";
 import { createConsultHandler, httpReadText, readBody } from "../web/src/consult/server.js";
 import { VOICE_MAX_BYTES, createTranscribeHandler } from "../web/src/consult/voice.js";
 import { PHOTO_MAX_BYTES, createWindowsHandler } from "../web/src/consult/windows.js";
+import { createDiaryImageHandler } from "../web/src/consult/diary-image.js";
 import { BYOK_HEADER } from "../web/src/consult/byok.js";
 import { SESSION_HEADER } from "../web/src/chat/session-id.js";
 import { createSessionStore } from "./session-store.js";
@@ -240,6 +241,10 @@ export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(
   const win10 = new Map();
   const winDay = new Map();
   const winGlobal = [];
+  const diaryImageHandler = createDiaryImageHandler({ env, fetchImpl });
+  const img10 = new Map();
+  const imgDay = new Map();
+  const imgGlobal = [];
 
   // Raw (binary-safe) body read for the WAV upload: readBody() above
   // decodes text, which would corrupt audio bytes.
@@ -422,6 +427,24 @@ export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(
       }
       corsHeaders(res, cors);
       return windowsHandler(req, res);
+    }
+
+    if (path === "/api/image/diary") {
+      if ((req.method || "GET") !== "POST") {
+        sendJson(res, 405, { ok: false, error: "method" }, cors);
+        return;
+      }
+      const over = Math.max(
+        checkBucket(img10, client, t, 600000, 5),
+        checkBucket(imgDay, client, t, DAY_MS, 20),
+        checkGlobal(imgGlobal, t, DAY_MS, 100),
+      );
+      if (over > 0) {
+        sendLimited(res, over, cors);
+        return;
+      }
+      corsHeaders(res, cors);
+      return diaryImageHandler(req, res);
     }
 
     if (path === "/api/consult") {

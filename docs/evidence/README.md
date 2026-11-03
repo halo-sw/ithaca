@@ -37,3 +37,18 @@ These files are unedited request/response pairs from real calls to Meta models, 
 - **No fine-tuning.** Spark Open is served by Baseten as published; we did not fine-tune it.
 - **No consult-chat transcripts.** The chat agent (`web/src/consult/agent.js`) uses the same provider module, through `completeWithTools`.
 - **No customer data.** The household in these prompts is a synthetic scenario.
+
+## Muse Image (2026-11-03)
+
+| File | Model | Endpoint | Calls | Captured (UTC) |
+|---|---|---|---|---|
+| [`muse-image-2026-11-03.json`](muse-image-2026-11-03.json) | `muse-image-1.0` | `https://api.meta.ai/v1/images/generations` | 2, both HTTP 200 | 2026-11-03 14:22:21 – 14:22:42 |
+
+- **The path.** Both calls went through Ithaca's own handler, `createDiaryImageHandler` in [`web/src/consult/diary-image.js`](../../web/src/consult/diary-image.js), with a recording `fetchImpl`.
+- **What the browser sends.** Only `{ kind, minute, region }`. The handler builds the prompt from a fixed scene list, so no diary or customer text reaches the model.
+- **The two scenes.**
+  - A commute at 07:32 in Korea, from `seoul-couple.json`, home A, day 1.
+  - A park walk at 18:32 in the US, from `menlo-month.json`, home B, day 26.
+- **Edits.** The `Authorization` header is replaced with `[REDACTED]`. Each returned image's base64 is replaced with its size and SHA-256. The images are not in the repo.
+- **How the app labels them.** The app shows each picture with "Muse Image 일러스트 · 실제 장소 사진이 아니에요" (illustration by Muse Image, not a photo of the real place).
+
