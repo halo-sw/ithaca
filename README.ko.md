@@ -217,11 +217,11 @@ flowchart TB
 
 | 모델 | 하는 일 | 도는 곳 | 근거 |
 |---|---|---|---|
-| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark 1.3** | 상담, 플랜, 하루하루의 선택, 리포트와 근거 검사 | 중계 서버 → Meta&nbsp;API | [코드](web/src/judge/providers.js) · [기록된 한 달(영어)](docs/recording-v9.md) |
-| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark Open** | Spark 1.3 대신 고를 수 있는 모델 | 중계 서버 → Baseten | [실제 호출](docs/evidence/muse-spark-open-2026-10-31.json) · [비교](docs/model-comparison.ko.md) |
-| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Voice Transcribe 1.0** | 말을 고칠 수 있는 글로 받아 적기 | 브라우저 마이크 → 중계 서버 → Meta&nbsp;API | [코드](web/src/consult/voice.js) |
-| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Image 1.0** | 기록된 활동 하나를 그림으로 그리기 | 중계 서버 → Meta&nbsp;API | [코드](web/src/consult/diary-image.js) · [실제 호출](docs/evidence/muse-image-2026-11-03.json) |
-| **SAM 3.1** | 넣은 방 사진에서 창 찾기 | 브라우저 → 중계 서버 → Meta&nbsp;API | [코드](web/src/consult/windows.js) · [실제 호출](docs/evidence/sam-3.1-2026-11-03.json) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark 1.3** | 상담, 플랜, 하루하루의 선택, 리포트와 근거 검사 | 중계 서버 → Meta&nbsp;Model&nbsp;API | [코드](web/src/judge/providers.js) · [기록된 한 달(영어)](docs/recording-v9.md) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Spark Open** | Spark 1.3 대신 고를 수 있는 Open-weights 모델 | 중계 서버 → Baseten | [실제 호출](docs/evidence/muse-spark-open-2026-10-31.json) · [비교](docs/model-comparison.ko.md) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Voice Transcribe 1.0** | 말을 고칠 수 있는 글로 받아 적기 | 브라우저 마이크 → 중계 서버 → Meta&nbsp;Model&nbsp;API | [코드](web/src/consult/voice.js) |
+| <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Image 1.0** | 기록된 활동 하나를 그림으로 그리기 | 중계 서버 → Meta&nbsp;Model&nbsp;API | [코드](web/src/consult/diary-image.js) · [실제 호출](docs/evidence/muse-image-2026-11-03.json) |
+| **SAM 3.1** | 넣은 방 사진에서 창 찾기 | 브라우저 → 중계 서버 → Meta&nbsp;Model&nbsp;API | [코드](web/src/consult/windows.js) · [실제 호출](docs/evidence/sam-3.1-2026-11-03.json) |
 | <img src="web/public/brand/muse-logo.png" width="16" alt=""> **Muse Code** | 제품 코드, 테스트, 파이프라인 작성 | 개발자 컴퓨터, 개발할 때만 | [지시문](briefs/) · [규칙](AGENTS.md) |
 
 API 경로: Meta `api.meta.ai/v1/` 아래 `chat/completions`(Spark 1.3), `asr/transcribe`(Voice), `images/generations`(Image), `responses`(SAM) · Baseten `inference.baseten.co/v1/chat/completions`(Spark Open). Muse Code는 실행 중에 부르는 엔드포인트가 없어요.
