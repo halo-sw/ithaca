@@ -76,7 +76,7 @@ describe("26w first screen content (SSR, no DOM)", () => {
     assert.ok(html.includes("다루는 지역 11곳"), "coverage line");
     const lastCaption = Math.max(
       html.indexOf("키 없이 기록 재생"),
-      html.indexOf("무료 체험 1회 · 이후 내 키"));
+      html.indexOf("무료 체험 하루 3회 · 이후 내 키"));
     assert.ok(lastCaption !== -1, "try captions present");
     assert.ok(html.indexOf("다루는 지역 11곳") > lastCaption, "coverage stays last");
   });
