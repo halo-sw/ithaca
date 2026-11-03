@@ -1,20 +1,24 @@
 <p align="center"><img src="briefs/img/ithaca-banner.png" width="100%" alt="Ithaca — The Pre-living Agent for Your Next Home"></p>
 
-<p align="center"><i>“We walk the odyssey. You just come home.”</i></p>
+**Problem.** People choose a home from a few photos and one viewing, and learn how it fits their daily life only after moving in. 45 % of US homeowners say they have at least one regret about buying their current home ([Bankrate, May 2025](https://www.bankrate.com/press-releases/nearly-half-of-homeowners-have-at-least-one-regret-about-the-purchase-of-their-current-home/)). In Korea, 41,559 cases have been recognised as deposit fraud (전세사기) since the victims' act took effect in June 2023, and 75.9 % of the recognised tenants are under 40 ([Herald, 2026-10-11](https://www.heraldk.com/article/2026101114382405541)).
 
-<p align="center">In my Korean house hunt, short viewings made long-term decisions difficult.<br>Ithaca simulates your household’s routines for 30 days in each candidate home, so you can compare the differences before deciding.</p>
+**Who it is for.** First-job renters, couples about to marry, young families choosing between two homes, and new hires moving to a city they have never lived in.
+
+**What Ithaca does.** An AI household modelled on yours lives 30 days in each candidate home. Muse Spark makes the household's daily choices among mapped options, code computes every route, minute and cost, and every sentence of the report is checked before you see it.
+
+| Measured | Baseline (listing-style) | Ithaca | Source |
+|---|---|---|---|
+| One-way commute, Meta HQ candidates (n = 5; one home with no train leg left out) | 5.1–18.1 min: straight line to the station at 80 m/min, plus the scheduled ride | Door-to-door 33.4–44.1 min, mean +28.7 min. Most of the gap is the last mile from Menlo Park station (about 22 min by bike) and the train wait (3.8–7.5 min) | [Baseline commute](docs/baseline-commute.md) |
+| One-way commute, Pangyo candidates (n = 12) | 2.9–50.0 min | 4.8–52.2 min, mean +1.0 min. The scenarios place the workplace at Pangyo Station, and no platform wait is modelled in Korea yet | [Baseline commute](docs/baseline-commute.md) |
+| Numbers in the report | — | Each is compared with the engine's value. A failing report goes back to Muse up to 3 times; after that, the open question comes to you | [Verification](docs/verification.md) |
+
+**▶ [Final demo (2:53)](https://github.com/halo-sw/ithaca/releases/download/demo-v9/ithaca-hackathon-final-en.mp4)** · **[Try it live](https://halo-sw.github.io/ithaca/)** · [Watch a recorded month, no key](https://halo-sw.github.io/ithaca/?replay=pangyo-reviewed-month&lang=en) · [한국어 README](README.ko.md) · Built during the hackathon: first commit 2026-10-28.
+
+> Status (2026-11-03): hackathon entry. The hackathon runs 2026-10-27 → 11-05, and nothing here predates it. Items marked *coming soon* are not built yet. Coming next: a field study comparing simulated months with what 10–20 residents actually lived.
 
 <p align="center"><a href="https://github.com/halo-sw/ithaca/releases/download/demo-v9/ithaca-hackathon-final-en.mp4"><img src="briefs/img/demo-video-thumb.jpg" width="720" alt="Ithaca: Before you sign, live the next 30 days"></a><br><sub>▶ <a href="https://github.com/halo-sw/ithaca/releases/download/demo-v9/ithaca-hackathon-final-en.mp4"><b>Final demo</b></a> (2:53, English narration and captions) · One reviewed Pangyo couple run · Separate four-person family · <a href="https://github.com/halo-sw/ithaca/releases/tag/demo-v9">release and evidence</a></sub></p>
 
 <p align="center"><b>Built with Meta AI:</b> Meta Model API (<code>api.meta.ai</code>) · Muse Spark 1.3 · Muse Spark Open · Muse Code · Muse Voice</p>
-
-<p align="center">
-  <a href="https://halo-sw.github.io/ithaca/"><img src="https://img.shields.io/badge/Try_it-live-1a56db?style=for-the-badge" alt="Try it live"></a>
-  &nbsp;
-  <a href="https://halo-sw.github.io/ithaca/?replay=pangyo-reviewed-month&lang=en"><img src="https://img.shields.io/badge/Watch-a_recorded_month-1a56db?style=for-the-badge" alt="Watch a recorded month, no key needed"></a>
-  &nbsp;
-  <a href="README.ko.md"><img src="https://img.shields.io/badge/한국어-README-e8f0fe?style=for-the-badge&labelColor=1a56db" alt="Korean README"></a>
-</p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Muse_Spark-1.3-0072f1?style=flat-square&logo=data%3Aimage%2Fpng%3Bbase64%2CiVBORw0KGgoAAAANSUhEUgAAACgAAAAbCAYAAAAOEM1uAAAEf0lEQVR42rWXW2iXdRjHv7%2F%2Ff3MOyVJbLMPoAMrWqjmIpBhddWO7KYsiiqDDtLsgC0woo912uqi0sAzpBNqsboKKohhIlBiVItNdRB6Zmk5qzv%2F7frro%2BcXTs%2Fe%2FUdgPXp7f%2B77P%2BfR7flLFAuoGLwbeAA4Do8Dt9r3WjMb2qQrnvKzMGLgK%2BIl%2FrtPAZVHJsF%2Bk%2F2s55S4B9ptS5wK803BaAs2twG7gOPA5cOV59aQxqwOtwNdBKYAGUAL3ZAWBmtH1AH8YXmnwnRj6%2F7Ja3L6eUmoAr0nql3Qu%2FJekJOm38I6kTZLmGk322DWSlFIqKqKU6VL8r1mKYtB5rgweybDPcOcYfCB4uzD4Q7MU%2Brehzcr1ApMWyoYJ%2BdaqN68zQGcWBswHfjXlC5cKADtz6oRcvRZ4H%2FgKeNTjNFUQaAN%2BdJ4oTJkBS%2Fq89ufcM9qhkJ9ewc%2BcIRn%2FeuBk6Ax3zZSrNcuBpyT1SGpYftQkrZd0UNJCyy1J%2BiWl1PiLH5dLekxSaTTZCxg8kWVISkC7pPckXSRpStJZo13p8nm6gkCPpCecoLqkPSmll61YJCkn8pglPpI2SJpndDVJ%2BxwPSRp3xZed0GVOmGNyao535apJek5Su7O8lDRo%2B96AP2ZtpVfS%2Fca8bp7%2BJAg8anAKWCpprcP368xsCq40qxpG%2FFJKacT%2BL3V4kjRq3nvWWlBOibckTTgDJemI8%2Fbz1oaq1kRVtf%2Bdk8ABl7C7gXbz0jzgUGgdVwPdrhgKYAroBN6172cN5nN7oKKQfFtaW3UyeW17gQ%2BBLcBi931ZYHrKTplhe580uNXwdwXBN5qhe4KRRwPeoD%2BZbN8N9DdrO9mS24zBlMERYIXreYUZ0GXMD4b2sRB4yHm1NCM2B0%2FfbfLaDD7iZG6u5Xjb40t9WcipA1btyR1pO1JKeyVdKmmBoz1m7WkoH2n2bKhoJ6dcMV0naaOkVpP74EwefD14cJeFtXTe67Mw3hDC%2BD3waqD%2FzvjuDCG%2B2Xgk4BtHUwKjM41cX4aTgfC%2B3dEMhH8ngN9NSP52iykx5owpgeXGY3UoPoB100auPAgERriBIedfn8NfUzGeeYU%2FMrwFwLFQyYuBRWZU4QaVMWB%2BM%2B8tqZjvvMDhkNhDQcHSGTNphZSAKxxfgAnrDFsd%2Fyzjjpkmm5sqlMN5b7kJzCPXliYDLsALjn9PiMrPwH0OP9PvqBwgXIHcO4PAD9wUlD3%2BacDJhhyxsGbD%2BwPeYcPxuXfcwl4Dai1Njp8l0bnWHqYkPe3aUT6%2FO8JEUtpRuD6ldNJSoZB0QeDb6fhgR%2B3qlNIhoJ5SKppNuB3hvWF9b2NKaZ%2Fty5QSQKukCx1uYcqNSHrTvJcHiDZnlFesYTQvppS2AS35KjDbCF5YU261ieUZC2sZhLQYbh4eGpLW2KCAU2rc3UdwMlolfSzp8WBQ0yLpD8UxDqyouANn%2FLcD%2FsPhf27E7W5y92sYmJtvibNePw2uArYDm4DuqknDCe4AXgG2AauqKtAVVBfwhfXDvcCTTuY05f4Eau6o08a%2ByYgAAAAASUVORK5CYII%3D" alt="Muse Spark 1.3">
@@ -49,7 +53,7 @@ The record contains **133 Muse choices and 2 explicitly labeled rule fallback(s)
 
 **Problem.** People commit to a home for years without ever having lived in it. A home is the largest purchase most people make, and it is chosen from a few photos and one viewing. This is not only a Korean problem.
 
-- **In Korea, the same blind spot comes with haste and deposit fraud.** In June 2025 Seoul apartment prices rose 0.43 % in a single week, the largest weekly rise in 6 years and 9 months (Korea Real Estate Board, via [Newsis](https://www.newsis.com/view/NISX20250627_0003230658)). As of September 2026, **41,559 tenants have been officially recognised as deposit-fraud (전세사기) victims. 75.9 % of them are under 40** (30s 50.7 %, 20s 25.2 %), and 97.7 % had a deposit of 300,000,000 won or less (Ministry of Land figures, via [Herald](https://www.heraldk.com/article/2026101114382405541)).
+- **In Korea, the same blind spot comes with haste and deposit fraud.** In June 2025 Seoul apartment prices rose 0.43 % in a single week, the largest weekly rise in 6 years and 9 months (Korea Real Estate Board, via [Newsis](https://www.newsis.com/view/NISX20250627_0003230658)). Since the victims' act took effect in June 2023, **41,559 cases have been officially recognised as deposit fraud (전세사기), and 75.9 % of the recognised tenants are under 40** (30s 50.7 %, 20s 25.2 %). 97.7 % had a deposit of 300,000,000 won or less (Ministry of Land figures, via [Herald, 2026-10-11](https://www.heraldk.com/article/2026101114382405541)).
 - **In the US, you find out after moving in.** 45 % of US homeowners have at least one regret about buying their current home. The most common reasons are upkeep and hidden costs higher than expected (42 %), a home that is too small (21 %), a mortgage payment that is too high (16 %) and a bad location (14 %) ([Bankrate, May 2025](https://www.bankrate.com/press-releases/nearly-half-of-homeowners-have-at-least-one-regret-about-the-purchase-of-their-current-home/)). Among people who bought in the past year, only 27 % of Gen Z buyers have no regrets, and younger buyers more often regret the commute and the neighbourhood ([Realtor.com, Nov 2025](https://www.stocktitan.net/news/NWS/realtor-com-as-market-cools-buyer-regret-does-grzvemhi8uiu.html)). Renters often skip the viewing altogether: 41 % say they are likely to rent sight unseen ([Apartments.com, Q2 2025](https://www.apartments.com/grow/learning-center/renter-search-survey-q2-2025)). The US market has slowed (a median of 63 days on market in October 2025, in the same Realtor.com study) and regret has fallen with it, so in the US the problem is not haste. It is deciding without having lived there.
 
 Living 30 days in a simulation does not stop deposit fraud, which falls mostly on tenants of multi-family houses (다세대, 28.3 %), officetels (21.0 %) and multi-household houses (다가구, 18.8 %). What Ithaca does is help you see the risk before you sign: its deposit-lease warning signs sit next to the commute, the money and the 30-day record.
@@ -87,8 +91,6 @@ Living 30 days in a simulation does not stop deposit fraud, which falls mostly o
 <p align="center"><sub>Meta HQ in Menlo Park on Muse Spark Open (open weights, picked in the header): the 30-day result, the report check that passed on the first try, and the 3D neighbourhood. Production build, 2026-11-02.</sub></p>
 
 **Why I built this.** I'm Halo, and I have been looking for a home to start married life in. Between the deposit-fraud news and two people with very different daily routines, it was hard, and every change, like a new job, brings things you only meet after moving in. I can't know in advance how well I'll sleep, how crowded my commute will be, or what a neighbourhood is really like, so I wanted to simulate it first.
-
-> Status (2026-11-02): work in progress. The hackathon runs 2026-10-27 → 11-05. The first commit is 2026-10-28, and nothing here predates the hackathon. Items marked *coming soon* are not built yet.
 
 ## Try it
 
@@ -283,6 +285,7 @@ Raw and built data are never committed; the scripts above regenerate them. Real-
 - [Architecture](docs/architecture.md): folder map, system map, one chat turn, and the path from one sentence to a checked comparison
 - [Features in detail](docs/features.md): every area of the product and the data behind it
 - [Verification in detail](docs/verification.md): the checklist, the two kinds of check, the pass rule and the retry loop
+- [Listing-style vs door-to-door commute](docs/baseline-commute.md): every candidate home in three recorded runs, the gap, and where it comes from
 - [Spark 1.3 vs Spark Open](docs/model-comparison.md): the model table and the side-by-side run
 - [Build log](docs/build-log.md): the plan to the deadline, an example output and every Muse stage
 - [`briefs/`](briefs/): one brief and one result per Muse Code stage; rules in [`AGENTS.md`](AGENTS.md)
