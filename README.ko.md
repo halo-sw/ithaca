@@ -262,7 +262,7 @@ Muse Image가 그린 그림에는 “**Muse Image 일러스트 · 실제 장소 
 <tr><td nowrap><b>모델 일치도</b></td><td>Spark 1.3과 Spark Open, 같은 가족, 각 154개 판단</td><td>함께 만난 판단 지점 139곳 중 <b>120곳에서 같은 선택</b>(86%). 둘 다 가드 대체 0건. 호출당 3.7초와 2.7초</td><td nowrap><a href="docs/model-comparison.ko.md">비교</a></td></tr>
 <tr><td nowrap><b>매물식 통근<br>계산과 비교</b></td><td>기록된 실행 3개의 집 17곳, 시드 10개, 규칙 기반</td><td>Meta 본사: 실제 통근이 <b>26.0–31.6분 더 걸려요</b>(평균 28.7분). 대부분 역에서 회사까지 마지막 구간과 열차 대기예요. 판교: 0.2–2.6분 더 걸려요</td><td nowrap><a href="docs/baseline-commute.ko.md">기준 비교</a></td></tr>
 <tr><td nowrap><b>공개한 한 달</b></td><td>실행 <code>cmw0nibca873f</code>, 집 두 곳</td><td><b>Muse 선택 133개</b>, 표시된 기본 규칙 대체 2개, 리포트 통과</td><td nowrap><a href="docs/recording-v9.md">녹화 v9(영어)</a></td></tr>
-<tr><td nowrap><b>테스트</b></td><td>PR마다 CI</td><td><b>JS 3,765개</b> 통과(42개 건너뜀) · <b>Python 289개</b> 통과(18개 건너뜀) · Docker compose 실행 확인</td><td nowrap><a href="https://github.com/halo-sw/ithaca/actions/workflows/ci.yml">CI</a></td></tr>
+<tr><td nowrap><b>테스트</b></td><td>PR마다 CI</td><td><b>JS 3,765개</b> 통과(42개 건너뜀)<br><b>Python 289개</b> 통과(18개 건너뜀)<br>Docker compose 실행 확인</td><td nowrap><a href="https://github.com/halo-sw/ithaca/actions/workflows/ci.yml">CI</a></td></tr>
 </tbody>
 </table>
 

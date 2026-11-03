@@ -251,7 +251,7 @@ Each result can be reproduced from files in this repo. None of them measures rea
 | **Model agreement** | Spark 1.3 vs Spark Open, same household, 154 decisions each | **Same choice at 120 of 139** shared decision points (86 %); 0 guard fallbacks on either; 3.7 s vs 2.7 s per call | [comparison](docs/model-comparison.md) |
 | **Commute vs a listing-style figure** | 17 homes from the 3 recorded runs, 10 seeds, rule-based | Meta HQ: door-to-door is **26.0–31.6 min longer** (mean 28.7), mostly the last mile and the train wait. Pangyo: 0.2–2.6 min longer | [baseline](docs/baseline-commute.md) |
 | **Published month** | Run `cmw0nibca873f`, two homes | **133 Muse choices**, 2 labelled rule fallbacks, report pass | [recording v9](docs/recording-v9.md) |
-| **Tests** | CI on every pull request | **3,765 JS** pass (42 skipped) · **289 Python** pass (18 skipped) · Docker compose smoke | [CI](https://github.com/halo-sw/ithaca/actions/workflows/ci.yml) |
+| **Tests** | CI on every pull request | **3,765 JS** pass (42 skipped)<br>**289 Python** pass (18 skipped)<br>Docker compose smoke | [CI](https://github.com/halo-sw/ithaca/actions/workflows/ci.yml) |
 
 Agreement between two models is not an accuracy score. A passing report check means the report agrees with its own saved record. The listing-style figure is our stand-in for the convention, not text from real listings.
 
