@@ -112,7 +112,7 @@
 
 대화 한 번이 왼쪽에서 오른쪽으로 이렇게 흘러요. 파란 칸은 Muse Spark, 회색 칸은 코드예요. 점선은 검사에서 걸려 다시 돌려보내는 길이에요.
 
-<p align="center"><img src="briefs/img/agent-workflow-ko.png" width="100%" alt="에이전트 흐름, 왼쪽에서 오른쪽: 고객(한 문장, 한국어·영어·음성) → 중계 서버(키는 서버에만, IP당 무료 세션 1회) → 상담 에이전트(Muse Spark 1.3 또는 Spark Open, 한 턴에 도구 6회까지)와 도구(조건 읽기, 집 찾기, 실거래, 교통) → 가드(숫자는 도구 결과에서만, 걸리면 한 번 다시) → 두 집 × 30일(Muse가 매 이동을 정하고 엔진이 분·원을 계산) → 리포트(Muse가 submit_report로 작성) → 검증(코드가 숫자, Muse 판정이 문장을 검사, 실패하면 최대 3번 돌려보냄) → 고객이 결정(A | B 결과, 일기, 3D)."></p>
+<p align="center"><img src="briefs/img/agent-workflow-ko.png" width="100%" alt="에이전트 흐름, 왼쪽에서 오른쪽: 고객(한 문장, 한국어·영어·음성) → 중계 서버(키는 서버에만, IP당 하루 무료 3회) → 상담 에이전트(Muse Spark 1.3 또는 Spark Open, 한 턴에 도구 6회까지)와 도구(조건 읽기, 집 찾기, 실거래, 교통) → 가드(숫자는 도구 결과에서만, 걸리면 한 번 다시) → 두 집 × 30일(Muse가 매 이동을 정하고 엔진이 분·원을 계산) → 리포트(Muse가 submit_report로 작성) → 검증(코드가 숫자, Muse 판정이 문장을 검사, 실패하면 최대 3번 돌려보냄) → 고객이 결정(A | B 결과, 일기, 3D)."></p>
 
 코드: [중계 서버](relay/handler.js) · [상담 에이전트](web/src/consult/agent.js) · [도구](web/src/consult/tools.js) · [가드](web/src/consult/guards.js) · [30일 살아 보기](web/src/judge/run.js) · [리포트](web/src/consult/report.js) · [검증](web/src/verify/compare.js). Spark Open이 바쁘면 Spark 1.3이 대신 답하고, 답에 그렇게 표시돼요. 차트 원본: [docs/agent-workflow.ko.mmd](docs/agent-workflow.ko.mmd) (Mermaid).
 
