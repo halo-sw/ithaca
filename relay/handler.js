@@ -12,6 +12,7 @@ import { serveTile } from "../web/src/aerial/proxy.js";
 import { createStreetHandler } from "./street.js";
 import { createConsultHandler, httpReadText, readBody } from "../web/src/consult/server.js";
 import { VOICE_MAX_BYTES, createTranscribeHandler } from "../web/src/consult/voice.js";
+import { PHOTO_MAX_BYTES, createWindowsHandler } from "../web/src/consult/windows.js";
 import { createDiaryImageHandler } from "../web/src/consult/diary-image.js";
 import { BYOK_HEADER } from "../web/src/consult/byok.js";
 import { SESSION_HEADER } from "../web/src/chat/session-id.js";
@@ -236,6 +237,10 @@ export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(
   const voice10 = new Map();
   const voiceDay = new Map();
   const voiceGlobal = [];
+  const windowsHandler = createWindowsHandler({ env, fetchImpl });
+  const win10 = new Map();
+  const winDay = new Map();
+  const winGlobal = [];
   const diaryImageHandler = createDiaryImageHandler({ env, fetchImpl });
   const img10 = new Map();
   const imgDay = new Map();
@@ -243,13 +248,13 @@ export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(
 
   // Raw (binary-safe) body read for the WAV upload: readBody() above
   // decodes text, which would corrupt audio bytes.
-  function readRawBody(req) {
+  function readRawBody(req, max = VOICE_MAX_BYTES) {
     return new Promise((resolve, reject) => {
       const chunks = [];
       let size = 0;
       req.on("data", (c) => {
         size += c.length;
-        if (size > VOICE_MAX_BYTES) {
+        if (size > max) {
           reject(new Error("body too large"));
           if (typeof req.destroy === "function") req.destroy();
           return;
@@ -394,6 +399,34 @@ export function createRelay({ env = {}, fetchImpl = fetch, now = () => Date.now(
       }
       corsHeaders(res, cors);
       return transcribeHandler(req, res);
+    }
+
+    if (path === "/api/vision/windows") {
+      if ((req.method || "GET") !== "POST") {
+        sendJson(res, 405, { ok: false, error: "method" }, cors);
+        return;
+      }
+      const over = Math.max(
+        checkBucket(win10, client, t, 600000, 10),
+        checkBucket(winDay, client, t, DAY_MS, 30),
+        checkGlobal(winGlobal, t, DAY_MS, 200),
+      );
+      if (over > 0) {
+        sendLimited(res, over, cors);
+        return;
+      }
+      if (req.body === undefined || req.body === null) {
+        try {
+          req.body = await readRawBody(req, PHOTO_MAX_BYTES);
+        } catch {
+          sendJson(res, 413, { ok: false, error: "too_large" }, cors);
+          return;
+        }
+      } else if (typeof Buffer !== "undefined" && !Buffer.isBuffer(req.body)) {
+        req.body = Buffer.from(String(req.body));
+      }
+      corsHeaders(res, cors);
+      return windowsHandler(req, res);
     }
 
     if (path === "/api/image/diary") {
