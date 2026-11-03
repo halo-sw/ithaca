@@ -1,0 +1,116 @@
+{
+  "what": "Two real calls to muse-image-1.0 made through Ithaca's own handler (web/src/consult/diary-image.js createDiaryImageHandler) with a recording fetchImpl. The Authorization header is replaced with [REDACTED] and each returned image's base64 with its size and SHA-256; nothing else is edited.",
+  "captured_at": "2026-11-03T14:16:48.536Z",
+  "provider": "meta",
+  "base_url": "https://api.meta.ai/v1",
+  "model": "muse-image-1.0",
+  "browser_sends": "Only { kind, minute, region }. The handler builds the prompt from a fixed scene list; no diary text or customer text is sent.",
+  "calls": [
+    {
+      "sent_at": "2026-11-03T14:16:48.536Z",
+      "latency_ms": 16809,
+      "request": {
+        "method": "POST",
+        "url": "https://api.meta.ai/v1/images/generations",
+        "headers": {
+          "Authorization": "[REDACTED]",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "muse-image-1.0",
+          "prompt": "Flat editorial illustration, soft muted colours, no text, no logos, no real addresses, no identifiable people: a figure seen from behind walking to a subway entrance on a Korean apartment-district street, soft morning light",
+          "n": 1,
+          "size": "1024x1024"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "created": 1793715423,
+          "data": [
+            {
+              "b64_json": "[313412 bytes of webp, sha256 1747cb0ec5cae3c6e4b6d22a3108d937a48ddd6f81f2b6c2cbc4570a38d043a9]"
+            }
+          ],
+          "output_format": "webp",
+          "background": "opaque",
+          "usage": {
+            "input_tokens": 10469,
+            "output_tokens": 1311,
+            "total_tokens": 11780
+          }
+        }
+      }
+    },
+    {
+      "sent_at": "2026-11-03T14:17:05.349Z",
+      "latency_ms": 13830,
+      "request": {
+        "method": "POST",
+        "url": "https://api.meta.ai/v1/images/generations",
+        "headers": {
+          "Authorization": "[REDACTED]",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "muse-image-1.0",
+          "prompt": "Flat editorial illustration, soft muted colours, no text, no logos, no real addresses, no identifiable people: a figure seen from behind walking on a path in a leafy Bay Area neighbourhood park, early evening, sunset glow",
+          "n": 1,
+          "size": "1024x1024"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "created": 1793715437,
+          "data": [
+            {
+              "b64_json": "[449356 bytes of webp, sha256 c307995464d28de5acb36c1cab2f532562667fe3d65bfabd178fda87d5b712a7]"
+            }
+          ],
+          "output_format": "webp",
+          "background": "opaque",
+          "usage": {
+            "input_tokens": 10234,
+            "output_tokens": 1132,
+            "total_tokens": 11366
+          }
+        }
+      }
+    }
+  ],
+  "handler_answers": [
+    {
+      "scene": {
+        "kind": "commute",
+        "minute": 452,
+        "region": "kr",
+        "line": "seoul-couple.json, home A, 1일째 07:32 (id t000001)"
+      },
+      "handler_status": 200,
+      "handler_ok": true,
+      "handler_keys": [
+        "ok",
+        "model",
+        "image"
+      ],
+      "image_prefix": "data:image/webp;base64,"
+    },
+    {
+      "scene": {
+        "kind": "park",
+        "minute": 1112,
+        "region": "us",
+        "line": "menlo-month.json, home B, Day 26 18:32 (id away:h2:25:1112.5:park)"
+      },
+      "handler_status": 200,
+      "handler_ok": true,
+      "handler_keys": [
+        "ok",
+        "model",
+        "image"
+      ],
+      "image_prefix": "data:image/webp;base64,"
+    }
+  ]
+}
