@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { agentLabelOf, chosenLabel, dayDecisions, daylightFactor, decisionBadge, duskFactor, followCaption, formatClock, homeOccupancy, indexRun, isAtHome, latestDecision, optionsLine, parseTParam, sampleAgent, shouldAutoplay, simInstant, tripFractions } from "../src/sim.js";
+import { agentLabelOf, chosenLabel, dayDecisions, daylightFactor, decisionBadge, duskFactor, followCaption, formatClock, homeOccupancy, indexRun, isAtHome, judgeReasonText, latestDecision, optionsLine, parseTParam, playbackDecisionBadge, sampleAgent, shouldAutoplay, simInstant, tripFractions } from "../src/sim.js";
 import { simulate } from "../src/engine/simulate.js";
 import { tinyArea, tinyScenario } from "./engine-fixture.js";
 
@@ -128,6 +128,39 @@ describe("sim playback", () => {
     assert.deepEqual(decisionBadge({ chosen_by: "rule" }), { text: "규칙", cls: "rule" });
     assert.deepEqual(decisionBadge({ chosen_by: "rule_fallback" }), { text: "규칙", cls: "rule" });
     assert.deepEqual(decisionBadge({ chosen_by: "replay" }), { text: "규칙", cls: "rule" });
+  });
+
+  it("keeps recorded Muse on static playback without overlay", () => {
+    assert.deepEqual(
+      playbackDecisionBadge({ id: "d1", chosen_by: "model", provider: "meta" }, true),
+      { text: "기록된 Muse 판단", cls: "spark" });
+    assert.deepEqual(
+      playbackDecisionBadge({ id: "d2", chosen_by: "model", provider: "baseten" }, true),
+      { text: "기록된 Muse 판단", cls: "open" });
+    assert.deepEqual(
+      playbackDecisionBadge({ id: "d3", chosen_by: "rule_fallback" }, true),
+      { text: "Rule fallback", cls: "rule" });
+    const plain = playbackDecisionBadge({ id: "d4", chosen_by: "rule" }, true);
+    assert.equal(plain.cls, "rule");
+    assert.ok(!plain.text.includes("Muse"), plain.text);
+  });
+
+  it("matches decisionBadge off the static site", () => {
+    assert.deepEqual(
+      playbackDecisionBadge({ chosen_by: "model", provider: "meta" }, false),
+      decisionBadge({ chosen_by: "model", provider: "meta" }));
+    assert.deepEqual(
+      playbackDecisionBadge({ chosen_by: "rule_fallback" }, false),
+      decisionBadge({ chosen_by: "rule_fallback" }));
+  });
+
+  it("prefers the UI language reason with fallback", () => {
+    const v = { reason_ko: "가까워서", reason_en: "It is close" };
+    assert.equal(judgeReasonText(v, "en"), "It is close");
+    assert.equal(judgeReasonText(v, "ko"), "가까워서");
+    assert.equal(judgeReasonText({ reason_ko: "가까워서" }, "en"), "가까워서");
+    assert.equal(judgeReasonText({ reason_en: "It is close" }, "ko"), "It is close");
+    assert.equal(judgeReasonText({}, "en"), "");
   });
 
   it("labels choices and options from run records", () => {

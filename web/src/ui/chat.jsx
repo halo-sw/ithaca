@@ -117,7 +117,7 @@ import { personaFor, slimRunForReport } from "../verify/compare.js";
 import { newCustomId, saveCustomRun, loadCustomRun } from "../chat/idb.js";
 import { chatUrl, simMomentUrl, tourUrl, withoutEmbed, saveTranscript, loadTranscript,
   clearTranscript, parseChatSearch } from "../chat/urls.js";
-import { recordingUrl, validateRecording, replaySchedule, replayRunPlan, restoreReplayRun, RECORDINGS } from "../chat/recording.js";
+import { recordingUrl, validateRecording, replaySchedule, replayRunPlan, restoreReplayRun, RECORDINGS, DEFAULT_RECORDING_ID } from "../chat/recording.js";
 import { ruleTurnPlan, isRunRequest } from "../chat/intent.js";
 import { postConsultStream, postDiary, postReportStream, loadScenario, basetenFallbackProvider, postDecision, postLifePlan } from "./consult-client.js";
 import { loadProviderChoice, saveProviderChoice, isValidProvider,
@@ -5102,7 +5102,7 @@ export function ChatScreen() {
 
   // 29a6: replay helpers — skip reveals all now, exit keeps the language.
   function replayIdForChat() {
-    return LANG === "en" ? "menlo-month" : "seoul-couple";
+    return DEFAULT_RECORDING_ID;
   }
   function skipReplay() {
     const timers = replayTimers.current || [];
@@ -5989,7 +5989,7 @@ export function ChatEmpty({ onSend, onListing, onExample, replayId }) {
     onListing,
     onExample,
     openReplay: () => {
-      try { window.location.href = appUrl("?replay=" + (LANG === "en" ? "menlo-month" : "seoul-couple")); } catch { /* keep the thread as it is */ }
+      try { window.location.href = appUrl("?replay=" + DEFAULT_RECORDING_ID + "&lang=" + LANG); } catch { /* keep the thread as it is */ }
     },
     metaText: LANG === "en" ? META_HQ_TEXT : META_HQ_TEXT_KO,
   };

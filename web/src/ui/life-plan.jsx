@@ -599,8 +599,9 @@ export function LifePlanCard({ plan, input, scenario, lang = "en", onConfirm, on
 }
 
 function minutesLine(value, partial, unit, partialWord) {
-  if (typeof value === "number") return `${value} ${unit}${partial ? ` (${partialWord})` : ""}`;
-  return null;
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  const rounded = Math.round(value * 10) / 10;
+  return `${rounded} ${unit}${partial ? ` (${partialWord})` : ""}`;
 }
 
 function WindowBlock({ title, data, missing, memberName, lang }) {

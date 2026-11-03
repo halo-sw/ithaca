@@ -811,11 +811,15 @@ export function howCalculatedLines(cmp) {
   const lines = [];
   const j = (cmp && cmp.judgment) || {};
   const modelN = (s) => (s && s.model) || 0;
-  const total = modelN(j.a) + modelN(j.b);
+  const ja = j.A ?? j.a;
+  const jb = j.B ?? j.b;
+  const aN = modelN(ja);
+  const bN = modelN(jb);
+  const total = aN + bN;
   if (total === 0) {
     lines.push(`이 ${cmp.days || 30}일은 정해 둔 생활 규칙으로 만들었어요. Muse 판단이 들어간 날: 0일`);
   } else {
-    lines.push(`정해 둔 생활 규칙대로 만들었고, Muse가 정한 장면이 A ${modelN(j.a)}개 · B ${modelN(j.b)}개 있어요`);
+    lines.push(`정해 둔 생활 규칙대로 만들었고, Muse가 정한 장면이 A ${aN}개 · B ${bN}개 있어요`);
   }
   lines.push("걸어서 직접 잰 시간은 도보 그래프로 잰 값이고, 차·지하철을 탄 시간과 횟수는 미리 정해 둔 값이에요");
   lines.push(FATIGUE_MODEL_NOTE);

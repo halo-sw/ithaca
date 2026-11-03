@@ -34,7 +34,7 @@ import { sceneEvidence } from "./evidence.js";
 import { currentLang } from "./i18n/lang.js";
 import { memberEnFor } from "./ui/scene-chrome.js";
 import { destInLoadedAreas, pickStationArea } from "./station-areas.js";
-import { DECISION_KIND_KO, SIM_TICK_S, SPEEDS, agentLabelOf, chosenLabel, dayDecisions, decisionBadge, formatClock, homeOccupancy, indexRun, latestDecision, optionsLine, parseTParam, sampleAgent, shouldAutoplay, tripFractions } from "./sim.js";
+import { DECISION_KIND_KO, SIM_TICK_S, SPEEDS, agentLabelOf, chosenLabel, dayDecisions, decisionBadge, formatClock, homeOccupancy, indexRun, judgeReasonText, latestDecision, optionsLine, parseTParam, playbackDecisionBadge, sampleAgent, shouldAutoplay, tripFractions } from "./sim.js";
 import { sceneInstant } from "./scene/time.js";
 import { memberLabelFor } from "./profile.js";
 import { DWELL_S, legGlideDuration, pathWaypoints, seekState, selectTourStops, tourSchedule } from "./tour.js";
@@ -1471,11 +1471,7 @@ async function bootSim() {
   // with a matching committed record is labelled "기록된 Muse 판단",
   // otherwise "규칙 판단" — both describe today, never a live call.
   function badgeFor(v) {
-    const badge = decisionBadge(v);
-    if (!STATIC_SITE) return badge;
-    const e = judgeExtras.get(v.id);
-    const recorded = Boolean(e && e.chosen_key === v.chosen_key);
-    return { text: recorded ? "기록된 Muse 판단" : "규칙 판단", cls: badge.cls };
+    return playbackDecisionBadge(v, STATIC_SITE);
   }
   const area = await fetchArea(run.meta.area);
   simAreaId = run.meta.area;
@@ -1992,6 +1988,9 @@ async function bootSim() {
   }
   if (renderer.domElement) {
     renderer.domElement.addEventListener("pointermove", onHover20b);
+    renderer.domElement.addEventListener("pointerleave", () => {
+      hover20bEl.style.display = "none";
+    });
   }
 
   // 29L1: the trip route rides a hair above the road (≤ 0.6 m) so it
@@ -2539,7 +2538,7 @@ async function bootSim() {
       badgeText: badge.text,
       badgeCls: badge.cls,
       text: `${hhmm(v.minute)} ${DECISION_KIND_KO[v.kind] || v.kind} · ${optionsLine(v)} → ✓ ${chosenLabel(v)}` +
-        (v.reason_ko ? ` · “${v.reason_ko}”` : ""),
+        (judgeReasonText(v, currentLang()) ? ` · “${judgeReasonText(v, currentLang())}”` : ""),
       canAsk: import.meta.env.DEV,
     } });
   }
@@ -2602,7 +2601,7 @@ async function bootSim() {
           badgeText: badge.text,
           badgeCls: badge.cls,
           text: `${hhmm(v.minute)} ${DECISION_KIND_KO[v.kind] || v.kind} · ${optionsLine(v)} → ✓ ${chosenLabel(live)}` +
-            (live.reason_ko ? ` · “${live.reason_ko}”` : "") +
+            (judgeReasonText(live, currentLang()) ? ` · “${judgeReasonText(live, currentLang())}”` : "") +
             ` (${live.provider === "baseten" ? "Muse Spark Open" : "Muse Spark 1.3"})`,
           canAsk: true,
         },
@@ -2627,7 +2626,7 @@ async function bootSim() {
         choice: chosenLabel(v),
         badgeText: badge.text,
         badgeCls: badge.cls,
-        reason: v.reason_ko || "",
+        reason: judgeReasonText(v, currentLang()),
       };
     });
     store.set({ judgeLog: rows });

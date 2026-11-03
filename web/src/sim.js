@@ -213,6 +213,28 @@ export function decisionBadge(d) {
   return { text: "규칙", cls: "rule" };
 }
 
+// Playback badge for a saved run: judge the already-resolved v
+// provenance itself, never a fresh model call. Off the static site
+// this matches decisionBadge; on STATIC_SITE a saved model row reads
+// as recorded Muse (provider cls kept), rule_fallback is explicit,
+// everything else reads as rule.
+export function playbackDecisionBadge(d, staticSite) {
+  if (!staticSite) return decisionBadge(d);
+  const v = d || {};
+  if (v.chosen_by === "model") return { text: "기록된 Muse 판단", cls: decisionBadge(v).cls };
+  if (v.chosen_by === "rule_fallback") return { text: "Rule fallback", cls: "rule" };
+  return { text: "규칙 판단", cls: "rule" };
+}
+
+// Caption / log reason: English UI prefers reason_en, otherwise
+// reason_ko; fall back to the other only when missing.
+export function judgeReasonText(v, lang) {
+  const ko = (v && v.reason_ko) || "";
+  const en = (v && v.reason_en) || "";
+  if (lang === "en") return en || ko || "";
+  return ko || en || "";
+}
+
 // Display label of the chosen option(s): the option label, or the
 // weekend plan's places in order ("집에서 휴식" for an empty plan).
 export function chosenLabel(d) {

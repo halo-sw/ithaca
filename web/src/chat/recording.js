@@ -1,7 +1,10 @@
 import { assetUrl } from "../paths.js";
 import { stableStringify } from "../life/plan.js";
 
+export const DEFAULT_RECORDING_ID = "pangyo-reviewed-month";
+
 export const RECORDINGS = [
+  { id: DEFAULT_RECORDING_ID, title: "검토한 생활 계획 · 판교 커플의 30일 (영어 녹화)", titleEn: "Reviewed routines · a Pangyo couple's 30 days" },
   { id: "menlo-month", title: "Meta 본사 출근 · 두 사람의 한 달", titleEn: "Commuting to Meta HQ · a month for two" },
   { id: "seoul-couple", title: "판교 출근 예비부부 · 집 사기 · 30일", titleEn: "Engaged couple buying a home, Pangyo commute · 30 days" },
 ];
