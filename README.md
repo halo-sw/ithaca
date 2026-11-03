@@ -237,6 +237,8 @@ One illustrative Pangyo couple, one saved run: **`cmw0nibca873f`**. The table be
 | Historical transaction area band | 25–35 m² | 55–65 m² |
 | Saved Muse choices / rule fallbacks | 70 / 0 | 63 / 2 |
 
+**Presenter recording (November 4):** the newer recording uses a separate run, `cmw0ygvgsa8c3`: Home A has **70 Muse choices / 0 rule fallbacks**, Home B **64 / 1**, totaling **134 / 1**. The v9 video and replay linked above remain the older run (`cmw0nibca873f`, **133 / 2**). Commute and cost figures match across these runs; their decision records are distinct. [Presenter-run evidence](docs/evidence/recording-presenter.json).
+
 The report's saved status is **pass**. This checks internal consistency with the record, not field accuracy. The transaction bands are not exact unit sizes; station-based workplaces, loan terms and maintenance are explicit assumptions. [Inputs, calculations and limits](docs/recording-v9.md) · [Machine-readable evidence](docs/evidence/recording-v9.json).
 
 A **separate four-person family run** records school-level routes. A missing middle-school route remains unavailable; school assignment and enrollment are not inferred. [Family evidence](docs/recording-v9.md#separate-four-person-family).

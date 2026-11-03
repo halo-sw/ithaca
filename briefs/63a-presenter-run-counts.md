@@ -1,0 +1,74 @@
+# 63a — Distinguish the presenter video run from the historical v9 replay
+
+One small documentation correction only. The user observed video 134 Muse choices / 1 fallback versus README 133 / 2. Both are true for different runs. Preserve historical evidence, do not overwrite it.
+
+Read only README.md lines 110–126 and README.ko.md lines 110–126, plus the supplied data below. Do not read broad sources, run tests/builds/git, deploy, alter product files or call subagents.
+
+Edit README.md immediately after the v9 metrics table (after line 120), adding this short paragraph:
+
+**Presenter recording (November 4):** the newer recording uses a separate run, `cmw0ygvgsa8c3`: Home A has **70 Muse choices / 0 rule fallbacks**, Home B **64 / 1**, totaling **134 / 1**. The v9 video and replay linked above remain the older run (`cmw0nibca873f`, **133 / 2**). Commute and cost figures match across these runs; their decision records are distinct. [Presenter-run evidence](docs/evidence/recording-presenter.json).
+
+Add the equivalent concise Korean paragraph at the same location in README.ko.md. Use natural readable Korean. Keep existing old table, links and text unchanged. No promise that the newer video is already hosted.
+
+Create docs/evidence/recording-presenter.json with exactly the JSON below. Do not invent extra values. This compact evidence was extracted from the saved live recording. No source files besides these three may be changed. Finish after edits.
+
+```json
+{
+  "run_id": "cmw0ygvgsa8c3",
+  "saved_at": "2026-11-03T17:22:19.084Z",
+  "start_date": "2026-11-02",
+  "days": 30,
+  "monthly_gap_won": 514127,
+  "record_sha256": "e1d96c66d5e527dbff1a6dfa473d051516c483e8586997d4d9983c8dcc1808fa",
+  "financial_assumptions": {
+    "transit_fare_won": 1500,
+    "basket_won": 30000,
+    "maintenance_won_month": 150000,
+    "other_fixed_won_month": 0,
+    "pay_day_of_month": 25,
+    "fixed_due_day_1based": 1,
+    "loan_rate_pct": 4,
+    "loan_years": 30,
+    "jeonse_loan_cap_won": 500000000
+  },
+  "homes": {
+    "A": {
+      "average_one_way_minutes": 4.8,
+      "monthly_housing_and_commute_won": 509790,
+      "monthly_housing_only_won": 509790,
+      "commute_fares_won": 0,
+      "reference_area_band_m2": [
+        25,
+        35
+      ],
+      "choice_sources": {
+        "model": 70
+      }
+    },
+    "B": {
+      "average_one_way_minutes": 23.9,
+      "monthly_housing_and_commute_won": 1023917,
+      "monthly_housing_only_won": 915417,
+      "commute_fares_won": 108500,
+      "reference_area_band_m2": [
+        55,
+        65
+      ],
+      "choice_sources": {
+        "model": 64,
+        "rule_fallback": 1
+      }
+    }
+  },
+  "report_status": "pass",
+  "model": "muse-spark-1.3",
+  "total_muse_choices": 134,
+  "total_rule_fallbacks": 1,
+  "history_note": "The older published v9 video and replay use cmw0nibca873f (133 Muse choices, 2 rule fallbacks). They are separate genuine runs.",
+  "limits": [
+    "Illustrative household; station workplaces, loan and maintenance are assumptions.",
+    "Internal consistency check, not a field accuracy claim.",
+    "Two plan requests returned HTTP 503 before clarification and retry succeeded."
+  ]
+}
+```
