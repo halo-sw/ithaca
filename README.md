@@ -48,7 +48,7 @@ For judges and developers. Every path runs the same app as the public site.
 | **No install** | A browser | The [live app](https://halo-sw.github.io/ithaca/?lang=en) with live Muse under a shared daily limit, or [a recorded month](https://halo-sw.github.io/ithaca/?replay=pangyo-reviewed-month&lang=en) that plays with no key |
 | **[Docker](#run-with-docker)** | Docker | The public build on `localhost:8080` and its model relay on `localhost:8787` |
 | **[From source](#run-from-source)** | Node 22 | The Vite dev server, with every feature the public site turns on |
-| **[Rebuild the data](docs/development.md)** | Python 3.12, about 6 GB of raw data | The pipeline that builds each area from OpenStreetMap and building records |
+| **[Rebuild&nbsp;the&nbsp;data](docs/development.md)** | Python 3.12, about 6 GB of raw data | The pipeline that builds each area from OpenStreetMap and building records |
 
 **Keys are optional.** Without one, the header shows **Rule mode**: the engine still computes every number, and recorded months play in full. With your own `META_API_KEY`, the chat, plans, daily choices, report checks and voice run on Muse Spark 1.3 and Muse Voice. Muse Spark Open runs only with your own Baseten key.
 
@@ -68,7 +68,8 @@ Open [http://localhost:8080](http://localhost:8080). The build downloads the run
 git clone https://github.com/halo-sw/ithaca.git && cd ithaca
 npm --prefix web ci
 mkdir -p "$HOME/ithaca-data"
-curl -L https://github.com/halo-sw/ithaca/releases/download/data-v1/runtime-data.tgz | tar -xz -C "$HOME/ithaca-data"
+curl -L https://github.com/halo-sw/ithaca/releases/download/data-v1/runtime-data.tgz \
+  | tar -xz -C "$HOME/ithaca-data"
 set -a; . ./.env; set +a  # optional: load your keys (see .env.example)
 ITHACA_DATA_DIR="$HOME/ithaca-data/data" VITE_SAM_PHOTO=1 VITE_MUSE_IMAGE=1 npm run dev
 ```
@@ -79,7 +80,8 @@ Open [http://localhost:5173](http://localhost:5173). The dev server answers the 
 
 ```bash
 npm test                  # JavaScript, after the npm ci above
-python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/pytest -q   # Python pipeline
+python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/pytest -q       # Python pipeline
 ```
 
 Tests that need locally built area data skip themselves on a fresh clone, as they do in CI.
