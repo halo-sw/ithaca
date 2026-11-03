@@ -2,13 +2,13 @@
 
 [Back to README](../README.md)
 
-**Current local final edit: November 4, 2026 · 2:54.4 · English · Halo’s own recorded face and voice.** This video has not been uploaded to GitHub or YouTube. The README still links the older published v9 video and its separate run.
+**Current local final edit: November 4, 2026 · 2:57.2 · English · Halo’s own recorded face and voice.** This video has not been uploaded to GitHub or YouTube. The README still links the older published v9 video and its separate run.
 
-## Opening replacement — awaiting Halo’s recording
+## Opening updated from Halo’s November 4, 04:04 recording
 
-Keep the existing 0:00–0:08.75 introduction and hackathon provenance. Replace only the 0:08.75–0:32.813 problem explanation with the following 52-word passage; aim for 24–26 seconds at a natural pace. This is a proposed replacement, not audio already present in the final edit.
+The 0:00–0:08.77 introduction and build provenance remain unchanged. The Korean problem statement now occupies 0:08.77–0:35.67. The supplied recording replaced the prior problem narration; only the lead-in, excess pauses and self-corrections were trimmed. Halo’s speech remains at its original speed, with no generated or cloned voice.
 
-> I'm looking for our first home in South Korea. Deposit-fraud news made renting feel risky, while rising prices made buying feel urgent. Even without fraud, a home can consume our savings and still not fit our daily lives. So I built Ithaca to simulate thirty days in two homes before we decide.
+> I'm looking for our first home in South Korea. However, deposit-fraud news made renting feel really risky, while rising prices made buying feel urgent. Even without fraud, a home can consume our savings and still not fit our daily lives. So I built Ithaca to simulate 30 days in two homes before we decide.
 
 Keep the same chronological product recording beneath the presenter. Do not add a fraud-statistics slide or substitute a different household. Deposit fraud motivates the founder’s concern; the purchase demo shows household fit, costs and commutes. It does not demonstrate fraud prevention or a safe lease.
 
@@ -20,53 +20,53 @@ The principal run is **`cmw0ygvgsa8c3`**, an illustrative Pangyo couple, using M
 
 The supplied opening card reads **Built with Muse Code** and **Using Muse Spark**, alongside the event identity, Ithaca logo and “Built solo from scratch since October 28.” The current ending retains the live-app and repository addresses. These are the user-requested brief title and ending treatments.
 
-The diary illustration at 2:35.4 is a continuation: the same saved diary was reopened in a new capture and a new live Muse Image 1.0 call succeeded. It did not rerun the month. A brief on-screen note distinguishes the continuation. Neither Spark Open nor SAM is claimed to have run in this video.
+The diary illustration at 2:38.2 is a continuation: the same saved diary was reopened in a new capture and a new live Muse Image 1.0 call succeeded. It did not rerun the month. A brief on-screen note distinguishes the continuation. Neither Spark Open nor SAM is claimed to have run in this video.
 
 ## Narration in the current local edit
 
-The times below describe the checked 2:54.4 file before the pending opening replacement. After receiving the new opening recording, adjust only its slot and any resulting offsets; keep the final file under three minutes.
+The times below describe the local 2:57.2 edit with the new opening. Result figures and the run record are unchanged.
 
 ### 00:00.0–00:08.8 · Founder and build provenance
 
 > I'm Halo, a solo developer in South Korea. I built Ithaca from scratch, starting October 28, for Meta Hackathon 2026.
 
-### 00:08.8–00:32.8 · Current recorded problem statement
+### 00:08.8–00:35.7 · Korean problem and personal motivation
 
-> In South Korea, first-time buyers can spend a day viewing homes—and still feel rushed to sign. Listings show prices and floor plans. But they don't show how both partners' commutes, remote days and errands fit together. A poor fit costs time and money every day. Ithaca lets a household simulate 30 days in each home before deciding.
+> I'm looking for our first home in South Korea. However, deposit-fraud news made renting feel really risky, while rising prices made buying feel urgent. Even without fraud, a home can consume our savings and still not fit our daily lives. So I built Ithaca to simulate 30 days in two homes before we decide.
 
-### 00:32.8–00:52.6 · One household and two candidates
+### 00:35.7–00:55.4 · One household and two candidates
 
 > Let's follow an example couple working in Pangyo, South Korea. I enter their budget, schedules and preferences. Muse searches Korean public transaction records. I choose two homes to compare. These prices are historical references. They don't mean the homes are currently available.
 
-### 00:52.6–01:12.0 · Review and revise the plan
+### 00:55.4–01:14.8 · Review and revise the plan
 
 > Muse proposes a plan for each person, including errands and walks. One commutes every weekday; the other works from home twice a week. I check the working days, remote days and assumptions, then confirm the same 30-day window for both homes. This may take a few minutes, so I'm speeding up the wait.
 
-### 01:12.0–01:29.0 · Thirty days and a real Muse decision
+### 01:14.8–01:31.8 · Thirty days and a real Muse decision
 
 > Thirty days covers about four weekly cycles, showing how routines add up. Muse uses each person's preferences, recent choices and available options to make daily decisions. Code calculates routes, time and costs.
 
-### 01:29.0–01:47.4 · Actual costs, commutes and assumptions
+### 01:31.8–01:50.2 · Actual costs, commutes and assumptions
 
 > Home A takes 4.8 minutes to work, versus 23.9 for Home B. It costs about ₩514,000 less per month, under these assumptions. I can trace the sources and assumptions behind each calculation.
 
-### 01:47.4–02:02.8 · First-pass report check
+### 01:50.2–02:05.6 · First-pass report check
 
 > Code compares numerical claims with engine values. A separate Muse call checks cited events. The timeline shows what passed or needs attention. That checks consistency with this simulated run.
 
-### 02:02.8–02:12.2 · First week versus full month
+### 02:05.6–02:15.0 · First week versus full month
 
 > We can compare the first week with the full month. The planner also supports family and mixed routines, while keeping unsupported needs visible.
 
-### 02:12.2–02:35.4 · Decision record and matching 3D journey
+### 02:15.0–02:38.2 · Decision record and matching 3D journey
 
 > We can inspect the alternatives and follow the resulting journey in 3D. That connects a preference to its consequences. Muse Spark powers the planning and choices. Muse Code built the product. Now we know what to check at the viewing. Try your household with Ithaca.
 
-### 02:35.4–02:47.9 · Diary and Muse Image continuation
+### 02:38.2–02:50.7 · Diary and Muse Image continuation
 
 > Muse Spark writes the diary from this run. Muse Image illustrates one recorded moment, not a photo of the actual home, but an actual diary of the simulation results.
 
-### 02:47.9–02:54.4 · Ending
+### 02:50.7–02:57.2 · Ending
 
 > Before you sign, live the next 30 days.
 
@@ -89,7 +89,7 @@ The diary illustration comes from the recorded commute activity (07:51, Korea). 
 
 ## Delivery and publication
 
-- Receive Halo’s replacement opening and preserve his natural voice; no synthesized or cloned narration.
-- Check the new spoken timing, captions, exact recorded results and a total duration below three minutes.
+- The supplied opening has been incorporated; all narration uses Halo’s original recordings.
+- Validate spoken timing, captions, exact recorded results and the 2:57.2 duration before delivery.
 - Supply the final local MP4 for Halo to upload to YouTube. **Do not upload the video to GitHub.**
 - Keep the existing published v9 link until the actual new YouTube URL is supplied. Then verify playback and update the video link without mixing the two run records.
