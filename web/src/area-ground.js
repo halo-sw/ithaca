@@ -6,10 +6,37 @@
 // injectable so node tests can spy on it.
 import { drapeAerial } from "./aerial/drape.js";
 
-const drapeByArea = new Map(); // areaId -> Promise
+const drapeByArea = new Map(); // areaId -> { promise, refs }
+
+// 45c: the cache identity is the area id plus the actual mesh/scene
+// targets. Calls with no mesh targets (unit spies) keep area-only
+// identity via an empty refs list.
+const TARGET_FIELDS = ["scene", "terrainMesh", "groundMesh", "fringeMesh"];
+
+function targetRefs(args) {
+  if (!args || typeof args !== "object") return [];
+  const refs = [];
+  for (const k of TARGET_FIELDS) {
+    if (args[k] != null) refs.push(args[k]);
+  }
+  return refs;
+}
+
+function sameRefs(a, b) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
 
 export function resetAreaDrapes() {
   drapeByArea.clear();
+}
+
+export function forgetAreaDrape(areaId) {
+  if (!areaId) return;
+  drapeByArea.delete(areaId);
 }
 
 export function drapedAreaIds() {
@@ -18,18 +45,31 @@ export function drapedAreaIds() {
 
 export function drapeAreaOnce({ areaId, drapeFn = drapeAerial, args, onOk }) {
   if (!areaId) return Promise.resolve(null);
-  if (!drapeByArea.has(areaId)) {
-    drapeByArea.set(areaId, Promise.resolve()
-      .then(() => drapeFn(args))
-      .then((r) => {
-        if (r && r.ok && onOk) {
-          try {
-            onOk(areaId, r);
-          } catch { /* a store update must not break the scene */ }
-        }
-        return r;
-      })
-      .catch(() => null));
-  }
-  return drapeByArea.get(areaId);
+  const refs = targetRefs(args);
+  const existing = drapeByArea.get(areaId);
+  if (existing && sameRefs(existing.refs, refs)) return existing.promise;
+  const p = Promise.resolve()
+    .then(() => drapeFn(args))
+    .then((r) => {
+      const curOk = drapeByArea.get(areaId);
+      if (r && r.ok && onOk && curOk && curOk.promise === p) {
+        try {
+          onOk(areaId, r);
+        } catch { /* a store update must not break the scene */ }
+      }
+      // Failed/null results leave no cache entry so a later retry can
+      // drape again — but never evict a newer target's promise.
+      if (!r || !r.ok) {
+        const cur = drapeByArea.get(areaId);
+        if (cur && cur.promise === p) drapeByArea.delete(areaId);
+      }
+      return r;
+    })
+    .catch(() => {
+      const cur = drapeByArea.get(areaId);
+      if (cur && cur.promise === p) drapeByArea.delete(areaId);
+      return null;
+    });
+  drapeByArea.set(areaId, { promise: p, refs });
+  return p;
 }

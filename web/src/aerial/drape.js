@@ -99,11 +99,14 @@ export function drapedGroundMeshes({ terrainMesh = null, groundMesh = null } = {
 // 36c: pure bounds -> zoom -> tile-range choice (no DOM, no fetch).
 // Shared by the station drape and the ride-corridor drape so every 3D
 // scene uses the same zoom/step-down rule.
+// 45c: USGSImageryOnly maxScale 9027.977411 resolves to z16 despite the
+// generic LOD list running to z23 (real Chrome: 72 z17 tiles all 404).
+export const US_ZOOM_LIMIT16 = 16;
 export function drapePlan(bounds, { usArea = false } = {}) {
   const midLat = (bounds[1] + bounds[3]) / 2;
   const widthM = haversineM(bounds[0], midLat, bounds[2], midLat);
   let zoom = pickZoom(widthM);
-  if (usArea) zoom = Math.min(zoom, 18);
+  if (usArea) zoom = Math.min(zoom, US_ZOOM_LIMIT16);
   let range = tilesForBBox(bounds, zoom);
   while (zoom > 6
     && ((range.x1 - range.x0 + 1) * TILE_PX > MAX_MOSAIC_PX
@@ -244,6 +247,7 @@ export async function drapeCorridorAerial({ THREE, renderer, groundMesh,
   }
   const { zoom, range } = drapePlan(bounds, { usArea });
   const { canvas, drawn } = await fetchMosaic(zoom, range, { usArea, look });
+  if (drawn === 0) return { ok: false, reason: "no-tiles" };
   const tex = mosaicTexture(THREE, renderer, canvas);
   const geo = groundMesh.geometry;
   const pos = geo && geo.attributes && geo.attributes.position;
@@ -308,6 +312,7 @@ export async function drapeAerial({ THREE, renderer, scene, area, origin,
   const { zoom, range } = drapePlan(effBounds, { usArea });
   // 3. Fetch tiles (concurrency 6) into one canvas.
   const { canvas, drawn } = await fetchMosaic(zoom, range, { usArea, look });
+  if (drawn === 0) return { ok: false, reason: "no-tiles" };
   let mosaic = canvas;
   if (style === "painted") {
     // Painted grade: the same photo, 10 % less saturation so it sits

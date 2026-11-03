@@ -48,8 +48,19 @@ import { currentLang } from "../i18n/lang.js";
 // 26e: the screens below carry no area bbox; a USD moneyDoc marks a US
 // run, so the aerial credit maps it to a country-only area (Korean
 // runs keep AERIAL_CREDIT).
+// 45c3: prefer the loaded area's own country/bbox/id (tour has no
+// moneyDoc); money USD stays only as a backward-compatible fallback.
 function areaForCredit(state) {
-  return state.money && state.money.currency === "USD" ? { country: "US" } : null;
+  const a = state && state.area;
+  const moneyUs = !!(state && state.money && state.money.currency === "USD");
+  if (a && typeof a === "object") {
+    if (a.country || a.bbox) return a;
+    if (typeof a.id === "string" && a.id) {
+      if (a.id === "us-menlo" || a.id.startsWith("us-")) return { id: a.id, country: "US" };
+      if (!moneyUs) return a;
+    }
+  }
+  return moneyUs ? { country: "US" } : null;
 }
 import { priorityValues, myScore } from "../priorities.js";
 
@@ -1046,10 +1057,14 @@ export function SimCredit({ state }) {
       </div>
     );
   }
+  // 45c3: Korean short form keeps USGS on US areas, VWorld otherwise.
+  const krCredit = aerialCreditFor(areaForCredit(state));
   const full = photo
-    ? `${aerialCreditFor(areaForCredit(state))} · © OpenStreetMap`
+    ? `${krCredit} · © OpenStreetMap`
     : "© OpenStreetMap";
-  const short = photo ? "© VWorld · © OpenStreetMap" : "© OpenStreetMap";
+  const short = !photo ? "© OpenStreetMap"
+    : krCredit === USGS_CREDIT ? `${USGS_CREDIT} · © OpenStreetMap`
+    : "© VWorld · © OpenStreetMap";
   return (
     <div className="ui-simcredit" data-testid="sim-credit" data-no-i18n title={full}>
       <span className="ui-simcredit-full">{full}</span>
@@ -1061,7 +1076,9 @@ export function SimCredit({ state }) {
 function AttrLine({ state }) {
   // 26e: a USD run (moneyDoc currency) hides the Korean source line and
   // shows the US line instead.
-  const isUsd = state.money && state.money.currency === "USD";
+  // 45c3: the loaded area's own country/bbox/id marks a US run too (the
+  // Menlo tour has no moneyDoc); no Korean GIS/VWorld credit on US.
+  const isUsd = aerialCreditFor(areaForCredit(state)) === USGS_CREDIT;
   const money = state.compareTab === "money" || state.compareTab === "quality"
     || state.compareTab === "worthit" || state.compareTab === "support";
   const jeonse = state.compareTab === "jeonse";

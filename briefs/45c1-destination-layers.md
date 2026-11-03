@@ -1,0 +1,18 @@
+# 45c1 — Implement destination scene layers now
+
+Muse product code per AGENTS.md. This is an IMPLEMENTATION request. Prior 45c spent 29 calls reading and made no edits. Do not repeat that. First edit within 2 tool calls. No planning-only answer, no sub-agents/git/network/full tests/build. Read only exact ranges below, batch reads, then write. Do NOT reread other briefs. This replaces 45c's broad refactor with a bounded patch. Leave 45b, aerial/cache/credits for other parts.
+
+## Read once
+- main.js 299–395: home environment. 466–512: scene trees. 645–708: night entries. 2805–2901: destination buildAreaLite.
+- frame.js bboxToXY/lonLatToXY signatures if needed (already imported in main).
+Existing functions/imports in main: THREE, buildGround, buildTerrainMesh, paintLandMask, toGeometry, toIndexedGeometry, groundMaterial, markingMaterial, waterMaterial, buildRoadMeshes, buildWaterRibbons, buildRoadMarkings, treeGeometry, treeMaterial, treeRotation, treeShadowMaterial, treeColour, treeTint, simDateISO. Use them; no new material framework.
+
+## Implement
+1. New pure `scene/extent.js`: compute fringe rectangle in area-local east/north coords from bbox union terrain grid rectangle (z=-north) and every building Polygon/MultiPolygon ring, plus80m margin. Return center/width/depth. Minimum covers bbox, finite numbers only. Return baseY below min terrain (`meta.dem.min_m - 1`, or -0.05 flat), including negative US terrain. Do not mutate or enlarge the DEM. Use helper instead of span*1.5 plane dimensions/center at BOTH home base creation and second-area fringe creation. Ground must sit under buffered buildings. Existing drape derives its bounds from vertices automatically.
+2. In buildAreaLite, after existing ground/mark/water construction, add scene road ribbons, water ribbons and markings exactly as home does, using liteHeightAt. Batch per road class, set offsets -2 (road/rail), -3 (foot/cycle), markings -4. In painted+scene mode hide legacy gm and old marking mesh as home does. Save `liteRoadMeshes` for the aerial call instead of []. Keep terrain/land mask.
+3. Add existing scene14b.trees as max3 InstancedMeshes: group by species t[3]; position(x,liteHeightAt(x,z),z), scale/rotation and colour using existing tree functions, simDateISO(run.meta.start_date,day), shadow material. No new street fill or residents. Data is already present: Pangyo ~4900 / Menlo18285 trees. No invented assets or input changes.
+4. Add destination base/terrain/ground/roads/walls/podium/roof materials to existing nightMats using the SAME entries as home. `applyPaintedNight` currently skips an unchanged nightF; add optional force=false so new entries can receive current nightF immediately after area load (store the last valid night factor in closure; use it for force refresh). Otherwise a midnight deep link adds black daytime materials after the initial lighting update. Keep night entry registrations bounded on second-area eviction (remove entries belonging to evicted group's material set).
+
+## Focused tests
+New `web/tests/region-extent-45c.test.js`: fake KR buffered polygon outsidebbox+terrainextents is inside resulting fringe; negative US terrain base is below min; no mutation; Polygon+MultiPolygon accepted. Test meaningful geometry, no source-text tests. Existing scene geometry tests cover road/tree builders; orchestrator checks their actual destination mounting in Chrome.
+Run only new tests + scene-14.test.js, home-and-dest-36f.test.js, fringe-roofs-36c2.test.js. One fix retry if necessary. Stop with changed files and test counts, no result notes/commit. Do not take on credit/cache/local-time followups in this run.

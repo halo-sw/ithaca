@@ -17,7 +17,7 @@ import { fetchDataJson } from "./data-fetch.js";
 import { assetUrl, STATIC_SITE, LIVE_API } from "./paths.js";
 import { NAIP_CREDIT, aerialCreditFor, drapeAerial, drapeCorridorAerial, drapeIsomapSharp, isUsArea } from "./aerial/drape.js";
 import { hideIsomapChrome, hideIsomapThing, isomapCameraOffset, isomapOrthoFrustum, parseIsomapParams } from "./isomap.js";
-import { drapeAreaOnce } from "./area-ground.js";
+import { drapeAreaOnce, forgetAreaDrape } from "./area-ground.js";
 import { compare as compareRuns } from "./engine/simulate.js";
 import { oneWayByLabel } from "./verify/numbers.js";
 import { CRITERIA_GROUPS, criterionDefault, criterionValuesLine, resolveCriteria } from "./engine/criteria.js";
@@ -33,7 +33,8 @@ import { sceneEvidence } from "./evidence.js";
 import { currentLang } from "./i18n/lang.js";
 import { memberEnFor } from "./ui/scene-chrome.js";
 import { destInLoadedAreas, pickStationArea } from "./station-areas.js";
-import { DECISION_KIND_KO, SIM_TICK_S, SPEEDS, agentLabelOf, chosenLabel, dayDecisions, decisionBadge, formatClock, homeOccupancy, indexRun, latestDecision, optionsLine, parseTParam, sampleAgent, shouldAutoplay, simInstant, tripFractions } from "./sim.js";
+import { DECISION_KIND_KO, SIM_TICK_S, SPEEDS, agentLabelOf, chosenLabel, dayDecisions, decisionBadge, formatClock, homeOccupancy, indexRun, latestDecision, optionsLine, parseTParam, sampleAgent, shouldAutoplay, tripFractions } from "./sim.js";
+import { sceneInstant } from "./scene/time.js";
 import { memberLabelFor } from "./profile.js";
 import { DWELL_S, legGlideDuration, pathWaypoints, seekState, selectTourStops, tourSchedule } from "./tour.js";
 import { TREE_CANOPY_R, TREE_CANOPY_Y, TREE_TRUNK_H, TREE_TRUNK_R_BOTTOM, TREE_TRUNK_R_TOP, placeTrees } from "./trees.js";
@@ -64,6 +65,7 @@ import { buildStreetMeshes } from "./render/streetmeshes.js";
 import { agentMaterial, facadeMaterial, groundMaterial, markingMaterial, roofMaterial, setGlobalNight, setNightGain, setWaterTime, trunkMaterial, vegetationMaterial, waterMaterial } from "./render/textures.js";
 // Stage 14: terrain + OSM road/forest/tree scene layers.
 import { flatHeightAt, makeHeightAt, seatOnTerrain } from "./scene/height.js";
+import { areaExtent } from "./scene/extent.js";
 import { loadScene, toTypedMesh } from "./scene/load.js";
 import { MASK_SIZE, buildTerrainMesh, paintLandMask } from "./scene/terrain.js";
 import { MARKINGS_HIDE_M, buildRoadMarkings, buildRoadMeshes, buildWaterRibbons } from "./scene/roads.js";
@@ -148,18 +150,18 @@ const LOOK = resolveLook(PARAMS, STYLE);
 const areaId = PARAMS.get("area") || DEFAULT_AREA;
 
 // Tour sun from ?time=HH:MM (validated) or the fixed afternoon default.
-function tourSun() {
+// Local scene time (45b): the same wall clock is a different absolute
+// instant in Menlo Park than in Seoul.
+function tourSun(area) {
   const m = /^(\d{1,2}):(\d{2})$/.exec(PARAMS.get("time") || "");
   if (m) {
     const hh = Number(m[1]);
     const mm = Number(m[2]);
     if (hh <= 23 && mm <= 59) {
-      const stamp = `2026-10-15T${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00+09:00`;
-      const date = new Date(stamp);
-      if (!Number.isNaN(date.getTime())) return { date, minute: hh * 60 + mm };
+      return { date: sceneInstant(TOUR_DATE_ISO, 0, hh * 60 + mm, area), minute: hh * 60 + mm };
     }
   }
-  return { date: SUN_DATE, minute: SUN_MINUTE };
+  return { date: sceneInstant(TOUR_DATE_ISO, 0, SUN_MINUTE, area), minute: SUN_MINUTE };
 }
 
 function toGeometry(data) {
@@ -300,12 +302,17 @@ function buildWorld(area, scene14, opts = {}) {
   // Painted: the fringe matches the warm ground so the box edge never
   // shows a grey ring; photo keeps today's darker fringe.
   const baseDayColor = STYLE === "painted" ? LOOK.terrainBase : BASE_GROUND;
+  // 45c1: the fringe covers the bbox + terrain grid + every buffered
+  // building ring, so the ground never sits inside its own buildings.
+  const homeExt = areaExtent({ bbox: area.bbox, origin,
+    terrain: scene14 ? scene14.terrain : null,
+    demMin: scene14 ? scene14.meta.dem.min_m : null, buildings: area.buildings });
   const base = new THREE.Mesh(
-    new THREE.PlaneGeometry(span * 1.5, span * 1.5),
+    new THREE.PlaneGeometry(homeExt.width, homeExt.depth),
     new THREE.MeshStandardMaterial({ color: baseDayColor, roughness: 1, metalness: 0 })
   );
   base.rotation.x = -Math.PI / 2;
-  base.position.set(cx, scene14 ? demMin - 1 : -0.05, -cy);
+  base.position.set(homeExt.cx, homeExt.baseY, -homeExt.cy);
   base.receiveShadow = true;
   scene.add(base);
   // Stage-14 terrain: full-res grid + canvas land mask (one draw call).
@@ -453,6 +460,7 @@ function buildWorld(area, scene14, opts = {}) {
       onOk: (id, r) => {
         console.log(`[aerial] ok ${r.tiles} tiles z${r.zoom}`);
         store.set({ aerial: true });
+        applyPaintedNight(undefined, true);
       } })
       .then((r) => {
         if (!r || !r.ok) console.log("[aerial] off (no key)");
@@ -685,10 +693,14 @@ function buildWorld(area, scene14, opts = {}) {
     }
   }
   let lastNightT = -1;
-  function applyPaintedNight(nightF) {
+  function applyPaintedNight(nightF, force = false) {
     if (STYLE !== "painted") return;
+    // 45c1: a midnight deep link adds black daytime materials after the
+    // initial lighting update — new entries arrive with force so they
+    // catch the stored night factor immediately.
+    if (nightF === undefined || nightF === null) nightF = lastNightT < 0 ? 0 : lastNightT;
     const t = Math.min(1, Math.max(0, Number(nightF) || 0));
-    if (Math.abs(t - lastNightT) < 0.005) return;
+    if (!force && Math.abs(t - lastNightT) < 0.005) return;
     lastNightT = t;
     for (const { mat, day, direct, night, base, glow } of nightMats) {
       const target = night === undefined ? PAINTED_NIGHT_GROUND : night;
@@ -886,7 +898,7 @@ async function bootTour(uiMode = "tour") {
   if (uiMode === "tour") {
     buildUI(area, plan, !!scene14, fillTrees);
   } else {
-    store.set({ area: { id: areaId, label: area.label || areaId } });
+    store.set({ area: { id: areaId, label: area.label || areaId, country: area.country, bbox: area.bbox } });
     document.title = uiMode === "chat" ? "Ithaca — 대화" : "Ithaca";
   }
   if (uiMode === "chat") registerChatActions();
@@ -894,7 +906,7 @@ async function bootTour(uiMode = "tour") {
   document.getElementById("fade").classList.add("clear");
 
   // --- tour sun/sky (?time=HH:MM override; static through the tour) ---
-  const { date: tourDate, minute: tourMinute } = tourSun();
+  const { date: tourDate, minute: tourMinute } = tourSun(area);
   const fillTourLit = makeLitFiller(litMeshes, householdsById, { residentialById, tour: true });
   let tourEmissive = 0;
   // 29L1: beacons only after dark — same sky phase the rig already uses.
@@ -1249,7 +1261,7 @@ function buildUI(area, plan, sceneOn = false, fillCount = 0) {
   const { resRows, heightRows } = legendRows(area);
   store.set({
     areaOptions: AREAS.map((a) => ({ value: a.id, label: a.label })),
-    area: { id: areaId, label: area.label || areaId },
+    area: { id: areaId, label: area.label || areaId, country: area.country, bbox: area.bbox },
     legend: {
       title: "범례",
       resRows,
@@ -2254,10 +2266,18 @@ async function bootSim() {
   let simFramedWidth = null;
   let lastLightKey = "";
   let lastLitKey = "";
+  // 45c3: cache the absolute Date until day/minute changes (area fixed per page).
+  let lastSceneKey = "";
+  let lastSceneInstant = null;
 
   function updateLighting() {
     const m = Math.floor(minute);
-    const instant = simInstant(run.meta.start_date, day, m);
+    const sceneKey = `${run.meta.start_date}|${day}|${m}`;
+    if (sceneKey !== lastSceneKey || !lastSceneInstant) {
+      lastSceneInstant = sceneInstant(run.meta.start_date, day, m, area);
+      lastSceneKey = sceneKey;
+    }
+    const instant = lastSceneInstant;
     const camDist = camera.position.distanceTo(controls.target);
     const framedWidth = frameWidthFor(camDist, CAM.fovDeg, camera.aspect);
     simFramedWidth = framedWidth;
@@ -2809,19 +2829,17 @@ async function bootSim() {
     // 36f: the destination area gets the same scene ground as a home
     // area — the fringe plane, scene.json terrain when present, and
     // the merged ground layer (+ lane paint + water).
-    const liteBox = bboxToXY(areaData.bbox, liteOrigin);
-    const liteCx = (liteBox.minX + liteBox.maxX) / 2;
-    const liteCy = (liteBox.minY + liteBox.maxY) / 2;
-    const liteSpan = Math.max(liteBox.maxX - liteBox.minX, liteBox.maxY - liteBox.minY);
     const liteHeightAt = scene14b ? makeHeightAt(scene14b.terrain) : flatHeightAt();
-    const liteDemMin = scene14b ? scene14b.meta.dem.min_m : 0;
+    const liteExt = areaExtent({ bbox: areaData.bbox, origin: liteOrigin,
+      terrain: scene14b ? scene14b.terrain : null,
+      demMin: scene14b ? scene14b.meta.dem.min_m : null, buildings: areaData.buildings });
     const fringe = new THREE.Mesh(
-      new THREE.PlaneGeometry(liteSpan * 1.5, liteSpan * 1.5),
+      new THREE.PlaneGeometry(liteExt.width, liteExt.depth),
       new THREE.MeshStandardMaterial({
         color: STYLE === "painted" ? LOOK.terrainBase : BASE_GROUND,
         roughness: 1, metalness: 0 }));
     fringe.rotation.x = -Math.PI / 2;
-    fringe.position.set(liteCx, scene14b ? liteDemMin - 1 : -0.05, -liteCy);
+    fringe.position.set(liteExt.cx, liteExt.baseY, -liteExt.cy);
     fringe.receiveShadow = true;
     g.add(fringe);
     let liteTerrain = null;
@@ -2846,16 +2864,59 @@ async function bootSim() {
     const gm = new THREE.Mesh(toGeometry(gd), groundMaterial({ aniso: maxAniso2 }));
     gm.receiveShadow = true;
     g.add(gm);
+    let liteMarkMesh = null;
     if (gd.markings.triangles > 0) {
-      const liteMark = new THREE.Mesh(toGeometry(gd.markings), markingMaterial());
-      liteMark.receiveShadow = true;
-      g.add(liteMark);
+      liteMarkMesh = new THREE.Mesh(toGeometry(gd.markings), markingMaterial());
+      liteMarkMesh.receiveShadow = true;
+      g.add(liteMarkMesh);
     }
     if (gd.water.triangles > 0) {
       g.add(new THREE.Mesh(toGeometry(gd.water), waterMaterial()));
     }
+    // 45c1: the destination gets the same scene road ribbons, waterway
+    // ribbons and road paint as home (batched per road class, same
+    // polygon offsets); painted scene mode keeps ribbons only.
+    const liteRoadMeshes = [];
+    let liteSceneWater = null;
+    let liteSceneMarkings = null;
+    if (scene14b) {
+      const { meshes } = buildRoadMeshes(scene14b.roads, liteHeightAt, LOOK);
+      const liteOffsets = { road: 2, rail: 2, foot: 3, cycle: 3 };
+      for (const [cls, data] of Object.entries(meshes)) {
+        if (data.triangles === 0) continue;
+        const mesh = new THREE.Mesh(toIndexedGeometry(data),
+          new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95,
+            metalness: 0, polygonOffset: true,
+            polygonOffsetFactor: -liteOffsets[cls], polygonOffsetUnits: -liteOffsets[cls] }));
+        mesh.receiveShadow = true;
+        mesh.userData.roadCls = cls;
+        g.add(mesh);
+        liteRoadMeshes.push(mesh);
+      }
+      const lw = buildWaterRibbons(scene14b.water, liteHeightAt, LOOK);
+      if (lw.triangles > 0) {
+        liteSceneWater = new THREE.Mesh(toIndexedGeometry(lw), waterMaterial());
+        if (STYLE === "painted") liteSceneWater.material.color.setHex(PAINTED_WATER);
+        g.add(liteSceneWater);
+      }
+    }
+    if (scene14b && STYLE === "painted") {
+      gm.visible = false;
+      if (liteMarkMesh) liteMarkMesh.visible = false;
+      const lmk = buildRoadMarkings(scene14b.roads, liteHeightAt);
+      if (lmk.mesh.triangles > 0) {
+        const lmat = markingMaterial();
+        lmat.polygonOffset = true;
+        lmat.polygonOffsetFactor = -4;
+        lmat.polygonOffsetUnits = -4;
+        liteSceneMarkings = new THREE.Mesh(toIndexedGeometry(lmk.mesh), lmat);
+        liteSceneMarkings.receiveShadow = true;
+        g.add(liteSceneMarkings);
+      }
+    }
     const built = buildBuildings(areaData.buildings, areaData.complexes, liteOrigin,
       scene14b ? { baseAt: (rings) => seatOnTerrain(liteHeightAt, rings) } : {});
+    const liteWallMeshes = [];
     for (const [cls, data] of Object.entries(built.detail.walls)) {
       if (data.triangles === 0) continue;
       const mesh = new THREE.Mesh(toGeometry(data), facadeMaterial(cls, { aniso: maxAniso2 }));
@@ -2863,7 +2924,9 @@ async function bootSim() {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       g.add(mesh);
+      liteWallMeshes.push({ mesh, cls });
     }
+    let litePodium = null;
     if (built.detail.podium.triangles > 0) {
       const mesh = new THREE.Mesh(toGeometry(built.detail.podium),
         facadeMaterial("podium", { aniso: maxAniso2 }));
@@ -2871,10 +2934,83 @@ async function bootSim() {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       g.add(mesh);
+      litePodium = mesh;
     }
     const liteRoof = new THREE.Mesh(toGeometry(built.detail.roofs), roofMaterial({ aniso: maxAniso2 }));
     liteRoof.material.color.setRGB(...facadeTintFor("roof", STYLE));
     g.add(liteRoof);
+    // 45c1: destination trees ride the same species-batched InstancedMeshes
+    // as home (no street fill, no residents) — data ships in scene.json.
+    if (scene14b && Array.isArray(scene14b.trees) && scene14b.trees.length > 0) {
+      const liteDummy = new THREE.Object3D();
+      const liteTint = new THREE.Color();
+      const liteDateISO = simDateISO(run.meta.start_date, day);
+      const litePainted = STYLE === "painted";
+      const liteBySpecies = [[], [], []];
+      for (const t of scene14b.trees) {
+        if (t && t[3] >= 0 && t[3] < 3) liteBySpecies[t[3]].push(t);
+      }
+      liteBySpecies.forEach((list, species) => {
+        if (list.length === 0) return;
+        const mesh = new THREE.InstancedMesh(treeGeometry(species),
+          treeMaterial(), list.length);
+        list.forEach((t, i) => {
+          const [x, z, tscale] = t;
+          liteDummy.position.set(x, liteHeightAt(x, z), z);
+          liteDummy.scale.setScalar(tscale);
+          liteDummy.rotation.set(0, treeRotation(x, z), 0);
+          liteDummy.updateMatrix();
+          mesh.setMatrixAt(i, liteDummy.matrix);
+          const seed = `${x.toFixed(1)},${z.toFixed(1)}`;
+          if (litePainted) {
+            mesh.setColorAt(i, liteTint.setHex(
+              treeColour(seed, species === 0 ? null : liteDateISO)));
+          } else {
+            mesh.setColorAt(i, liteTint.setScalar(treeTint(x, z)));
+          }
+        });
+        mesh.count = list.length;
+        mesh.castShadow = true;
+        mesh.customDepthMaterial = treeShadowMaterial();
+        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+        g.add(mesh);
+      });
+    }
+    // 45c1: destination base/terrain/ground/roads/walls/podium/roof join
+    // the night table with the same entries as home, then catch the
+    // stored night factor so a midnight load never flashes black noon.
+    let liteNightEntries = [];
+    if (STYLE === "painted") {
+      liteNightEntries.push({ mat: fringe.material, day: LOOK.terrainBase, direct: true });
+      if (liteTerrain) {
+        liteNightEntries.push({ mat: liteTerrain.material, day: LOOK.terrainBase, direct: false });
+      }
+      liteNightEntries.push({ mat: gm.material, day: LOOK.terrainBase, direct: false });
+      for (const m of liteRoadMeshes) {
+        const cls = m.userData.roadCls;
+        if (cls === "road") {
+          liteNightEntries.push({ mat: m.material, day: LOOK.sceneRoad, direct: false,
+            night: PAINTED_NIGHT_ROAD_WARM, glow: PAINTED_NIGHT_ROAD_LIT });
+          continue;
+        }
+        if (cls === "rail") continue;
+        const rday = cls === "foot" ? LOOK.sceneFoot
+          : cls === "cycle" ? LOOK.sceneCycle : LOOK.terrainBase;
+        liteNightEntries.push({ mat: m.material, day: rday, direct: false });
+      }
+      for (const { mesh, cls } of liteWallMeshes) {
+        liteNightEntries.push({ mat: mesh.material, day: PAINTED_WALL_HEX, direct: false,
+          night: PAINTED_NIGHT_WALL, base: facadeTintFor(cls, STYLE) });
+      }
+      if (litePodium) {
+        liteNightEntries.push({ mat: litePodium.material, day: PAINTED_WALL_HEX, direct: false,
+          night: PAINTED_NIGHT_WALL, base: facadeTintFor("podium", STYLE) });
+      }
+      liteNightEntries.push({ mat: liteRoof.material, day: PAINTED_ROOF_HEX, direct: false,
+        night: PAINTED_NIGHT_ROOF, base: facadeTintFor("roof", STYLE) });
+      nightMats.push(...liteNightEntries);
+      applyPaintedNight(undefined, true);
+    }
     const [ox, oy] = lonLatToXY(liteOrigin.lon, liteOrigin.lat, origin);
     g.position.set(ox, 0, -oy);
     scene.add(g);
@@ -2885,16 +3021,17 @@ async function bootSim() {
     if ((LIVE_API || isUsArea(areaData)) && PARAMS.get("ground") !== "paint") {
       drapeAreaOnce({ areaId: liteId || areaData.area,
         args: { THREE, renderer, scene, area: areaData, origin,
-          terrainMesh: liteTerrain, groundMesh: gm, roadMeshes: [],
+          terrainMesh: liteTerrain, groundMesh: gm, roadMeshes: liteRoadMeshes,
           roofMesh: liteRoof, fringeMesh: fringe, look: LOOK, style: STYLE },
         onOk: (id, r) => {
           console.log(`[aerial] ok ${r.tiles} tiles z${r.zoom} (${id})`);
           store.set({ aerialSecondByArea:
             { ...(store.getState().aerialSecondByArea || {}), [id]: true } });
+          applyPaintedNight(undefined, true);
         } })
         .catch(() => {});
     }
-    return { group: g, origin: liteOrigin };
+    return { group: g, origin: liteOrigin, nightEntries: liteNightEntries };
   }
 
   async function ensureSecondArea(areaId) {
@@ -2902,8 +3039,25 @@ async function bootSim() {
     if (secondAreas.size >= 2) {
       const oldest = secondAreas.keys().next().value;
       const slot = secondAreas.get(oldest);
-      if (slot) scene.remove(slot.group);
+      // 45c1: eviction also drops the area's night entries so the night
+      // table stays bounded to the live groups' material sets.
+      if (slot) {
+        scene.remove(slot.group);
+        for (const e of slot.nightEntries || []) {
+          const i = nightMats.indexOf(e);
+          if (i >= 0) nightMats.splice(i, 1);
+        }
+      }
       secondAreas.delete(oldest);
+      forgetAreaDrape(oldest);
+      {
+        const cur = store.getState().aerialSecondByArea;
+        if (cur && cur[oldest] !== undefined) {
+          const next = { ...cur };
+          delete next[oldest];
+          store.set({ aerialSecondByArea: next });
+        }
+      }
     }
     const label = (AREAS.find((a) => a.id === areaId) || {}).label || areaId;
     store.set({ journeyLoading: `${label} 지도 불러오는 중…` });
@@ -3301,7 +3455,7 @@ async function bootSim() {
     home: homeLabel,
     homes,
     scenarioName,
-    area: { id: run.meta.area, label: run.meta.area },
+    area: { id: run.meta.area, label: run.meta.area, country: area.country, bbox: area.bbox },
     legend: {
       title: `범례 — ${homeLabel} · ${run.meta.complex}`,
       resRows: resRows.filter((r) => Object.values(RES_LABELS).includes(r.label)),
