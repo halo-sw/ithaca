@@ -21,11 +21,13 @@ before(async () => {
 });
 
 describe("29a5 quiet base labels in English", () => {
-  it("tile group opacity depends on currentLang", () => {
-    assert.ok(/<g filter="url\(#basemap-mute\)" opacity=\{[^}]*currentLang\(\)/.test(chatmapSrc),
-      "basemap-mute group opacity follows currentLang");
-    assert.ok(chatmapSrc.includes('currentLang() === "en" ? 0.45'),
-      "English tiles quiet to 0.45");
+  it("tile group opacity is a uniform 0.9 in both languages", () => {
+    assert.ok(chatmapSrc.includes("0.9"),
+      "basemap-mute group opacity is 0.9");
+    assert.ok(!chatmapSrc.includes('currentLang() === "en" ? 0.45'),
+      "no language-dependent tile faint");
+    assert.ok(!/<g[^>]*opacity=\{[^}]*0\.45/.test(chatmapSrc),
+      "subway/pins are not made faint");
   });
   it("station label <text> has a white halo", () => {
     assert.ok(chatmapSrc.includes('paintOrder="stroke"'),

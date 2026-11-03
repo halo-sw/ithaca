@@ -65,7 +65,7 @@ describe("29L3 workplace pill side-picking", () => {
   });
 });
 
-describe("29L5 station names yield to the VWorld basemap", () => {
+describe("29L5 SSR pending keeps station names with dots", () => {
   let React;
   let renderToString;
   let ChatMap;
@@ -85,7 +85,7 @@ describe("29L5 station names yield to the VWorld basemap", () => {
         tenures: [{ tenure: "jeonse", median_won: 200000000, deals: 5 }] } };
   }
 
-  it("VWorld basemap on: dots with tooltips, no own name text", () => {
+  it("SSR pending: dots with tooltips and own name text", () => {
     const html = render(React.createElement(ChatMap, { map: {
       pins: [cand("1", 127.1, 37.4, "야탑")],
       workPin: { lon: 127.1, lat: 37.4005, name: "판교" },
@@ -96,8 +96,8 @@ describe("29L5 station names yield to the VWorld basemap", () => {
       regions: [], tenure: "jeonse" } }));
     assert.ok(html.includes("<title>야탑</title>"), "station dot kept with tooltip");
     assert.ok(html.includes("회사 · 판교"), "workplace pill still names its station");
-    assert.ok(!html.includes(">야탑역</text>"), "no own name text over the VWorld basemap");
-    assert.ok(!html.includes(">판교역</text>"), "no own name text for the workplace stop");
+    assert.ok(html.includes(">야탑역</text>"), "SSR pending keeps own name text");
+    assert.ok(/역<\/text>/.test(html), "SSR pending keeps station labels");
   });
 
   it("USGS basemap: our station-name text stays", () => {
