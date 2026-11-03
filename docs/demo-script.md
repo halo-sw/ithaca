@@ -2,7 +2,7 @@
 
 [Back to README](../README.md)
 
-**Current local final edit: November 4, 2026 · 2:57.2 · English · Halo’s own recorded face and voice.** This video has not been uploaded to GitHub or YouTube. The README still links the older published v9 video and its separate run.
+**Final edit: November 4, 2026 · 2:57.2 · English · Halo’s own recorded face and voice.** Published on YouTube (unlisted): [youtube.com/watch?v=h_RUbIYWTKY](https://www.youtube.com/watch?v=h_RUbIYWTKY). Both READMEs link it. The recorded Pangyo month in the app still replays the older v9 run, a separate run.
 
 ## Opening updated from Halo’s November 4, 04:04 recording
 
@@ -91,5 +91,5 @@ The diary illustration comes from the recorded commute activity (07:51, Korea). 
 
 - The supplied opening has been incorporated; all narration uses Halo’s original recordings.
 - Validate spoken timing, captions, exact recorded results and the 2:57.2 duration before delivery.
-- Supply the final local MP4 for Halo to upload to YouTube. **Do not upload the video to GitHub.**
-- Keep the existing published v9 link until the actual new YouTube URL is supplied. Then verify playback and update the video link without mixing the two run records.
+- Halo uploaded the final MP4 to YouTube on November 4. **Do not upload the video to GitHub.**
+- Done: the READMEs link the YouTube upload, which streams without signing in. The README keeps the two run records apart: the video shows `cmw0ygvgsa8c3`, the in-app replay `cmw0nibca873f`.
