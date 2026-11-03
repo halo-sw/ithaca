@@ -4,7 +4,7 @@
 import { saveByoKey } from "../consult/byok.js";
 
 export const NO_ANSWER_TEXTS = {
-  serverKeyUsed: "Muse가 지금 답하지 못해요. 이 네트워크의 무료 체험(1회)을 이미 썼어요. 지금은 정해진 규칙으로만 답해요.",
+  serverKeyUsed: "Muse가 지금 답하지 못해요. 이 네트워크의 오늘 무료 체험 3회를 다 썼어요. 지금은 정해진 규칙으로만 답해요.",
   keyless: "Muse 키가 없어서 정해진 규칙으로만 답해요.",
   failures: "Muse 연결이 안 돼서 이번 답은 규칙으로 했어요.",
 };
@@ -81,6 +81,6 @@ export function reportNoAnswerLine(report) {
 }
 
 // Landing "바로 해 보기" captions.
-export const LANDING_TRIAL_CAPTION = "무료 체험 1회 · 이후 내 키";
+export const LANDING_TRIAL_CAPTION = "무료 체험 하루 3회 · 이후 내 키";
 export const LANDING_REPLAY_CAPTION = "키 없이 기록 재생";
 export const LANDING_KEY_ROW_LABEL = "내 모델 키로 하기";

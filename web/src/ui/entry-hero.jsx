@@ -122,7 +122,7 @@ export function EntryHero({
               <TryButton href={hrefFor("meta")} onClick={() => act("meta")}>Meta 본사 출근으로 해 보기</TryButton>
               <TryButton href={hrefFor("seoul")} onClick={() => act("seoul")}>서울로 해 보기</TryButton>
             </div>
-            <p className="ds-lp-judgecap">무료 체험 1회 · 이후 내 키 · <button type="button" className="ds-lp-keytoggle" aria-expanded={keyOpen}
+            <p className="ds-lp-judgecap">무료 체험 하루 3회 · 이후 내 키 · <button type="button" className="ds-lp-keytoggle" aria-expanded={keyOpen}
               onClick={() => setKeyOpen((v) => !v)}><span>{LANDING_KEY_ROW_LABEL}</span><span aria-hidden="true">{keyOpen ? " ▾" : " ▸"}</span></button></p>
           </div>
         </div>

@@ -2793,7 +2793,7 @@ const GREETING = [
 const NO_KEY_NOTICE = "이 질문은 개발 서버 + 키에서 답해요 (기록된 화면에서는 물음에 답만 해요). 상황·후보·살아 보기는 키 없이도 돼요.";
 // 41e: the relay's server key serves one chat session per IP
 // (English via the i18n table).
-const SERVER_KEY_USED_LINE = "무료 체험 대화는 한 번만 쓸 수 있어요. 계속하려면 내 모델 키를 넣어 주세요.";
+const SERVER_KEY_USED_LINE = "무료 체험 대화는 하루 3번까지예요. 계속하려면 내 모델 키를 넣어 주세요.";
 const STATIC_OFF_LINE = "공개 사이트에서는 Muse와 대화하기가 꺼져 있어요 (키 보호). 조건 읽기·후보·30일 살아 보기는 그대로 돼요.";
 
 // --- ?agent=1 card for sim/tour screens (replaces the floating panel) ---------------------

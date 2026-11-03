@@ -17,7 +17,7 @@ const TITLE = "어떤 집을 고민 중이세요?";
 const LEDE = "Muse가 직접 확인하고, 대신 30일 살아 보고, 대화로 알려 줘요.";
 const CHIPS = ["출근지로 집 찾기", "본 매물 붙여 넣기", "예시로 써 보기"];
 const TRY_BUTTONS = ["기록된 한 달 보기", "Meta 본사 출근으로 해 보기", "서울로 해 보기"];
-const CAPTIONS = ["녹화된 30일을 재생해요", "무료 체험 1회 · 이후 내 키"];
+const CAPTIONS = ["녹화된 30일을 재생해요", "무료 체험 하루 3회 · 이후 내 키"];
 
 let React;
 let renderToString;
@@ -66,7 +66,7 @@ describe("42g one entry screen (SSR, no DOM)", () => {
     assert.ok(html.includes("바로 해 보기"), "try label");
     for (const b of TRY_BUTTONS) assert.ok(html.includes(b), `try button ${b}`);
     assert.ok(html.includes(CAPTIONS[0]), "replay caption");
-    const free = html.match(/무료 체험 1회 · 이후 내 키/g) || [];
+    const free = html.match(/무료 체험 하루 3회 · 이후 내 키/g) || [];
     assert.equal(free.length, 1, "one free-trial caption");
     assert.ok(html.includes(noAnswer.LANDING_KEY_ROW_LABEL), "key row");
     assert.ok(html.includes(landing.COVERAGE_LINE), "coverage line");
@@ -80,7 +80,7 @@ describe("42g one entry screen (SSR, no DOM)", () => {
     assert.ok(html.includes("바로 해 보기"), "try label");
     for (const b of TRY_BUTTONS) assert.ok(html.includes(b), `try button ${b}`);
     assert.ok(html.includes(CAPTIONS[0]), "replay caption");
-    const free = html.match(/무료 체험 1회 · 이후 내 키/g) || [];
+    const free = html.match(/무료 체험 하루 3회 · 이후 내 키/g) || [];
     assert.equal(free.length, 1, "one free-trial caption");
     assert.ok(html.includes(noAnswer.LANDING_KEY_ROW_LABEL), "key row");
     assert.ok(html.includes(landing.COVERAGE_LINE), "coverage line");
