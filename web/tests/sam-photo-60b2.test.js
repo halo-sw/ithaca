@@ -99,4 +99,21 @@ describe("listings.jsx source", () => {
     const block = listingsSrc.slice(start, start + 4000);
     assert.ok(!block.includes("측정"));
   });
+  it("photo block has no #1a56db and uses var(--ui-accent)", () => {
+    const start = listingsSrc.indexOf("SAM_PHOTO_ENABLED &&");
+    assert.ok(start >= 0);
+    const block = listingsSrc.slice(start, start + 4000);
+    assert.ok(!block.includes("#1a56db"));
+    assert.ok(block.includes("var(--ui-accent)"));
+  });
+  it("photo button sits inside an HStack", () => {
+    const start = listingsSrc.indexOf("SAM_PHOTO_ENABLED &&");
+    assert.ok(start >= 0);
+    const block = listingsSrc.slice(start, start + 4000);
+    const hstack = block.indexOf("<HStack");
+    const btn = block.indexOf('label="방 사진 추가 (선택)"');
+    assert.ok(hstack >= 0 && btn > hstack);
+    assert.ok(block.slice(hstack, btn).includes("<HStack") || block.lastIndexOf("<HStack", btn) >= 0);
+    assert.ok(block.slice(btn, btn + 500).includes("</HStack>") || block.indexOf("</HStack>", btn) >= 0);
+  });
 });

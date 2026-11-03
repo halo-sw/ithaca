@@ -145,7 +145,9 @@ export function PasteCheck({ onAsk } = {}) {
       {SAM_PHOTO_ENABLED && (
         <VStack gap={1}>
           <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPhoto} />
-          <Button size="sm" variant="secondary" label="방 사진 추가 (선택)" onClick={() => fileRef.current && fileRef.current.click()} />
+          <HStack gap={2} vAlign="center" wrap="wrap">
+            <Button size="sm" variant="secondary" label="방 사진 추가 (선택)" onClick={() => fileRef.current && fileRef.current.click()} />
+          </HStack>
           <Text type="supporting">사진은 창을 찾으려고 Meta SAM 3.1에만 보내요. Ithaca는 저장하지 않아요.</Text>
           {photo && photo.status === "reading" && (
             <Text type="supporting">사진에서 창을 찾는 중…</Text>
@@ -159,7 +161,7 @@ export function PasteCheck({ onAsk } = {}) {
                 <img src={photo.url} alt="추가한 방 사진" style={{ width: "100%", display: "block" }} />
                 <svg viewBox={`0 0 ${photo.result.frame.w} ${photo.result.frame.h}`} preserveAspectRatio="none" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} aria-hidden="true">
                   {(photo.result.windows || []).map((win, i) => (
-                    <rect key={i} x={win.bbox[0]} y={win.bbox[1]} width={win.bbox[2] - win.bbox[0]} height={win.bbox[3] - win.bbox[1]} fill="none" stroke="#1a56db" strokeWidth={Math.max(2, photo.result.frame.w / 200)} />
+                    <rect key={i} x={win.bbox[0]} y={win.bbox[1]} width={win.bbox[2] - win.bbox[0]} height={win.bbox[3] - win.bbox[1]} fill="none" style={{ stroke: "var(--ui-accent)" }} strokeWidth={Math.max(2, photo.result.frame.w / 200)} />
                   ))}
                 </svg>
               </div>
