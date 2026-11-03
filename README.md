@@ -176,9 +176,9 @@ flowchart TB
     C --> N["Unverified items<br/>stay visible"]
   end
   S1 --> S2 --> S3 --> S4
-  classDef muse fill:#eef3ff,stroke:#3d63dd,color:#111
-  classDef code fill:#f4f4f2,stroke:#777,color:#111
-  classDef you fill:#ffffff,stroke:#1a56db,color:#111
+  classDef muse fill:#cfe0ff,stroke:#0b5bd3,stroke-width:2px,color:#111
+  classDef code fill:#e6e6e3,stroke:#8a8a86,color:#111
+  classDef you fill:#ffffff,stroke:#444,color:#111
   class A,H,D,P muse
   class T,G,E,C,N code
   class U,F,O you
