@@ -29,9 +29,9 @@ describe("28f landing visual (SSR, no DOM)", () => {
     const html = renderToStaticMarkup(React.createElement(LandingPage));
     for (const s of [
       "Pre-simulation by Muse Agent",
-      "14초",
-      "85초",
-      "8/8",
+      "내 계획",
+      "30일",
+      "저장된 선택",
       "▸ 실거래 확인",
       "We walk the odyssey. You just come home.",
       "© 2026",

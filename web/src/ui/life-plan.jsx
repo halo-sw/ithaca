@@ -44,7 +44,8 @@ const STR = {
     questions: "Questions to resolve",
     unmodeled: "Not modelled",
     notes: "Review notes",
-    windowReason: "Repeat your working days, weekends and everyday trips to see what adds up.",
+    windowReason: "Repeats your confirmed working days, weekends and errands over 30 days to show what adds up.",
+    division: "Muse proposes routines and chooses among recorded options. The engine calculates routes, time and cost.",
     limit: "A comparison under your stated assumptions, not a forecast.",
     details: "Full assumptions and method",
     proposed: "Proposed schedule (review only — not applied)",
@@ -91,7 +92,8 @@ const STR = {
     questions: "확인할 질문",
     unmodeled: "모델에 없음",
     notes: "검토 메모",
-    windowReason: "평일·주말 출근 요일과 매일의 이동을 반복해 보면 무엇이 쌓이는지 알 수 있습니다.",
+    windowReason: "확정된 플랜의 평일·주말 출근 요일과 심부름을 30일 동안 반복해 무엇이 쌓이는지 보여 줍니다.",
+    division: "Muse는 루틴을 제안하고 기록된 선택지 중에서 고릅니다. 경로·시간·비용은 엔진이 계산합니다.",
     limit: "입력하신 가정에 따른 비교이며, 예측이 아닙니다.",
     details: "전체 가정과 산출 방법",
     proposed: "제안된 일정 (검토용 — 아직 적용되지 않음)",
@@ -119,14 +121,14 @@ const STR = {
 
 const FIELD_LABEL = {
   en: {
-    preferences: "Preferences", workdays: "Workdays", schooldays: "Schooldays",
+    preferences: "Preferences", workdays: "Working days", home_office_days: "Work-from-home days", schooldays: "Schooldays",
     errands_per_week: "Weekly errands", park_walks_per_week: "Park walks per week",
     clinic_visits_per_month: "Clinic visits per month", cafe_visits_per_week: "Café visits per week",
     vet_visits_per_month: "Vet visits per month", home_office: "Home office",
     dog_walk_morning: "Morning dog walks", commute: "Commute", school: "School",
   },
   ko: {
-    preferences: "선호", workdays: "출근 요일", schooldays: "등교 요일",
+    preferences: "선호", workdays: "근무요일", home_office_days: "재택 근무 요일", schooldays: "등교 요일",
     errands_per_week: "주간 장보기", park_walks_per_week: "주간 공원 산책",
     clinic_visits_per_month: "월간 병원 방문", cafe_visits_per_week: "주간 카페 방문",
     vet_visits_per_month: "월간 동물병원 방문", home_office: "재택 근무",
@@ -387,7 +389,7 @@ function changeDisplayValue(change, input, preview, lang) {
   if (change.field === "school") {
     return schoolReadable(v, lang) || STR[lang].noSchoolRoutine;
   }
-  if (change.field === "workdays" || change.field === "schooldays") {
+  if (change.field === "workdays" || change.field === "schooldays" || change.field === "home_office_days") {
     return dayList(v, lang);
   }
   return formatValue(v, lang);
@@ -429,9 +431,12 @@ function MemberSection({ entry, input, eff, count, lang }) {
   const keys = [...new Set([...Object.keys(assumptions), ...changes.map((c) => c.field)])];
   return (
     <VStack gap={1}>
-      <Text>{lang === "ko"
-        ? `${name}: 출근 ${count.work_days}일 · 등교 ${count.school_days}일`
-        : `${name}: ${count.work_days} workdays · ${count.school_days} schooldays`}</Text>
+      <Text>{(() => {
+        const remote = Number.isInteger(count.remote_days) ? count.remote_days : 0;
+        const hasRemote = remote > 0 || (eff && Array.isArray(eff.home_office_days));
+        if (lang === "ko") return hasRemote ? `${name}: 출근 ${count.work_days}일 · 재택 ${remote}일 · 등교 ${count.school_days}일` : `${name}: 출근 ${count.work_days}일 · 등교 ${count.school_days}일`;
+        return hasRemote ? `${name}: ${count.work_days} onsite workdays · ${remote} remote days · ${count.school_days} schooldays` : `${name}: ${count.work_days} workdays · ${count.school_days} schooldays`;
+      })()}</Text>
       <Text type="supporting">{`${lang === "ko" ? "직장" : "Work"}: ${workReadable(work, unresolved, lang)}`}</Text>
       {schoolText !== null ? <Text type="supporting">{schoolText}</Text> : null}
       {changes.length === 0
@@ -452,7 +457,7 @@ function MemberSection({ entry, input, eff, count, lang }) {
                   ? changeDisplayValue(change, input, eff, lang)
                   : k === "school"
                     ? (schoolReadable(effectiveFieldValue(k, change, eff, src), lang) || t.noSchoolRoutine)
-                    : (k === "workdays" || k === "schooldays")
+                    : (k === "workdays" || k === "schooldays" || k === "home_office_days")
                       ? dayList(effectiveFieldValue(k, change, eff, src), lang)
                       : formatValue(effectiveFieldValue(k, change, eff, src), lang);
                 return (
@@ -508,9 +513,11 @@ export function LifePlanCard({ plan, input, scenario, lang = "en", onConfirm, on
   const effById = new Map((preview.household.members || []).map((m) => [m && m.id, m]));
   const synopsis = counts.map((c) => {
     const label = memberName(input, effById.get(c.id), c.id);
-    return lg === "ko"
-      ? `${label} 출근 ${c.work_days}일 · 등교 ${c.school_days}일`
-      : `${label}: ${c.work_days} workdays · ${c.school_days} schooldays`;
+    const eff = effById.get(c.id);
+    const remote = Number.isInteger(c.remote_days) ? c.remote_days : 0;
+    const hasRemote = remote > 0 || (eff && Array.isArray(eff.home_office_days));
+    if (lg === "ko") return hasRemote ? `${label} 출근 ${c.work_days}일 · 재택 ${remote}일 · 등교 ${c.school_days}일` : `${label} 출근 ${c.work_days}일 · 등교 ${c.school_days}일`;
+    return hasRemote ? `${label}: ${c.work_days} onsite workdays · ${remote} remote days · ${c.school_days} schooldays` : `${label}: ${c.work_days} workdays · ${c.school_days} schooldays`;
   }).join(lg === "ko" ? " / " : " / ");
   const windowLine = lg === "ko"
     ? `${start || "미정"}부터 ${days}일`
@@ -520,6 +527,7 @@ export function LifePlanCard({ plan, input, scenario, lang = "en", onConfirm, on
     <VStack gap={2}>
       <Text>{t.title}</Text>
       <Text type="supporting">{t.windowReason}</Text>
+      <Text type="supporting">{t.division}</Text>
       <Text type="supporting">{windowLine}</Text>
       <Text>{t.proposed}</Text>
       {counts.length > 0 ? <Text type="supporting">{synopsis}</Text> : null}

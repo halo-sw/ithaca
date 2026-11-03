@@ -481,10 +481,18 @@ export function createWorkerRunner(makeWorkerOrUrl,
     }
     let settled = false;
     let timer = null;
+    let lastProgress = null;
+    let pendingDecide = null;
     const fail = (err) => {
       if (settled) return;
       settled = true;
       if (timer) clearTimeout(timer);
+      try {
+        if (pendingDecide) pendingDecide.abort();
+      } catch {
+        /* no pending decision */
+      }
+      pendingDecide = null;
       try {
         worker.terminate();
       } catch {
@@ -498,23 +506,54 @@ export function createWorkerRunner(makeWorkerOrUrl,
     };
     arm();
     worker.onmessage = (e) => {
+      if (settled) return;
       const d = e.data || {};
       if (d.decisionRequest) {
         arm();
         const { requestId, context } = d.decisionRequest || {};
+        const ctrl = new AbortController();
+        pendingDecide = ctrl;
+        let sawWait = false;
+        const onWait = (info) => {
+          if (settled) return;
+          sawWait = true;
+          arm();
+          const remainingSec = info && info.remainingSec;
+          const base = lastProgress && typeof lastProgress === "object" ? lastProgress : {};
+          try {
+            onProgress({ ...base, decisionWait: { remainingSec } });
+          } catch {
+            /* progress must never break the wait */
+          }
+        };
         Promise.resolve()
           .then(() => {
             if (typeof decide !== "function") throw new Error("no decision callback");
-            return decide(context);
+            return decide(context, { signal: ctrl.signal, onWait });
           })
           .then(
             (entry) => {
               if (settled) return; // late answer to a dead run
+              if (pendingDecide === ctrl) pendingDecide = null;
+              try {
+                ctrl.abort();
+              } catch {
+                /* decision exchange done */
+              }
               arm();
+              if (sawWait) {
+                const base = lastProgress && typeof lastProgress === "object" ? lastProgress : {};
+                try {
+                  onProgress({ ...base, decisionWait: null });
+                } catch {
+                  /* progress must never break the resume */
+                }
+              }
               worker.postMessage({ decisionAnswer: { requestId, entry } });
             },
             (err) => {
               if (settled) return;
+              if (pendingDecide === ctrl) pendingDecide = null;
               try {
                 worker.postMessage({ decisionError: {
                   requestId, error: String((err && err.message) || err),
@@ -530,12 +569,19 @@ export function createWorkerRunner(makeWorkerOrUrl,
       }
       if (d.progress) {
         arm();
+        lastProgress = d.progress;
         onProgress(d.progress);
         return;
       }
       if (settled) return;
       settled = true;
       if (timer) clearTimeout(timer);
+      try {
+        if (pendingDecide) pendingDecide.abort();
+      } catch {
+        /* no pending decision */
+      }
+      pendingDecide = null;
       try {
         worker.terminate();
       } catch {

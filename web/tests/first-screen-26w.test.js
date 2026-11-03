@@ -55,7 +55,7 @@ describe("26w first screen content (SSR, no DOM)", () => {
   it("shows the hero title and lede from the landing", () => {
     const html = emptyHtml();
     assert.ok(html.includes("어떤 집을 고민 중이세요?"), "hero title");
-    assert.ok(html.includes("Muse가 직접 확인하고, 대신 30일 살아 보고, 대화로 알려 줘요."), "hero lede");
+    assert.ok(html.includes("Muse가 각 사람의 일상을 계획하고, 실제 지도 속 선택지를 고르고, 두 집의 차이를 기록해요."), "hero lede");
     assert.ok(!html.includes(landing.LANDING_HEADING), "old heading gone");
     assert.ok(!html.includes(landing.LANDING_SUB), "old sub gone");
   });

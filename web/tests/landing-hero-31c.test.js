@@ -73,7 +73,7 @@ describe("31l landing hero order (SSR, no DOM)", () => {
     const facts = proof[1].match(/ds-lp-prooffact/g) || [];
     assert.equal(facts.length, 3);
     assert.ok(!proof[1].includes("·"), "no mid-dot separator in the stat row");
-    for (const [num, rest] of [["14초", "후보 6곳 찾기"], ["85초", "두 집 30일 살아 보기"], ["8/8", "일기 문장 기록과 대조"]]) {
+    for (const [num, rest] of [["내 계획", "고객님이 검토"], ["30일", "두 집에서 반복되는 일상"], ["저장된 선택", "이유와 보고서 확인"]]) {
       assert.ok(proof[1].includes(`<b>${num}</b>`), `number element: ${num}`);
       assert.ok(proof[1].includes(`<span>${rest}</span>`), `caption element: ${rest}`);
     }

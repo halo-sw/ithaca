@@ -14,9 +14,9 @@ import { NO_ANSWER_PROVIDERS, LANDING_KEY_ROW_LABEL } from "./no-answer-alert.js
 
 // Proof facts from the real walkthrough shown under the hero chips.
 const PROOFS = [
-  { num: "14초", rest: "후보 6곳 찾기" },
-  { num: "85초", rest: "두 집 30일 살아 보기" },
-  { num: "8/8", rest: "일기 문장 기록과 대조" },
+  { num: "내 계획", rest: "고객님이 검토" },
+  { num: "30일", rest: "두 집에서 반복되는 일상" },
+  { num: "저장된 선택", rest: "이유와 보고서 확인" },
 ];
 
 // Action ids shared by the chips and the 바로 해 보기 buttons.
@@ -82,7 +82,7 @@ export function EntryHero({
         <span data-no-i18n>Pre-simulation by Muse Agent</span>
       </p>
       <h1 className="ds-lp-title">어떤 집을 고민 중이세요?</h1>
-      <p className="ds-lp-lede">Muse가 직접 확인하고, 대신 30일 살아 보고, 대화로 알려 줘요.</p>
+      <p className="ds-lp-lede">Muse가 각 사람의 일상을 계획하고, 실제 지도 속 선택지를 고르고, 두 집의 차이를 기록해요.</p>
       <div className="ds-lp-composer">
         <ChatComposer
           onSubmit={submit}

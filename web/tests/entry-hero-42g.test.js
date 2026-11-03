@@ -14,7 +14,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const css = readFileSync(join(HERE, "..", "src", "ui", "ui.css"), "utf8");
 
 const TITLE = "어떤 집을 고민 중이세요?";
-const LEDE = "Muse가 직접 확인하고, 대신 30일 살아 보고, 대화로 알려 줘요.";
+const LEDE = "Muse가 각 사람의 일상을 계획하고, 실제 지도 속 선택지를 고르고, 두 집의 차이를 기록해요.";
 const CHIPS = ["출근지로 집 찾기", "본 매물 붙여 넣기", "예시로 써 보기"];
 const TRY_BUTTONS = ["기록된 한 달 보기", "Meta 본사 출근으로 해 보기", "서울로 해 보기"];
 const CAPTIONS = ["녹화된 30일을 재생해요", "무료 체험 1회 · 이후 내 키"];
