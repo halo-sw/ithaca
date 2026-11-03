@@ -965,14 +965,14 @@ export function ChatMap({ map, cardHi, onPinHover, onPinClick, onViewCard,
   const creditFull = (!basemapOn
     ? "© OpenStreetMap contributors"
     : provider === "usgs"
-      ? "Map: USGS The National Map"
+      ? "Map: USGS The National Map · © OpenStreetMap contributors"
       : lang === "en"
         ? "Map © MOLIT Spatial Information Open Platform (VWorld) · © OpenStreetMap contributors"
         : "지도 © 국토교통부 공간정보 오픈플랫폼(VWorld) · © OpenStreetMap contributors") + registerNote;
   const creditShort = !basemapOn
     ? "© OpenStreetMap"
     : provider === "usgs"
-      ? "© USGS"
+      ? "© USGS · © OpenStreetMap"
       : "© VWorld · © OpenStreetMap";
   // 50a: loading/unavailable/partial state in the credit column, in
   // the current language. Pins and pan/zoom are never blocked; one
