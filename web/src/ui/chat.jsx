@@ -816,7 +816,7 @@ export function DiarySection({ diary, customId, onScene, onRetry, canRetry = tru
     setDrawing(true);
     let out;
     try {
-      out = await postDiaryPicture({ kind: sceneKindOf(target), minute: Math.round(target.minute), region });
+      out = await postDiaryPicture({ kind: sceneKindOf(target), minute: Math.min(1439, Math.floor(target.minute)), region });
     } catch {
       out = { ok: false, error: "network" };
     }
@@ -860,9 +860,11 @@ export function DiarySection({ diary, customId, onScene, onRetry, canRetry = tru
       {showPicture && !drawing && pic && (
         <figure style={{ margin: 0, maxWidth: 360 }}>
           <img src={pic.image} alt="일기 장면 일러스트" style={{ width: "100%", display: "block", borderRadius: 8 }} />
-          <figcaption>
-            <Text type="supporting">{`${pic.line.day + 1}일째 ${hhmm(pic.line.minute)} 장면`}</Text>
-            <Text type="supporting">{DIARY_PICTURE_CAPTION}</Text>
+          <figcaption style={{ marginTop: 4 }}>
+            <VStack gap={1}>
+              <Text type="supporting">{`${pic.line.day + 1}일째 ${hhmm(pic.line.minute)} 장면`}</Text>
+              <Text type="supporting">{DIARY_PICTURE_CAPTION}</Text>
+            </VStack>
           </figcaption>
         </figure>
       )}
