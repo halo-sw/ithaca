@@ -67,9 +67,10 @@
 <tbody>
 <tr><td nowrap><b>참가 자격</b></td><td>Meta Global AI Developer Hackathon · 트랙: <b>Indie Developer</b> · 문제 주제: <b>Build for Your World</b><br><a href="https://github.com/halo-sw/ithaca/commit/7fec53140d26cc100392126fa76029909c0ff1a3">2026년 10월 28일</a>부터 <b>Halo가 혼자</b> 처음부터 만들었어요 · 공개 저장소, MIT</td></tr>
 <tr><td nowrap><b>임팩트</b></td><td><b>문제:</b> 집은 대부분의 가족에게 가장 큰 구매인데, 사진 몇 장과 짧은 집 구경 한 번으로 서둘러 정해요. 한국에서는 전세사기 피해자로 공식 인정된 사례가 <b>41,559건</b>이고, 인정된 임차인의 <b>75.9%</b>가 40세 미만이에요. 미국에서는 주택 소유자의 <b>45%</b>가 집을 산 것에 후회가 있어요.<br><b>달라지는 것:</b> 우리 가족을 닮은 가족이 두 집에서 먼저 30일씩 살아 보고, 출퇴근만이 아니라 한 달 치 생활 전체를 비교해요. Meta 본사까지 실제 통근은 매물식 계산보다 평균 <b>28.7분</b> 더 걸려요.<br><b>초기 반응:</b> 주변 20명 정도가 써 봤고, <b>80%</b>가 실제로 쓰고 싶다고 했어요.<br><a href="#3-문제-정의">문제 정의 ↓</a> · <a href="#7-사용자-반응과-다음-단계">사용자 반응 ↓</a></td></tr>
-<tr><td nowrap><b>Meta AI 활용</b></td><td><b>에이전트는 Muse Spark 1.3이에요.</b> 도구를 쓰는 상담, 사용자가 검토하는 구성원별 플랜, 하루하루의 선택(데모 영상의 한 달에서 <b>134번</b>, 선택지와 이유까지 저장), 리포트, 그리고 리포트 문장을 따로 검사하는 Muse 판정까지 맡아요.<br><b>Muse Spark Open</b>(공개 가중치, Baseten)도 같은 에이전트를 돌릴 수 있어요. 함께 만난 판단 지점 <b>139곳 중 120곳</b>에서 Spark 1.3과 같은 선택을 했어요.<br><b>Muse Voice</b>는 말을 고칠 수 있는 글로 받아 적고, <b>Muse Image</b>는 기록 한 장면을 표시가 붙은 그림으로 그리고, <b>SAM 3.1</b>은 방 사진에서 창을 찾아요.<br><a href="#4-muse-에이전트가-일하는-방식">에이전트가 일하는 방식 ↓</a> · <a href="#모델이-도는-곳">모델이 도는 곳 ↓</a></td></tr>
+<tr><td nowrap><b>Meta AI 활용</b></td><td><b>에이전트는 Muse Spark 1.3이에요.</b> 도구를 쓰는 상담, 사용자가 검토하는 구성원별 플랜, 하루하루의 선택(데모 영상의 한 달에서 <b>134번</b>, 선택지와 이유까지 저장), 리포트, 그리고 리포트 문장을 따로 검사하는 Muse 판정까지 맡아요.<br><b>뜻밖의 발견:</b> 첫 서울 실시간 실행에서 Muse 판정이 리포트를 세 번 돌려보냈고, 그 이유가 우리 코드의 버그 세 개를 찾아냈어요(엔진이 모르는 구성원 ID, 숫자 없는 문장을 검사된 것으로 센 문제, 이동 수단 없이 판정에 보낸 걷기 기록). 고친 뒤에는 같은 가족이 첫 시도에 통과해요(<a href="docs/verification.ko.md">검증</a>). 선택도 Muse가 직접 해요. 모델 비교에서 Spark 1.3은 결정 154번 중 <b>75번</b> 규칙 기본값과 다른 선택을 했어요.<br><b>Muse Spark Open</b>(공개 가중치, Baseten)도 같은 에이전트를 돌릴 수 있어요. 함께 만난 판단 지점 <b>139곳 중 120곳</b>에서 Spark 1.3과 같은 선택을 했어요.<br><b>Muse Voice</b>는 말을 고칠 수 있는 글로 받아 적고, <b>Muse Image</b>는 기록 한 장면을 표시가 붙은 그림으로 그리고, <b>SAM 3.1</b>은 방 사진에서 창을 찾아요.<br><a href="#4-muse-에이전트가-일하는-방식">에이전트가 일하는 방식 ↓</a> · <a href="#모델이-도는-곳">모델이 도는 곳 ↓</a></td></tr>
 <tr><td nowrap><b>기술 깊이와<br>완성도</b></td><td><b>고르는 건 Muse, 계산은 코드.</b> 가드는 도구가 계산한 숫자만 통과시키고, 브라우저 워커가 두 집에서 30일씩 돌리고, 리포트는 코드(숫자, 근거 ID)와 Muse 판정(문장)이 최대 3번까지 검사해요.<br>3D 동네는 OpenStreetMap, 건물 자료, 항공사진으로 만들어요. 서울·경기 일부와 Meta 본사까지 이어지는 Caltrain 축을 다뤄요.<br>리포트 검사는 기록된 실행 <b>3개 모두</b> 첫 시도에 통과했어요. CI는 PR마다 <b>JS 테스트 3,765개</b>, <b>Python 테스트 289개</b>, Docker compose 실행 확인을 돌려요.<br><b>제품은 Muse Code가 작성했어요.</b> <code>main</code>에 더해진 코드 줄의 99.87%가 Muse Code 자신의 편집 기록과 맞아요. <a href="#6-누가-무엇을-만들었나">누가 무엇을 만들었나 ↓</a></td></tr>
 <tr><td nowrap><b>데모</b></td><td>함께 쓰는 하루 한도 안에서 실시간 Muse가 도는 <a href="https://halo-sw.github.io/ithaca/?lang=ko">공개 앱</a> · 키 없이 재생되는 <a href="https://halo-sw.github.io/ithaca/?replay=seoul-couple&amp;lang=ko">기록된 한 달</a> · <a href="https://halo-sw.github.io/ithaca/?chat=I+work+at+Meta+HQ+in+Menlo+Park.+Two+of+us%2C+rent+up+to+%244%2C500+a+month.&amp;lang=en">Meta 본사 사례(영어)</a><br><a href="https://www.youtube.com/watch?v=h_RUbIYWTKY">YouTube 데모 영상, 2분 57초(영어)</a> · <a href="#화면">화면 ↓</a> · <code>docker compose up --build</code>(<a href="#0-빠르게-시작하기">빠르게 시작하기 ↓</a>)</td></tr>
+<tr><td nowrap><b>보너스 상</b></td><td><b>Best Agentic Use-Case:</b> Muse가 구성원별 생활 계획을 제안하고, 요청하면 고치고, 하루하루의 선택을 이유와 함께 저장해요. 리포트는 보여 주기 전에 다른 Muse 호출이 검사해요.</td></tr>
 </tbody>
 </table>
 
@@ -119,6 +120,8 @@ python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt
 ```
 
 직접 만든 지역 데이터가 있어야 하는 테스트는 새로 받은 저장소에서 스스로 건너뛰어요. CI에서도 같아요.
+
+**오픈 웨이트 모델로 돌려 보기.** [공개 앱](https://halo-sw.github.io/ithaca/?lang=ko) 헤더에서 **Muse Spark Open**을 고르세요. 중계 서버가 자기 키로 Baseten에서 돌리니 키가 필요 없어요(함께 쓰는 하루 한도 안에서). Spark Open이 바쁠 때는 답이 Spark 1.3에서 올 수 있어요. 직접 돌릴 때는 `.env`에 `BASETEN_API_KEY`가 있어야 해요. 비교에 쓴 Spark Open의 기록된 결정은 [`scenarios/decisions/compare-1029/`](scenarios/decisions/compare-1029/)에 있어요.
 
 ## 1. 프로젝트 소개
 
