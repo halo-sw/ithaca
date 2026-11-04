@@ -23,8 +23,8 @@
 </p>
 
 <p align="center">
-  <b>Meta AI로 만들었어요.</b> Meta Model API(api.meta.ai): Muse Spark 1.3 · Muse Voice · Muse Image · SAM 3.1<br>
-  Open-weights 모델: Baseten의 Muse Spark Open, <a href="docs/evidence/README.md#what-is-not-here">공개된 그대로 서빙, 파인튜닝 없음</a> · <a href="#6-누가-무엇을-만들었나">코드는 Muse Code가 작성</a>
+  <b>Meta AI로 만들었어요.</b> Meta Model API(api.meta.ai): Muse Spark 1.3&nbsp;· Muse Voice&nbsp;· Muse Image&nbsp;· SAM 3.1<br>
+  Open-weights 모델: Baseten의 Muse Spark Open, <a href="docs/evidence/README.md#what-is-not-here">공개된 그대로 서빙, 파인튜닝 없음</a>&nbsp;· <a href="#6-누가-무엇을-만들었나">코드는 Muse Code가 작성</a>
 </p>
 
 <p align="center">

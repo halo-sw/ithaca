@@ -23,8 +23,8 @@ Household simulation · Muse agent planning · Voice intake · Room-photo vision
 </p>
 
 <p align="center">
-  <b>Built with Meta AI:</b> Meta Model API (api.meta.ai): Muse Spark 1.3 · Muse Voice · Muse Image · SAM 3.1<br>
-  Open weights: Muse Spark Open on Baseten, <a href="docs/evidence/README.md#what-is-not-here">served as published, no fine-tuning</a> · <a href="#6-who-built-what">Code written by Muse Code</a>
+  <b>Built with Meta AI:</b> Meta Model API (api.meta.ai): Muse Spark 1.3&nbsp;· Muse Voice&nbsp;· Muse Image&nbsp;· SAM 3.1<br>
+  Open weights: Muse Spark Open on Baseten, <a href="docs/evidence/README.md#what-is-not-here">served as published, no fine-tuning</a>&nbsp;· <a href="#6-who-built-what">Code written by Muse Code</a>
 </p>
 
 <p align="center">
