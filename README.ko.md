@@ -233,7 +233,7 @@ API 경로: Meta `api.meta.ai/v1/` 아래 `chat/completions`(Spark 1.3), `asr/tr
 
 Muse Image가 그린 그림에는 “**Muse Image 일러스트 · 실제 장소 사진이 아니에요**”라는 표시가 붙어요. 집을 찍은 사진이 아니에요. SAM은 창 상자와 그 상자가 사진에서 차지하는 비율만 알려 줘요. 실제 창 크기나 채광 성능은 말하지 않아요. 공개한 호출 기록에는 그림으로 그린 시험용 방을 썼어요. 이 두 기능은 30일 비교의 근거와 별개예요.
 
-앱은 **“Muse가 제안한 플랜”**, **“Muse가 고르는 중”**, 기록된 선택의 출처로 에이전트가 한 일을 보여 줘요. 기록된 한 달은 모두 **Spark 1.3**으로 돌렸어요. 화면에서 Spark Open을 고를 수 있다고 해서, 그 실행들을 Spark Open이 만든 것은 아니에요. 제품 코드는 Muse Code가 작성했고, Claude Code와 Codex는 단계를 기획하고 Muse Code에게 지시했어요([누가 무엇을 만들었나 ↓](#6-누가-무엇을-만들었나)). [전체 구조](docs/architecture.ko.md) · [검증 규칙](docs/verification.ko.md) · [모델 근거(영어)](docs/evidence/README.md)
+앱은 **“Muse가 제안한 플랜”**, **“Muse가 고르는 중”**, 기록된 선택의 출처로 에이전트가 한 일을 보여 줘요. 기록된 판교·서울 한 달은 **Spark 1.3**으로 돌렸고, 화면 5는 **Muse Spark Open**을 골라 따로 돌린 Meta HQ 사례예요. 제품 코드는 Muse Code가 작성했고, Claude Code와 Codex는 단계를 기획하고 Muse Code에게 지시했어요([누가 무엇을 만들었나 ↓](#6-누가-무엇을-만들었나)). [전체 구조](docs/architecture.ko.md) · [검증 규칙](docs/verification.ko.md) · [모델 근거(영어)](docs/evidence/README.md)
 
 ## 5. 주요 서비스 흐름
 
@@ -246,7 +246,7 @@ Muse Image가 그린 그림에는 “**Muse Image 일러스트 · 실제 장소 
 
 ### 화면
 
-네 장 모두 공개 사이트에서 키 없이 볼 수 있는 화면이에요. 1과 4는 서울 예비부부의 기록된 한 달, 2는 판교 커플의 기록된 한 달(영어로 나눈 대화라 일부 문장이 영어예요), 3은 두 집 3D 데모예요.
+다섯 장 모두 공개 사이트에서 키 없이 볼 수 있는 화면이에요. 1과 4는 서울 예비부부의 기록된 한 달, 2는 판교 커플의 기록된 한 달(영어로 나눈 대화라 일부 문장이 영어예요), 3은 두 집 3D 데모, 5는 Muse Spark Open으로 돌린 Meta HQ 사례예요.
 
 <table>
   <tr>
@@ -256,6 +256,9 @@ Muse Image가 그린 그림에는 “**Muse Image 일러스트 · 실제 장소 
   <tr>
     <td width="50%" valign="top"><img src="docs/img/readme-3-live-ko.jpg" alt="구성원 한 명을 따라가는 3D 도시 화면과, 그날 지하철 구간마다 실측 또는 가정값 표시가 붙은 목록"><br><b>3. 한 달 살아 보기.</b> 구성원 한 명을 따라 3D 도시를 다녀요. 지하철 구간마다 실측인지 가정값인지 표시돼요.</td>
     <td width="50%" valign="top"><img src="docs/img/readme-4-check-ko.jpg" alt="비교 리포트 검증: 1차 통과(100%), 문장마다 숫자 확인 또는 근거 표시, 옆에 3D 출근길"><br><b>4. 검사한 리포트 읽기.</b> 숫자는 코드가 모두 다시 계산하고, 문장마다 Muse가 인용한 기록과 대조해 판정해요. 이 리포트는 1차에 통과했어요.</td>
+  </tr>
+  <tr>
+    <td colspan="2" valign="top"><img src="briefs/img/1102-menlo.jpg" alt="헤더에서 Muse Spark Open(오픈 웨이트)을 고른 Meta HQ 사례: 30일 뒤 777 Hamilton 월 $4,261·편도 14분, 124 University Avenue 월 $4,219·33분, 리포트 검사 1차 통과(100%), 1일 차 08:10의 3D 동네"><br><b>5. 오픈 웨이트로도 돌려요.</b> 헤더에서 <b>Muse Spark Open · open weights</b>(<code>meta-models/muse-spark-open-1026</code>, Baseten에서 서빙)를 고르면 같은 에이전트가 그 모델로 돌아요. Meta HQ 가족이 Menlo Park의 두 집에서 30일을 산 결과로, 편도 14분 대 33분이고 리포트 검사는 1차에 통과했어요. 11월 2일 공개 사이트에서 찍은 화면이에요.</td>
   </tr>
 </table>
 
