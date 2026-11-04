@@ -23,6 +23,11 @@ Household simulation · Muse agent planning · Voice intake · Room-photo vision
 </p>
 
 <p align="center">
+  <b>Built with Meta AI:</b> Meta Model API (api.meta.ai): Muse Spark 1.3 · Muse Voice · Muse Image · SAM 3.1<br>
+  Open weights: Muse Spark Open on Baseten, <a href="docs/evidence/README.md#what-is-not-here">served as published, no fine-tuning</a> · <a href="#6-who-built-what">Code written by Muse Code</a>
+</p>
+
+<p align="center">
   <a href="https://halo-sw.github.io/ithaca/?lang=en"><img src="https://img.shields.io/badge/Try_it-live-1a56db?style=for-the-badge" alt="Try it live"></a>
   &nbsp;
   <a href="https://www.youtube.com/watch?v=h_RUbIYWTKY"><img src="https://img.shields.io/badge/Watch-the_demo_·_2:57-1a56db?style=for-the-badge" alt="Watch the demo video on YouTube, 2:57"></a>

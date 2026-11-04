@@ -23,6 +23,11 @@
 </p>
 
 <p align="center">
+  <b>Meta AI로 만들었어요.</b> Meta Model API(api.meta.ai): Muse Spark 1.3 · Muse Voice · Muse Image · SAM 3.1<br>
+  Open-weights 모델: Baseten의 Muse Spark Open, <a href="docs/evidence/README.md#what-is-not-here">공개된 그대로 서빙, 파인튜닝 없음</a> · <a href="#6-누가-무엇을-만들었나">코드는 Muse Code가 작성</a>
+</p>
+
+<p align="center">
   <a href="https://halo-sw.github.io/ithaca/?lang=ko"><img src="https://img.shields.io/badge/바로_써_보기-LIVE-1a56db?style=for-the-badge" alt="바로 써 보기"></a>
   &nbsp;
   <a href="https://www.youtube.com/watch?v=h_RUbIYWTKY"><img src="https://img.shields.io/badge/데모_영상-2:57_·_영어-1a56db?style=for-the-badge" alt="YouTube에서 데모 영상 보기, 2분 57초, 영어"></a>
