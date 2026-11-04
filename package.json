@@ -5,6 +5,7 @@
   "scripts": {
     "test": "npm --prefix web test",
     "test:py": "python -m pytest -q",
+    "test:baseten": "cd web && node --test tests/agent-baseten-41f.test.js tests/relay-baseten-41f.test.js",
     "dev": "npm --prefix web run dev",
     "build": "npm --prefix web run build",
     "relay": "node relay/server.mjs"
