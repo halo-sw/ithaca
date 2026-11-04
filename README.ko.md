@@ -8,8 +8,9 @@
 <h3 align="center">계약하기 전에, 그 집에서의 30일을 먼저 살아 보세요.</h3>
 
 <p align="center"><b>다음 집을 먼저 살아 보는 에이전트</b><br>
-가족 생활 시뮬레이션&nbsp;· Meta&nbsp;Model&nbsp;API의 Muse&nbsp;Spark&nbsp;1.3 에이전트&nbsp;· Baseten의 Muse&nbsp;Spark&nbsp;Open(오픈 웨이트)<br>
-음성 입력&nbsp;· 방 사진 비전&nbsp;· 근거를 검사한 리포트</p>
+가족 생활 시뮬레이션&nbsp;· 음성 입력&nbsp;· 방 사진 비전&nbsp;· 근거를 검사한 리포트<br>
+Meta Model API의 Muse Spark 1.3 에이전트<br>
+Baseten의 Muse Spark Open(open weights)</p>
 
 <p align="center">
   <a href="https://github.com/halo-sw/ithaca/actions/workflows/ci.yml"><img src="https://github.com/halo-sw/ithaca/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
