@@ -8,7 +8,8 @@
 <h3 align="center">Before you sign, live the next 30 days.</h3>
 
 <p align="center"><b>The pre-living agent for your next home</b><br>
-Household simulation · Muse agent planning · Voice intake · Room-photo vision · Evidence-checked reports</p>
+Household simulation&nbsp;· Muse&nbsp;Spark&nbsp;1.3 agent on the Meta&nbsp;Model&nbsp;API&nbsp;· Muse&nbsp;Spark&nbsp;Open (open&nbsp;weights) on&nbsp;Baseten<br>
+Voice intake&nbsp;· Room-photo vision&nbsp;· Evidence-checked reports</p>
 
 <p align="center">
   <a href="https://github.com/halo-sw/ithaca/actions/workflows/ci.yml"><img src="https://github.com/halo-sw/ithaca/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
