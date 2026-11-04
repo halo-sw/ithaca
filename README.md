@@ -223,7 +223,7 @@ API paths: Meta `api.meta.ai/v1/` + `chat/completions` (Spark 1.3), `asr/transcr
 
 Muse Image outputs carry **“Illustration by Muse Image”** labeling; they are not photographs of the property. SAM reports boxes and their share of the image, not physical window dimensions or daylight performance. Its published call used an illustrated test room. These integrations are separate from the evidence for the 30-day comparison.
 
-The app exposes its agent work through **“Plan proposed by Muse,” “Muse is choosing…”** and recorded choice sources. The recorded months used **Spark 1.3**; selecting Spark Open in the UI is not evidence that it produced them. Muse Code wrote the product code; Claude Code and Codex planned the stages and directed it ([who built what ↓](#6-who-built-what)). [Full architecture](docs/architecture.md) · [Verification rules](docs/verification.md) · [Model evidence](docs/evidence/README.md).
+The app exposes its agent work through **“Plan proposed by Muse,” “Muse is choosing…”** and recorded choice sources. The recorded Pangyo months used **Spark 1.3**; screen 5 shows a separate Meta HQ run with **Muse Spark Open** selected. Muse Code wrote the product code; Claude Code and Codex planned the stages and directed it ([who built what ↓](#6-who-built-what)). [Full architecture](docs/architecture.md) · [Verification rules](docs/verification.md) · [Model evidence](docs/evidence/README.md).
 
 ## 5. Main service flow
 
@@ -236,7 +236,7 @@ The app exposes its agent work through **“Plan proposed by Muse,” “Muse is
 
 ### Screens
 
-All four are from the public site and need no key: 1, 2 and 4 from the recorded Pangyo month, 3 from the two-home demo in 3D.
+1 to 4 are from the public site and need no key: 1, 2 and 4 from the recorded Pangyo month, 3 from the two-home demo in 3D. 5 is a separate Meta HQ run on Muse Spark Open.
 
 <table>
   <tr>
@@ -246,6 +246,9 @@ All four are from the public site and need no key: 1, 2 and 4 from the recorded 
   <tr>
     <td width="50%" valign="top"><img src="docs/img/readme-3-live-en.jpg" alt="A 3D city view following one household member, with a panel listing the day's subway legs, each tagged measured or assumed"><br><b>3. Live the month.</b> Follow a member through the 3D city. Each subway leg is tagged as measured or assumed.</td>
     <td width="50%" valign="top"><img src="docs/img/readme-4-check-en.jpg" alt="The report check: attempt 1 passed with 100 % coverage, each sentence tagged numbers checked or record cited, next to the 3D commute route"><br><b>4. Read the checked report.</b> Code recomputes every number and Muse judges each claim against the cited record. This report passed on the first try.</td>
+  </tr>
+  <tr>
+    <td colspan="2" valign="top"><img src="briefs/img/1102-menlo.jpg" alt="Meta HQ in Menlo Park with the header switch set to Muse Spark Open, open weights: after 30 days, 777 Hamilton $4,261 a month and 14 min one-way, 124 University Avenue $4,219 and 33 min; report check passed on try 1 (100 %); the 3D neighborhood on Day 1 at 08:10"><br><b>5. Or run it on open weights.</b> The same agent with the header switch set to <b>Muse Spark Open · open weights</b> (<code>meta-models/muse-spark-open-1026</code>, served on Baseten): a Meta HQ household after 30 days in two homes, in Menlo Park and Palo Alto, 14 vs 33 min one-way, with the report check passed on the first try. In that session the 30-day result reply came from Spark Open and the two replies before it from Spark 1.3 (once because Spark Open was busy). Captured on November 2 from a local copy of the site.</td>
   </tr>
 </table>
 
