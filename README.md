@@ -236,7 +236,7 @@ The app exposes its agent work through **“Plan proposed by Muse,” “Muse is
 
 ### Screens
 
-All five are from the public site and need no key: 1, 2 and 4 from the recorded Pangyo month, 3 from the two-home demo in 3D, and 5 from a Meta HQ run on Muse Spark Open.
+1 to 4 are from the public site and need no key: 1, 2 and 4 from the recorded Pangyo month, 3 from the two-home demo in 3D. 5 is a separate Meta HQ run on Muse Spark Open.
 
 <table>
   <tr>
@@ -248,7 +248,7 @@ All five are from the public site and need no key: 1, 2 and 4 from the recorded 
     <td width="50%" valign="top"><img src="docs/img/readme-4-check-en.jpg" alt="The report check: attempt 1 passed with 100 % coverage, each sentence tagged numbers checked or record cited, next to the 3D commute route"><br><b>4. Read the checked report.</b> Code recomputes every number and Muse judges each claim against the cited record. This report passed on the first try.</td>
   </tr>
   <tr>
-    <td colspan="2" valign="top"><img src="briefs/img/1102-menlo.jpg" alt="Meta HQ in Menlo Park with the header switch set to Muse Spark Open, open weights: after 30 days, 777 Hamilton $4,261 a month and 14 min one-way, 124 University Avenue $4,219 and 33 min; report check passed on try 1 (100 %); the 3D neighborhood on Day 1 at 08:10"><br><b>5. Or run it on open weights.</b> The same agent with the header switch set to <b>Muse Spark Open · open weights</b> (<code>meta-models/muse-spark-open-1026</code>, served on Baseten): a Meta HQ household after 30 days in two Menlo Park homes, 14 vs 33 min one-way, with the report check passed on the first try. Captured from the public site on November 2.</td>
+    <td colspan="2" valign="top"><img src="briefs/img/1102-menlo.jpg" alt="Meta HQ in Menlo Park with the header switch set to Muse Spark Open, open weights: after 30 days, 777 Hamilton $4,261 a month and 14 min one-way, 124 University Avenue $4,219 and 33 min; report check passed on try 1 (100 %); the 3D neighborhood on Day 1 at 08:10"><br><b>5. Or run it on open weights.</b> The same agent with the header switch set to <b>Muse Spark Open · open weights</b> (<code>meta-models/muse-spark-open-1026</code>, served on Baseten): a Meta HQ household after 30 days in two homes, in Menlo Park and Palo Alto, 14 vs 33 min one-way, with the report check passed on the first try. In that session the 30-day result reply came from Spark Open and the two replies before it from Spark 1.3 (once because Spark Open was busy). Captured on November 2 from a local copy of the site.</td>
   </tr>
 </table>
 
